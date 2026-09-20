@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { normalizeSettings } from './settings.js';
+import { intersectionAccess } from './intersections.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -295,8 +296,10 @@ export function createCity(container, initialSettings) {
         if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
       }
     }
+    const crossingAccess = intersectionAccess(lanes, BLOCK, time);
     for (const lane of lanes.values()) {
       if (moving) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), {
+        crossingAccess,
         blockSize: BLOCK, weaving: settings.weaving / 100,
         opposing: lanes.get(`${lane.axis}:${lane.line}:${-lane.direction}`)?.cars ?? [],
         greenRemaining: greenTimeLeft(time, lane.axis) / Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100),

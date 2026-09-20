@@ -19,6 +19,7 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  car.crossing = undefined;
   car.flashAge = null;
   car.flashCooldown = 0;
   car.signalWait = 0;
@@ -169,7 +170,7 @@ function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRe
   return { leader, remaining: duration, returnSpace };
 }
 
-export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1, opposing, greenRemaining = Infinity } = {}) {
+export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1, opposing, greenRemaining = Infinity, crossingAccess } = {}) {
   cars.sort((a, b) => (b.position - a.position) * direction);
   updateSignals(cars, direction, delta, green);
   for (const car of cars) {
@@ -229,7 +230,8 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       ? Math.min(cruise, car.mergeSpeed ?? car.speed)
       : Math.min(desiredSpeed, car.speed + acceleration * delta);
     const travel = Math.min(speed * delta, Math.max(0, clearance - reservedGap));
-    const next = advanceVehicle(car.position, travel, direction, green, blockSize);
+    const permitted = crossingAccess ? crossingAccess(car, travel, green, clearance, speed) : green;
+    const next = advanceVehicle(car.position, travel, direction, permitted, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;
     if (car.changing) {
