@@ -25,7 +25,7 @@
 
 ## Публичные инструкции
 
-- `collect_fees`: получает доступные комиссии и выполняет базовый split; точный источник 4% и граница stock swaps пока открыты.
+- `collect_fees`: получает доступный pump.fun Creator Fee после его передачи проекту и выполняет базовый split; paired asset и последовательность конвертаций пока открыты.
 - `calculate_rewards(group, accounts...)`: permissionless продвигает выбранную очередь bounded batch и обновляет глобальный доход на единицу веса.
 - `claim(asset)`: текущий owner получает рассчитанный доход одной NFT.
 - `repair(asset)`: текущий owner сжигает рассчитанную сумму `$FARE` и восстанавливает 5 дней прочности.
@@ -35,7 +35,7 @@
 
 ## Неизменные экономические правила
 
-- 4% от покупки и 4% от продажи `$FARE`; точная Solana-реализация открыта.
+- `$FARE` запускается через pump.fun. Собственных 4% временно нет; используется фактический переменный Creator Fee платформы без обещания постоянного процента.
 - Split комиссий: 45% основной парк, 5% стажёры, 20% burn `$FARE`, 20% stock-корзина, 10% команда.
 - Парк распределяет только фактически накопленный пул, без фиксированного APY.
 - Максимальная прочность обычной машины — 5 дней; `claim` её не меняет.
@@ -56,3 +56,5 @@
 - [Anchor](https://www.anchor-lang.com/docs) — framework для Solana programs на Rust.
 - [Metaplex Core Asset](https://developers.metaplex.com/core/what-is-an-asset) — предварительный NFT-кандидат с одним asset account.
 - [xStocks](https://xstocks.com/products) — предварительный кандидат токенизированных акций на Solana; конкретные продукты, mint-адреса, ликвидность и региональные ограничения ещё нужно подтвердить.
+- [pump.fun Fees](https://pump.fun/docs/fees) — Creator Fee и общая торговая комиссия зависят от стадии запуска, paired asset и диапазона market cap и могут изменяться площадкой.
+- [pump.fun Supported Pair Assets](https://pump.fun/docs/custom-pairs) — Creator Fees выплачиваются в paired asset, а не в `$FARE` автоматически.
