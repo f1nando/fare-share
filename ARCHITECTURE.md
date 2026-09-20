@@ -4,6 +4,8 @@
 
 Проект проектируется для Solana. Старые решения для Robinhood Chain/EVM не применяются. Экономика, прочность машин и lazy accounting сохранены; несовместимые инфраструктурные решения повторно открыты в `docs/TECHNICAL-QUESTIONS.md`.
 
+Точный снимок прежнего EVM-варианта сохранён в `docs/evm-robinhood-chain/` как независимая основа для возможного будущего запуска. Текущая разработка продолжается только по Solana-документам.
+
 ## Минимальный стек
 
 - On-chain: Rust + Anchor, Solana programs и PDA accounts.
@@ -25,7 +27,7 @@
 
 ## Публичные инструкции
 
-- `collect_fees`: получает доступный pump.fun Creator Fee в SOL, делит его по направлениям и запускает необходимые покупки `$FARE` и stock-токенов; способ получения Creator Fee программой пока открыт.
+- `collect_fees`: permissionless обрабатывает pump.fun Creator Fee, поступивший напрямую на program-controlled PDA, делит SOL по направлениям и запускает необходимые покупки `$FARE` и stock-токенов.
 - `calculate_rewards(group, accounts...)`: permissionless продвигает выбранную очередь bounded batch и обновляет глобальный доход на единицу веса.
 - `claim(asset)`: текущий owner получает рассчитанный доход одной NFT.
 - `repair(asset)`: текущий owner сжигает рассчитанную сумму `$FARE` и восстанавливает 5 дней прочности.
