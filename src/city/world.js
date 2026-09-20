@@ -10,6 +10,8 @@ export const REAR_AXLE_Z = -0.69;
 export const MAX_MERGE_ANGLE = Math.PI / 15;
 export const FLASH_PERIOD = 0.36;
 export const FLASH_DURATION = FLASH_PERIOD * 3;
+export const ONCOMING_TRACK = -1;
+export const trackOffset = track => track === ONCOMING_TRACK ? -TRACKS[0] : TRACKS[track];
 
 export function headlightsOn(car) {
   return car.taxi && typeof car.flashAge === 'number' && car.flashAge < FLASH_DURATION &&
@@ -22,6 +24,14 @@ export function resetSignal(car) {
   car.signalWait = 0;
   car.yieldDelay = 0;
   car.yieldRemaining = 0;
+  if (car.overtake || occupiesTrack(car, ONCOMING_TRACK)) {
+    car.track = car.fromTrack = 0;
+    car.offset = TRACKS[0];
+    car.changing = false;
+    car.merge = 1;
+    car.steer = 0;
+  }
+  car.overtake = null;
 }
 
 function updateSignals(cars, direction, delta, green) {
@@ -91,6 +101,10 @@ export function greenLight(time, axis) {
   return axis === 0 ? phase < 8 : phase >= 11 && phase < 19;
 }
 
+export function greenTimeLeft(time, axis) {
+  return greenLight(time, axis) ? (axis === 0 ? 8 : 19) - mod(time, 22) : 0;
+}
+
 export function advanceVehicle(position, distance, direction, green, blockSize = BLOCK) {
   const oriented = position * direction;
   const untilJunction = blockSize - mod(oriented, blockSize);
@@ -106,7 +120,14 @@ export function occupiesTrack(car, track) {
 }
 
 // Test both the current gap and where its neighbours will be during the merge.
-export function canMerge(car, cars, targetTrack, direction) {
+export function canMerge(car, cars, targetTrack, direction, opposing = []) {
+  // Keep the return slot and borrowed lane free while an overtake is underway.
+  if (targetTrack === 0 && cars.some(other => other !== car && other.overtake &&
+      (car.position - other.position) * direction > -CAR_GAP * 2 &&
+      (car.position - other.overtake.leader.position) * direction < CAR_GAP * 3)) return false;
+  if (targetTrack === 0 && opposing.some(other => other.overtake &&
+      Math.abs(other.position - car.position) < (other.cruise + car.cruise * 1.65) *
+        (other.overtake.remaining + MERGE_DURATION) + CAR_GAP * 2)) return false;
   return cars.every(other => {
     if (other === car || !occupiesTrack(other, targetTrack)) return true;
     const gap = (other.position - car.position) * direction;
@@ -117,7 +138,38 @@ export function canMerge(car, cars, targetTrack, direction) {
   });
 }
 
-export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1 } = {}) {
+function startMerge(car, track) {
+  car.fromTrack = car.track;
+  car.track = track;
+  car.changing = true;
+  car.merge = 0;
+  car.mergeSpeed = car.speed;
+}
+
+function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining) {
+  if (!leader || leader.changing || car.cruise <= leader.cruise * (leader.yieldRemaining > 0 ? 1.65 : 1) + 2) return null;
+  const gap = (leader.position - car.position) * direction;
+  const leaderSpeed = Math.max(leader.speed, leader.cruise * (leader.yieldRemaining > 0 ? 1.65 : 1));
+  const duration = MERGE_DURATION * 2 + (gap + CAR_GAP + 1) / (car.cruise - leaderSpeed) +
+    Math.max(0, car.cruise - car.speed) / (car.acceleration ?? 25);
+  const intoBlock = mod(car.position * direction, blockSize);
+  if (intoBlock < STOP_LINE || intoBlock > blockSize - STOP_LINE || duration + 0.5 > greenRemaining) return null;
+  const returnSpace = CAR_GAP * 2 + 1 + car.cruise * MERGE_DURATION;
+  // Reserve a slot ahead of the overtaken car, including room to straighten.
+  if (cars.some(other => other !== car && other !== leader &&
+      (other.overtake || (occupiesTrack(other, 0) &&
+        (other.position - car.position) * direction > 0 &&
+        (other.position - leader.position) * direction < returnSpace)))) return null;
+  if (opposing.some(other => {
+    const distance = (other.position - car.position) * direction;
+    const closing = car.cruise + Math.max(other.speed, other.cruise * 1.65);
+    return (occupiesTrack(other, 0) || other.overtake) &&
+      distance > -CAR_GAP * 2 && distance < closing * duration + CAR_GAP * 2;
+  })) return null;
+  return { leader, remaining: duration, returnSpace };
+}
+
+export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1, opposing, greenRemaining = Infinity } = {}) {
   cars.sort((a, b) => (b.position - a.position) * direction);
   updateSignals(cars, direction, delta, green);
   for (const car of cars) {
@@ -143,20 +195,31 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const sourceClear = !leader || gap + (leader.speed - car.speed) * MERGE_DURATION > CAR_GAP + 0.15;
     const yielding = !car.taxi && car.yieldRemaining > 0 && car.yieldDelay === 0;
     const taxiPassing = weaving > 0 && car.taxi && car.signalWait === 0 && (passing || returning);
-    if (green && (yielding || taxiPassing) && !car.changing && car.cooldown === 0 &&
-        sourceClear && canMerge(car, cars, 1 - car.track, direction)) {
-      car.fromTrack = car.track;
-      car.track = 1 - car.track;
-      car.changing = true;
-      car.merge = 0;
+    const overtake = !car.overtake && opposing && green && weaving > 0 && car.taxi && car.track === 0 &&
+      !car.changing && car.cooldown === 0 && car.signalWait <= 1.2 && gap < 18 && sourceClear
+      ? planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining) : null;
+    if (car.overtake) {
+      car.overtake.remaining = Math.max(0, car.overtake.remaining - delta);
+      const passed = (car.position - car.overtake.leader.position) * direction > CAR_GAP + 0.4;
+      const urgent = !green || car.overtake.remaining < MERGE_DURATION + 0.4;
+      if (car.track === ONCOMING_TRACK && !car.changing && (passed || urgent) && canMerge(car, cars, 0, direction, opposing)) {
+        startMerge(car, 0);
+        car.cooldown = 3;
+      }
+    } else if (overtake) {
+      car.overtake = overtake;
+      startMerge(car, ONCOMING_TRACK);
+    } else if (green && (yielding || taxiPassing) && !car.changing && car.cooldown === 0 &&
+        sourceClear && canMerge(car, cars, 1 - car.track, direction, opposing)) {
+      startMerge(car, 1 - car.track);
       car.cooldown = yielding ? 5 : 0.5 / weaving;
-      car.mergeSpeed = car.speed;
     }
     let clearance = ahead(car.track).gap;
     if (car.changing) clearance = Math.min(clearance, ahead(car.fromTrack).gap);
     // Headway depends on actual speed, so stopped queues compress to 0.65 units
     // between bumpers and open up again as individual drivers accelerate.
-    const desiredGap = CAR_GAP + car.speed * (car.taxi ? 0.08 : yielding ? 0.3 : 0.7);
+    const reservedGap = cars.find(other => other.overtake?.leader === car)?.overtake.returnSpace ?? CAR_GAP;
+    const desiredGap = Math.max(reservedGap, CAR_GAP + car.speed * (car.taxi ? 0.08 : yielding ? 0.3 : 0.7));
     const cruise = car.cruise * (yielding ? 1.65 : 1);
     const desiredSpeed = Math.min(cruise, Math.max(0, (clearance - desiredGap) * (car.taxi ? 4 : 2.4)));
     const acceleration = (car.acceleration ?? (car.taxi ? 25 : 4)) * (yielding ? 2 : 1);
@@ -165,17 +228,18 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const speed = car.changing && !yielding
       ? Math.min(cruise, car.mergeSpeed ?? car.speed)
       : Math.min(desiredSpeed, car.speed + acceleration * delta);
-    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
+    const travel = Math.min(speed * delta, Math.max(0, clearance - reservedGap));
     const next = advanceVehicle(car.position, travel, direction, green, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;
     if (car.changing) {
       car.merge = Math.min(1, car.merge + delta / MERGE_DURATION);
       const blend = car.merge * car.merge * (3 - 2 * car.merge);
-      car.offset = TRACKS[car.fromTrack] + (TRACKS[car.track] - TRACKS[car.fromTrack]) * blend;
+      car.offset = trackOffset(car.fromTrack) + (trackOffset(car.track) - trackOffset(car.fromTrack)) * blend;
       if (car.merge === 1) {
-        car.offset = TRACKS[car.track];
+        car.offset = trackOffset(car.track);
         car.changing = false;
+        if (car.track !== ONCOMING_TRACK) car.overtake = null;
       }
     }
     car.steer = car.changing ? laneChangeSteer(car.merge, car.fromTrack, car.track) : 0;
