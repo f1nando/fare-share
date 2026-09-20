@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, seededRandom, greenLight, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, updateTraffic } from './world.js';
 import { normalizeSettings } from './settings.js';
 
 const palette = {
@@ -23,6 +23,8 @@ class Batches {
     this.color = new THREE.Color();
     this.material = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true });
     this.taxiMaterial = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, toneMapped: false, emissive: '#ffbc00', emissiveIntensity: 0.12 });
+    this.lightMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+    this.beamMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.48, depthWrite: false, toneMapped: false });
   }
   reset() { this.items.clear(); }
   add(kind, x, y, z, sx, sy, sz, color, rotation = 0) {
@@ -35,9 +37,10 @@ class Batches {
       let mesh = this.meshes.get(kind);
       if (!mesh || mesh.instanceMatrix.count < items.length) {
         if (mesh) { this.scene.remove(mesh); mesh.dispose(); }
-        mesh = new THREE.InstancedMesh(this.geometries[kind], kind === 'taxi' ? this.taxiMaterial : this.material, Math.ceil(items.length * 1.3));
-        mesh.castShadow = !['paint', 'paving'].includes(kind);
-        mesh.receiveShadow = true;
+        const material = kind === 'taxi' ? this.taxiMaterial : kind === 'light' ? this.lightMaterial : kind === 'beam' ? this.beamMaterial : this.material;
+        mesh = new THREE.InstancedMesh(this.geometries[kind], material, Math.ceil(items.length * 1.3));
+        mesh.castShadow = !['paint', 'paving', 'light', 'beam'].includes(kind);
+        mesh.receiveShadow = !['light', 'beam'].includes(kind);
         if (this.dynamic) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.meshes.set(kind, mesh);
         this.scene.add(mesh);
@@ -60,6 +63,8 @@ class Batches {
     for (const mesh of this.meshes.values()) { this.scene.remove(mesh); mesh.dispose(); }
     this.material.dispose();
     this.taxiMaterial.dispose();
+    this.lightMaterial.dispose();
+    this.beamMaterial.dispose();
   }
 }
 
@@ -134,6 +139,12 @@ function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   for (const axle of [REAR_AXLE_Z, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030');
   if (car.taxi) {
     part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
+    if (headlightsOn(car)) {
+      for (const side of [-1, 1]) {
+        part('light', side * 0.29, 0.5, 1.14, 0.24, 0.2, 0.06, '#fffce2');
+        part('beam', side * 0.31, 0.035, 2.5, 0.62, 1, 2.6, '#fffce2');
+      }
+    }
   }
 }
 
@@ -160,6 +171,10 @@ export function createCity(container, initialSettings) {
     building: new THREE.BoxGeometry(1, 1, 1),
     car: new THREE.BoxGeometry(1, 1, 1),
     taxi: new THREE.BoxGeometry(1, 1, 1),
+    light: new THREE.BoxGeometry(1, 1, 1),
+    beam: new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([
+      -0.14, 0, -0.5, 0.14, 0, -0.5, -0.5, 0, 0.5, 0.5, 0, 0.5,
+    ], 3)).setIndex([0, 2, 1, 2, 3, 1]),
     crown: new THREE.DodecahedronGeometry(1, 0),
   };
   const staticBatch = new Batches(scene, geometries);
@@ -276,8 +291,8 @@ export function createCity(container, initialSettings) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
         car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) car.position += half * 2;
-        if (car.position > center + half) car.position -= half * 2;
+        if (car.position < center - half) { car.position += half * 2; resetSignal(car); }
+        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
       }
       if (moving) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), { blockSize: BLOCK, weaving: settings.weaving / 100 });
       for (const car of lane.cars) {

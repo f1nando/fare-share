@@ -13,6 +13,8 @@ const vehicle = (position, track, taxi = false) => ({
   position, track, fromTrack: track, offset: TRACKS[track], taxi,
   speed: taxi ? 8.5 : 3.2, cruise: taxi ? 8.5 : 3.2,
   cooldown: 0, changing: false, merge: 1, steer: 0,
+  // These tests isolate voluntary overtaking; flashing/yielding has its own tests.
+  flashCooldown: Infinity,
 });
 
 test('taxis merge to pass slower traffic and cannot merge into an occupied gap', () => {
