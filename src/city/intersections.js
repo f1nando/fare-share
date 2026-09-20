@@ -1,5 +1,14 @@
 import { CAR_GAP, STOP_LINE, greenLight } from './world.js';
 
+function arrivalTime(distance, speed, acceleration, cruise) {
+  const start = Math.min(speed, cruise);
+  const accelerating = Math.max(0, cruise - start) / acceleration;
+  const runUp = (start + cruise) * accelerating / 2;
+  return distance < runUp
+    ? (Math.sqrt(start ** 2 + 2 * acceleration * distance) - start) / acceleration
+    : accelerating + (distance - runUp) / Math.max(0.1, cruise);
+}
+
 // Cars hold the crossing until their rear has cleared it. Both road axes use
 // the same live car objects, so permission granted earlier in a frame is visible
 // to the perpendicular stream immediately.
@@ -26,12 +35,7 @@ export function intersectionAccess(lanes, blockSize, time) {
     const crossCenter = car.line * blockSize;
     const distance = STOP_LINE * 2 + 0.3;
     const acceleration = car.acceleration ?? 25;
-    const entrySpeed = Math.min(speed, car.cruise);
-    const accelerateTime = Math.max(0, car.cruise - entrySpeed) / acceleration;
-    const accelerateDistance = (entrySpeed + car.cruise) * accelerateTime / 2;
-    const clearTime = distance < accelerateDistance
-      ? (Math.sqrt(entrySpeed ** 2 + 2 * acceleration * distance) - entrySpeed) / acceleration
-      : accelerateTime + (distance - accelerateDistance) / Math.max(0.1, car.cruise);
+    const clearTime = arrivalTime(distance, speed, acceleration, car.cruise);
 
     for (const direction of [-1, 1]) {
       const crossLane = lanes.get(`${1 - car.axis}:${crossLine}:${direction}`);
@@ -41,12 +45,17 @@ export function intersectionAccess(lanes, blockSize, time) {
         const reserved = other.crossing === crossCenter && toCenter >= -STOP_LINE;
         if (inside || reserved) return false;
         if (!green && toCenter >= STOP_LINE && (other.taxi || greenLight(time, 1 - car.axis))) {
-          const earliestArrival = (toCenter - STOP_LINE) / Math.max(0.1, other.speed, other.cruise * 1.65);
-          if (earliestArrival < clearTime + 0.25) return false;
+          // A stopped queue does not instantly travel at maximum speed. Account
+          // for its run-up when deciding whether the taxi fits into this gap.
+          const earliestArrival = arrivalTime(toCenter - STOP_LINE, other.speed,
+            (other.acceleration ?? 4) * (other.taxi ? 1.8 : 2),
+            Math.max(other.speed, other.cruise * (other.taxi ? 1.25 : other.yieldRemaining > 0 ? 1.65 : 1)));
+          if (earliestArrival < clearTime + 0.15) return false;
         }
       }
     }
     car.crossing = crossingPosition;
+    if (car.taxi && !green && speed < car.cruise * 0.5) car.burst = Math.max(car.burst ?? 0, 1.2);
     return true;
   };
 }

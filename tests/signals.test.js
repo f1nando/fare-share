@@ -37,13 +37,11 @@ test('a blocked adjacent lane postpones yielding without overlap', () => {
   assert.equal(neighbour.yieldRemaining, 0);
 });
 
-test('red lights suppress requests, and recycling clears old flashes', () => {
+test('taxi can flash at a red queue, and recycling clears old flashes', () => {
   const taxi = vehicle(0, 0, true), leader = vehicle(10, 0);
-  updateTraffic([taxi, leader], 1, 0.05, false);
-  assert.equal(headlightsOn(taxi), false);
-  assert.equal(leader.yieldRemaining, 0);
-  updateTraffic([taxi, leader], 1, 0.05, true);
+  updateTraffic([taxi, leader], 1, 0.05, false, { weaving: 0 });
   assert.equal(headlightsOn(taxi), true);
+  assert.ok(leader.yieldRemaining > 0);
   resetSignal(taxi);
   assert.equal(headlightsOn(taxi), false);
   assert.equal(taxi.signalWait, 0);

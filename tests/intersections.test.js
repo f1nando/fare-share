@@ -40,7 +40,7 @@ test('ordinary cars still stop at red, taxis wait for occupied crossings and blo
     const car = vehicle(0, 1, -6, mode !== 'ordinary');
     const cars = [car];
     if (mode === 'occupied') cars.push(vehicle(1, 1, 0));
-    if (mode === 'approaching') cars.push(vehicle(1, 1, -12));
+    if (mode === 'approaching') cars.push(vehicle(1, 1, -9));
     if (mode === 'blocked-exit') {
       const stopped = vehicle(0, 1, 7); stopped.speed = stopped.cruise = 0; cars.push(stopped);
     }

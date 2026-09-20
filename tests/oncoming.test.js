@@ -43,7 +43,7 @@ test('oncoming traffic, missing return space, red light and nearby junction bloc
       if (mode === 'merging-oncoming') { approaching.track = 1; approaching.changing = true; }
       opposing.push(approaching);
     }
-    if (mode === 'return-slot') cars.push(vehicle(24, 0));
+    if (mode === 'return-slot') for (let position = 24; position < 70; position += 10) cars.push(vehicle(position, 0));
     if (mode === 'junction') cars.forEach(car => car.position += 30);
     updateTraffic(cars, 1, 0.02, mode !== 'red', {
       blockSize: 40, opposing, greenRemaining: mode === 'green-ending' ? 0.5 : 8,
