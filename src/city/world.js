@@ -1,4 +1,5 @@
 import { updateBodyMotion } from './vehicleBody.js';
+import { HORN_DURATION } from './hornAnimation.js';
 
 export const BLOCK = 34;
 export const ROAD = 6.6;
@@ -48,6 +49,8 @@ export function resetSignal(car) {
   car.burst = 0;
   car.seekInner = 0;
   car.flashAge = null;
+  car.hornAge = null;
+  car.signalMode = null;
   car.flashCooldown = 0;
   car.signalWait = 0;
   car.yieldDelay = 0;
@@ -66,6 +69,10 @@ export function resetSignal(car) {
 
 function updateSignals(cars, direction, delta) {
   for (const car of cars) {
+    if (typeof car.hornAge === 'number') {
+      car.hornAge += delta;
+      if (car.hornAge >= HORN_DURATION) car.hornAge = null;
+    }
     if (typeof car.flashAge === 'number') {
       car.flashAge += delta;
       if (car.flashAge >= FLASH_DURATION) car.flashAge = null;
@@ -85,7 +92,11 @@ function updateSignals(cars, direction, delta) {
       }
     }
     if (!leader || leader.taxi || leader.changing || leader.yieldRemaining > 0 || taxi.cruise <= leader.speed + 1) continue;
-    taxi.flashAge = 0;
+    const mode = ['flash', 'horn', 'both'][(taxi.signalIndex ?? 0) % 3];
+    taxi.signalIndex = (taxi.signalIndex ?? 0) + 1;
+    taxi.signalMode = mode;
+    taxi.flashAge = mode === 'horn' ? null : 0;
+    taxi.hornAge = mode === 'flash' ? null : 0;
     taxi.flashCooldown = 5;
     taxi.signalWait = FLASH_DURATION + 1.2;
     leader.yieldDelay = FLASH_DURATION;

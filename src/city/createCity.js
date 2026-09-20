@@ -5,6 +5,8 @@ import { normalizeSettings } from './settings.js';
 import { carCoordinates, turnPose, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
 import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
+import { hornAnimation } from './hornAnimation.js';
+import { HornEffects } from './hornEffects.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -142,7 +144,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 }
 
-export function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
+export function addCar(batch, car, originX, originZ, focus, camera, blockSize, hornEffects) {
   const coordinates = carCoordinates(car, blockSize);
   const x = coordinates.x - originX, z = coordinates.z - originZ;
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
@@ -152,7 +154,9 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   const pose = car.turn ? { ...turnPose(car.turn), x, z } : vehiclePose(x, z, car.axis, car.direction, car.steer);
   const pitch = (car.taxi ? car.pitch ?? 0 : 0) + (car.roadPitch ?? 0);
   const roll = (car.taxi ? car.roll ?? 0 : 0) + (car.roadRoll ?? 0);
-  const lift = car.rideHeight ?? 0;
+  const hop = hornAnimation(car.hornAge).bounce;
+  const lift = (car.rideHeight ?? 0) + hop;
+  if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, x, z, camera);
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
     batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0),
@@ -208,6 +212,7 @@ export function createCity(container, initialSettings) {
   };
   const staticBatch = new Batches(scene, geometries);
   const carsBatch = new Batches(scene, geometries, true);
+  const hornEffects = new HornEffects(scene);
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
@@ -313,6 +318,7 @@ export function createCity(container, initialSettings) {
     camera.lookAt(focus);
 
     carsBatch.reset();
+    hornEffects.reset();
     for (const lane of lanes.values()) {
       const center = lane.axis === 0 ? originX + focus.x : originZ + focus.z;
       const half = (radius + 0.5) * BLOCK;
@@ -328,7 +334,7 @@ export function createCity(container, initialSettings) {
       clockMultiplier: Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100) });
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
-        addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK);
+        addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects);
       }
     }
     carsBatch.flush();
@@ -367,7 +373,7 @@ export function createCity(container, initialSettings) {
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
-    staticBatch.dispose(); carsBatch.dispose();
+    staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose();
     Object.values(geometries).forEach(geometry => geometry.dispose());
     ground.geometry.dispose(); groundMaterial.dispose();
     sunlight.shadow.map?.dispose();
