@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, seededRandom, greenLight, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, seededRandom, greenLight, updateTraffic } from './world.js';
 import { normalizeSettings } from './settings.js';
 
 const palette = {
@@ -125,14 +125,13 @@ function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   const dx = x - focus.x, dz = z - focus.z;
   if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
       Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
-  const angle = (car.axis === 0 ? car.direction * Math.PI / 2 : car.direction > 0 ? 0 : Math.PI) - car.steer;
-  const sin = Math.sin(angle), cos = Math.cos(angle);
-  const part = (kind, dx, y, dz, w, h, d, color) => batch.add(kind, x + dx * cos + dz * sin, y, z - dx * sin + dz * cos, w, h, d, color, angle);
+  const pose = vehiclePose(x, z, car.axis, car.direction, car.steer);
+  const part = (kind, dx, y, dz, w, h, d, color) => batch.add(kind, pose.x + dx * pose.cos + dz * pose.sin, y, pose.z - dx * pose.sin + dz * pose.cos, w, h, d, color, pose.angle);
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
   part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
-  for (const axle of [-0.69, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030');
+  for (const axle of [REAR_AXLE_Z, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030');
   if (car.taxi) {
     part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
   }

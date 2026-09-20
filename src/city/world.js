@@ -6,6 +6,27 @@ export const TRAFFIC_SPACING = 10.5;
 export const TAXI_SHARE = 0.11;
 export const MERGE_DURATION = 0.34;
 export const STOP_LINE = ROAD / 2 + 1.5;
+export const REAR_AXLE_Z = -0.69;
+export const MAX_MERGE_ANGLE = Math.PI / 9;
+
+// Ease into a small turn, peak halfway across, then ease back to straight.
+// A progress-based angle stays stable even when a taxi slows down in a gap.
+export function laneChangeSteer(progress, fromTrack, toTrack) {
+  if (progress <= 0 || progress >= 1) return 0;
+  return Math.sign(toTrack - fromTrack) * MAX_MERGE_ANGLE * Math.sin(Math.PI * progress) ** 2;
+}
+
+export function vehiclePose(x, z, axis, direction, steer) {
+  const heading = axis === 0 ? direction * Math.PI / 2 : direction > 0 ? 0 : Math.PI;
+  const angle = heading - steer;
+  const sin = Math.sin(angle), cos = Math.cos(angle);
+  // Keep the rear axle on its original trajectory while the body turns around it.
+  return {
+    x: x + REAR_AXLE_Z * (Math.sin(heading) - sin),
+    z: z + REAR_AXLE_Z * (Math.cos(heading) - cos),
+    angle, sin, cos,
+  };
+}
 
 export function seededRandom(x, z) {
   let seed = (Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ 20260920) >>> 0;
@@ -97,7 +118,6 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const next = advanceVehicle(car.position, travel, direction, green, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : 0;
     car.position = next;
-    const previousOffset = car.offset;
     if (car.changing) {
       car.merge = Math.min(1, car.merge + delta / MERGE_DURATION);
       const blend = car.merge * car.merge * (3 - 2 * car.merge);
@@ -107,6 +127,6 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
         car.changing = false;
       }
     }
-    car.steer = delta && car.speed > 0.5 ? Math.atan2((car.offset - previousOffset) / delta, car.speed) : 0;
+    car.steer = car.changing ? laneChangeSteer(car.merge, car.fromTrack, car.track) : 0;
   }
 }
