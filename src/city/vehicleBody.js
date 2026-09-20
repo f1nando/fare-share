@@ -1,12 +1,12 @@
 export const MAX_BODY_PITCH = 0.09;
-export const MAX_BODY_ROLL = 0.12;
+export const MAX_BODY_ROLL = 0.18;
 const clamp = (value, limit) => Math.max(-limit, Math.min(limit, value));
 
 export function updateBodyMotion(car, delta, previousSpeed) {
   if (!car.taxi || delta <= 0) return;
   const acceleration = (car.speed - previousSpeed) / delta;
   const pitchTarget = -clamp(acceleration / 35, 1) * MAX_BODY_PITCH;
-  const rollTarget = -clamp(car.steer / (Math.PI / 15), 1) * MAX_BODY_ROLL * Math.min(1, car.speed / 8);
+  const rollTarget = -clamp(car.steer / 0.15, 1) * MAX_BODY_ROLL * Math.min(1, car.speed / 8);
   const steps = Math.ceil(delta / 0.025), step = delta / steps;
   for (let i = 0; i < steps; i++) {
     for (const [key, target, limit] of [['pitch', pitchTarget, MAX_BODY_PITCH], ['roll', rollTarget, MAX_BODY_ROLL]]) {

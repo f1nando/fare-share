@@ -18,6 +18,19 @@ const step = (fixture, delta = 0.02, weaving = 0) => updateNetwork(fixture.lanes
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 const angleClose = (a, b) => close(Math.sin(a - b), 0);
 
+test('a taxi can leave an established race through a clear side street and releases its partner', () => {
+  const f = fixture();
+  const follower = { ...f.car, position: f.car.position - 10 };
+  const race = { leader: f.car, follower, age: 4, phase: 'challenge' };
+  f.car.race = follower.race = race;
+  f.lanes.get('0:-1:1').cars.push(follower);
+  step(f);
+  assert.ok(f.car.turn);
+  assert.equal(f.car.race, null);
+  assert.equal(follower.race, null);
+  assert.ok(follower.raceCooldown > 0);
+});
+
 test('left/right turn geometry joins both road axes and directions continuously, with a small mid-curve drift', () => {
   for (const blockSize of [24, 40, 48]) for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const track of [0, 1]) {
     const { car } = fixture(axis, direction, track, blockSize);

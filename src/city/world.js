@@ -91,7 +91,7 @@ function updateSignals(cars, direction, delta) {
   }
 }
 
-function finishRace(race, winner) {
+export function finishRace(race, winner) {
   for (const car of [race.leader, race.follower]) {
     if (car.race !== race) continue;
     car.race = null;

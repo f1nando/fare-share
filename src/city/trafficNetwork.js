@@ -1,4 +1,4 @@
-import { CAR_GAP, STOP_LINE, TRACKS, occupiesTrack, taxiAggression, greenLight, greenTimeLeft, updateTraffic } from './world.js';
+import { CAR_GAP, STOP_LINE, TRACKS, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 
@@ -92,12 +92,15 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     if (car.turn) locks.set(car.turn.junction, car);
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
-    if (!car.taxi || car.turn || car.turnCooldown > 0 || car.changing || car.overtake || car.feint || car.race || car.track < 0 || car.track > 1) continue;
+    // Let a pair finish its initial chase, then allow either taxi to break away
+    // into a side street instead of blocking turns for the whole race.
+    if (!car.taxi || car.turn || car.turnCooldown > 0 || car.changing || car.overtake || car.feint || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
     const entryDistance = center - STOP_LINE - car.position * car.direction;
     if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
     const turn = makeTurn(car, blockSize);
     if (!canTurn(car, turn, lanes, blockSize, locks)) continue;
+    if (car.race) finishRace(car.race);
     car.turn = turn;
     car.crossing = undefined;
     car.flashAge = null;
@@ -124,7 +127,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     destination.cars.push(car);
     Object.assign(car, { axis: turn.axis, line: turn.line, direction: turn.direction, position: turn.position,
       track: turn.track, fromTrack: turn.track, offset: TRACKS[turn.track], steer: 0, changing: false, merge: 1,
-      turn: null, turnCooldown: 12 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
+      turn: null, turnCooldown: 4 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
   }
 }
