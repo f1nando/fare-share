@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, seededRandom, greenLight, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, TAXI_SHARE, seededRandom, greenLight, updateTraffic } from './world.js';
 
 const palette = {
-  sidewalk: '#f1eee4', curb: '#dedcd3', paving: '#e4e1d7',
-  buildings: ['#f7f4eb', '#e9e7de', '#fffbf0', '#e9e4d9', '#f2eee5'],
-  grass: ['#9fc65e', '#aed071', '#b5d47b'],
-  leaves: ['#6aaa32', '#7cb83b', '#8ac247', '#589433', '#72a937'],
-  cars: ['#ffffff', '#f4f4f2', '#e4e4e2', '#cbcdcc', '#a4a7a6', '#7f8382'],
+  sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
+  buildings: ['#eeeeee', '#d3d3d3', '#e2e2e2', '#c6c6c6', '#f3f3f3'],
+  grass: ['#b8b8b8', '#c4c4c4', '#aeaeae'],
+  leaves: ['#8d8d8d', '#a1a1a1', '#ababab', '#797979', '#969696'],
+  cars: ['#ffffff', '#f4f4f4', '#e4e4e4', '#cdcdcd', '#a6a6a6', '#838383'],
 };
 
 // All repeated objects share geometry and use instancing, including moving cars.
@@ -65,30 +65,33 @@ class Batches {
 function populateBlock(batch, gx, gz, x, z) {
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
-  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => batch.add(kind, x + dx, y, z + dz, w, h, d, color, rotation);
+  let layoutScale = 1;
+  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => batch.add(kind, x + dx * layoutScale, y, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation);
   const tree = (tx, tz, size = 1) => {
-    put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#947251');
+    put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777');
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  put('round', 12, 0.10, 12, BLOCK - ROAD + 0.42, 0.3, BLOCK - ROAD + 0.42, palette.curb);
-  put('round', 12, 0.25, 12, BLOCK - ROAD, 0.34, BLOCK - ROAD, palette.sidewalk);
+  put('round', BLOCK / 2, 0.10, BLOCK / 2, BLOCK - ROAD + 0.42, 0.3, BLOCK - ROAD + 0.42, palette.curb);
+  put('round', BLOCK / 2, 0.25, BLOCK / 2, BLOCK - ROAD, 0.34, BLOCK - ROAD, palette.sidewalk);
 
   // Road markings stop before the intersection. Every tile owns two crossings.
-  for (let p = 6; p < 21; p += 3.3) {
-    put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#f1efe7');
-    put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#f1efe7');
+  for (let p = 6.5; p < BLOCK - 5; p += 3.3) {
+    put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
+    put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
-  for (let p = -2.1; p <= 2.1; p += 0.66) {
-    put('paint', 4.0, 0.02, p, 1.28, 0.025, 0.34, '#f9f7ef');
-    put('paint', p, 0.02, 4.0, 0.34, 0.025, 1.28, '#f9f7ef');
+  for (let p = -2.65; p <= 2.65; p += 0.66) {
+    put('paint', ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
+    put('paint', p, 0.02, ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
+  // The simple 24-unit lot layout expands with the block; roads stay separate.
+  layoutScale = BLOCK / 24;
   const park = random() < 0.13;
   if (park) {
     put('round', 12, 0.45, 12, 15.7, 0.18, 15.7, pick(palette.grass));
-    put('paving', 12, 0.56, 12, 1.3, 0.025, 15.5, '#f1e8d5');
-    put('paving', 12, 0.56, 12, 15.5, 0.025, 1.3, '#f1e8d5');
+    put('paving', 12, 0.56, 12, 1.3, 0.025, 15.5, '#dddddd');
+    put('paving', 12, 0.56, 12, 15.5, 0.025, 1.3, '#dddddd');
     for (const [tx, tz] of [[7,7], [16,7], [7,16], [16,16], [5.8,11], [18,13]]) tree(tx, tz, 1 + random() * 0.55);
   } else {
     for (const [lx, lz] of [[7.8,7.8], [16,7.8], [7.8,16], [16,16]]) {
@@ -126,17 +129,17 @@ function addCar(batch, car, originX, originZ, focus, camera) {
   const part = (kind, dx, y, dz, w, h, d, color) => batch.add(kind, x + dx * cos + dz * sin, y, z - dx * sin + dz * cos, w, h, d, color, angle);
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
-  part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#303536');
+  part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
-  for (const axle of [-0.69, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303332');
+  for (const axle of [-0.69, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030');
   if (car.taxi) {
-    part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292e2d');
+    part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
   }
 }
 
 export function createCity(container) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#f2efe6');
+  scene.background = new THREE.Color('#dedede');
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
   renderer.shadowMap.enabled = true;
@@ -158,13 +161,13 @@ export function createCity(container) {
   };
   const staticBatch = new Batches(scene, geometries);
   const carsBatch = new Batches(scene, geometries, true);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: '#505654', roughness: 1 });
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
-  scene.add(new THREE.HemisphereLight('#fff9ef', '#b8c2aa', 1.8));
-  const sunlight = new THREE.DirectionalLight('#fff3df', 2.5);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#b8b8b8', 1.8));
+  const sunlight = new THREE.DirectionalLight('#ffffff', 2.5);
   sunlight.position.set(-35, 70, -25);
   sunlight.castShadow = true;
   sunlight.shadow.mapSize.set(2048, 2048);
@@ -176,7 +179,7 @@ export function createCity(container) {
 
   const camera = new THREE.OrthographicCamera(-80, 80, 45, -45, 1, 400);
   const cameraOffset = new THREE.Vector3(24, 100, 45);
-  const focus = new THREE.Vector3(12, 0, 12);
+  const focus = new THREE.Vector3(BLOCK / 2, 0, BLOCK / 2);
   let originX = 0, originZ = 0, worldX = 0, worldZ = 0, radius = 6;
   let lastCellX = NaN, lastCellZ = NaN;
   let lanes = new Map();
@@ -200,13 +203,13 @@ export function createCity(container) {
           if (!lane) {
             const random = seededRandom(line * 7 + axis, direction * 991);
             lane = { axis, line, direction, cars: [] };
-            const count = Math.floor((radius * 2 + 1) * BLOCK / 9.5);
+            const count = Math.floor((radius * 2 + 1) * BLOCK / TRAFFIC_SPACING);
             for (let track = 0; track < 2; track++) {
               for (let i = 0; i < count; i++) {
-                const taxi = random() < 0.18;
-                const cruise = taxi ? 8.2 + random() * 1.6 : 2.9 + random() * 0.9;
+                const taxi = random() < TAXI_SHARE;
+                const cruise = taxi ? 11 + random() * 2 : 4.2 + random() * 1.6;
                 lane.cars.push({ axis, line, direction,
-                  position: centerPosition - radius * BLOCK + i * 9.5 + track * 4.75 + random() * 0.6,
+                  position: centerPosition - radius * BLOCK + i * TRAFFIC_SPACING + track * TRAFFIC_SPACING / 2 + random() * 1.5,
                   taxi, color: palette.cars[Math.floor(random() * palette.cars.length)],
                   track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise,
                   changing: false, merge: 1, cooldown: random(), steer: 0,
@@ -224,7 +227,7 @@ export function createCity(container) {
   function resize() {
     const width = Math.max(container.clientWidth, 1), height = Math.max(container.clientHeight, 1);
     const aspect = width / height;
-    // Desktop frames show ~6 by 3.5 blocks; portrait keeps cars readable.
+    // Keep the framing fixed so larger blocks also appear larger on screen.
     const viewWidth = aspect < 1 ? 76 * aspect : Math.min(144, 82 * aspect);
     const viewHeight = viewWidth / aspect;
     camera.left = -viewWidth / 2; camera.right = viewWidth / 2;
