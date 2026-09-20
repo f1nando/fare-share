@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, LANE, ROAD, seededRandom, greenLight, advanceVehicle } from './world.js';
+import { BLOCK, TRACKS, ROAD, seededRandom, greenLight, updateTraffic } from './world.js';
 
 const palette = {
   sidewalk: '#f1eee4', curb: '#dedcd3', paving: '#e4e1d7',
   buildings: ['#f7f4eb', '#e9e7de', '#fffbf0', '#e9e4d9', '#f2eee5'],
-  roofs: ['#e6e3da', '#eeebe3', '#deded6'],
   grass: ['#9fc65e', '#aed071', '#b5d47b'],
   leaves: ['#6aaa32', '#7cb83b', '#8ac247', '#589433', '#72a937'],
-  cars: ['#eeeee7', '#94aba7', '#7494a0', '#cf9578', '#445963', '#b8bfaa'],
+  cars: ['#ffffff', '#f4f4f2', '#e4e4e2', '#cbcdcc', '#a4a7a6', '#7f8382'],
 };
 
 // All repeated objects share geometry and use instancing, including moving cars.
@@ -22,6 +21,7 @@ class Batches {
     this.matrix = new THREE.Object3D();
     this.color = new THREE.Color();
     this.material = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true });
+    this.taxiMaterial = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, toneMapped: false, emissive: '#ffbc00', emissiveIntensity: 0.12 });
   }
   reset() { this.items.clear(); }
   add(kind, x, y, z, sx, sy, sz, color, rotation = 0) {
@@ -29,11 +29,12 @@ class Batches {
     this.items.get(kind).push([x, y, z, sx, sy, sz, color, rotation]);
   }
   flush() {
+    for (const [kind, mesh] of this.meshes) if (!this.items.has(kind)) mesh.count = 0;
     for (const [kind, items] of this.items) {
       let mesh = this.meshes.get(kind);
       if (!mesh || mesh.instanceMatrix.count < items.length) {
         if (mesh) { this.scene.remove(mesh); mesh.dispose(); }
-        mesh = new THREE.InstancedMesh(this.geometries[kind], this.material, Math.ceil(items.length * 1.3));
+        mesh = new THREE.InstancedMesh(this.geometries[kind], kind === 'taxi' ? this.taxiMaterial : this.material, Math.ceil(items.length * 1.3));
         mesh.castShadow = !['paint', 'paving'].includes(kind);
         mesh.receiveShadow = true;
         if (this.dynamic) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -57,6 +58,7 @@ class Batches {
   dispose() {
     for (const mesh of this.meshes.values()) { this.scene.remove(mesh); mesh.dispose(); }
     this.material.dispose();
+    this.taxiMaterial.dispose();
   }
 }
 
@@ -88,10 +90,6 @@ function populateBlock(batch, gx, gz, x, z) {
     put('paving', 12, 0.56, 12, 1.3, 0.025, 15.5, '#f1e8d5');
     put('paving', 12, 0.56, 12, 15.5, 0.025, 1.3, '#f1e8d5');
     for (const [tx, tz] of [[7,7], [16,7], [7,16], [16,16], [5.8,11], [18,13]]) tree(tx, tz, 1 + random() * 0.55);
-    // A small octagonal fountain at the centre of occasional garden squares.
-    put('disk', 12, 0.68, 12, 2.25, 0.25, 2.25, '#d5d8cf');
-    put('disk', 12, 0.83, 12, 1.8, 0.06, 1.8, '#91c4c4');
-    put('disk', 12, 1.04, 12, 0.34, 0.4, 0.34, '#e9e9df');
   } else {
     for (const [lx, lz] of [[7.8,7.8], [16,7.8], [7.8,16], [16,16]]) {
       if (random() < 0.27) {
@@ -105,16 +103,6 @@ function populateBlock(batch, gx, gz, x, z) {
       const height = 1.6 + random() * 3.7 + (random() < 0.09 ? 2.2 : 0);
       put('round', lx, 0.48, lz, width + 0.65, 0.2, depth + 0.65, palette.paving);
       put('building', lx, 0.55 + height / 2, lz, width, height, depth, pick(palette.buildings));
-      put('box', lx, height + 0.57, lz, width - 0.32, 0.12, depth - 0.32, pick(palette.roofs));
-      if (random() < 0.5) put('box', lx + 0.8, height + 0.85, lz - 0.7, 0.9, 0.5, 1.1, '#dadbd2');
-      const floors = Math.max(1, Math.floor(height / 1.5));
-      for (let f = 0; f < floors; f++) {
-        for (const offset of [-0.95, 0.95]) {
-          put('box', lx + offset, 1.2 + f * 1.4, lz + depth / 2 + 0.015, 0.83, 0.65, 0.035, '#c8d3cf');
-          put('box', lx + width / 2 + 0.015, 1.2 + f * 1.4, lz + offset, 0.035, 0.65, 0.83, '#d0d8d0');
-        }
-      }
-      put('box', lx, 0.93, lz + depth / 2 + 0.025, 0.65, 0.8, 0.05, '#aebdb4');
     }
   }
   // Small curbside trees give even the denser blocks a soft green border.
@@ -126,32 +114,23 @@ function populateBlock(batch, gx, gz, x, z) {
   }
 }
 
-function addCar(batch, car, originX, originZ) {
-  const x = car.axis === 0 ? car.position - originX : car.line * BLOCK - originX - car.direction * LANE;
-  const z = car.axis === 0 ? car.line * BLOCK - originZ + car.direction * LANE : car.position - originZ;
-  const angle = car.axis === 0 ? car.direction * Math.PI / 2 : car.direction > 0 ? 0 : Math.PI;
+function addCar(batch, car, originX, originZ, focus, camera) {
+  const x = car.axis === 0 ? car.position - originX : car.line * BLOCK - originX - car.direction * car.offset;
+  const z = car.axis === 0 ? car.line * BLOCK - originZ + car.direction * car.offset : car.position - originZ;
+  // Simulate the offscreen traffic, but only upload visible cars to the GPU.
+  const dx = x - focus.x, dz = z - focus.z;
+  if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
+      Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
+  const angle = (car.axis === 0 ? car.direction * Math.PI / 2 : car.direction > 0 ? 0 : Math.PI) - car.steer;
   const sin = Math.sin(angle), cos = Math.cos(angle);
   const part = (kind, dx, y, dz, w, h, d, color) => batch.add(kind, x + dx * cos + dz * sin, y, z - dx * sin + dz * cos, w, h, d, color, angle);
-  const color = car.taxi ? '#ffd021' : car.color;
-  part('car', 0, 0.53, 0, 1.28, 0.62, 2.65, color);
-  part('car', 0, 0.98, -0.14, 1.06, 0.56, 1.43, '#344c50');
-  part('car', 0, 1.24, -0.23, 1.06, 0.13, 0.91, color);
-  for (const side of [-1, 1]) {
-    for (const axle of [-0.83, 0.84]) part('wheel', side * 0.64, 0.32, axle, 0.23, 0.47, 0.47, '#333b3b');
-    part('box', side * 0.4, 0.6, 1.335, 0.26, 0.18, 0.04, '#fff8d4');
-    part('box', side * 0.43, 0.56, -1.33, 0.22, 0.13, 0.035, '#c75c43');
-    if (car.taxi) {
-      for (let i = 0; i < 5; i++) part('box', side * 0.65, 0.68, -0.5 + i * 0.22, 0.022, 0.16, 0.13, '#373a31');
-    }
-  }
+  const color = car.taxi ? '#ffca00' : car.color;
+  part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
+  part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#303536');
+  part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
+  for (const axle of [-0.69, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303332');
   if (car.taxi) {
-    part('box', 0, 1.41, -0.2, 0.61, 0.23, 0.32, '#ffe476');
-    part('box', 0, 1.43, -0.031, 0.36, 0.085, 0.014, '#424532');
-    if (car.moving) {
-      for (let i = 0; i < 5; i++) {
-        part('paint', 0, 0.035, -1.7 - i * 0.4, 0.1, 0.018, 0.36, ['#ffdf49', '#ebd573', '#c7bd7b', '#a09e79', '#878b77'][i]);
-      }
-    }
+    part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292e2d');
   }
 }
 
@@ -172,11 +151,10 @@ export function createCity(container) {
     paint: new THREE.BoxGeometry(1, 1, 1),
     paving: new THREE.BoxGeometry(1, 1, 1),
     round: new RoundedBoxGeometry(1, 1, 1, 2, 0.075),
-    building: new RoundedBoxGeometry(1, 1, 1, 1, 0.025),
-    car: new RoundedBoxGeometry(1, 1, 1, 1, 0.13),
-    wheel: new THREE.CylinderGeometry(0.5, 0.5, 1, 8).rotateZ(Math.PI / 2),
+    building: new THREE.BoxGeometry(1, 1, 1),
+    car: new THREE.BoxGeometry(1, 1, 1),
+    taxi: new THREE.BoxGeometry(1, 1, 1),
     crown: new THREE.DodecahedronGeometry(1, 0),
-    disk: new THREE.CylinderGeometry(1, 1, 1, 12),
   };
   const staticBatch = new Batches(scene, geometries);
   const carsBatch = new Batches(scene, geometries, true);
@@ -221,9 +199,19 @@ export function createCity(container) {
           let lane = lanes.get(key);
           if (!lane) {
             const random = seededRandom(line * 7 + axis, direction * 991);
-            lane = { axis, line, direction, speed: 2.6 + random() * 0.45, cars: [] };
-            for (let i = -radius; i <= radius; i++) {
-              lane.cars.push({ axis, line, direction, position: centerPosition + i * BLOCK + random() * 7, taxi: random() < 0.36, color: palette.cars[Math.floor(random() * palette.cars.length)], moving: true });
+            lane = { axis, line, direction, cars: [] };
+            const count = Math.floor((radius * 2 + 1) * BLOCK / 9.5);
+            for (let track = 0; track < 2; track++) {
+              for (let i = 0; i < count; i++) {
+                const taxi = random() < 0.18;
+                const cruise = taxi ? 8.2 + random() * 1.6 : 2.9 + random() * 0.9;
+                lane.cars.push({ axis, line, direction,
+                  position: centerPosition - radius * BLOCK + i * 9.5 + track * 4.75 + random() * 0.6,
+                  taxi, color: palette.cars[Math.floor(random() * palette.cars.length)],
+                  track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise,
+                  changing: false, merge: 1, cooldown: random(), steer: 0,
+                });
+              }
             }
           }
           next.set(key, lane);
@@ -278,17 +266,9 @@ export function createCity(container) {
         if (car.position < center - half) car.position += half * 2;
         if (car.position > center + half) car.position -= half * 2;
       }
-      lane.cars.sort((a, b) => (b.position - a.position) * lane.direction);
-      let leader = null;
+      if (!document.hidden && !reducedMotion.matches) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis));
       for (const car of lane.cars) {
-        let next = car.position;
-        if (!document.hidden && !reducedMotion.matches) {
-          next = advanceVehicle(car.position, lane.speed * delta, lane.direction, greenLight(time, lane.axis));
-          if (leader !== null && (leader - next) * lane.direction < 3.6) next = car.position + lane.direction * Math.max(0, (leader - car.position) * lane.direction - 3.6);
-        }
-        car.moving = Math.abs(next - car.position) > 0.001;
-        car.position = next; leader = next;
-        addCar(carsBatch, car, originX, originZ);
+        addCar(carsBatch, car, originX, originZ, focus, camera);
       }
     }
     carsBatch.flush();
