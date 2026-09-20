@@ -1,3 +1,5 @@
+import { updateBodyMotion } from './vehicleBody.js';
+
 export const BLOCK = 34;
 export const ROAD = 6.6;
 export const SHOULDER_WIDTH = 1.4;
@@ -34,6 +36,7 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  car.pitch = car.roll = car.pitchVelocity = car.rollVelocity = 0;
   if (car.race) finishRace(car.race);
   car.raceCooldown = 0;
   car.crossing = undefined;
@@ -285,6 +288,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
   updateRaces(cars, direction, delta);
   updateSignals(cars, direction, delta);
   for (const car of cars) {
+    const previousSpeed = car.speed;
     car.cooldown = Math.max(0, car.cooldown - delta);
     car.burst = Math.max(0, (car.burst ?? 0) - delta);
     car.seekInner = Math.max(0, (car.seekInner ?? 0) - delta);
@@ -393,5 +397,6 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
         car.steer = 0;
       }
     }
+    updateBodyMotion(car, delta, previousSpeed);
   }
 }

@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { normalizeSettings } from './settings.js';
 import { intersectionAccess } from './intersections.js';
+import { bodyPartPose } from './vehicleBody.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -28,9 +29,9 @@ class Batches {
     this.beamMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.48, depthWrite: false, toneMapped: false });
   }
   reset() { this.items.clear(); }
-  add(kind, x, y, z, sx, sy, sz, color, rotation = 0) {
+  add(kind, x, y, z, sx, sy, sz, color, rotation = 0, pitch = 0, roll = 0) {
     if (!this.items.has(kind)) this.items.set(kind, []);
-    this.items.get(kind).push([x, y, z, sx, sy, sz, color, rotation]);
+    this.items.get(kind).push([x, y, z, sx, sy, sz, color, rotation, pitch, roll]);
   }
   flush() {
     for (const [kind, mesh] of this.meshes) if (!this.items.has(kind)) mesh.count = 0;
@@ -47,10 +48,10 @@ class Batches {
         this.scene.add(mesh);
       }
       mesh.count = items.length;
-      items.forEach(([x, y, z, sx, sy, sz, color, rotation], index) => {
+      items.forEach(([x, y, z, sx, sy, sz, color, rotation, pitch, roll], index) => {
         this.matrix.position.set(x, y, z);
         this.matrix.scale.set(sx, sy, sz);
-        this.matrix.rotation.set(0, rotation, 0);
+        this.matrix.rotation.set(pitch, rotation, roll, 'YXZ');
         this.matrix.updateMatrix();
         mesh.setMatrixAt(index, this.matrix.matrix);
         mesh.setColorAt(index, this.color.set(color));
@@ -140,7 +141,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 }
 
-function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
+export function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   const x = car.axis === 0 ? car.position - originX : car.line * blockSize - originX - car.direction * car.offset;
   const z = car.axis === 0 ? car.line * blockSize - originZ + car.direction * car.offset : car.position - originZ;
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
@@ -148,18 +149,23 @@ function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
       Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
   const pose = vehiclePose(x, z, car.axis, car.direction, car.steer);
-  const part = (kind, dx, y, dz, w, h, d, color) => batch.add(kind, pose.x + dx * pose.cos + dz * pose.sin, y, pose.z - dx * pose.sin + dz * pose.cos, w, h, d, color, pose.angle);
+  const pitch = car.taxi ? car.pitch ?? 0 : 0, roll = car.taxi ? car.roll ?? 0 : 0;
+  const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
+    const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
+    batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y,
+      pose.z - local.x * pose.sin + local.z * pose.cos, w, h, d, color, pose.angle, sprung ? pitch : 0, sprung ? roll : 0);
+  };
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
   part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
-  for (const axle of [REAR_AXLE_Z, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030');
+  for (const axle of [REAR_AXLE_Z, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030', false);
   if (car.taxi) {
     part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
     if (headlightsOn(car)) {
       for (const side of [-1, 1]) {
         part('light', side * 0.29, 0.5, 1.14, 0.24, 0.2, 0.06, '#fffce2');
-        part('beam', side * 0.31, 0.035, 2.5, 0.62, 1, 2.6, '#fffce2');
+        part('beam', side * 0.31, 0.035, 2.5, 0.62, 1, 2.6, '#fffce2', false);
       }
     }
   }
