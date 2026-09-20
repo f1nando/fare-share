@@ -1,13 +1,13 @@
 export const SETTINGS_KEY = 'taxi-city.settings.v1';
 export const DEFAULT_SETTINGS = Object.freeze({
-  density: 100,
-  taxiShare: 11,
-  trafficSpeed: 100,
-  taxiSpeed: 100,
-  weaving: 100,
-  blockSize: 34,
-  zoom: 100,
-  cameraSpeed: 100,
+  density: 70,
+  taxiShare: 7,
+  trafficSpeed: 130,
+  taxiSpeed: 120,
+  weaving: 10,
+  blockSize: 40,
+  zoom: 80,
+  cameraSpeed: 200,
   paused: false,
 });
 

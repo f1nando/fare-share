@@ -13,9 +13,9 @@ test('saved controls clamp to supported ranges and ignore unknown fields', () =>
   assert.equal(settings.density, 150);
   assert.equal(settings.taxiShare, 0);
   assert.equal(settings.blockSize, 36);
-  assert.equal(settings.zoom, 100);
+  assert.equal(settings.zoom, 80);
   assert.equal(settings.cameraSpeed, 0);
   assert.equal(settings.paused, true);
   assert.equal(settings.injected, undefined);
-  assert.equal(DEFAULT_SETTINGS.density, 100);
+  assert.equal(DEFAULT_SETTINGS.density, 70);
 });
