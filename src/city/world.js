@@ -26,9 +26,9 @@ export function greenLight(time, axis) {
   return axis === 0 ? phase < 8 : phase >= 11 && phase < 19;
 }
 
-export function advanceVehicle(position, distance, direction, green) {
+export function advanceVehicle(position, distance, direction, green, blockSize = BLOCK) {
   const oriented = position * direction;
-  const untilJunction = BLOCK - mod(oriented, BLOCK);
+  const untilJunction = blockSize - mod(oriented, blockSize);
   const untilStop = untilJunction - STOP_LINE;
   if (!green && untilStop >= -0.001 && untilStop < distance) {
     return position + direction * Math.max(0, untilStop);
@@ -52,7 +52,7 @@ export function canMerge(car, cars, targetTrack, direction, mergeSpeed = car.spe
   });
 }
 
-export function updateTraffic(cars, direction, delta, green) {
+export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1 } = {}) {
   cars.sort((a, b) => (b.position - a.position) * direction);
   for (const car of cars) {
     car.cooldown = Math.max(0, car.cooldown - delta);
@@ -71,18 +71,18 @@ export function updateTraffic(cars, direction, delta, green) {
     const { gap, leader } = ahead(car.track);
     const { gap: targetGap, leader: targetLeader } = ahead(1 - car.track);
     const fasterLane = targetLeader && leader && targetLeader.speed > leader.speed + 1;
-    const passing = gap < 28 && (targetGap > gap + 0.4 || fasterLane);
+    const passing = gap < 28 * Math.max(0.5, weaving) && (targetGap > gap + 0.4 || fasterLane);
     const returning = car.track === 1 && gap > 26 && targetGap > 20;
     // Match the speed of a narrow slot, then accelerate out of it. This lets a
     // taxi use gaps that would be unsafe to enter at its full cruising speed.
     const mergeSpeed = targetLeader ? Math.min(car.speed, targetLeader.speed) : car.speed;
-    if (car.taxi && !car.changing && car.cooldown === 0 && (passing || returning) &&
+    if (weaving > 0 && car.taxi && !car.changing && car.cooldown === 0 && (passing || returning) &&
         canMerge(car, cars, 1 - car.track, direction, mergeSpeed)) {
       car.fromTrack = car.track;
       car.track = 1 - car.track;
       car.changing = true;
       car.merge = 0;
-      car.cooldown = 0.5;
+      car.cooldown = 0.5 / weaving;
       car.speed = mergeSpeed;
     }
     let clearance = ahead(car.track).gap;
@@ -94,7 +94,7 @@ export function updateTraffic(cars, direction, delta, green) {
     const acceleration = car.acceleration ?? (car.taxi ? 25 : 4);
     const speed = Math.min(desiredSpeed, car.speed + acceleration * delta);
     const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
-    const next = advanceVehicle(car.position, travel, direction, green);
+    const next = advanceVehicle(car.position, travel, direction, green, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : 0;
     car.position = next;
     const previousOffset = car.offset;

@@ -101,3 +101,19 @@ test('cars stop before crossings in both directions, including negative world co
   assert.equal(advanceVehicle(stop - 0.5, 1, 1, true), stop + 0.5);
   assert.equal(advanceVehicle(BLOCK - 2, 1, 1, false), BLOCK - 1);
 });
+
+test('custom block sizes move stop lines with their actual intersections', () => {
+  for (const blockSize of [24, 40, 48]) {
+    const stop = blockSize - STOP_LINE;
+    const car = vehicle(stop - 0.1, 0);
+    updateTraffic([car], 1, 0.1, false, { blockSize });
+    assert.ok(Math.abs(car.position - stop) < 1e-9);
+  }
+});
+
+test('zero weaving disables new taxi lane changes', () => {
+  const taxi = vehicle(0, 0, true), leader = vehicle(9, 0);
+  for (let i = 0; i < 60; i++) updateTraffic([taxi, leader], 1, 0.05, true, { weaving: 0 });
+  assert.equal(taxi.track, 0);
+  assert.equal(taxi.changing, false);
+});

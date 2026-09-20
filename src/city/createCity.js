@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, TAXI_SHARE, seededRandom, greenLight, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, seededRandom, greenLight, updateTraffic } from './world.js';
+import { normalizeSettings } from './settings.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -62,7 +63,7 @@ class Batches {
   }
 }
 
-function populateBlock(batch, gx, gz, x, z) {
+function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
   let layoutScale = 1;
@@ -72,11 +73,11 @@ function populateBlock(batch, gx, gz, x, z) {
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  put('round', BLOCK / 2, 0.10, BLOCK / 2, BLOCK - ROAD + 0.42, 0.3, BLOCK - ROAD + 0.42, palette.curb);
-  put('round', BLOCK / 2, 0.25, BLOCK / 2, BLOCK - ROAD, 0.34, BLOCK - ROAD, palette.sidewalk);
+  put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - ROAD + 0.42, 0.3, blockSize - ROAD + 0.42, palette.curb);
+  put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - ROAD, 0.34, blockSize - ROAD, palette.sidewalk);
 
   // Road markings stop before the intersection. Every tile owns two crossings.
-  for (let p = 6.5; p < BLOCK - 5; p += 3.3) {
+  for (let p = 6.5; p < blockSize - 5; p += 3.3) {
     put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
     put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
@@ -86,7 +87,7 @@ function populateBlock(batch, gx, gz, x, z) {
   }
 
   // The simple 24-unit lot layout expands with the block; roads stay separate.
-  layoutScale = BLOCK / 24;
+  layoutScale = blockSize / 24;
   const park = random() < 0.13;
   if (park) {
     put('round', 12, 0.45, 12, 15.7, 0.18, 15.7, pick(palette.grass));
@@ -117,9 +118,9 @@ function populateBlock(batch, gx, gz, x, z) {
   }
 }
 
-function addCar(batch, car, originX, originZ, focus, camera) {
-  const x = car.axis === 0 ? car.position - originX : car.line * BLOCK - originX - car.direction * car.offset;
-  const z = car.axis === 0 ? car.line * BLOCK - originZ + car.direction * car.offset : car.position - originZ;
+function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
+  const x = car.axis === 0 ? car.position - originX : car.line * blockSize - originX - car.direction * car.offset;
+  const z = car.axis === 0 ? car.line * blockSize - originZ + car.direction * car.offset : car.position - originZ;
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
   const dx = x - focus.x, dz = z - focus.z;
   if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
@@ -137,7 +138,10 @@ function addCar(batch, car, originX, originZ, focus, camera) {
   }
 }
 
-export function createCity(container) {
+export function createCity(container, initialSettings) {
+  let settings = normalizeSettings(initialSettings);
+  let BLOCK = settings.blockSize;
+  let rebuildTimer;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#dedede');
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -189,7 +193,7 @@ export function createCity(container) {
   function rebuild() {
     staticBatch.reset();
     for (let x = -radius; x <= radius; x++) {
-      for (let z = -radius; z <= radius; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK);
+      for (let z = -radius; z <= radius; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK, BLOCK);
     }
     staticBatch.flush();
     const next = new Map();
@@ -203,16 +207,18 @@ export function createCity(container) {
           if (!lane) {
             const random = seededRandom(line * 7 + axis, direction * 991);
             lane = { axis, line, direction, cars: [] };
-            const count = Math.floor((radius * 2 + 1) * BLOCK / TRAFFIC_SPACING);
+            const spacing = settings.density > 0 ? TRAFFIC_SPACING * 100 / settings.density : Infinity;
+            const count = Math.floor((radius * 2 + 1) * BLOCK / spacing);
             for (let track = 0; track < 2; track++) {
               for (let i = 0; i < count; i++) {
-                const taxi = random() < TAXI_SHARE;
+                const taxi = random() < settings.taxiShare / 100;
                 const cruise = taxi ? 13 + random() * 2 : 3.4 + random() * 4.2;
                 const acceleration = taxi ? 24 + random() * 5 : 2.2 + random() * 4;
                 lane.cars.push({ axis, line, direction,
-                  position: centerPosition - radius * BLOCK + i * TRAFFIC_SPACING + track * TRAFFIC_SPACING / 2 + random() * 1.5,
+                  position: centerPosition - radius * BLOCK + i * spacing + track * spacing / 2 + random() * 1.5,
                   taxi, color: palette.cars[Math.floor(random() * palette.cars.length)],
                   track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise, acceleration,
+                  baseCruise: cruise, baseAcceleration: acceleration,
                   changing: false, merge: 1, cooldown: random(), steer: 0,
                 });
               }
@@ -229,7 +235,7 @@ export function createCity(container) {
     const width = Math.max(container.clientWidth, 1), height = Math.max(container.clientHeight, 1);
     const aspect = width / height;
     // Keep the framing fixed so larger blocks also appear larger on screen.
-    const viewWidth = aspect < 1 ? 76 * aspect : Math.min(144, 82 * aspect);
+    const viewWidth = (aspect < 1 ? 76 * aspect : Math.min(144, 82 * aspect)) * 100 / settings.zoom;
     const viewHeight = viewWidth / aspect;
     camera.left = -viewWidth / 2; camera.right = viewWidth / 2;
     camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
@@ -243,11 +249,12 @@ export function createCity(container) {
     if (disposed) return;
     const delta = previous ? Math.min((timestamp - previous) / 1000, 0.06) : 0;
     previous = timestamp;
-    if (!document.hidden && !reducedMotion.matches) {
-      time += delta;
+    const moving = !document.hidden && !reducedMotion.matches && !settings.paused;
+    if (moving) {
+      time += delta * Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
       // Positive camera displacement projects down and right on the ground.
-      focus.x += delta * 0.92;
-      focus.z += delta * 0.36;
+      focus.x += delta * 0.92 * settings.cameraSpeed / 100;
+      focus.z += delta * 0.36 * settings.cameraSpeed / 100;
     }
     const shiftX = Math.floor(focus.x / BLOCK), shiftZ = Math.floor(focus.z / BLOCK);
     if (shiftX || shiftZ) {
@@ -267,12 +274,15 @@ export function createCity(container) {
       const center = lane.axis === 0 ? originX + focus.x : originZ + focus.z;
       const half = (radius + 0.5) * BLOCK;
       for (const car of lane.cars) {
+        const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
+        car.cruise = car.baseCruise * multiplier;
+        car.acceleration = car.baseAcceleration * multiplier;
         if (car.position < center - half) car.position += half * 2;
         if (car.position > center + half) car.position -= half * 2;
       }
-      if (!document.hidden && !reducedMotion.matches) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis));
+      if (moving) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), { blockSize: BLOCK, weaving: settings.weaving / 100 });
       for (const car of lane.cars) {
-        addCar(carsBatch, car, originX, originZ, focus, camera);
+        addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK);
       }
     }
     carsBatch.flush();
@@ -285,8 +295,29 @@ export function createCity(container) {
   renderer.setAnimationLoop(frame);
   const visibility = () => { previous = 0; renderer.setAnimationLoop(document.hidden ? null : frame); };
   document.addEventListener('visibilitychange', visibility);
-  return () => {
+  function updateSettings(value) {
+    const next = normalizeSettings(value);
+    const regenerate = next.blockSize !== settings.blockSize || next.density !== settings.density || next.taxiShare !== settings.taxiShare;
+    const zoomChanged = next.zoom !== settings.zoom;
+    settings = next;
+    if (zoomChanged) resize();
+    if (regenerate) {
+      clearTimeout(rebuildTimer);
+      rebuildTimer = setTimeout(() => {
+        const scale = settings.blockSize / BLOCK;
+        focus.multiplyScalar(scale);
+        BLOCK = settings.blockSize;
+        originX = worldX * BLOCK; originZ = worldZ * BLOCK;
+        lanes.clear();
+        lastCellX = NaN;
+        resize();
+      }, 180);
+    }
+  }
+
+  function dispose() {
     disposed = true;
+    clearTimeout(rebuildTimer);
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
@@ -296,5 +327,6 @@ export function createCity(container) {
     sunlight.shadow.map?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
-  };
+  }
+  return { updateSettings, dispose };
 }
