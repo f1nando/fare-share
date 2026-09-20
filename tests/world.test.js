@@ -59,18 +59,30 @@ test('cars pack tightly at red and stretch apart with individual acceleration on
   assert.ok(middle.position - last.position > CAR_GAP + 1);
 });
 
-test('taxi matches a tight moving slot instead of rejecting it at full speed', () => {
+test('taxi rejects a slot that would require braking during the merge', () => {
   const taxi = vehicle(0, 0, true);
   const blocker = vehicle(4, 0);
   blocker.speed = 0; blocker.cruise = 0;
   const front = vehicle(4, 1), rear = vehicle(-4, 1);
   const cars = [taxi, blocker, front, rear];
   assert.equal(canMerge(taxi, cars, 1, 1), false);
-  assert.equal(canMerge(taxi, cars, 1, 1, front.speed), true);
   updateTraffic(cars, 1, 0.05, true);
-  assert.equal(taxi.track, 1);
-  assert.equal(taxi.changing, true);
-  assert.ok(taxi.speed < taxi.cruise);
+  assert.equal(taxi.track, 0);
+  assert.equal(taxi.changing, false);
+});
+
+test('taxi maintains its entry speed throughout a merge beside slower cars', () => {
+  for (const direction of [-1, 1]) {
+    const taxi = vehicle(0, 0, true);
+    const cars = [taxi, vehicle(direction * 9, 0), vehicle(direction * 12, 1)];
+    const entrySpeed = taxi.speed;
+    for (let i = 0; i < 17; i++) {
+      updateTraffic(cars, direction, 0.02, true);
+      assert.equal(taxi.track, 1);
+      assert.ok(Math.abs(taxi.speed - entrySpeed) < 1e-9);
+    }
+    assert.equal(taxi.changing, false);
+  }
 });
 
 test('dense traffic keeps distance through merges and stop phases in either direction', () => {

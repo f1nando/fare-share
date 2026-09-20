@@ -7,7 +7,7 @@ export const TAXI_SHARE = 0.11;
 export const MERGE_DURATION = 0.34;
 export const STOP_LINE = ROAD / 2 + 1.5;
 export const REAR_AXLE_Z = -0.69;
-export const MAX_MERGE_ANGLE = Math.PI / 9;
+export const MAX_MERGE_ANGLE = Math.PI / 15;
 
 // Ease into a small turn, peak halfway across, then ease back to straight.
 // A progress-based angle stays stable even when a taxi slows down in a gap.
@@ -62,11 +62,11 @@ export function occupiesTrack(car, track) {
 }
 
 // Test both the current gap and where its neighbours will be during the merge.
-export function canMerge(car, cars, targetTrack, direction, mergeSpeed = car.speed) {
+export function canMerge(car, cars, targetTrack, direction) {
   return cars.every(other => {
     if (other === car || !occupiesTrack(other, targetTrack)) return true;
     const gap = (other.position - car.position) * direction;
-    const futureGap = gap + (other.speed - mergeSpeed) * MERGE_DURATION;
+    const futureGap = gap + (other.speed - car.speed) * MERGE_DURATION;
     return gap > 0
       ? Math.min(gap, futureGap) > CAR_GAP + 0.15
       : Math.max(gap, futureGap) < -CAR_GAP - 0.15;
@@ -94,17 +94,16 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const fasterLane = targetLeader && leader && targetLeader.speed > leader.speed + 1;
     const passing = gap < 28 * Math.max(0.5, weaving) && (targetGap > gap + 0.4 || fasterLane);
     const returning = car.track === 1 && gap > 26 && targetGap > 20;
-    // Match the speed of a narrow slot, then accelerate out of it. This lets a
-    // taxi use gaps that would be unsafe to enter at its full cruising speed.
-    const mergeSpeed = targetLeader ? Math.min(car.speed, targetLeader.speed) : car.speed;
+    // Reserve enough room in both lanes to complete the manoeuvre at entry speed.
+    const sourceClear = !leader || gap + (leader.speed - car.speed) * MERGE_DURATION > CAR_GAP + 0.15;
     if (weaving > 0 && car.taxi && !car.changing && car.cooldown === 0 && (passing || returning) &&
-        canMerge(car, cars, 1 - car.track, direction, mergeSpeed)) {
+        sourceClear && canMerge(car, cars, 1 - car.track, direction)) {
       car.fromTrack = car.track;
       car.track = 1 - car.track;
       car.changing = true;
       car.merge = 0;
       car.cooldown = 0.5 / weaving;
-      car.speed = mergeSpeed;
+      car.mergeSpeed = car.speed;
     }
     let clearance = ahead(car.track).gap;
     if (car.changing) clearance = Math.min(clearance, ahead(car.fromTrack).gap);
@@ -113,10 +112,14 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const desiredGap = CAR_GAP + car.speed * (car.taxi ? 0.08 : 0.7);
     const desiredSpeed = Math.min(car.cruise, Math.max(0, (clearance - desiredGap) * (car.taxi ? 4 : 2.4)));
     const acceleration = car.acceleration ?? (car.taxi ? 25 : 4);
-    const speed = Math.min(desiredSpeed, car.speed + acceleration * delta);
+    // Lane changing itself never applies the normal following slowdown. Hard
+    // clearance and stop-line limits below still handle newly blocked traffic.
+    const speed = car.changing
+      ? Math.min(car.cruise, car.mergeSpeed ?? car.speed)
+      : Math.min(desiredSpeed, car.speed + acceleration * delta);
     const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
     const next = advanceVehicle(car.position, travel, direction, green, blockSize);
-    car.speed = delta ? Math.abs(next - car.position) / delta : 0;
+    car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;
     if (car.changing) {
       car.merge = Math.min(1, car.merge + delta / MERGE_DURATION);
