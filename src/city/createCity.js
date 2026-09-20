@@ -207,11 +207,12 @@ export function createCity(container) {
             for (let track = 0; track < 2; track++) {
               for (let i = 0; i < count; i++) {
                 const taxi = random() < TAXI_SHARE;
-                const cruise = taxi ? 11 + random() * 2 : 4.2 + random() * 1.6;
+                const cruise = taxi ? 13 + random() * 2 : 3.4 + random() * 4.2;
+                const acceleration = taxi ? 24 + random() * 5 : 2.2 + random() * 4;
                 lane.cars.push({ axis, line, direction,
                   position: centerPosition - radius * BLOCK + i * TRAFFIC_SPACING + track * TRAFFIC_SPACING / 2 + random() * 1.5,
                   taxi, color: palette.cars[Math.floor(random() * palette.cars.length)],
-                  track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise,
+                  track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise, acceleration,
                   changing: false, merge: 1, cooldown: random(), steer: 0,
                 });
               }

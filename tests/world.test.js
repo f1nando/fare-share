@@ -41,11 +41,36 @@ test('taxis weave between staggered cars instead of staying in the passing lane'
   assert.ok(switches >= 2);
 });
 
-test('ordinary cars open a larger gap when traffic starts moving', () => {
-  const leader = vehicle(8, 0), follower = vehicle(0, 0);
-  follower.speed = 0;
-  for (let frame = 0; frame < 100; frame++) updateTraffic([leader, follower], 1, 0.05, true);
-  assert.ok(leader.position - follower.position > 8);
+test('cars pack tightly at red and stretch apart with individual acceleration on green', () => {
+  const stop = BLOCK - STOP_LINE;
+  const cars = [vehicle(stop, 0), vehicle(stop - 8, 0), vehicle(stop - 16, 0)];
+  for (let frame = 0; frame < 240; frame++) updateTraffic(cars, 1, 0.05, false);
+  for (let i = 1; i < cars.length; i++) {
+    assert.ok(Math.abs(cars[i - 1].position - cars[i].position - CAR_GAP) < 0.05);
+    assert.ok(cars[i].speed < 0.05);
+  }
+  const [leader, middle, last] = cars;
+  leader.cruise = 7.6; leader.acceleration = 6.2;
+  middle.cruise = 5.7; middle.acceleration = 4;
+  last.cruise = 3.4; last.acceleration = 2.2;
+  for (let frame = 0; frame < 60; frame++) updateTraffic(cars, 1, 0.05, true);
+  assert.ok(leader.speed > middle.speed && middle.speed > last.speed);
+  assert.ok(leader.position - middle.position > CAR_GAP + 2);
+  assert.ok(middle.position - last.position > CAR_GAP + 1);
+});
+
+test('taxi matches a tight moving slot instead of rejecting it at full speed', () => {
+  const taxi = vehicle(0, 0, true);
+  const blocker = vehicle(4, 0);
+  blocker.speed = 0; blocker.cruise = 0;
+  const front = vehicle(4, 1), rear = vehicle(-4, 1);
+  const cars = [taxi, blocker, front, rear];
+  assert.equal(canMerge(taxi, cars, 1, 1), false);
+  assert.equal(canMerge(taxi, cars, 1, 1, front.speed), true);
+  updateTraffic(cars, 1, 0.05, true);
+  assert.equal(taxi.track, 1);
+  assert.equal(taxi.changing, true);
+  assert.ok(taxi.speed < taxi.cruise);
 });
 
 test('dense traffic keeps distance through merges and stop phases in either direction', () => {
