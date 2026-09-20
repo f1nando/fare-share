@@ -16,7 +16,7 @@ for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for 
   }
   lanes.set(`${axis}:${line}:${direction}`, { axis, line, direction, cars });
 }
-const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0 };
+const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0 };
 for (let frame = 0; frame < 1500; frame++) {
   const time = frame * 0.04, crossingAccess = intersectionAccess(lanes, blockSize, time);
   for (const lane of lanes.values()) for (const car of lane.cars) {
@@ -24,13 +24,17 @@ for (let frame = 0; frame < 1500; frame++) {
     if (car.position > half) { car.position -= half * 2; resetSignal(car); }
   }
   for (const lane of lanes.values()) {
-    const before = lane.cars.map(car => [car, car.position, car.overtake]);
+    const before = lane.cars.map(car => [car, car.position, car.overtake, !!car.feint, car.race, car.raceResult]);
     const green = greenLight(time, lane.axis);
     updateTraffic(lane.cars, lane.direction, 0.04, green, { blockSize, weaving, crossingAccess,
       opposing: lanes.get(`${lane.axis}:${lane.line}:${-lane.direction}`).cars,
       greenRemaining: greenTimeLeft(time, lane.axis) });
-    for (const [car, position, passing] of before) {
+    for (const [car, position, passing, feint, race, result] of before) {
       if (!car.taxi) continue;
+      if (car.feint && !feint) counts.feints++;
+      if (!car.feint && feint) counts.returnedFeints++;
+      if (car.race && !race && car.race.follower === car) counts.races++;
+      if (car.raceResult === 'won' && result !== 'won') counts.raceWins++;
       if (car.overtake && !passing) counts[car.overtake.passTrack === 2 ? 'shoulderOvertakes' : 'oncomingOvertakes']++;
       if (!car.overtake && passing) {
         if ((car.position - passing.leader.position) * lane.direction >= CAR_GAP) counts[passing.passTrack === 2 ? 'completedShoulderOvertakes' : 'completedOvertakes']++;
@@ -50,4 +54,4 @@ for (let frame = 0; frame < 1500; frame++) {
   }
 }
 console.log(JSON.stringify(counts));
-if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0) process.exitCode = 1;
+if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0 || counts.returnedFeints < 2 || counts.raceWins < 1) process.exitCode = 1;
