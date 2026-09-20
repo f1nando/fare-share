@@ -1,6 +1,7 @@
-import { CAR_GAP, STOP_LINE, TRACKS, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
+import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
+import { updateSurfaceMotion } from './vehicleSurface.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -129,5 +130,10 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       track: turn.track, fromTrack: turn.track, offset: TRACKS[turn.track], steer: 0, changing: false, merge: 1,
       turn: null, turnCooldown: 4 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
+  }
+  for (const lane of lanes.values()) for (const car of lane.cars) {
+    const position = carCoordinates(car, blockSize);
+    const pose = car.turn ? position : vehiclePose(position.x, position.z, car.axis, car.direction, car.steer);
+    updateSurfaceMotion(car, pose, delta, blockSize, PAVED_ROAD / 2);
   }
 }

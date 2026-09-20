@@ -2,7 +2,7 @@ import { updateBodyMotion } from './vehicleBody.js';
 
 export const BLOCK = 34;
 export const ROAD = 6.6;
-export const SHOULDER_WIDTH = 1.4;
+export const SHOULDER_WIDTH = 0.55;
 export const PAVED_ROAD = ROAD + SHOULDER_WIDTH * 2;
 export const TRACKS = [0.82, 2.45];
 export const CAR_GAP = 2.9;
@@ -17,7 +17,7 @@ export const FLASH_DURATION = FLASH_PERIOD * 3;
 export const ONCOMING_TRACK = -1;
 export const SHOULDER_TRACK = 2;
 export const trackOffset = track => track === ONCOMING_TRACK ? -TRACKS[0] :
-  track === SHOULDER_TRACK ? ROAD / 2 + SHOULDER_WIDTH / 2 : TRACKS[track];
+  track === SHOULDER_TRACK ? PAVED_ROAD / 2 + 0.21 : TRACKS[track];
 export const taxiAggression = weaving => 1 + Math.max(0, Math.min(2, weaving)) * 0.5;
 export const FEINT_DURATION = 0.9;
 export const FEINT_REACH = 0.58;
@@ -36,6 +36,8 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  car.rideHeight = car.rideVelocity = car.surfaceSupport = car.roadRoll = car.roadPitch = 0;
+  car.wheelHeights = null;
   if (car.turn) car.steer = 0;
   car.turn = null;
   car.turnCooldown = 0;

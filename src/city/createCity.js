@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom } from './world.js';
+import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, vehiclePose, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
 import { carCoordinates, turnPose, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
+import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -78,7 +79,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     // Small block settings must not push raised lawns or building plinths into
     // the driveable shoulder. Tree trunks are placed inside this boundary too.
     if (y >= 0.4 && ['round', 'paving', 'building'].includes(kind)) {
-      const inset = PAVED_ROAD / 2 + 0.1;
+      const inset = PAVED_ROAD / 2 + 0.9;
       w = Math.min(w, 2 * Math.min(dx * layoutScale - inset, blockSize - dx * layoutScale - inset) / layoutScale);
       d = Math.min(d, 2 * Math.min(dz * layoutScale - inset, blockSize - dz * layoutScale - inset) / layoutScale);
     }
@@ -91,7 +92,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 
   put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
   put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
-  // The shoulder is actual clear asphalt, separated by a faint edge marking.
+  // A narrow asphalt shoulder lets taxis ride the pavement with one side.
   for (const side of [-1, 1]) {
     put('paint', blockSize / 2, 0.015, side * ROAD / 2, blockSize - STOP_LINE * 2, 0.018, 0.06, '#8d8d8d');
     put('paint', side * ROAD / 2, 0.015, blockSize / 2, 0.06, 0.018, blockSize - STOP_LINE * 2, '#8d8d8d');
@@ -149,17 +150,22 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
   if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
       Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
   const pose = car.turn ? { ...turnPose(car.turn), x, z } : vehiclePose(x, z, car.axis, car.direction, car.steer);
-  const pitch = car.taxi ? car.pitch ?? 0 : 0, roll = car.taxi ? car.roll ?? 0 : 0;
+  const pitch = (car.taxi ? car.pitch ?? 0 : 0) + (car.roadPitch ?? 0);
+  const roll = (car.taxi ? car.roll ?? 0 : 0) + (car.roadRoll ?? 0);
+  const lift = car.rideHeight ?? 0;
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
-    batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y,
+    batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0),
       pose.z - local.x * pose.sin + local.z * pose.cos, w, h, d, color, pose.angle, sprung ? pitch : 0, sprung ? roll : 0);
   };
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
   part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
-  for (const axle of [REAR_AXLE_Z, 0.69]) part('box', 0, 0.22, axle, 1.04, 0.32, 0.34, '#303030', false);
+  const airborne = Math.max(0, lift - (car.surfaceSupport ?? 0));
+  for (const [a, axle] of WHEEL_AXLES.entries()) for (const [s, side] of WHEEL_SIDES.entries()) {
+    part('box', side, 0.22 + (car.wheelHeights?.[a * 2 + s] ?? 0) + airborne, axle, 0.18, 0.32, 0.34, '#303030', false);
+  }
   if (car.taxi) {
     part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
     if (headlightsOn(car)) {

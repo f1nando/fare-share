@@ -41,14 +41,15 @@ test('occupied shoulder is rejected and recycling restores the outer home lane',
   assert.equal(taxi.overtake, null);
 });
 
-test('buildings, trunks and raised landscaping leave the entire paved shoulder clear at every block size', () => {
+test('buildings, trunks and landscaping leave the sidewalk riding strip clear at every block size', () => {
   for (const size of [24, 40, 48]) for (let seed = 0; seed < 30; seed++) {
     populateBlock({ add(kind, x, y, z, w, h, d) {
       if (['paint', 'crown'].includes(kind)) return;
       assert.ok(w > 0 && d > 0);
       const left = Math.min(x - w / 2, z - d / 2);
       const right = Math.max(x + w / 2, z + d / 2);
-      assert.ok(left >= PAVED_ROAD / 2 - 1e-6 && right <= size - PAVED_ROAD / 2 + 1e-6,
+      const boundary = y >= 0.4 ? trackOffset(SHOULDER_TRACK) + 0.52 : PAVED_ROAD / 2;
+      assert.ok(left >= boundary - 1e-6 && right <= size - boundary + 1e-6,
         `${kind} intrudes into the shoulder at block size ${size}`);
     } }, seed, -seed, 0, 0, size);
   }
