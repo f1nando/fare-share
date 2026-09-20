@@ -25,7 +25,7 @@ function scene(cars) {
 
 test('taxi flies through an empty red crossing at entry speed on both axes and directions', () => {
   for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const junction of [-80, 0, 80]) {
-    const car = vehicle(axis, direction, junction - direction * 6, true, -2);
+    const car = vehicle(axis, direction, junction - direction * (STOP_LINE + 1.2), true, -2);
     const tick = scene([car]);
     for (let i = 0; i < 45; i++) {
       tick(axis === 0 ? 12 : 2);
@@ -37,7 +37,7 @@ test('taxi flies through an empty red crossing at entry speed on both axes and d
 
 test('ordinary cars still stop at red, taxis wait for occupied crossings and blocked exits', () => {
   for (const mode of ['ordinary', 'occupied', 'approaching', 'blocked-exit']) {
-    const car = vehicle(0, 1, -6, mode !== 'ordinary');
+    const car = vehicle(0, 1, -STOP_LINE - 1.2, mode !== 'ordinary');
     const cars = [car];
     if (mode === 'occupied') cars.push(vehicle(1, 1, 0));
     if (mode === 'approaching') cars.push(vehicle(1, 1, -9));
@@ -51,7 +51,7 @@ test('ordinary cars still stop at red, taxis wait for occupied crossings and blo
 });
 
 test('taxi waits for cross traffic then accelerates through the gap while still red', () => {
-  const taxi = vehicle(0, 1, -6, true), crossing = vehicle(1, 1, -8);
+  const taxi = vehicle(0, 1, -STOP_LINE - 1.2, true), crossing = vehicle(1, 1, -STOP_LINE - 3.2);
   const tick = scene([taxi, crossing]);
   let stopped = false, crossed = false;
   for (let frame = 0; frame < 180; frame++) {
@@ -80,7 +80,7 @@ test('committed taxi keeps the crossing across light changes and releases it aft
 
 test('cross-traffic lookup respects road axes, directions and negative block coordinates', () => {
   for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const crossDirection of [-1, 1]) {
-    const taxi = vehicle(axis, direction, -120 - direction * 6, true, -2);
+    const taxi = vehicle(axis, direction, -120 - direction * (STOP_LINE + 1.2), true, -2);
     const crossing = vehicle(1 - axis, crossDirection, -80 - crossDirection * 2, false, -3);
     const tick = scene([taxi, crossing]);
     for (let frame = 0; frame < 8; frame++) tick(axis === 0 ? 12 : 2);
@@ -89,7 +89,7 @@ test('cross-traffic lookup respects road axes, directions and negative block coo
 });
 
 test('two red-running taxis never claim the same crossing on perpendicular axes', () => {
-  const first = vehicle(0, 1, -STOP_LINE, true), second = vehicle(1, -1, 6, true);
+  const first = vehicle(0, 1, -STOP_LINE, true), second = vehicle(1, -1, STOP_LINE + 1.2, true);
   const tick = scene([first, second]);
   for (let frame = 0; frame < 400; frame++) {
     tick(frame * 0.02);

@@ -15,7 +15,7 @@ export function SettingsPanel({ settings, onChange }) {
         <span className="settings-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
       </button>
       {open && <div id="city-settings" className="settings-body">
-        <p className="settings-intro">Твой город. Твой ритм.</p>
+        <p className="settings-intro">Такси лихачат всегда. Добавь ещё драйва.</p>
         {SETTING_GROUPS.map(group => <fieldset key={group.title}>
           <legend>{group.title}</legend>
           {group.controls.map(control => <label className="setting" key={control.key} htmlFor={`setting-${control.key}`}>

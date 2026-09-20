@@ -19,7 +19,7 @@ export const SETTING_GROUPS = [
   { title: 'Такси', controls: [
     { key: 'taxiShare', label: 'Доля такси', min: 0, max: 30, step: 1, unit: '%' },
     { key: 'taxiSpeed', label: 'Скорость такси', min: 50, max: 180, step: 5, unit: '%' },
-    { key: 'weaving', label: 'Активность перестроений', min: 0, max: 200, step: 10, unit: '%' },
+    { key: 'weaving', label: 'Дополнительное лихачество', min: 0, max: 200, step: 10, unit: '%' },
   ] },
   { title: 'Город и камера', controls: [
     { key: 'blockSize', label: 'Размер кварталов', min: 24, max: 48, step: 2, unit: '' },

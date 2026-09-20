@@ -16,7 +16,7 @@ for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for 
   }
   lanes.set(`${axis}:${line}:${direction}`, { axis, line, direction, cars });
 }
-const counts = { redCrossings: 0, oncomingOvertakes: 0, completedOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0 };
+const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0 };
 for (let frame = 0; frame < 1500; frame++) {
   const time = frame * 0.04, crossingAccess = intersectionAccess(lanes, blockSize, time);
   for (const lane of lanes.values()) for (const car of lane.cars) {
@@ -31,9 +31,9 @@ for (let frame = 0; frame < 1500; frame++) {
       greenRemaining: greenTimeLeft(time, lane.axis) });
     for (const [car, position, passing] of before) {
       if (!car.taxi) continue;
-      if (car.overtake && !passing) counts.oncomingOvertakes++;
+      if (car.overtake && !passing) counts[car.overtake.passTrack === 2 ? 'shoulderOvertakes' : 'oncomingOvertakes']++;
       if (!car.overtake && passing) {
-        if ((car.position - passing.leader.position) * lane.direction >= CAR_GAP) counts.completedOvertakes++;
+        if ((car.position - passing.leader.position) * lane.direction >= CAR_GAP) counts[passing.passTrack === 2 ? 'completedShoulderOvertakes' : 'completedOvertakes']++;
         else counts.abortedOvertakes++;
       }
       if (!green && Math.floor((position * lane.direction + STOP_LINE) / blockSize) !==
@@ -43,8 +43,11 @@ for (let frame = 0; frame < 1500; frame++) {
           if (occupiesTrack(other, 0) && Math.abs(other.position - car.position) < CAR_GAP) counts.oncomingConflicts++;
         }
       }
+      if (Math.abs(car.position) < 60 && occupiesTrack(car, 2)) {
+        for (const other of lane.cars) if (other !== car && occupiesTrack(other, 2) && Math.abs(other.position - car.position) < CAR_GAP - 1e-7) counts.shoulderConflicts++;
+      }
     }
   }
 }
 console.log(JSON.stringify(counts));
-if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.oncomingConflicts > 0) process.exitCode = 1;
+if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0) process.exitCode = 1;

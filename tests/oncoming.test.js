@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TRACKS, CAR_GAP, ONCOMING_TRACK, updateTraffic, occupiesTrack, canMerge, greenTimeLeft, resetSignal, seededRandom } from '../src/city/world.js';
+import { TRACKS, CAR_GAP, STOP_LINE, ONCOMING_TRACK, updateTraffic, occupiesTrack, canMerge, greenTimeLeft, resetSignal, seededRandom } from '../src/city/world.js';
 
 const vehicle = (position, track, taxi = false) => ({
   position, track, fromTrack: track, offset: TRACKS[track], taxi,
@@ -8,8 +8,9 @@ const vehicle = (position, track, taxi = false) => ({
   cooldown: 0, changing: false, merge: 1, steer: 0, flashCooldown: Infinity,
 });
 const scenario = (direction = 1) => {
-  const taxi = vehicle(direction * 6, 0, true);
-  return { taxi, leader: vehicle(direction * 13, 0), neighbour: vehicle(direction * 7, 1) };
+  const start = STOP_LINE + 0.8;
+  const taxi = vehicle(direction * start, 0, true);
+  return { taxi, leader: vehicle(direction * (start + 7), 0), neighbour: vehicle(direction * (start + 1), 1) };
 };
 
 test('taxi passes on a clear oncoming lane and smoothly returns ahead in either direction', () => {
@@ -33,7 +34,7 @@ test('taxi passes on a clear oncoming lane and smoothly returns ahead in either 
 });
 
 test('oncoming traffic, missing return space, red light and nearby junction block overtaking', () => {
-  for (const mode of ['oncoming', 'merging-oncoming', 'return-slot', 'red', 'junction', 'green-ending', 'disabled']) {
+  for (const mode of ['oncoming', 'merging-oncoming', 'return-slot', 'red', 'junction', 'green-ending']) {
     const { taxi, leader, neighbour } = scenario();
     const cars = [taxi, leader, neighbour];
     const opposing = [];

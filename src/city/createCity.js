@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, greenTimeLeft, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { normalizeSettings } from './settings.js';
 import { intersectionAccess } from './intersections.js';
 
@@ -69,36 +69,51 @@ class Batches {
   }
 }
 
-function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
+export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
   let layoutScale = 1;
-  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => batch.add(kind, x + dx * layoutScale, y, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation);
+  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => {
+    // Small block settings must not push raised lawns or building plinths into
+    // the driveable shoulder. Tree trunks are placed inside this boundary too.
+    if (y >= 0.4 && ['round', 'paving', 'building'].includes(kind)) {
+      const inset = PAVED_ROAD / 2 + 0.1;
+      w = Math.min(w, 2 * Math.min(dx * layoutScale - inset, blockSize - dx * layoutScale - inset) / layoutScale);
+      d = Math.min(d, 2 * Math.min(dz * layoutScale - inset, blockSize - dz * layoutScale - inset) / layoutScale);
+    }
+    batch.add(kind, x + dx * layoutScale, y, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation);
+  };
   const tree = (tx, tz, size = 1) => {
     put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777');
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - ROAD + 0.42, 0.3, blockSize - ROAD + 0.42, palette.curb);
-  put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - ROAD, 0.34, blockSize - ROAD, palette.sidewalk);
+  put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
+  put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
+  // The shoulder is actual clear asphalt, separated by a faint edge marking.
+  for (const side of [-1, 1]) {
+    put('paint', blockSize / 2, 0.015, side * ROAD / 2, blockSize - STOP_LINE * 2, 0.018, 0.06, '#8d8d8d');
+    put('paint', side * ROAD / 2, 0.015, blockSize / 2, 0.06, 0.018, blockSize - STOP_LINE * 2, '#8d8d8d');
+  }
 
   // Road markings stop before the intersection. Every tile owns two crossings.
   for (let p = 6.5; p < blockSize - 5; p += 3.3) {
     put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
     put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
-  for (let p = -2.65; p <= 2.65; p += 0.66) {
-    put('paint', ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
-    put('paint', p, 0.02, ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
+  for (let p = -PAVED_ROAD / 2 + 0.65; p <= PAVED_ROAD / 2 - 0.65; p += 0.66) {
+    put('paint', PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
+    put('paint', p, 0.02, PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
   // The simple 24-unit lot layout expands with the block; roads stay separate.
   layoutScale = blockSize / 24;
   const park = random() < 0.13;
   if (park) {
-    put('round', 12, 0.45, 12, 15.7, 0.18, 15.7, pick(palette.grass));
-    put('paving', 12, 0.56, 12, 1.3, 0.025, 15.5, '#dddddd');
-    put('paving', 12, 0.56, 12, 15.5, 0.025, 1.3, '#dddddd');
+    const parkSize = Math.min(15.7, 24 - (PAVED_ROAD + 0.8) / layoutScale);
+    put('round', 12, 0.45, 12, parkSize, 0.18, parkSize, pick(palette.grass));
+    put('paving', 12, 0.56, 12, 1.3, 0.025, parkSize - 0.2, '#dddddd');
+    put('paving', 12, 0.56, 12, parkSize - 0.2, 0.025, 1.3, '#dddddd');
     for (const [tx, tz] of [[7,7], [16,7], [7,16], [16,16], [5.8,11], [18,13]]) tree(tx, tz, 1 + random() * 0.55);
   } else {
     for (const [lx, lz] of [[7.8,7.8], [16,7.8], [7.8,16], [16,16]]) {
@@ -116,7 +131,8 @@ function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     }
   }
   // Small curbside trees give even the denser blocks a soft green border.
-  for (const [tx, tz] of [[4.2,12], [19.9,12], [12,4.2]]) {
+  const treeInset = Math.max(4.2, (PAVED_ROAD / 2 + 1.4) / layoutScale);
+  for (const [tx, tz] of [[treeInset,12], [24 - treeInset,12], [12,treeInset]]) {
     if (random() < 0.62) {
       put('round', tx, 0.46, tz, 1.9, 0.14, 2.5, pick(palette.grass));
       tree(tx, tz, 0.65 + random() * 0.3);

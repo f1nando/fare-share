@@ -125,9 +125,15 @@ test('custom block sizes move stop lines with their actual intersections', () =>
   }
 });
 
-test('zero weaving disables new taxi lane changes', () => {
-  const taxi = vehicle(0, 0, true), leader = vehicle(9, 0);
-  for (let i = 0; i < 60; i++) updateTraffic([taxi, leader], 1, 0.05, true, { weaving: 0 });
-  assert.equal(taxi.track, 0);
-  assert.equal(taxi.changing, false);
+test('taxi overtakes even with zero extra aggression', () => {
+  for (const weaving of [0, 0.1, 2]) {
+    const taxi = vehicle(0, 0, true), leader = vehicle(9, 0);
+    let changed = false;
+    for (let i = 0; i < 60; i++) {
+      updateTraffic([taxi, leader], 1, 0.05, true, { weaving });
+      changed ||= taxi.changing;
+    }
+    assert.ok(changed);
+    assert.ok(taxi.position > leader.position);
+  }
 });
