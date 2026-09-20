@@ -36,6 +36,9 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  if (car.turn) car.steer = 0;
+  car.turn = null;
+  car.turnCooldown = 0;
   car.pitch = car.roll = car.pitchVelocity = car.rollVelocity = 0;
   if (car.race) finishRace(car.race);
   car.raceCooldown = 0;
@@ -71,7 +74,7 @@ function updateSignals(cars, direction, delta) {
   }
   if (!delta) return;
   for (const taxi of cars) {
-    if (!taxi.taxi || taxi.changing || taxi.flashCooldown > 0) continue;
+    if (!taxi.taxi || taxi.turn || taxi.changing || taxi.flashCooldown > 0) continue;
     let leader = null, gap = 17;
     for (const other of cars) {
       const distance = (other.position - taxi.position) * direction;
@@ -119,8 +122,8 @@ function updateRaces(cars, direction, delta) {
   }
   if (!delta) return;
   for (const follower of cars) {
-    if (!follower.taxi || follower.race || follower.raceCooldown > 0 || follower.feint) continue;
-    const leader = cars.find(other => other !== follower && other.taxi && !other.race && !other.feint &&
+    if (!follower.taxi || follower.turn || follower.race || follower.raceCooldown > 0 || follower.feint) continue;
+    const leader = cars.find(other => other !== follower && other.taxi && !other.turn && !other.race && !other.feint &&
       (other.raceCooldown ?? 0) === 0 && (other.position - follower.position) * direction > CAR_GAP + 1 &&
       (other.position - follower.position) * direction < 24);
     if (!leader) continue;
@@ -240,7 +243,7 @@ function canFeint(car, opposing, direction, blockSize) {
 }
 
 function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess, passTrack = ONCOMING_TRACK) {
-  if (!leader || leader.changing) return null;
+  if (!leader || leader.turn || leader.changing) return null;
   const returnTrack = passTrack === SHOULDER_TRACK ? 1 : 0;
   const passSpeed = car.cruise * 1.25;
   const returnSpace = CAR_GAP * 2 + 1 + passSpeed * MERGE_DURATION;
@@ -252,7 +255,7 @@ function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRe
   while (target + 1 < queue.length && (queue[target + 1].position - queue[target].position) * direction < returnSpace) target++;
   if (queue[target]) leader = queue[target];
   const gap = (leader.position - car.position) * direction;
-  if (gap > blockSize || leader.changing) return null;
+  if (gap > blockSize || leader.turn || leader.changing) return null;
   const leaderSpeed = Math.max(leader.speed, leader.cruise * (leader.yieldRemaining > 0 ? 1.65 : 1));
   if (passSpeed <= leaderSpeed + 2) return null;
   const duration = MERGE_DURATION * 2 + (gap + CAR_GAP + 1) / (passSpeed - leaderSpeed) +
@@ -288,6 +291,9 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
   updateRaces(cars, direction, delta);
   updateSignals(cars, direction, delta);
   for (const car of cars) {
+    // Turning cars retain their source-lane slot until the network transfers
+    // them. Their curved motion is advanced exactly once after straight traffic.
+    if (car.turn) continue;
     const previousSpeed = car.speed;
     car.cooldown = Math.max(0, car.cooldown - delta);
     car.burst = Math.max(0, (car.burst ?? 0) - delta);

@@ -1,5 +1,5 @@
-import { seededRandom, TRACKS, CAR_GAP, STOP_LINE, occupiesTrack, updateTraffic, greenLight, greenTimeLeft, resetSignal } from '../src/city/world.js';
-import { intersectionAccess } from '../src/city/intersections.js';
+import { seededRandom, TRACKS, CAR_GAP, STOP_LINE, occupiesTrack, vehiclePose, greenLight, resetSignal } from '../src/city/world.js';
+import { carCoordinates, updateNetwork } from '../src/city/trafficNetwork.js';
 
 const lanes = new Map(), radius = 2, blockSize = 40, half = (radius + 0.5) * blockSize;
 const weaving = Number(process.argv[2] ?? 0.1);
@@ -16,20 +16,34 @@ for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for 
   }
   lanes.set(`${axis}:${line}:${direction}`, { axis, line, direction, cars });
 }
-const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0 };
+const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0, turns: 0, completedTurns: 0, turnConflicts: 0, driftingFrames: 0 };
 for (let frame = 0; frame < 1500; frame++) {
-  const time = frame * 0.04, crossingAccess = intersectionAccess(lanes, blockSize, time);
+  const time = frame * 0.04;
   for (const lane of lanes.values()) for (const car of lane.cars) {
     if (car.position < -half) { car.position += half * 2; resetSignal(car); }
     if (car.position > half) { car.position -= half * 2; resetSignal(car); }
   }
+  const before = [...lanes.values()].flatMap(lane => lane.cars.map(car => [car, car.position, car.overtake, !!car.feint, car.race, car.raceResult, lane.axis, lane.direction, car.turnsStarted ?? 0, car.turnsCompleted ?? 0]));
+  updateNetwork(lanes, 0.04, time, { blockSize, weaving });
+  const allCars = [...lanes.values()].flatMap(lane => lane.cars);
+  if (allCars.length !== before.length || new Set(allCars).size !== before.length) throw new Error('A lane transfer lost or duplicated a vehicle');
   for (const lane of lanes.values()) {
-    const before = lane.cars.map(car => [car, car.position, car.overtake, !!car.feint, car.race, car.raceResult]);
-    const green = greenLight(time, lane.axis);
-    updateTraffic(lane.cars, lane.direction, 0.04, green, { blockSize, weaving, crossingAccess,
-      opposing: lanes.get(`${lane.axis}:${lane.line}:${-lane.direction}`).cars,
-      greenRemaining: greenTimeLeft(time, lane.axis) });
-    for (const [car, position, passing, feint, race, result] of before) {
+    for (const [car, position, passing, feint, race, result, axis, direction, starts, completions] of before) {
+      if (!lane.cars.includes(car)) continue;
+      const green = greenLight(time, axis);
+      counts.turns += (car.turnsStarted ?? 0) - starts;
+      counts.completedTurns += (car.turnsCompleted ?? 0) - completions;
+      if (car.turn || (car.turnsCompleted ?? 0) > completions) {
+        const coordinates = carCoordinates(car, blockSize);
+        const pose = car.turn ? coordinates : vehiclePose(coordinates.x, coordinates.z, car.axis, car.direction, car.steer);
+        if (Math.abs(pose.drift) > 0.05) counts.driftingFrames++;
+        for (const other of before.map(entry => entry[0])) {
+          if (other === car) continue;
+          const coordinates = carCoordinates(other, blockSize);
+          const otherPose = other.turn ? coordinates : vehiclePose(coordinates.x, coordinates.z, other.axis, other.direction, other.steer);
+          if (overlap(pose, otherPose)) counts.turnConflicts++;
+        }
+      }
       if (!car.taxi) continue;
       if (car.feint && !feint) counts.feints++;
       if (!car.feint && feint) counts.returnedFeints++;
@@ -40,7 +54,7 @@ for (let frame = 0; frame < 1500; frame++) {
         if ((car.position - passing.leader.position) * lane.direction >= CAR_GAP) counts[passing.passTrack === 2 ? 'completedShoulderOvertakes' : 'completedOvertakes']++;
         else counts.abortedOvertakes++;
       }
-      if (!green && Math.floor((position * lane.direction + STOP_LINE) / blockSize) !==
+      if (!green && axis === car.axis && direction === car.direction && Math.floor((position * lane.direction + STOP_LINE) / blockSize) !==
           Math.floor((car.position * lane.direction + STOP_LINE) / blockSize)) counts.redCrossings++;
       if (Math.abs(car.position) < 60 && occupiesTrack(car, -1)) {
         for (const other of lanes.get(`${lane.axis}:${lane.line}:${-lane.direction}`).cars) {
@@ -54,4 +68,15 @@ for (let frame = 0; frame < 1500; frame++) {
   }
 }
 console.log(JSON.stringify(counts));
-if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0 || counts.returnedFeints < 2 || counts.raceWins < 1) process.exitCode = 1;
+if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0 || counts.returnedFeints < 2 || counts.raceWins < 1 || counts.completedTurns < 2 || counts.turnConflicts > 0 || counts.driftingFrames < 10) process.exitCode = 1;
+
+function overlap(a, b) {
+  const axes = pose => [{ x: Math.sin(pose.angle), z: Math.cos(pose.angle), radius: 1.125 }, { x: Math.cos(pose.angle), z: -Math.sin(pose.angle), radius: 0.52 }];
+  const aa = axes(a), bb = axes(b);
+  for (const normal of [...aa, ...bb]) {
+    const distance = Math.abs((a.x - b.x) * normal.x + (a.z - b.z) * normal.z);
+    const extent = list => list.reduce((sum, axis) => sum + axis.radius * Math.abs(axis.x * normal.x + axis.z * normal.z), 0);
+    if (distance >= extent(aa) + extent(bb)) return false;
+  }
+  return true;
+}

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom, greenLight, greenTimeLeft, updateTraffic } from './world.js';
+import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, REAR_AXLE_Z, vehiclePose, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
-import { intersectionAccess } from './intersections.js';
+import { carCoordinates, turnPose, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
 
 const palette = {
@@ -142,13 +142,13 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 }
 
 export function addCar(batch, car, originX, originZ, focus, camera, blockSize) {
-  const x = car.axis === 0 ? car.position - originX : car.line * blockSize - originX - car.direction * car.offset;
-  const z = car.axis === 0 ? car.line * blockSize - originZ + car.direction * car.offset : car.position - originZ;
+  const coordinates = carCoordinates(car, blockSize);
+  const x = coordinates.x - originX, z = coordinates.z - originZ;
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
   const dx = x - focus.x, dz = z - focus.z;
   if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
       Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
-  const pose = vehiclePose(x, z, car.axis, car.direction, car.steer);
+  const pose = car.turn ? { ...turnPose(car.turn), x, z } : vehiclePose(x, z, car.axis, car.direction, car.steer);
   const pitch = car.taxi ? car.pitch ?? 0 : 0, roll = car.taxi ? car.roll ?? 0 : 0;
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
@@ -318,14 +318,9 @@ export function createCity(container, initialSettings) {
         if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
       }
     }
-    const crossingAccess = intersectionAccess(lanes, BLOCK, time);
+    if (moving) updateNetwork(lanes, delta, time, { blockSize: BLOCK, weaving: settings.weaving / 100,
+      clockMultiplier: Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100) });
     for (const lane of lanes.values()) {
-      if (moving) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), {
-        crossingAccess,
-        blockSize: BLOCK, weaving: settings.weaving / 100,
-        opposing: lanes.get(`${lane.axis}:${lane.line}:${-lane.direction}`)?.cars ?? [],
-        greenRemaining: greenTimeLeft(time, lane.axis) / Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100),
-      });
       for (const car of lane.cars) {
         addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK);
       }
