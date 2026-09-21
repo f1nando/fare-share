@@ -55,7 +55,7 @@ test('expanded junction corners contain no pavement slabs, buildings or trees', 
     if (!roundaboutAt(cx,cz)) continue;
     for (let gx=cx-2;gx<=cx;gx++) for (let gz=cz-2;gz<=cz;gz++) {
       populateBlock({add(kind,x,y,z,w,h,d,color,rotation=0) {
-        if (['paint','island','roundaboutCurb','roundaboutWalk','roundaboutCapCurb','roundaboutCapWalk'].includes(kind)) return;
+        if (['diagonalLot','paint','island','roundaboutCurb','roundaboutWalk','roundaboutCapCurb','roundaboutCapWalk'].includes(kind)) return;
         const scale=kind==='crown'?1:.5;
         const hw=(Math.abs(Math.cos(rotation))*w+Math.abs(Math.sin(rotation))*d)*scale;
         const hd=(Math.abs(Math.sin(rotation))*w+Math.abs(Math.cos(rotation))*d)*scale;
@@ -178,7 +178,7 @@ test('dense queues share moving exits and clear without source-slot ghosts', () 
     updateNetwork(lanes,1/30,12,{blockSize:40,roadLayout:true});
     const live=[...lanes.values()].flatMap(l=>l.cars),poses=live.map(pose);
     maxActive=Math.max(maxActive,live.filter(c=>c.turn).length);
-    for(let a=0;a<live.length;a++)for(let b=a+1;b<live.length;b++)assert.ok(!overlaps(poses[a],poses[b]),`queue overlap at ${step}: ${a}/${b}`);
+    for(let a=0;a<live.length;a++)for(let b=a+1;b<live.length;b++)assert.ok(!overlaps(poses[a],poses[b]),`queue overlap at ${step}: ${a}/${b} ${JSON.stringify([live[a],live[b]].map(c=>({axis:c.axis,line:c.line,p:c.position,speed:c.speed,track:c.track,turn:c.turn?.kind,phase:c.turn?.phase,xy:pose(c)})))}`);
     for(const lane of lanes.values())lane.cars=lane.cars.filter(c=>{
       if(c.roundaboutsCompleted&&Math.abs(c.position-(c.axis?280:120))>14){departed++;return false;}
       return true;
