@@ -6,7 +6,9 @@ use anchor_lang::solana_program::{
     program::invoke_signed,
     sysvar::instructions::{load_current_index_checked, load_instruction_at_checked},
 };
-use anchor_spl::token::{self as spl_token, SyncNative, Token, TokenAccount as LegacyTokenAccount};
+use anchor_spl::token::{
+    self as spl_token, CloseAccount, SyncNative, Token, TokenAccount as LegacyTokenAccount,
+};
 use anchor_spl::token_interface::{
     self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
@@ -360,6 +362,56 @@ pub mod taxi_park {
             stock_reserve_each: stock_amount,
             team_amount
         });
+        Ok(())
+    }
+
+    pub fn absorb_pump_wsol_fees(ctx: Context<AbsorbPumpWsolFees>) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        let amount = ctx.accounts.pump_wsol_vault.amount;
+        require!(amount > 0, TaxiError::NothingToCollect);
+        let rent_refund = Rent::get()?.minimum_balance(
+            ctx.accounts.pump_wsol_vault.to_account_info().data_len(),
+        );
+
+        let bump = [ctx.accounts.fee_vault.bump];
+        let seeds: &[&[u8]] = &[b"fees", &bump];
+        let close = CloseAccount {
+            account: ctx.accounts.pump_wsol_vault.to_account_info(),
+            destination: ctx.accounts.fee_vault.to_account_info(),
+            authority: ctx.accounts.fee_vault.to_account_info(),
+        };
+        spl_token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            close,
+            &[seeds],
+        ))?;
+
+        let fee_vault_after = ctx
+            .accounts
+            .fee_vault
+            .to_account_info()
+            .lamports()
+            .checked_sub(rent_refund)
+            .ok_or(TaxiError::MathOverflow)?;
+        let caller_after = ctx
+            .accounts
+            .caller
+            .to_account_info()
+            .lamports()
+            .checked_add(rent_refund)
+            .ok_or(TaxiError::MathOverflow)?;
+        **ctx
+            .accounts
+            .fee_vault
+            .to_account_info()
+            .try_borrow_mut_lamports()? = fee_vault_after;
+        **ctx
+            .accounts
+            .caller
+            .to_account_info()
+            .try_borrow_mut_lamports()? = caller_after;
+
+        emit!(PumpWsolFeesAbsorbed { amount });
         Ok(())
     }
 
@@ -1480,6 +1532,23 @@ pub struct CollectFees<'info> {
 }
 
 #[derive(Accounts)]
+pub struct AbsorbPumpWsolFees<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
+    pub fee_vault: Account<'info, FeeVault>,
+    #[account(
+        mut,
+        constraint = pump_wsol_vault.mint == anchor_spl::token::spl_token::native_mint::ID @ TaxiError::InvalidRewardMint,
+        constraint = pump_wsol_vault.owner == fee_vault.key() @ TaxiError::InvalidTokenAccount
+    )]
+    pub pump_wsol_vault: Account<'info, LegacyTokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct ProcessFareSwap<'info> {
     pub caller: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
@@ -2092,6 +2161,11 @@ pub struct FeesCollected {
     pub fare_reserve: u64,
     pub stock_reserve_each: u64,
     pub team_amount: u64,
+}
+
+#[event]
+pub struct PumpWsolFeesAbsorbed {
+    pub amount: u64,
 }
 
 #[event]

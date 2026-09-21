@@ -118,7 +118,7 @@
 
 ### 7. Функции протокола
 
-- [ ] **F0. Creator Fee поступает прямо в PDA** — pump.fun направляет SOL на program-controlled PDA без промежуточного административного/backend-кошелька. До production сценарий обязательно проверяется на тестовом запуске; после поступления обработку может инициировать любой fee payer.
+- [ ] **F0. Creator Fee permissionless поступает в PDA** — `FeeVault` указан creator-адресом токена. До graduation официальный `collect_creator_fee_v2` переводит накопленный SOL из pump.fun creator vault прямо в `FeeVault`. После graduation официальный `collect_coin_creator_fee` переводит WSOL в ATA `FeeVault`, а `absorb_pump_wsol_fees` атомарно разворачивает его в SOL и возвращает вызывающему rent временного ATA. Административный/backend-кошелёк деньги не получает. Полный путь подтверждается тестовым запуском до production.
 - [ ] **F0a. Тестовый pump.fun mint** — до создания основного `$FARE` проверяем фактический Token Program, supply, decimals, authorities, metadata, burn токенов из program vault и получение Creator Fee на PDA. Основной mint не создаётся, пока проверка не пройдена.
 - [x] **F1. Успешный сбор Creator Fee** — `collect_fees` фиксирует новый SOL: 70% добавляются в `$FARE`-резерв, четыре доли по 5% — в отдельные stock-резервы, 10% переводятся команде. Swap и пользовательские начисления в этой транзакции не выполняются.
 - [x] **F1a. Успешная покупка `$FARE`** — `process_fare_swap` меняет накопленный 70% SOL-резерв через Jupiter. Из фактически полученного `$FARE` 45/70 поступают в основной пул, 5/70 — в стажёрский, 20/70 сжигаются. Нераспределимый raw-остаток сохраняется в program vault и учитывается при следующей обработке.

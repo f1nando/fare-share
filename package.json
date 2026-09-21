@@ -11,6 +11,7 @@
     "campaign:create": "tsx scripts/create-trainee-campaign.ts",
     "worker": "tsx scripts/run-worker.ts",
     "protocol:initialize": "tsx scripts/initialize-protocol.ts",
+    "protocol:addresses": "tsx scripts/show-protocol-addresses.ts",
     "protocol:admin": "tsx scripts/admin.ts",
     "protocol:benchmark": "tsx scripts/benchmark-reward-batch.ts",
     "protocol:check-xstocks": "tsx scripts/check-xstocks-liquidity.ts",

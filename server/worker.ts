@@ -9,7 +9,7 @@ import {
   type Instruction,
   type KeyPairSigner,
 } from '@solana/kit';
-import { findAssociatedTokenPda } from '@solana-program/token';
+import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
 import { loadServerConfig } from './config.js';
 import {
   buildEd25519Instruction,
@@ -33,6 +33,11 @@ import {
 import { parseBackendSigner, parseSecretBytes, type BackendSigner } from './signing.js';
 import { decodeWorkerConfiguration, loadProtocolClock } from './solanaState.js';
 import { createWorkerSigner, sendInstructions } from './transaction.js';
+import {
+  buildPumpAmmFeeCollection,
+  buildPumpBondingFeeCollection,
+  derivePumpFeeAddresses,
+} from './pump.js';
 
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
@@ -58,6 +63,7 @@ export async function runWorkerCycle() {
   }
   const configurationAccount = await getAccount(config.solanaRpcUrl, addresses.config);
   const configuration = decodeWorkerConfiguration(configurationAccount.data);
+  await sweepPumpCreatorFees(config.solanaRpcUrl, config.programId, signer, addresses);
   if (await hasCollectableFees(config.solanaRpcUrl, addresses.feeVault)) {
     const signature = await sendInstructions(config.solanaRpcUrl, signer, [collectFeesInstruction(
       config.programId,
@@ -77,6 +83,69 @@ export async function runWorkerCycle() {
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'main');
   await pruneStaleMainEvents(config.solanaRpcUrl, config.programId, signer, addresses);
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'trainee');
+}
+
+async function sweepPumpCreatorFees(
+  rpcUrl: string,
+  programId: Address,
+  caller: KeyPairSigner,
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>,
+) {
+  const pump = await derivePumpFeeAddresses(addresses.feeVault);
+  const bondingVault = await getOptionalAccount(rpcUrl, pump.bondingCreatorVault);
+  if (bondingVault) {
+    const rent = BigInt(await rpcCall(rpcUrl, 'getMinimumBalanceForRentExemption', [
+      bondingVault.data.length,
+      { commitment: 'finalized' },
+    ]) as number);
+    if (bondingVault.lamports > rent) {
+      try {
+        const signature = await sendInstructions(rpcUrl, caller, [
+          buildPumpBondingFeeCollection(addresses.feeVault, pump),
+        ]);
+        console.log(`pump bonding creator fees finalized: ${signature}`);
+      } catch (error) {
+        console.warn('pump bonding creator fee collection lost a finalized-state race; retrying next cycle', error);
+      }
+    }
+  }
+
+  const ammSource = await getOptionalAccount(rpcUrl, pump.ammCreatorVaultWsolAta);
+  if (ammSource && legacyTokenAmount(ammSource.data) > 0n) {
+    try {
+      const createDestination = getCreateAssociatedTokenIdempotentInstruction({
+        payer: caller,
+        ata: pump.creatorWsolAta,
+        owner: addresses.feeVault,
+        mint: WSOL_MINT,
+        tokenProgram: TOKEN_PROGRAM,
+      });
+      const signature = await sendInstructions(rpcUrl, caller, [
+        createDestination,
+        buildPumpAmmFeeCollection(addresses.feeVault, pump),
+        absorbPumpWsolFeesInstruction(
+          programId,
+          caller.address,
+          addresses,
+          pump.creatorWsolAta,
+        ),
+      ]);
+      console.log(`pump AMM creator fees collected and absorbed: ${signature}`);
+    } catch (error) {
+      console.warn('pump AMM creator fee collection lost a finalized-state race; retrying next cycle', error);
+    }
+  }
+
+  const receivedWsol = await getOptionalAccount(rpcUrl, pump.creatorWsolAta);
+  if (receivedWsol && legacyTokenAmount(receivedWsol.data) > 0n) {
+    const signature = await sendInstructions(rpcUrl, caller, [absorbPumpWsolFeesInstruction(
+      programId,
+      caller.address,
+      addresses,
+      pump.creatorWsolAta,
+    )]);
+    console.log(`pump WSOL fees absorbed: ${signature}`);
+  }
 }
 
 async function processPendingSwaps(
@@ -362,6 +431,25 @@ function collectFeesInstruction(
   };
 }
 
+export function absorbPumpWsolFeesInstruction(
+  programId: Address,
+  caller: Address,
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>,
+  pumpWsolVault: Address,
+): Instruction {
+  return {
+    programAddress: programId,
+    accounts: [
+      meta(caller, AccountRole.WRITABLE_SIGNER),
+      meta(addresses.config, AccountRole.READONLY),
+      meta(addresses.feeVault, AccountRole.WRITABLE),
+      meta(pumpWsolVault, AccountRole.WRITABLE),
+      meta(TOKEN_PROGRAM, AccountRole.READONLY),
+    ],
+    data: anchorDiscriminator('absorb_pump_wsol_fees'),
+  };
+}
+
 async function deriveAddresses(programAddress: Address) {
   const derive = (...seeds: string[]) => getProgramDerivedAddress({
     programAddress,
@@ -400,6 +488,18 @@ async function getAccount(rpcUrl: string, account: Address): Promise<RpcAccount>
   return (await getAccounts(rpcUrl, [account]))[0];
 }
 
+async function getOptionalAccount(rpcUrl: string, account: Address): Promise<RpcAccount | null> {
+  const result = await rpcCall(rpcUrl, 'getAccountInfo', [account, {
+    commitment: 'finalized', encoding: 'base64',
+  }]) as { value: { data: [string, string]; lamports: number; owner: string } | null };
+  if (!result.value) return null;
+  return {
+    data: Uint8Array.from(Buffer.from(result.value.data[0], 'base64')),
+    lamports: BigInt(result.value.lamports),
+    owner: address(result.value.owner),
+  };
+}
+
 async function getAccounts(rpcUrl: string, accounts: Address[]): Promise<RpcAccount[]> {
   if (accounts.length === 0) return [];
   const result = await rpcCall(rpcUrl, 'getMultipleAccounts', [accounts, {
@@ -421,6 +521,11 @@ async function getAccountsInChunks(rpcUrl: string, accounts: Address[]) {
     result.push(...await getAccounts(rpcUrl, accounts.slice(offset, offset + 100)));
   }
   return result;
+}
+
+function legacyTokenAmount(data: Uint8Array) {
+  if (data.length < 72) throw new Error('Invalid legacy SPL token account');
+  return new DataView(data.buffer, data.byteOffset, data.byteLength).getBigUint64(64, true);
 }
 
 function encodePruneStaleEvents(pageIndex: number, eventNumbers: bigint[]) {
