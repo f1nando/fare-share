@@ -55,6 +55,12 @@ export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   return (numerator + denominator - 1n) / denominator;
 }
 
+export function calculateProtocolTime(config, chainUnixTime) {
+  const chainTime = BigInt(chainUnixTime);
+  const frozenTime = config.pausedAt !== 0n ? config.pausedAt : chainTime;
+  return frozenTime - config.totalPausedSeconds;
+}
+
 export function selectActiveMultiplier(value, nowSeconds = Math.floor(Date.now() / 1000)) {
   const current = Number(value?.currentMultiplier);
   const pending = Number(value?.newMultiplier);
@@ -104,10 +110,12 @@ export async function loadProtocolStatus() {
   }).send();
   const deployed = accounts.value.every(Boolean);
   if (!deployed) return { addresses, deployed: false, network: networkName() };
+  const chainUnixTime = await loadFinalizedChainTime().catch(() => Math.floor(Date.now() / 1000));
   return {
     addresses,
     deployed,
     network: networkName(),
+    chainUnixTime,
     config: decodeConfiguration(accountBytes(accounts.value[0])),
     pool: decodeRewardPool(accountBytes(accounts.value[1])),
     queue: decodeEventQueue(accountBytes(accounts.value[2])),
@@ -201,13 +209,11 @@ export async function loadOwnedMachines(owner, knownStatus) {
   const [machineAccounts, mintResponse, stockMultipliers] = await Promise.all([
     loadMultipleAccounts(derived.map(item => item.machine)),
     rpc.getMultipleAccounts(rewardMints, { commitment: 'finalized', encoding: 'base64' }).send(),
-    loadStockMultipliers(),
+    loadStockMultipliers(status.chainUnixTime),
   ]);
   if (mintResponse.value.some(value => !value)) throw new Error('Один из reward mint недоступен.');
   const rewardDecimals = mintResponse.value.map(value => mintDecimals(accountBytes(value)));
-  const protocolNow = status.config.pausedAt !== 0n
-    ? Number(status.config.pausedAt - status.config.totalPausedSeconds)
-    : Math.floor(Date.now() / 1000) - Number(status.config.totalPausedSeconds);
+  const protocolNow = Number(calculateProtocolTime(status.config, status.chainUnixTime));
   return assets.flatMap((asset, index) => {
     const account = machineAccounts[index];
     if (!account) return [];
@@ -263,16 +269,36 @@ export async function loadMultipleAccounts(accountAddresses, rpcClient = rpc) {
   return values;
 }
 
-async function loadStockMultipliers() {
+async function loadStockMultipliers(chainUnixTime) {
   try {
     return await Promise.all(STOCK_SYMBOLS.map(async symbol => {
       const response = await fetch(`${XSTOCKS_API_URL}/${symbol}/multiplier?network=Solana`);
       if (!response.ok) throw new Error(`xStocks multiplier ${symbol}: HTTP ${response.status}`);
-      return selectActiveMultiplier(await response.json());
+      return selectActiveMultiplier(await response.json(), chainUnixTime);
     }));
   } catch {
     return null;
   }
+}
+
+async function loadFinalizedChainTime() {
+  const slotResponse = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'fare-clock-slot', method: 'getSlot', params: [{ commitment: 'finalized' }] }),
+  });
+  if (!slotResponse.ok) throw new Error(`Solana RPC getSlot: HTTP ${slotResponse.status}`);
+  const slotBody = await slotResponse.json();
+  if (slotBody.error || !Number.isSafeInteger(slotBody.result)) throw new Error('Solana RPC did not return a finalized slot');
+  const timeResponse = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 'fare-clock-time', method: 'getBlockTime', params: [slotBody.result] }),
+  });
+  if (!timeResponse.ok) throw new Error(`Solana RPC getBlockTime: HTTP ${timeResponse.status}`);
+  const timeBody = await timeResponse.json();
+  if (timeBody.error || !Number.isSafeInteger(timeBody.result)) throw new Error('Solana RPC did not return finalized block time');
+  return timeBody.result;
 }
 
 export async function mintMachine(connection, classIndex, knownStatus) {

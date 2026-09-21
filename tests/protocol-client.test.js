@@ -15,6 +15,7 @@ import {
 import {
   PROGRAM_ID,
   calculateRepairQuote,
+  calculateProtocolTime,
   formatTokenAmount,
   formatSolAmount,
   loadDASAssets,
@@ -66,6 +67,11 @@ test('repair quote mirrors the on-chain 25% five-day formula', () => {
   assert.equal(calculateRepairQuote(18_000_000n, 2_000_000n, 0), 5_000_000n);
   assert.equal(calculateRepairQuote(20_000_000n, 0n, 5 * 24 * 60 * 60), 0n);
   assert.equal(calculateRepairQuote(1n, 0n, 5 * 24 * 60 * 60 - 1), 1n);
+});
+
+test('durability uses finalized Solana time and freezes during pause', () => {
+  assert.equal(calculateProtocolTime({ pausedAt: 0n, totalPausedSeconds: 50n }, 1050), 1000n);
+  assert.equal(calculateProtocolTime({ pausedAt: 900n, totalPausedSeconds: 50n }, 5000), 850n);
 });
 
 test('stock display activates the scheduled xStocks multiplier without changing raw accounting', () => {
