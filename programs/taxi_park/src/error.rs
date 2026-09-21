@@ -104,4 +104,18 @@ pub enum TaxiError {
     TraineeBucketProcessed,
     #[msg("Trainee rewards have not been calculated up to the required time")]
     TraineeRewardsNotCalculated,
+    #[msg("Swap plan kind or asset index is invalid")]
+    InvalidSwapPlan,
+    #[msg("Swap plan nonce is not current")]
+    InvalidSwapNonce,
+    #[msg("Swap plan has expired")]
+    SwapPlanExpired,
+    #[msg("Swap route does not match the backend-signed route")]
+    InvalidSwapRoute,
+    #[msg("Swap route is missing a required source or destination account")]
+    MissingSwapAccount,
+    #[msg("Swap input amount did not match the signed plan")]
+    InvalidSwapInput,
+    #[msg("Swap output is below the signed minimum")]
+    InsufficientSwapOutput,
 }

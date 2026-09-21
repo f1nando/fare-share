@@ -1,9 +1,12 @@
 #![allow(unexpected_cfgs)]
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::sysvar::instructions::{
-    load_current_index_checked, load_instruction_at_checked,
+use anchor_lang::solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program::invoke_signed,
+    sysvar::instructions::{load_current_index_checked, load_instruction_at_checked},
 };
+use anchor_spl::token::{self as spl_token, SyncNative, Token, TokenAccount as LegacyTokenAccount};
 use anchor_spl::token_interface::{
     self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
@@ -13,11 +16,13 @@ use mpl_core::types::{DataState, UpdateAuthority};
 pub mod error;
 pub mod math;
 pub mod state;
+pub mod swap;
 pub mod voucher;
 
 pub use error::*;
 pub use state::*;
-pub use voucher::*;
+pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
+pub use voucher::ActivateTraineeArgs;
 
 declare_id!("7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY");
 
@@ -323,6 +328,263 @@ pub mod taxi_park {
             fare_reserve: fare_amount,
             stock_reserve_each: stock_amount,
             team_amount
+        });
+        Ok(())
+    }
+
+    pub fn process_fare_swap<'info>(
+        ctx: Context<'_, '_, 'info, 'info, ProcessFareSwap<'info>>,
+        plan: SwapPlan,
+        route_data: Vec<u8>,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(
+            plan.kind == FARE_SWAP_KIND && plan.asset_index == 0,
+            TaxiError::InvalidSwapPlan
+        );
+        require!(
+            plan.nonce == ctx.accounts.config.fare_swap_nonce,
+            TaxiError::InvalidSwapNonce
+        );
+        require!(
+            Clock::get()?.unix_timestamp <= plan.deadline,
+            TaxiError::SwapPlanExpired
+        );
+        require!(
+            plan.amount_in > 0 && plan.amount_in <= ctx.accounts.fee_vault.fare_sol_reserve,
+            TaxiError::InvalidSwapInput
+        );
+        require!(plan.min_out > 0, TaxiError::InsufficientSwapOutput);
+        require!(
+            swap::route_hash(
+                &route_data,
+                ctx.remaining_accounts,
+                &ctx.accounts.config.key()
+            ) == plan.route_hash,
+            TaxiError::InvalidSwapRoute
+        );
+        verify_swap_plan_signature(
+            &ctx.accounts.instructions,
+            ctx.program_id,
+            &ctx.accounts.config,
+            &plan,
+        )?;
+        require_route_accounts(
+            ctx.remaining_accounts,
+            &ctx.accounts.config.key(),
+            &ctx.accounts.wsol_vault.key(),
+            &ctx.accounts.staging_vault.key(),
+        )?;
+        require!(
+            ctx.accounts.staging_vault.key() != ctx.accounts.main_vault.key()
+                && ctx.accounts.staging_vault.key() != ctx.accounts.trainee_vault.key()
+                && ctx.accounts.main_vault.key() != ctx.accounts.trainee_vault.key(),
+            TaxiError::InvalidTokenAccount
+        );
+
+        fund_wsol(
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.wsol_vault.to_account_info(),
+            &ctx.accounts.token_program,
+            plan.amount_in,
+        )?;
+        ctx.accounts.wsol_vault.reload()?;
+        let source_before = ctx.accounts.wsol_vault.amount;
+        let output_before = ctx.accounts.staging_vault.amount;
+        invoke_jupiter(
+            &ctx.accounts.config,
+            &ctx.accounts.jupiter_program,
+            ctx.remaining_accounts,
+            route_data,
+        )?;
+        ctx.accounts.wsol_vault.reload()?;
+        ctx.accounts.staging_vault.reload()?;
+        let spent = source_before
+            .checked_sub(ctx.accounts.wsol_vault.amount)
+            .ok_or(TaxiError::InvalidSwapInput)?;
+        require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
+        let received = ctx
+            .accounts
+            .staging_vault
+            .amount
+            .checked_sub(output_before)
+            .ok_or(TaxiError::InsufficientSwapOutput)?;
+        require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
+
+        let (main_amount, trainee_amount, burn_amount) = math::fare_swap_split(received)?;
+        transfer_from_config(
+            &ctx.accounts.config,
+            &ctx.accounts.staging_vault,
+            &ctx.accounts.main_vault,
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program,
+            main_amount,
+        )?;
+        transfer_from_config(
+            &ctx.accounts.config,
+            &ctx.accounts.staging_vault,
+            &ctx.accounts.trainee_vault,
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program,
+            trainee_amount,
+        )?;
+        if burn_amount > 0 {
+            let bump = [ctx.accounts.config.bump];
+            let seeds: &[&[u8]] = &[b"config", &bump];
+            let burn = BurnChecked {
+                mint: ctx.accounts.fare_mint.to_account_info(),
+                from: ctx.accounts.staging_vault.to_account_info(),
+                authority: ctx.accounts.config.to_account_info(),
+            };
+            token_interface::burn_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.fare_token_program.to_account_info(),
+                    burn,
+                    &[seeds],
+                ),
+                burn_amount,
+                ctx.accounts.fare_mint.decimals,
+            )?;
+        }
+
+        ctx.accounts.pool.next_pool[0] = ctx.accounts.pool.next_pool[0]
+            .checked_add(main_amount)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.trainee_pool.next_pool[0] = ctx.accounts.trainee_pool.next_pool[0]
+            .checked_add(trainee_amount)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.fee_vault.fare_sol_reserve = ctx
+            .accounts
+            .fee_vault
+            .fare_sol_reserve
+            .checked_sub(plan.amount_in)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.config.fare_swap_nonce = ctx
+            .accounts
+            .config
+            .fare_swap_nonce
+            .checked_add(1)
+            .ok_or(TaxiError::MathOverflow)?;
+        emit!(FareSwapProcessed {
+            nonce: plan.nonce,
+            sol_in: plan.amount_in,
+            fare_out: received,
+            main_amount,
+            trainee_amount,
+            burned_amount: burn_amount,
+        });
+        Ok(())
+    }
+
+    pub fn process_stock_swap<'info>(
+        ctx: Context<'_, '_, 'info, 'info, ProcessStockSwap<'info>>,
+        plan: SwapPlan,
+        route_data: Vec<u8>,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        let stock_index = usize::from(plan.asset_index);
+        require!(
+            plan.kind == STOCK_SWAP_KIND && stock_index < STOCK_COUNT,
+            TaxiError::InvalidSwapPlan
+        );
+        require!(
+            plan.nonce == ctx.accounts.config.stock_swap_nonces[stock_index],
+            TaxiError::InvalidSwapNonce
+        );
+        require!(
+            Clock::get()?.unix_timestamp <= plan.deadline,
+            TaxiError::SwapPlanExpired
+        );
+        require!(
+            plan.amount_in > 0
+                && plan.amount_in <= ctx.accounts.fee_vault.stock_sol_reserves[stock_index],
+            TaxiError::InvalidSwapInput
+        );
+        require!(plan.min_out > 0, TaxiError::InsufficientSwapOutput);
+        require_keys_eq!(
+            ctx.accounts.config.stock_mints[stock_index],
+            ctx.accounts.stock_mint.key(),
+            TaxiError::InvalidRewardMint
+        );
+        require!(
+            swap::route_hash(
+                &route_data,
+                ctx.remaining_accounts,
+                &ctx.accounts.config.key()
+            ) == plan.route_hash,
+            TaxiError::InvalidSwapRoute
+        );
+        verify_swap_plan_signature(
+            &ctx.accounts.instructions,
+            ctx.program_id,
+            &ctx.accounts.config,
+            &plan,
+        )?;
+        require_route_accounts(
+            ctx.remaining_accounts,
+            &ctx.accounts.config.key(),
+            &ctx.accounts.wsol_vault.key(),
+            &ctx.accounts.staging_vault.key(),
+        )?;
+        require!(
+            ctx.accounts.staging_vault.key() != ctx.accounts.reward_vault.key(),
+            TaxiError::InvalidTokenAccount
+        );
+
+        fund_wsol(
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.wsol_vault.to_account_info(),
+            &ctx.accounts.token_program,
+            plan.amount_in,
+        )?;
+        ctx.accounts.wsol_vault.reload()?;
+        let source_before = ctx.accounts.wsol_vault.amount;
+        let output_before = ctx.accounts.staging_vault.amount;
+        invoke_jupiter(
+            &ctx.accounts.config,
+            &ctx.accounts.jupiter_program,
+            ctx.remaining_accounts,
+            route_data,
+        )?;
+        ctx.accounts.wsol_vault.reload()?;
+        ctx.accounts.staging_vault.reload()?;
+        let spent = source_before
+            .checked_sub(ctx.accounts.wsol_vault.amount)
+            .ok_or(TaxiError::InvalidSwapInput)?;
+        require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
+        let received = ctx
+            .accounts
+            .staging_vault
+            .amount
+            .checked_sub(output_before)
+            .ok_or(TaxiError::InsufficientSwapOutput)?;
+        require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
+
+        transfer_from_config(
+            &ctx.accounts.config,
+            &ctx.accounts.staging_vault,
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.stock_mint,
+            &ctx.accounts.stock_token_program,
+            received,
+        )?;
+        let asset_index = stock_index + 1;
+        ctx.accounts.pool.next_pool[asset_index] = ctx.accounts.pool.next_pool[asset_index]
+            .checked_add(received)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.fee_vault.stock_sol_reserves[stock_index] =
+            ctx.accounts.fee_vault.stock_sol_reserves[stock_index]
+                .checked_sub(plan.amount_in)
+                .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.config.stock_swap_nonces[stock_index] = ctx.accounts.config.stock_swap_nonces
+            [stock_index]
+            .checked_add(1)
+            .ok_or(TaxiError::MathOverflow)?;
+        emit!(StockSwapProcessed {
+            stock_index: plan.asset_index,
+            nonce: plan.nonce,
+            sol_in: plan.amount_in,
+            tokens_out: received,
         });
         Ok(())
     }
@@ -1061,15 +1323,15 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(init, payer = admin, space = 8 + Configuration::INIT_SPACE, seeds = [b"config"], bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(init, payer = admin, space = 8 + RewardPool::INIT_SPACE, seeds = [b"pool", b"main"], bump)]
-    pub pool: Account<'info, RewardPool>,
+    pub pool: Box<Account<'info, RewardPool>>,
     #[account(init, payer = admin, space = 8 + RewardPool::INIT_SPACE, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump)]
-    pub trainee_pool: Account<'info, RewardPool>,
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
     #[account(init, payer = admin, space = 8 + EventQueue::INIT_SPACE, seeds = [b"queue".as_ref(), b"main".as_ref()], bump)]
-    pub queue: Account<'info, EventQueue>,
+    pub queue: Box<Account<'info, EventQueue>>,
     #[account(init, payer = admin, space = 8 + EventQueue::INIT_SPACE, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump)]
-    pub trainee_queue: Account<'info, EventQueue>,
+    pub trainee_queue: Box<Account<'info, EventQueue>>,
     #[account(init, payer = admin, space = 8 + FeeVault::INIT_SPACE, seeds = [b"fees"], bump)]
     pub fee_vault: Account<'info, FeeVault>,
     pub system_program: Program<'info, System>,
@@ -1079,21 +1341,21 @@ pub struct Initialize<'info> {
 pub struct AdminState<'info> {
     pub admin: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
 }
 
 #[derive(Accounts)]
 pub struct AcceptAdmin<'info> {
     pub pending_admin: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
 }
 
 #[derive(Accounts)]
 pub struct RescueSol<'info> {
     pub admin: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
     pub fee_vault: Account<'info, FeeVault>,
     /// CHECK: Admin deliberately chooses the emergency recipient.
@@ -1105,7 +1367,7 @@ pub struct RescueSol<'info> {
 pub struct RescueToken<'info> {
     pub admin: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     pub mint: InterfaceAccount<'info, Mint>,
     #[account(
         mut,
@@ -1123,9 +1385,9 @@ pub struct RescueToken<'info> {
 pub struct SyncRewardAsset<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Account<'info, RewardPool>,
+    pub pool: Box<Account<'info, RewardPool>>,
     pub mint: InterfaceAccount<'info, Mint>,
     #[account(
         token::mint = mint,
@@ -1140,23 +1402,83 @@ pub struct SyncRewardAsset<'info> {
 pub struct CalculateRewards<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Account<'info, RewardPool>,
+    pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
-    pub queue: Account<'info, EventQueue>,
+    pub queue: Box<Account<'info, EventQueue>>,
 }
 
 #[derive(Accounts)]
 pub struct CollectFees<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
     pub fee_vault: Account<'info, FeeVault>,
     /// CHECK: Must equal the configured team recipient; it only receives SOL.
     #[account(mut)]
     pub team_account: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ProcessFareSwap<'info> {
+    pub caller: Signer<'info>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
+    pub fee_vault: Account<'info, FeeVault>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
+    #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
+    #[account(address = anchor_spl::token::spl_token::native_mint::ID)]
+    pub wsol_mint: Account<'info, anchor_spl::token::Mint>,
+    #[account(mut, token::mint = wsol_mint, token::authority = config)]
+    pub wsol_vault: Account<'info, LegacyTokenAccount>,
+    pub fare_mint: InterfaceAccount<'info, Mint>,
+    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
+    pub staging_vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
+    pub main_vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
+    pub trainee_vault: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Address is the currently configured Jupiter router program.
+    #[account(address = config.jupiter_program @ TaxiError::InvalidJupiterProgram)]
+    pub jupiter_program: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub fare_token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding ed25519 verification.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ProcessStockSwap<'info> {
+    pub caller: Signer<'info>,
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
+    pub fee_vault: Account<'info, FeeVault>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
+    #[account(address = anchor_spl::token::spl_token::native_mint::ID)]
+    pub wsol_mint: Account<'info, anchor_spl::token::Mint>,
+    #[account(mut, token::mint = wsol_mint, token::authority = config)]
+    pub wsol_vault: Account<'info, LegacyTokenAccount>,
+    pub stock_mint: InterfaceAccount<'info, Mint>,
+    #[account(mut, token::mint = stock_mint, token::authority = config, token::token_program = stock_token_program)]
+    pub staging_vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut, token::mint = stock_mint, token::authority = config, token::token_program = stock_token_program)]
+    pub reward_vault: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Address is the currently configured Jupiter router program.
+    #[account(address = config.jupiter_program @ TaxiError::InvalidJupiterProgram)]
+    pub jupiter_program: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub stock_token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding ed25519 verification.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1171,9 +1493,9 @@ pub struct MintMachine<'info> {
         has_one = collection @ TaxiError::InvalidCollection,
         has_one = team_account @ TaxiError::InvalidTeamAccount
     )]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
-    pub queue: Account<'info, EventQueue>,
+    pub queue: Box<Account<'info, EventQueue>>,
     #[account(
         init_if_needed,
         payer = owner,
@@ -1181,7 +1503,7 @@ pub struct MintMachine<'info> {
         seeds = [b"event-page".as_ref(), &[page_index]],
         bump
     )]
-    pub event_page: Account<'info, EventPage>,
+    pub event_page: Box<Account<'info, EventPage>>,
     #[account(mut)]
     pub asset: Signer<'info>,
     #[account(
@@ -1191,7 +1513,7 @@ pub struct MintMachine<'info> {
         seeds = [b"machine", asset.key().as_ref()],
         bump
     )]
-    pub machine: Account<'info, Machine>,
+    pub machine: Box<Account<'info, Machine>>,
     #[account(
         mut,
         address = config.collection,
@@ -1213,11 +1535,11 @@ pub struct RepairMachine<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Account<'info, RewardPool>,
+    pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
-    pub queue: Account<'info, EventQueue>,
+    pub queue: Box<Account<'info, EventQueue>>,
     #[account(
         init_if_needed,
         payer = owner,
@@ -1225,9 +1547,9 @@ pub struct RepairMachine<'info> {
         seeds = [b"event-page".as_ref(), &[page_index]],
         bump
     )]
-    pub event_page: Account<'info, EventPage>,
+    pub event_page: Box<Account<'info, EventPage>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
-    pub machine: Account<'info, Machine>,
+    pub machine: Box<Account<'info, Machine>>,
     #[account(
         address = machine.asset,
         constraint = asset.owner == owner.key() @ TaxiError::InvalidAssetOwner,
@@ -1253,9 +1575,9 @@ pub struct CleanupBurnedMachine<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
-    pub queue: Account<'info, EventQueue>,
+    pub queue: Box<Account<'info, EventQueue>>,
     #[account(
         init_if_needed,
         payer = caller,
@@ -1263,9 +1585,9 @@ pub struct CleanupBurnedMachine<'info> {
         seeds = [b"event-page".as_ref(), &[page_index]],
         bump
     )]
-    pub event_page: Account<'info, EventPage>,
+    pub event_page: Box<Account<'info, EventPage>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
-    pub machine: Account<'info, Machine>,
+    pub machine: Box<Account<'info, Machine>>,
     /// CHECK: Its address is bound to Machine; a burned Core asset has zero lamports and no data.
     pub asset: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
@@ -1277,9 +1599,9 @@ pub struct ActivateTrainee<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump = trainee_queue.bump)]
-    pub trainee_queue: Account<'info, EventQueue>,
+    pub trainee_queue: Box<Account<'info, EventQueue>>,
     #[account(
         init_if_needed,
         payer = owner,
@@ -1287,7 +1609,7 @@ pub struct ActivateTrainee<'info> {
         seeds = [b"trainee-event-page".as_ref(), &[args.page_index]],
         bump
     )]
-    pub event_page: Account<'info, EventPage>,
+    pub event_page: Box<Account<'info, EventPage>>,
     #[account(
         init,
         payer = owner,
@@ -1322,9 +1644,9 @@ pub struct ActivateTrainee<'info> {
 pub struct SyncTraineeFare<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
-    pub trainee_pool: Account<'info, RewardPool>,
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
     pub fare_mint: InterfaceAccount<'info, Mint>,
     #[account(
         token::mint = fare_mint,
@@ -1339,11 +1661,11 @@ pub struct SyncTraineeFare<'info> {
 pub struct CalculateTraineeRewards<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
-    pub trainee_pool: Account<'info, RewardPool>,
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump = trainee_queue.bump)]
-    pub trainee_queue: Account<'info, EventQueue>,
+    pub trainee_queue: Box<Account<'info, EventQueue>>,
 }
 
 #[derive(Accounts)]
@@ -1351,9 +1673,9 @@ pub struct ClaimTrainee<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
-    pub trainee_pool: Account<'info, RewardPool>,
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
     #[account(
         mut,
         seeds = [b"trainee", owner.key().as_ref(), &trainee.campaign_id.to_le_bytes()],
@@ -1394,17 +1716,137 @@ pub struct Claim<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Account<'info, Configuration>,
+    pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Account<'info, RewardPool>,
+    pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
-    pub machine: Account<'info, Machine>,
+    pub machine: Box<Account<'info, Machine>>,
     #[account(
         address = machine.asset,
         constraint = asset.owner == owner.key() @ TaxiError::InvalidAssetOwner,
         constraint = asset.update_authority == UpdateAuthority::Collection(config.collection) @ TaxiError::InvalidCollection
     )]
     pub asset: Account<'info, BaseAssetV1>,
+}
+
+fn verify_swap_plan_signature(
+    instructions: &UncheckedAccount<'_>,
+    program_id: &Pubkey,
+    config: &Account<Configuration>,
+    plan: &SwapPlan,
+) -> Result<()> {
+    let instructions_info = instructions.to_account_info();
+    let current_index = usize::from(load_current_index_checked(&instructions_info)?);
+    require!(current_index > 0, TaxiError::InvalidVoucherSignature);
+    let signature_ix = load_instruction_at_checked(current_index - 1, &instructions_info)?;
+    swap::verify_signature(
+        &signature_ix,
+        &config.backend_signer,
+        program_id,
+        &config.deployment_id,
+        plan,
+    )
+}
+
+fn require_route_accounts(
+    route_accounts: &[AccountInfo<'_>],
+    config: &Pubkey,
+    source: &Pubkey,
+    destination: &Pubkey,
+) -> Result<()> {
+    for required in [config, source, destination] {
+        require!(
+            route_accounts.iter().any(|account| account.key == required),
+            TaxiError::MissingSwapAccount
+        );
+    }
+    Ok(())
+}
+
+fn fund_wsol<'info>(
+    fee_vault: &AccountInfo<'info>,
+    wsol_vault: &AccountInfo<'info>,
+    token_program: &Program<'info, Token>,
+    amount: u64,
+) -> Result<()> {
+    let rent_floor = Rent::get()?.minimum_balance(fee_vault.data_len());
+    let available = fee_vault
+        .lamports()
+        .checked_sub(rent_floor)
+        .ok_or(TaxiError::VaultBalanceMismatch)?;
+    require!(amount <= available, TaxiError::VaultBalanceMismatch);
+    let fee_after = fee_vault
+        .lamports()
+        .checked_sub(amount)
+        .ok_or(TaxiError::MathOverflow)?;
+    let wsol_after = wsol_vault
+        .lamports()
+        .checked_add(amount)
+        .ok_or(TaxiError::MathOverflow)?;
+    **fee_vault.try_borrow_mut_lamports()? = fee_after;
+    **wsol_vault.try_borrow_mut_lamports()? = wsol_after;
+    spl_token::sync_native(CpiContext::new(
+        token_program.to_account_info(),
+        SyncNative {
+            account: wsol_vault.clone(),
+        },
+    ))?;
+    Ok(())
+}
+
+fn invoke_jupiter<'info>(
+    config: &Account<'info, Configuration>,
+    jupiter_program: &UncheckedAccount<'info>,
+    route_accounts: &[AccountInfo<'info>],
+    route_data: Vec<u8>,
+) -> Result<()> {
+    let config_key = config.key();
+    let accounts = route_accounts
+        .iter()
+        .map(|account| AccountMeta {
+            pubkey: account.key(),
+            is_signer: account.key() == config_key,
+            is_writable: account.is_writable,
+        })
+        .collect();
+    let bump = [config.bump];
+    let seeds: &[&[u8]] = &[b"config", &bump];
+    invoke_signed(
+        &Instruction {
+            program_id: jupiter_program.key(),
+            accounts,
+            data: route_data,
+        },
+        route_accounts,
+        &[seeds],
+    )?;
+    Ok(())
+}
+
+fn transfer_from_config<'info>(
+    config: &Account<'info, Configuration>,
+    source: &InterfaceAccount<'info, TokenAccount>,
+    destination: &InterfaceAccount<'info, TokenAccount>,
+    mint: &InterfaceAccount<'info, Mint>,
+    token_program: &Interface<'info, TokenInterface>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let bump = [config.bump];
+    let seeds: &[&[u8]] = &[b"config", &bump];
+    let transfer = TransferChecked {
+        from: source.to_account_info(),
+        mint: mint.to_account_info(),
+        to: destination.to_account_info(),
+        authority: config.to_account_info(),
+    };
+    token_interface::transfer_checked(
+        CpiContext::new_with_signer(token_program.to_account_info(), transfer, &[seeds]),
+        amount,
+        mint.decimals,
+    )
 }
 
 fn class_terms(class: u8) -> Result<(u16, u16)> {
@@ -1522,6 +1964,24 @@ pub struct FeesCollected {
     pub fare_reserve: u64,
     pub stock_reserve_each: u64,
     pub team_amount: u64,
+}
+
+#[event]
+pub struct FareSwapProcessed {
+    pub nonce: u64,
+    pub sol_in: u64,
+    pub fare_out: u64,
+    pub main_amount: u64,
+    pub trainee_amount: u64,
+    pub burned_amount: u64,
+}
+
+#[event]
+pub struct StockSwapProcessed {
+    pub stock_index: u8,
+    pub nonce: u64,
+    pub sol_in: u64,
+    pub tokens_out: u64,
 }
 
 #[event]

@@ -25,6 +25,8 @@ pub struct Configuration {
     pub team_account: Pubkey,
     pub jupiter_program: Pubkey,
     pub deployment_id: [u8; 32],
+    pub fare_swap_nonce: u64,
+    pub stock_swap_nonces: [u64; STOCK_COUNT],
     pub collection: Pubkey,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
