@@ -49,19 +49,35 @@ test('leaving the window recenters smoothly, touch does not move the camera', t 
   assert.ok(Math.hypot(...Object.values(camera.update(3, 40))) < 0.001);
 });
 
-test('phones have no pointer listeners; reduced motion disables and cleans up input', t => {
-  const { camera, host, pointer, reduced, changes } = setup(t, false);
+test('touch never activates the camera; reduced motion disables and cleans up input', t => {
+  const { camera, host, pointer, reduced, changes, move } = setup(t, false);
   assert.equal(camera.active, false);
-  assert.equal(host.listeners.size, 0);
+  move(1000, 300, 'touch');
+  assert.equal(camera.active, false);
+  assert.deepEqual(camera.update(1, 40), { x: 0, z: 0 });
+  assert.equal(changes(), 0);
   pointer.matches = true; pointer.emit('change');
   assert.equal(camera.active, true);
   assert.ok(host.listeners.has('pointermove'));
   reduced.matches = true; reduced.emit('change');
   assert.equal(camera.active, false);
-  assert.equal(host.listeners.size, 0);
+  move(1000, 300);
+  assert.deepEqual(camera.update(1, 40), { x: 0, z: 0 });
   assert.equal(changes(), 2);
   camera.dispose();
+  assert.equal(host.listeners.size, 0);
   assert.equal(pointer.listeners.size + reduced.listeners.size, 0);
+});
+
+test('real mouse movement activates embedded browsers with no fine-pointer media support', t => {
+  const { camera, move, changes } = setup(t, false);
+  assert.equal(camera.active, false);
+  move(1000, 300);
+  assert.equal(camera.active, true);
+  assert.equal(changes(), 1, 'resize the world reserve once when mouse support is detected');
+  assert.ok(Math.hypot(...Object.values(camera.update(0.5, 40))) > 15);
+  move(500, 300);
+  assert.equal(changes(), 1, 'ordinary pointer movement must not resize the world');
 });
 
 test('desktop world margin covers pointer displacement without changing phone bounds', () => {
