@@ -78,6 +78,8 @@ Swaps используют актуальный Jupiter Swap API V2 `/build`. Wo
 
 Без `JUPITER_API_KEY` worker продолжает собирать комиссии и считать уже купленные награды, но оставляет новые SOL-резервы нетронутыми. Ключ не хранится on-chain и не передаётся frontend.
 
+Перед devnet/mainnet запуском выполняется `npm run protocol:check-xstocks`. Команда проверяет публичной котировкой Jupiter наличие маршрута `0.1 SOL → xStock` для каждого из четырёх официальных mint. Размер можно переопределить через `XSTOCKS_CHECK_LAMPORTS`. Эта проверка подтверждает наличие маршрута, но не заменяет production-проверку Jupiter V2 `/build` с реальным `JUPITER_API_KEY` и program-controlled destination account.
+
 `BACKEND_SIGNER_SECRET_KEY` только подписывает ваучеры и swap-планы и не нуждается в SOL. Отдельный `WORKER_KEYPAIR_SECRET_KEY` является обычным permissionless caller/fee payer: на нём должен быть небольшой запас SOL для служебных транзакций, но он не получает административных прав и не контролирует vault.
 
 Worker не делит HTTP endpoint с admin-командами; admin-инструкции остаются только в ручной CLI на сервере.
