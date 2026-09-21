@@ -14,6 +14,7 @@
 - Региональные ограничения xStocks показываются как явный запрет в frontend и условиях использования. Технические геоблокировки, KYC и on-chain denylist не используются; достаточность подхода требует юридической проверки до запуска.
 - NFT: Metaplex Core Assets в официальной коллекции проекта. Phantom и основные Solana NFT-интерфейсы показывают их как обычные коллекционные NFT.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard. В первой версии подключаем Phantom; собственный embedded/passkey wallet и хранение пользовательских ключей отсутствуют.
+- Network fees: пользователь самостоятельно платит SOL за mint, `claim`, ремонт и активацию/claim стажёра. Backend платит только за служебные транзакции, которые отправляет сам; fee sponsorship и компенсации отсутствуют.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
 - Stock swaps: Jupiter. Backend получает котировку и собирает короткоживущий маршрут; программа разрешает вызов только настроенного Jupiter program ID и проверяет входной SOL, выходной xStocks mint, `minOut`, deadline и nonce.
 - Локальные проверки: Rust unit tests, Anchor tests, LiteSVM или `solana-test-validator`.
@@ -53,7 +54,7 @@
 
 ## Главные открытые зависимости
 
-В первую очередь нужно решить SOL-6a и оставшиеся пункты SOL-8—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: fee sponsorship, batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
+В первую очередь нужно решить оставшиеся пункты SOL-8—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
 
 ## Технические основания
 
