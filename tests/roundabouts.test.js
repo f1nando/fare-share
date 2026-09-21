@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { roundaboutAt, roadOpen, spawnRoadOpen, relocateToRoad } from '../src/city/roadLayout.js';
+import { roundaboutAt, roadOpen, spawnRoadOpen, relocateToRoad, junctionArms, roundaboutClosedArm } from '../src/city/roadLayout.js';
 import { canalColumn } from '../src/city/bridgeProfile.js';
 import { buildRoundaboutPath, roundaboutPose, ISLAND_RADIUS } from '../src/city/roundabouts.js';
 import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
@@ -54,7 +54,7 @@ test('expanded junction corners contain no pavement slabs, buildings or trees', 
     if (!roundaboutAt(cx,cz)) continue;
     for (let gx=cx-2;gx<=cx;gx++) for (let gz=cz-2;gz<=cz;gz++) {
       populateBlock({add(kind,x,y,z,w,h,d,color,rotation=0) {
-        if (['paint','island','roundaboutCurb','roundaboutWalk'].includes(kind)) return;
+        if (['paint','island','roundaboutCurb','roundaboutWalk','roundaboutCapCurb','roundaboutCapWalk'].includes(kind)) return;
         const scale=kind==='crown'?1:.5;
         const hw=(Math.abs(Math.cos(rotation))*w+Math.abs(Math.sin(rotation))*d)*scale;
         const hd=(Math.abs(Math.sin(rotation))*w+Math.abs(Math.cos(rotation))*d)*scale;
@@ -62,6 +62,18 @@ test('expanded junction corners contain no pavement slabs, buildings or trees', 
           JSON.stringify({block,gx,gz,kind,x,z,w,d}));
       }},gx,gz,gx*block,gz*block,block);
     }
+  }
+});
+
+test('closed-arm curb meshes match the surface and face upwards', () => {
+  for(const inset of [0,.21]) {
+    const geometry=roundaboutCornerGeometry(inset,true),positions=geometry.attributes.position,normals=geometry.attributes.normal;
+    for(let i=0;i<positions.count;i++) {
+      const x=positions.getX(i),z=positions.getZ(i);
+      assert.ok(roundaboutRoadInset(x,z,3.85,1)>=inset-.002,'cap stays outside driving surface');
+      if(positions.getY(i)===.5&&Math.abs(normals.getY(i))>.5)assert.ok(normals.getY(i)>0,'top faces upward');
+    }
+    geometry.dispose();
   }
 });
 
@@ -77,12 +89,12 @@ function overlaps(a,b) {
   return true;
 }
 
-test('rare four-arm rings exclude banks, bridges, and removed roads; recycling stays outside', () => {
-  let count=0;
+test('rare three/four-arm rings exclude banks and bridges; recycling stays on open roads', () => {
+  let count=0,tCount=0;
   for(let x=-18;x<=18;x++)for(let z=-18;z<=18;z++)if(roundaboutAt(x,z)) {
     count++;
     assert.ok(!canalColumn(x)&&!canalColumn(x-1));
-    assert.ok(roadOpen(0,z,x-1)&&roadOpen(0,z,x)&&roadOpen(1,x,z-1)&&roadOpen(1,x,z));
+    const arms=junctionArms(x,z);assert.ok(arms.filter(Boolean).length>=3);if(arms.includes(false))tCount++;
     for(const axis of [0,1])for(const direction of [-1,1]) {
       const car={axis,direction,line:axis===0?z:x,track:0,position:(axis===0?x:z)*40};
       assert.equal(spawnRoadOpen(car,40,STOP_LINE),false);
@@ -90,7 +102,7 @@ test('rare four-arm rings exclude banks, bridges, and removed roads; recycling s
       assert.ok(spawnRoadOpen(car,40,STOP_LINE));
     }
   }
-  assert.ok(count>5&&count<40); assert.ok(roundaboutAt(3,1));
+  assert.ok(count>5&&count<50&&tCount>0); assert.ok(roundaboutAt(3,1));
 });
 
 test('all entries, tracks and exits have continuous paths that clear the island and pavement', () => {
@@ -135,6 +147,53 @@ test('cars pass the circle on either light phase; concurrent approaches do not o
     }
     assert.ok(cars.every(c=>c.roundaboutsCompleted),'all approaches eventually get a gap');
     assert.ok(simultaneous,'ring admits more than one car when their paths are clear');
+  }
+});
+
+test('an empty roundabout accepts a moving car before forced yield-line braking', () => {
+  const lanes=fixture(),car=vehicle(0,1,0,false,ROUNDABOUT_STOP+5);
+  car.speed=car.cruise=8; lanes.get('0:1:1').cars.push(car);
+  let minimum=car.speed;
+  for(let i=0;i<120&&!car.turn;i++) {
+    updateNetwork(lanes,1/30,12,{blockSize:40,roadLayout:true});minimum=Math.min(minimum,car.speed);
+  }
+  assert.equal(car.turn?.kind,'roundabout');assert.ok(minimum>=7.9,'no mandatory near-stop at an empty entry');
+});
+
+test('T rings close their missing arm visually and route all traffic through existing exits', () => {
+  for(const block of [24,40,48])for(const [cx,cz] of [[-6,1],[9,10]]) {
+    const arms=junctionArms(cx,cz),closed=roundaboutClosedArm(cx,cz),lanes=new Map(),cars=[];
+    assert.ok(roundaboutAt(cx,cz)&&closed>=0);
+    const geometry=[];populateBlock({add:(...p)=>geometry.push(p)},cx,cz,0,0,block);
+    assert.equal(geometry.filter(p=>p[0]==='roundaboutCapCurb').length,1);
+    assert.equal(geometry.filter(p=>p[0]==='roundaboutCurb').length,2);
+    for(const axis of [0,1])for(const direction of [-1,1]) {
+      const line=axis===0?cz:cx,lane={axis,line,direction,cars:[]};lanes.set(`${axis}:${line}:${direction}`,lane);
+      const arm=axis===0?(direction>0?2:0):(direction>0?3:1);
+      if(!arms[arm])continue;
+      for(const track of [0,1]) {
+        const car=vehicle(axis,direction,track,track===1);
+        Object.assign(car,{line,position:(axis===0?cx:cz)*block-direction*(ROUNDABOUT_STOP+3),speed:6});
+        lane.cars.push(car);cars.push(car);
+      }
+    }
+    for(let i=0;i<900&&!cars.every(c=>c.roundaboutsCompleted);i++) {
+      updateNetwork(lanes,1/30,12,{blockSize:block,roadLayout:true});
+      const poses=cars.map(car=>{
+        const at=carCoordinates(car,block),p=car.turn?at:vehiclePose(at.x,at.z,car.axis,car.direction,car.steer);
+        if(car.turn?.kind==='roundabout') {
+          assert.ok(roadOpen(car.turn.axis,car.turn.line,Math.floor(car.turn.position/block)));
+          for(const side of [-.46,.46])for(const end of [-1.125,1.125]) {
+            const x=p.x+side*Math.cos(p.angle)+end*Math.sin(p.angle),z=p.z-side*Math.sin(p.angle)+end*Math.cos(p.angle);
+            assert.equal(roadHeight(x,z,block,3.85),0,JSON.stringify({message:'T-ring body clears the closed-arm curb',block,cx,cz,i,x:x-cx*block,z:z-cz*block,closed}));
+          }
+        }
+        return p;
+      });
+      for(let a=0;a<cars.length;a++)for(let b=a+1;b<cars.length;b++)assert.ok(!overlaps(poses[a],poses[b]),
+        JSON.stringify({block,cx,cz,i,a,b,cars:[a,b].map(k=>({p:poses[k],axis:cars[k].axis,track:cars[k].track,turn:cars[k].turn?.kind,position:cars[k].position}))}));
+    }
+    assert.ok(cars.every(c=>c.roundaboutsCompleted),'all T approaches exit instead of waiting for a missing road');
   }
 });
 

@@ -28,11 +28,24 @@ export function roadOpen(axis, line, segment) {
   return hash % 5 === 0 || ((hash >>> 4) & 1) !== 1 - axis;
 }
 
-// A small four-arm roundabout per 6x6 district; no river banks or T junctions.
+// Arm order is east, south, west, north, shared by routing and closed-exit caps.
+export function junctionArms(x, z) {
+  return [roadOpen(0,z,x), roadOpen(1,x,z), roadOpen(0,z,x-1), roadOpen(1,x,z-1)];
+}
+export function roundaboutClosedArm(x, z) { return junctionArms(x,z).indexOf(false); }
+
+// Keep the existing four-arm locations and add sparse park-side T junctions.
+// Neighbouring rings are excluded so even small blocks retain queue space.
 export function roundaboutAt(x, z) {
-  if (((x % 6) + 6) % 6 !== 3 || ((z % 6) + 6) % 6 !== 1) return false;
-  return !canalColumn(x) && !canalColumn(x - 1) &&
-    roadOpen(0, z, x - 1) && roadOpen(0, z, x) && roadOpen(1, x, z - 1) && roadOpen(1, x, z);
+  const mod = (n,d) => ((n%d)+d)%d;
+  const regular = mod(x,6)===3 && mod(z,6)===1;
+  const tCandidate = mod(x,8)===2 && mod(z,8)===1 || mod(x,8)===1 && mod(z,8)===2;
+  if ((!regular && !tCandidate) || canalColumn(x) || canalColumn(x-1)) return false;
+  const count = junctionArms(x,z).filter(Boolean).length;
+  if (regular) return count >= 3;
+  if (count !== 3) return false;
+  for (let dx=-1;dx<=1;dx++) for (let dz=-1;dz<=1;dz++) if(mod(x+dx,6)===3&&mod(z+dz,6)===1) return false;
+  return true;
 }
 
 // One possible site per 4x4 group, always away from water and missing roads.

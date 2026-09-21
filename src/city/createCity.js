@@ -201,6 +201,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   const geometries = {
     roundaboutCurb: roundaboutCornerGeometry(),
     roundaboutWalk: roundaboutCornerGeometry(0.21),
+    roundaboutCapCurb: roundaboutCornerGeometry(0,true),
+    roundaboutCapWalk: roundaboutCornerGeometry(0.21,true),
     island: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
     cone: new THREE.ConeGeometry(0.5, 1, 4),
     box: new THREE.BoxGeometry(1, 1, 1),

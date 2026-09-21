@@ -1,4 +1,4 @@
-import { roundaboutAt } from './roadLayout.js';
+import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 
 import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
 export { RING_RADIUS, ISLAND_RADIUS } from './roundaboutDimensions.js';
@@ -44,10 +44,17 @@ export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
 
 export function populateRoundabout(batch, gx, gz, x, z) {
   if (!roundaboutAt(gx, gz)) return;
+  const closed=roundaboutClosedArm(gx,gz);
   for (let quadrant = 0; quadrant < 4; quadrant++) {
+    if(closed>=0&&(quadrant===(5-closed)%4||quadrant===(4-closed)%4))continue;
     const rotation = quadrant * Math.PI / 2;
     batch.add('roundaboutCurb',x,0.1,z,1,0.3,1,'#bdbdbd',rotation);
     batch.add('roundaboutWalk',x,0.25,z,1,0.34,1,'#dedede',rotation);
+  }
+  if(closed>=0) {
+    const rotation=(1-closed)*Math.PI/2;
+    batch.add('roundaboutCapCurb',x,0.1,z,1,.3,1,'#bdbdbd',rotation);
+    batch.add('roundaboutCapWalk',x,0.25,z,1,.34,1,'#dedede',rotation);
   }
   batch.add('island', x, 0.12, z, ISLAND_RADIUS * 2, 0.24, ISLAND_RADIUS * 2, '#bdbdbd');
   batch.add('island', x, 0.26, z, ISLAND_RADIUS * 2 - 0.35, 0.08, ISLAND_RADIUS * 2 - 0.35, '#929292');
@@ -115,6 +122,17 @@ export function roundaboutPose(turn, distance = turn.distance) {
   return { x: a.x + (b.x-a.x)*t, z: a.z + (b.z-a.z)*t, angle, sin: Math.sin(angle), cos: Math.cos(angle), drift: 0 };
 }
 
+function bodyGap(a,b) {
+  const dx=b.x-a.x,dz=b.z-a.z,halfWidth=.8,halfLength=1.47;
+  if(dx*dx+dz*dz>4*(halfWidth*halfWidth+halfLength*halfLength))return true;
+  const axes=[[a.cos,-a.sin],[a.sin,a.cos],[b.cos,-b.sin],[b.sin,b.cos]];
+  for(const [x,z] of axes) {
+    const radius = p => halfWidth*Math.abs(x*p.cos-z*p.sin)+halfLength*Math.abs(x*p.sin+z*p.cos);
+    if(Math.abs(dx*x+dz*z)>=radius(a)+radius(b))return true;
+  }
+  return false;
+}
+
 // Reserve a gap in time, not the whole ring. The same analytic speed profile
 // drives both prediction and actual motion, including cars accelerating in.
 export function roundaboutGap(turn, circulating) {
@@ -122,11 +140,13 @@ export function roundaboutGap(turn, circulating) {
     if (other.junction !== turn.junction) continue;
     const horizon = Math.max(duration(turn), duration(other) - other.elapsed);
     if (!Number.isFinite(horizon)) return false;
-    for (let t = 0; t <= horizon + 0.1; t += 0.1) {
+    const step = Math.min(.08,.5/Math.max(turn.limit,other.limit,1));
+    for (let t = 0; t <= horizon + step; t += step) {
       const incoming = roundaboutMotion(turn, t), existing = roundaboutMotion(other, other.elapsed + t);
       const a = roundaboutPose(turn, incoming.distance), b = roundaboutPose(other, existing.distance);
-      // Circumscribed body circles plus half a sampling interval of travel.
-      if (Math.hypot(a.x - b.x, a.z - b.z) < 3.25) return false;
+      // Oriented bodies distinguish adjacent lanes from a crossing conflict.
+      // The margin covers movement between samples, even for fast taxi entries.
+      if (!bodyGap(a,b)) return false;
       if (incoming.distance >= turn.length && existing.distance >= other.length) break;
     }
   }

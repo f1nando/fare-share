@@ -34,8 +34,7 @@ export function turnPose(turn) {
   return { ...pose, angle: pose.angle + drift, drift, sin: Math.sin(pose.angle + drift), cos: Math.cos(pose.angle + drift) };
 }
 
-function turnTarget(car, blockSize, side, stopLine = STOP_LINE) {
-  const center = Math.ceil((car.position * car.direction - stopLine) / blockSize) * blockSize * car.direction;
+function turnTarget(car, blockSize, side, stopLine = STOP_LINE, center = Math.ceil((car.position * car.direction - stopLine) / blockSize) * blockSize * car.direction) {
   const crossLine = Math.round(center / blockSize);
   const axis = 1 - car.axis;
   const direction = car.direction * side * (car.axis === 0 ? 1 : -1);
@@ -136,15 +135,31 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     } else if (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
     const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE;
     const entryDistance = center - stopLine - car.position * car.direction;
-    if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
+    const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
+      blockSize - ROUNDABOUT_STOP - STOP_LINE - 1.2) : Math.max(1, car.speed * delta + 0.1);
+    if (entryDistance < -0.001 || entryDistance > entryLookahead) continue;
+    if (car.roundaboutApproach && lane.cars.some(other => {
+      if(other===car||other.turn)return false;
+      const ahead=(other.position-car.position)*car.direction;
+      // The inner entry crosses the outer approach: let its adjacent car go
+      // first, then use the trajectory reservation once that car is on the ring.
+      return occupiesTrack(other,car.track)&&ahead>0&&ahead<entryDistance+CAR_GAP ||
+        other.offset>car.offset+.5&&Math.abs(ahead)<entryDistance+CAR_GAP+2;
+    })) continue;
     let turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1, stopLine);
     if (car.roundaboutApproach) {
       // Stable choice across retries: most cars continue straight, taxis turn more.
       const choice = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 1000) + cross * 7 + car.line * 11) % 10;
-      const side = choice < (car.taxi ? 3 : 1) ? -1 : choice < (car.taxi ? 6 : 2) ? 1 : 0;
-      if (side) turn = turnTarget(car, blockSize, side, stopLine);
-      else Object.assign(turn, { axis: car.axis, line: car.line, direction: car.direction,
-        track: car.track === 1 ? 1 : 0, position: center * car.direction + car.direction * (stopLine + 1), side: 0 });
+      const preferred = choice < (car.taxi ? 3 : 1) ? -1 : choice < (car.taxi ? 6 : 2) ? 1 : 0;
+      const target = side => {
+        const result = turnTarget(car,blockSize,side || 1,stopLine,center*car.direction);
+        if (!side) Object.assign(result, { axis:car.axis,line:car.line,direction:car.direction,
+          track:car.track===1?1:0,position:center*car.direction+car.direction*(stopLine+1),side:0 });
+        return result;
+      };
+      turn = [preferred,0,-1,1].map(target).find(candidate => roadOpen(candidate.axis,candidate.line,Math.floor(candidate.position/blockSize)) &&
+        lanes.has(laneKey(candidate.axis,candidate.line,candidate.direction)));
+      if (!turn) continue;
     }
     // Enter the open lane directly instead of landing in front of a work site.
     const work = roadLayout && roadworkAt(turn.axis, turn.line, Math.floor(turn.position / blockSize), blockSize);

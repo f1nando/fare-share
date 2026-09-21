@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { districtPark, parkAt, roadOpen, spawnRoadOpen, relocateToRoad, CAMERA_DRIFT, roundaboutAt } from '../src/city/roadLayout.js';
-import { ROUNDABOUT_CLEARANCE } from '../src/city/roundaboutDimensions.js';
+import { ROUNDABOUT_CLEARANCE, ROUNDABOUT_STOP } from '../src/city/roundaboutDimensions.js';
 import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
@@ -28,7 +28,7 @@ test('isolated merged parks create T junctions in both axes, including negative 
   }
 });
 
-test('both constituent blocks share continuous park paving with only roundabout corners removed', () => {
+test('both constituent blocks share continuous park paving outside roundabout cutouts', () => {
   for (const axis of [0, 1]) for (const block of [24, 40, 48]) {
     const park = parks.find(p => p.axis === axis), parts = [];
     const batch = { add: (...args) => parts.push(args) };
@@ -36,12 +36,19 @@ test('both constituent blocks share continuous park paving with only roundabout 
       axis === 0 ? i * block : 0, axis === 1 ? i * block : 0, block);
     const bases = parts.filter(p => ['round','box'].includes(p[0]) && p[2] === 0.1);
     const width = axis === 0 ? 2 : 1, depth = axis === 1 ? 2 : 1;
-    let cuts = 0;
-    for (const dx of [0,width]) for (const dz of [0,depth]) if (roundaboutAt(park.x+dx,park.z+dz)) cuts++;
-    const area = (width*block-PAVED_ROAD)*(depth*block-PAVED_ROAD)-cuts*(ROUNDABOUT_CLEARANCE-PAVED_ROAD/2)**2;
+    let area = (width*block-PAVED_ROAD)*(depth*block-PAVED_ROAD);
+    for (let dx=0;dx<=width;dx++) for (let dz=0;dz<=depth;dz++) if (roundaboutAt(park.x+dx,park.z+dz)) {
+      const cutWidth = Math.min(width*block-PAVED_ROAD/2,dx*block+ROUNDABOUT_CLEARANCE)-Math.max(PAVED_ROAD/2,dx*block-ROUNDABOUT_CLEARANCE);
+      const cutDepth = Math.min(depth*block-PAVED_ROAD/2,dz*block+ROUNDABOUT_CLEARANCE)-Math.max(PAVED_ROAD/2,dz*block-ROUNDABOUT_CLEARANCE);
+      area -= Math.max(0,cutWidth)*Math.max(0,cutDepth);
+    }
     assert.ok(Math.abs(bases.reduce((sum,p)=>sum+p[4]*p[6],0)-area)<1e-7);
-    assert.ok(bases.some(p=>p[axis === 0 ? 4 : 6] > block));
-    assert.equal(parts.filter(p => p[0] === 'paint' && (axis === 0 ? p[1] === block : p[3] === block)).length, 0);
+    assert.ok(bases.some(p=> {
+      const center=p[axis===0?1:3],half=p[axis===0?4:6]/2;
+      return center-half<block&&center+half>block;
+    }),'paving remains continuous across the former street');
+    assert.equal(parts.filter(p => p[0] === 'paint' && (axis === 0 ? p[1] === block : p[3] === block) &&
+      p[axis===0?3:1]>ROUNDABOUT_CLEARANCE && p[axis===0?3:1]<block-ROUNDABOUT_CLEARANCE).length, 0);
   }
 });
 
@@ -52,7 +59,7 @@ test('recycling skips a removed road without jumping two whole blocks towards th
       const car = { axis, line, direction, position: segment * 40 + offset }, before = car.position;
       relocateToRoad(car, 40, STOP_LINE);
       assert.ok(spawnRoadOpen(car, 40, STOP_LINE));
-      assert.ok(Math.abs(car.position - before) < 40 + 2 * (STOP_LINE + 1) + 0.001);
+      assert.ok(Math.abs(car.position - before) < 40 + 2 * (ROUNDABOUT_STOP + 1.2) + 0.001);
     }
   }
 });
@@ -70,14 +77,15 @@ test('ordinary cars and taxis turn into open streets at park and canal T approac
     const lanes = new Map();
     for (const a of [0, 1]) for (let l = (a === 0 ? cz : cx) - 1; l <= (a === 0 ? cz : cx) + 1; l++) for (const d of [-1, 1])
       lanes.set(`${a}:${l}:${d}`, { axis: a, line: l, direction: d, cars: [] });
-    const car = { axis, line, direction, position: center * 40 - direction * (STOP_LINE + 0.02),
+    const ring=roundaboutAt(cx,cz);
+    const car = { axis, line, direction, position: center * 40 - direction * ((ring?ROUNDABOUT_STOP:STOP_LINE) + 0.02),
       track, fromTrack: track, offset: trackOffset(track), taxi, speed: 8, cruise: 8, acceleration: 5, cooldown: 0, steer: 0, merge: 1 };
     lanes.get(`${axis}:${line}:${direction}`).cars.push(car);
-    if (!taxi) {
+    if (!taxi && !ring) {
       updateNetwork(lanes, 1 / 30, axis === 0 ? 12 : 1, { blockSize: 40, roadLayout: true });
       assert.ok(!car.turn, 'ordinary car waits for green');
     }
-    for (let i = 0; i < 150 && !car.requiredTurnsCompleted; i++) updateNetwork(lanes, 1 / 30, axis === 0 ? 1 : 12, { blockSize: 40, roadLayout: true });
+    for (let i = 0; i < 300 && !car.requiredTurnsCompleted; i++) updateNetwork(lanes, 1 / 30, axis === 0 ? 1 : 12, { blockSize: 40, roadLayout: true });
     assert.equal(car.requiredTurnsCompleted, 1, JSON.stringify({ axis, direction, track, taxi }));
     assert.equal(car.axis, 1 - axis);
     assert.ok(roadOpen(car.axis, car.line, Math.floor(car.position / 40)));
