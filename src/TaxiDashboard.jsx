@@ -51,6 +51,10 @@ export function TaxiDashboard() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (wallet && status.deployed) refreshGarage(wallet, status);
+  }, [wallet, status.deployed]);
+
   const totalWeight = useMemo(() => CLASSES.reduce((sum, item) => sum + item.count * item.weight, 0), []);
 
   async function handleConnect() {
@@ -58,7 +62,6 @@ export function TaxiDashboard() {
     try {
       const connected = await connectWallet();
       setWallet(connected);
-      if (status.deployed) await refreshGarage(connected, status);
     } catch (error) {
       setNotice(error.message);
     }
