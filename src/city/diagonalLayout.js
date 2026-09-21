@@ -1,6 +1,6 @@
 import { parkAt, junctionArms, roundaboutAt, roadworkAt } from './roadLayout.js';
 import { canalColumn } from './bridgeProfile.js';
-import { parkingAt } from './parkingLayout.js';
+import { reservedParkingAt as parkingAt } from './parkingLayout.js';
 
 export const DIAGONAL_HALF = 3.1;
 export const DIAGONAL_LANE = 1.45;

@@ -27,7 +27,7 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
       changing: false, merge: 1, cooldown: random(), steer: 0,
       // Keep one object layout through parking, turns and taxi manoeuvres.
       // Adding these fields lazily produces many shapes in the hot physics loops.
-      approachClearance: undefined, roadworks: undefined, turnCooldown: undefined, roadEnd: undefined, dividedRoad: undefined,
+      approachClearance: undefined, parkingClearance: undefined, parkingYield: undefined, roadworks: undefined, turnCooldown: undefined, roadEnd: undefined, dividedRoad: undefined,
       junctionStop: undefined, roundaboutStop: undefined, roundaboutApproach: undefined, raceCooldown: undefined, flashCooldown: undefined,
       signalWait: undefined, yieldDelay: undefined, yieldRemaining: undefined,
       launchAttempt: undefined, launchChosen: undefined, burst: undefined, seekInner: undefined,

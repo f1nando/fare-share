@@ -47,7 +47,7 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
-  car.parking=null;car.lastParkingLot=undefined;
+  car.parking=null;car.lastParkingLot=undefined;car.parkingClearance=undefined;car.parkingYield=undefined;
   car.roundaboutApproach = false;
   car.roadworks = undefined; car.workBypass = null;
   car.rideHeight = car.rideVelocity = car.surfaceSupport = car.roadRoll = car.roadPitch = 0;
@@ -491,7 +491,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const desiredSpeed = Math.min(cruise, Math.max(0, frontSpeed + (clearance - desiredGap) * (car.taxi ? 2 : 1.4)));
     const acceleration = (car.acceleration ?? (car.taxi ? 25 : 4)) * (yielding ? 2 : car.burst > 0 ? 1.8 : 1);
     const braking = car.taxi ? 13 : 7;
-    const approachClearance = car.approachClearance ?? Infinity;
+    const approachClearance = Math.min(car.approachClearance ?? Infinity,car.parkingClearance ?? Infinity);
     const workClearance = work && occupiesTrack(car, 1) ? workDistance - WORK_MARGIN : Infinity;
     // Lane changing itself never applies the normal following slowdown. Hard
     // clearance and stop-line limits below still handle newly blocked traffic.
