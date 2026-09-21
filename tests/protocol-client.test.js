@@ -148,6 +148,7 @@ test('claim transaction size is measured with five missing destination accounts'
     asset,
     mints,
     tokenPrograms: [TOKEN_PROGRAM, ...Array(4).fill(TOKEN_2022_PROGRAM)],
+    amounts: Array(5).fill(1n),
   });
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -160,4 +161,28 @@ test('claim transaction size is measured with five missing destination accounts'
   );
   const bytes = getTransactionEncoder().encode(compileTransaction(message));
   assert.ok(bytes.length <= 1100, `claim transaction is ${bytes.length} bytes`);
+});
+
+test('claim creates destination token accounts only for non-zero rewards', async () => {
+  const signers = await Promise.all(Array.from({ length: 10 }, () => generateKeyPairSigner()));
+  const [owner, config, pool, machine, asset, ...mints] = signers.map(signer => signer.address);
+  const instructions = await buildClaimInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    machine,
+    asset,
+    mints,
+    tokenPrograms: [TOKEN_PROGRAM, ...Array(4).fill(TOKEN_2022_PROGRAM)],
+    amounts: [5n, 0n, 0n, 7n, 0n],
+  });
+
+  assert.equal(instructions.length, 3, 'two ATA creates plus one claim instruction');
+  const claim = instructions.at(-1);
+  for (const index of [1, 2, 4]) {
+    const vault = claim.accounts[6 + index * 4];
+    const destination = claim.accounts[7 + index * 4];
+    assert.equal(destination.address, vault.address, `zero reward ${index} should reuse its vault placeholder`);
+  }
 });

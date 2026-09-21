@@ -276,7 +276,11 @@ export async function buildClaimInstructions({
   asset,
   mints,
   tokenPrograms,
+  amounts,
 }) {
+  if (!Array.isArray(amounts) || amounts.length !== mints.length) {
+    throw new Error('Для Claim нужны актуальные суммы всех reward-активов.');
+  }
   const payer = createNoopSigner(address(owner));
   const setup = [];
   const rewardAccounts = [];
@@ -285,17 +289,20 @@ export async function buildClaimInstructions({
     const tokenProgram = address(tokenPrograms[index]);
     const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint, tokenProgram });
     const [destination] = await findAssociatedTokenPda({ owner, mint, tokenProgram });
-    setup.push(getCreateAssociatedTokenIdempotentInstruction({
-      payer,
-      ata: destination,
-      owner,
-      mint,
-      tokenProgram,
-    }));
+    const hasReward = BigInt(amounts[index]) > 0n;
+    if (hasReward) {
+      setup.push(getCreateAssociatedTokenIdempotentInstruction({
+        payer,
+        ata: destination,
+        owner,
+        mint,
+        tokenProgram,
+      }));
+    }
     rewardAccounts.push(
       meta(mint, AccountRole.READONLY),
       meta(vault, AccountRole.WRITABLE),
-      meta(destination, AccountRole.WRITABLE),
+      meta(hasReward ? destination : vault, AccountRole.WRITABLE),
       meta(tokenProgram, AccountRole.READONLY),
     );
   }

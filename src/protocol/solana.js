@@ -307,6 +307,7 @@ export async function claimMachine(connection, machine, knownStatus) {
     asset: machine.asset,
     mints,
     tokenPrograms: mintAccounts.value.map(value => address(value.owner)),
+    amounts: machine.rewards,
   });
   return sendWalletInstructions({
     rpc,

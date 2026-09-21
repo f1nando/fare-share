@@ -1268,25 +1268,25 @@ pub mod taxi_park {
 
             let mint = InterfaceAccount::<Mint>::try_from(mint_info)?;
             let vault = InterfaceAccount::<TokenAccount>::try_from(vault_info)?;
-            let destination = InterfaceAccount::<TokenAccount>::try_from(destination_info)?;
             require_keys_eq!(vault.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
             require_keys_eq!(
                 vault.owner,
                 ctx.accounts.config.key(),
                 TaxiError::InvalidTokenAccount
             );
-            require_keys_eq!(
-                destination.mint,
-                mint_info.key(),
-                TaxiError::InvalidTokenAccount
-            );
-            require_keys_eq!(
-                destination.owner,
-                ctx.accounts.owner.key(),
-                TaxiError::InvalidTokenAccount
-            );
 
             if amount > 0 {
+                let destination = InterfaceAccount::<TokenAccount>::try_from(destination_info)?;
+                require_keys_eq!(
+                    destination.mint,
+                    mint_info.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                require_keys_eq!(
+                    destination.owner,
+                    ctx.accounts.owner.key(),
+                    TaxiError::InvalidTokenAccount
+                );
                 let transfer = TransferChecked {
                     from: vault_info.clone(),
                     mint: mint_info.clone(),
