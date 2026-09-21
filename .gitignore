@@ -1,5 +1,10 @@
 node_modules/
 dist/
+.anchor/
+target/
+test-ledger/
+*.keypair.json
+.env
 .env
 .env.*
 !.env.example
