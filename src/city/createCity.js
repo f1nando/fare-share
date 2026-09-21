@@ -244,6 +244,9 @@ export function createCity(container, initialSettings, benchmark = null) {
   const carsBatch = new Batches(scene, geometries, true);
   const hornEffects = new HornEffects(scene);
   const airTraffic = new AirTraffic(scene);
+  for (const material of airTraffic.materials) {
+    if (material.colorWrite) backgroundFade.apply(material);
+  }
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   for (const material of [staticBatch.material, carsBatch.material, groundMaterial]) backgroundFade.apply(material);
   const ground = new THREE.Mesh(createCanalGround(BLOCK), groundMaterial);
