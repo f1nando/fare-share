@@ -36,7 +36,7 @@ export function createVoucherService(config: ServerConfig, database: TaxiDatabas
 
     const activeFrom = ((clock.protocolTime / 60n) + 1n) * 60n;
     const activeUntil = activeFrom + BigInt(campaign.durationMinutes * 60);
-    const expiresAt = BigInt(Math.floor(Date.now() / 1000) + config.voucherTtlSeconds);
+    const expiresAt = voucherExpiresAt(clock.chainTime, config.voucherTtlSeconds);
     const args: VoucherArgs = {
       campaignId: BigInt(campaign.campaignId),
       nonce: randomU64(),
@@ -76,24 +76,40 @@ export function createVoucherService(config: ServerConfig, database: TaxiDatabas
   };
 }
 
-async function consumeRateLimit(database: TaxiDatabase, identity: string) {
+export function voucherExpiresAt(chainTime: bigint, ttlSeconds: number) {
+  return chainTime + BigInt(ttlSeconds);
+}
+
+export async function consumeRateLimit(database: TaxiDatabase, identity: string) {
   const now = new Date();
   const key = createHash('sha256').update(identity).digest('hex');
-  const current = await database.rateLimits.findOne({ key });
-  if (!current || current.expiresAt <= now) {
-    await database.rateLimits.updateOne(
-      { key },
-      { $set: { attempts: 1, expiresAt: new Date(now.getTime() + RATE_WINDOW_MS) } },
-      { upsert: true },
-    );
+  const expiresAt = new Date(now.getTime() + RATE_WINDOW_MS);
+  await database.rateLimits.updateOne(
+    { key, expiresAt: { $lte: now } },
+    { $set: { attempts: 0, expiresAt } },
+  );
+  let result = await database.rateLimits.findOneAndUpdate(
+    { key, attempts: { $lt: MAX_ATTEMPTS } },
+    { $inc: { attempts: 1 } },
+    { returnDocument: 'after' },
+  );
+  if (result) return;
+  try {
+    await database.rateLimits.insertOne({ key, attempts: 1, expiresAt });
     return;
+  } catch (error) {
+    if (!isDuplicateKey(error)) throw error;
   }
-  const result = await database.rateLimits.findOneAndUpdate(
+  result = await database.rateLimits.findOneAndUpdate(
     { key, attempts: { $lt: MAX_ATTEMPTS } },
     { $inc: { attempts: 1 } },
     { returnDocument: 'after' },
   );
   if (!result) throw new VoucherError('Слишком много попыток. Попробуйте позже.', 429);
+}
+
+function isDuplicateKey(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
 }
 
 function validateInput(input: unknown) {

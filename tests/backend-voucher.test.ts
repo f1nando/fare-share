@@ -10,6 +10,7 @@ import {
   parseBackendSigner,
 } from '../server/signing.js';
 import { decodeClockFields } from '../server/solanaState.js';
+import { consumeRateLimit, VoucherError, voucherExpiresAt } from '../server/voucherService.js';
 
 test('voucher message matches the Rust field order and little-endian values', () => {
   const message = buildTraineeVoucherMessage(
@@ -80,4 +81,36 @@ test('server decodes protocol pause clock after variable metadata strings', () =
   assert.deepEqual([...decoded.deploymentId], Array(32).fill(9));
   assert.equal(decoded.pausedAt, 500n);
   assert.equal(decoded.totalPausedSeconds, 40n);
+});
+
+test('voucher expiry follows finalized Solana time instead of the server clock', () => {
+  assert.equal(voucherExpiresAt(1_000n, 180), 1_180n);
+});
+
+test('parallel first requests cannot bypass the ten-attempt rate limit', async () => {
+  let document: { key: string; attempts: number; expiresAt: Date } | null = null;
+  const rateLimits = {
+    async updateOne(filter: Record<string, any>, update: Record<string, any>) {
+      if (document && document.key === filter.key && document.expiresAt <= filter.expiresAt.$lte) {
+        document = { ...document, ...update.$set };
+      }
+    },
+    async findOneAndUpdate(filter: Record<string, any>, update: Record<string, any>) {
+      if (!document || document.key !== filter.key || document.attempts >= filter.attempts.$lt) return null;
+      document = { ...document, attempts: document.attempts + update.$inc.attempts };
+      return document;
+    },
+    async insertOne(value: { key: string; attempts: number; expiresAt: Date }) {
+      if (document?.key === value.key) throw Object.assign(new Error('duplicate'), { code: 11000 });
+      document = { ...value };
+    },
+  };
+  const database = { rateLimits } as any;
+  const results = await Promise.allSettled(
+    Array.from({ length: 25 }, () => consumeRateLimit(database, 'same-ip:same-wallet')),
+  );
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 10);
+  const rejected = results.filter(result => result.status === 'rejected');
+  assert.equal(rejected.length, 15);
+  assert.ok(rejected.every(result => result.reason instanceof VoucherError && result.reason.status === 429));
 });
