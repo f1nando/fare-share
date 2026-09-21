@@ -21,7 +21,7 @@ test('statistics retain tails and handle unavailable GPU samples', () => {
   assert.equal(summarize([16.667]).p99, 16.667);
 });
 
-test('named scenarios are independent copies and match the actual scene population', () => {
+test('named scenarios are independent copies and retain the fixed-grid population baseline', () => {
   const settings = scenarioSettings(); settings.density = 0;
   assert.equal(scenarioSettings().density, 65);
   assert.equal(trafficSnapshot(scenarioTraffic(scenarioSettings(), 5)).cars, 2376);

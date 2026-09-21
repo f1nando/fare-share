@@ -1,9 +1,10 @@
-import { seededRandom, TRACKS, TRAFFIC_SPACING } from './world.js';
+import { seededRandom, TRACKS, TRAFFIC_SPACING, STOP_LINE } from './world.js';
+import { spawnRoadOpen } from './roadLayout.js';
 
 const colors = ['#ffffff', '#f4f4f4', '#e4e4e4', '#cdcdcd', '#a6a6a6', '#838383'];
 
 // Shared by the real scene and CPU benchmark. Seed 0 preserves the city layout.
-export function populateLane(axis, line, direction, settings, radius, centerPosition = 0, seed = 0) {
+export function populateLane(axis, line, direction, settings, radius, centerPosition = 0, seed = 0, roadLayout = false) {
   const random = seededRandom(line * 7 + axis + seed, direction * 991);
   const spacing = settings.density > 0 ? TRAFFIC_SPACING * 100 / settings.density : Infinity;
   const count = Math.floor((radius * 2 + 1) * settings.blockSize / spacing), cars = [];
@@ -18,5 +19,5 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
       baseCruise: cruise, baseAcceleration: acceleration,
       changing: false, merge: 1, cooldown: random(), steer: 0 });
   }
-  return { axis, line, direction, cars, radius };
+  return { axis, line, direction, cars: roadLayout ? cars.filter(car => spawnRoadOpen(car, settings.blockSize, STOP_LINE)) : cars, radius };
 }

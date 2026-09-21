@@ -29,7 +29,7 @@ export const originShift = (focus, blockSize) => Math.floor(focus / blockSize + 
 
 // Resize only offscreen population. Keep every car in the visible part of a
 // retained street, and fill newly exposed simulation buffers at the same density.
-export function resizeLanePopulation(lane, generated, center, half, visibleHalf) {
+export function resizeLanePopulation(lane, generated, center, half, visibleHalf, allow = () => true) {
   const kept = [], removed = [];
   for (const car of lane.cars) (Math.abs(car.position - center) <= half ? kept : removed).push(car);
   const target = generated.cars.length;
@@ -40,6 +40,7 @@ export function resizeLanePopulation(lane, generated, center, half, visibleHalf)
     if (kept.length >= target) break;
     if (car.position < center - half) car.position += half * 2;
     if (car.position > center + half) car.position -= half * 2;
+    if (!allow(car)) continue;
     if (Math.abs(car.position - center) <= visibleHalf + 10) continue;
     if (kept.some(other => Math.abs(other.position - car.position) < CAR_GAP &&
       (other.track === car.track || other.changing && other.fromTrack === car.track))) continue;

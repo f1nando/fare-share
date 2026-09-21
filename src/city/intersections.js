@@ -1,4 +1,5 @@
 import { CAR_GAP, STOP_LINE, occupiesTrack, greenLight } from './world.js';
+import { straightRoadOpen } from './roadLayout.js';
 
 function arrivalTime(distance, speed, acceleration, cruise) {
   const start = Math.min(speed, cruise);
@@ -12,8 +13,9 @@ function arrivalTime(distance, speed, acceleration, cruise) {
 // Cars hold the crossing until their rear has cleared it. Both road axes use
 // the same live car objects, so permission granted earlier in a frame is visible
 // to the perpendicular stream immediately.
-export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()) {
+export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map(), roadLayout = false) {
   const access = (car, travel, green, clearance, speed, commit = true) => {
+    if (roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE)) return false;
     const oriented = car.position * car.direction;
     const nextCenter = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize * car.direction;
     const junctionKey = car.axis === 0 ? `${Math.round(nextCenter / blockSize)}:${car.line}` : `${car.line}:${Math.round(nextCenter / blockSize)}`;

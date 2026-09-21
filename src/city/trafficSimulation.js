@@ -1,7 +1,8 @@
 import { normalizeSettings } from './settings.js';
 import { originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
 import { populateLane } from './trafficPopulation.js';
-import { resetSignal } from './world.js';
+import { resetSignal, STOP_LINE } from './world.js';
+import { relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
 import { updateNetwork } from './trafficNetwork.js';
 import { packTraffic } from './trafficFrames.js';
 
@@ -34,10 +35,11 @@ export class TrafficSimulation {
       for (let line = centerLine - across; line <= centerLine + across; line++) for (const direction of [-1, 1]) {
         const key = `${axis}:${line}:${direction}`;
         let lane = this.lanes.get(key);
-        if (!lane) lane = populateLane(axis, line, direction, settings, along, centerPosition, this.seed);
+        if (!lane) lane = populateLane(axis, line, direction, settings, along, centerPosition, this.seed, true);
         else if (lane.radius !== along) resizeLanePopulation(lane,
-          populateLane(axis, line, direction, settings, along, centerPosition, this.seed),
-          axis === 0 ? focus.x : focus.z, (along + 0.5) * block, axis === 0 ? area.extents.x : area.extents.z);
+          populateLane(axis, line, direction, settings, along, centerPosition, this.seed, true),
+          axis === 0 ? focus.x : focus.z, (along + 0.5) * block, axis === 0 ? area.extents.x : area.extents.z,
+          car => spawnRoadOpen(car, block, STOP_LINE));
         next.set(key, lane);
       }
     }
@@ -49,8 +51,8 @@ export class TrafficSimulation {
 
   advance() {
     const start = performance.now(), { settings, step, focus, area } = this, block = settings.blockSize;
-    focus.x += step * 0.92 * settings.cameraSpeed / 100;
-    focus.z += step * 0.36 * settings.cameraSpeed / 100;
+    focus.x += step * CAMERA_DRIFT.x * settings.cameraSpeed / 100;
+    focus.z += step * CAMERA_DRIFT.z * settings.cameraSpeed / 100;
     if (originShift(focus.x, block) !== this.worldX || originShift(focus.z, block) !== this.worldZ) this.rebuild();
     for (const lane of this.lanes.values()) {
       const center = lane.axis === 0 ? focus.x : focus.z;
@@ -58,14 +60,14 @@ export class TrafficSimulation {
       for (const car of lane.cars) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier; car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) { car.position += half * 2; resetSignal(car); }
-        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
+        if (car.position < center - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, block, STOP_LINE); }
+        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); relocateToRoad(car, block, STOP_LINE); }
       }
     }
     if (this.simulate) {
       const clockMultiplier = Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
       this.lightTime += step * clockMultiplier;
-      updateNetwork(this.lanes, step, this.lightTime, { blockSize: block, weaving: settings.weaving / 100, clockMultiplier });
+      updateNetwork(this.lanes, step, this.lightTime, { blockSize: block, weaving: settings.weaving / 100, clockMultiplier, roadLayout: true });
     }
     this.time += step;
     return this.snapshot(performance.now() - start);

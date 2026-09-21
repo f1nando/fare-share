@@ -12,13 +12,15 @@ export function scenarioSettings(name = 'main') {
   return normalizeSettings({ ...SCENARIOS[name].settings, paused: false });
 }
 
-export function scenarioTraffic(settings, radius = 5, seed = 0) {
+// The default retains fixed-grid regression fixtures. Live/CPU city benchmarks
+// opt into the current park layout explicitly.
+export function scenarioTraffic(settings, radius = 5, seed = 0, roadLayout = false) {
   const lanes = new Map();
   const x = typeof radius === 'number' ? radius : radius.x, z = typeof radius === 'number' ? radius : radius.z;
   for (const axis of [0, 1]) {
     const across = axis === 0 ? z : x, along = axis === 0 ? x : z;
     for (let line = -across; line <= across; line++) for (const direction of [-1, 1]) {
-      lanes.set(`${axis}:${line}:${direction}`, populateLane(axis, line, direction, settings, along, 0, seed));
+      lanes.set(`${axis}:${line}:${direction}`, populateLane(axis, line, direction, settings, along, 0, seed, roadLayout));
     }
   }
   return lanes;

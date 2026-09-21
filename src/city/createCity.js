@@ -15,6 +15,8 @@ import { trafficSnapshot } from './benchmarkScenario.js';
 import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
 import { TrafficWorkerClient } from './TrafficWorkerClient.js';
 import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
+import { parkAt, roadOpen, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
+import { populatePark } from './parkGeometry.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -25,6 +27,8 @@ const palette = {
 };
 
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
+  const parkLot = parkAt(gx, gz);
+  const northRoad = roadOpen(0, gz, gx), westRoad = roadOpen(1, gx, gz);
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
   let layoutScale = 1;
@@ -43,22 +47,29 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
-  put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
+  if (!parkLot) {
+    put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
+    put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
+  }
   // A narrow asphalt shoulder lets taxis ride the pavement with one side.
   for (const side of [-1, 1]) {
-    put('paint', blockSize / 2, 0.015, side * ROAD / 2, blockSize - STOP_LINE * 2, 0.018, 0.06, '#8d8d8d');
-    put('paint', side * ROAD / 2, 0.015, blockSize / 2, 0.06, 0.018, blockSize - STOP_LINE * 2, '#8d8d8d');
+    if (northRoad) put('paint', blockSize / 2, 0.015, side * ROAD / 2, blockSize - STOP_LINE * 2, 0.018, 0.06, '#8d8d8d');
+    if (westRoad) put('paint', side * ROAD / 2, 0.015, blockSize / 2, 0.06, 0.018, blockSize - STOP_LINE * 2, '#8d8d8d');
   }
 
   // Road markings stop before the intersection. Every tile owns two crossings.
   for (let p = 6.5; p < blockSize - 5; p += 3.3) {
-    put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
-    put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
+    if (northRoad) put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
+    if (westRoad) put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
   for (let p = -PAVED_ROAD / 2 + 0.65; p <= PAVED_ROAD / 2 - 0.65; p += 0.66) {
-    put('paint', PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
-    put('paint', p, 0.02, PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
+    if (northRoad) put('paint', PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
+    if (westRoad) put('paint', p, 0.02, PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
+  }
+
+  if (parkLot) {
+    if (parkLot.x === gx && parkLot.z === gz) populatePark(batch, x, z, blockSize, parkLot);
+    return;
   }
 
   // The simple 24-unit lot layout expands with the block; roads stay separate.
@@ -246,11 +257,12 @@ export function createCity(container, initialSettings, benchmark = null) {
         for (const direction of [-1, 1]) {
           const key = `${axis}:${line}:${direction}`;
           let lane = lanes.get(key);
-          if (!lane) lane = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0);
+          if (!lane) lane = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0, true);
           else if (lane.radius !== along) {
-            const generated = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0);
+            const generated = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0, true);
             resizeLanePopulation(lane, generated, centerPosition + (axis === 0 ? focus.x : focus.z),
-              (along + 0.5) * BLOCK, axis === 0 ? area.extents.x : area.extents.z);
+              (along + 0.5) * BLOCK, axis === 0 ? area.extents.x : area.extents.z,
+              car => spawnRoadOpen(car, BLOCK, STOP_LINE));
           }
           next.set(key, lane);
         }
@@ -294,8 +306,8 @@ export function createCity(container, initialSettings, benchmark = null) {
       }
     } else if (moving) {
       // Positive camera displacement projects down and right on the ground.
-      focus.x += delta * 0.92 * settings.cameraSpeed / 100;
-      focus.z += delta * 0.36 * settings.cameraSpeed / 100;
+      focus.x += delta * CAMERA_DRIFT.x * settings.cameraSpeed / 100;
+      focus.z += delta * CAMERA_DRIFT.z * settings.cameraSpeed / 100;
     }
     const bufferCpuMs = benchmark && worker ? performance.now() - bufferStart : 0;
     const shiftX = originShift(focus.x, BLOCK), shiftZ = originShift(focus.z, BLOCK);
@@ -322,8 +334,8 @@ export function createCity(container, initialSettings, benchmark = null) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
         car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) { car.position += half * 2; resetSignal(car); previousPoses.delete(car); }
-        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); previousPoses.delete(car); }
+        if (car.position < center - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, BLOCK, STOP_LINE); previousPoses.delete(car); }
+        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); relocateToRoad(car, BLOCK, STOP_LINE); previousPoses.delete(car); }
       }
     }
     const simulationStart = benchmark ? performance.now() : 0;
@@ -338,7 +350,7 @@ export function createCity(container, initialSettings, benchmark = null) {
           } else previousPoses.delete(car);
         }
         time += step * clockMultiplier;
-        updateNetwork(lanes, step, time, { blockSize: BLOCK, weaving: settings.weaving / 100, clockMultiplier });
+        updateNetwork(lanes, step, time, { blockSize: BLOCK, weaving: settings.weaving / 100, clockMultiplier, roadLayout: true });
       };
       if (fixedSimulation) {
         const result = simulationClock.advance(delta, simulate);

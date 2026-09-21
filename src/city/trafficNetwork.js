@@ -2,6 +2,7 @@ import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
+import { roadOpen, straightRoadOpen } from './roadLayout.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -82,7 +83,7 @@ function canTurn(car, turn, lanes, blockSize, locks) {
 
 // One network step is shared by the renderer and traffic smoke test. Transfers
 // happen after every straight lane has advanced, so no taxi moves twice/frame.
-export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.1, clockMultiplier = 1 } = {}) {
+export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.1, clockMultiplier = 1, roadLayout = false } = {}) {
   if (delta <= 0) return;
   const locks = new Map();
   for (const lane of lanes.values()) for (const car of lane.cars) {
@@ -93,22 +94,30 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     if (car.turn) locks.set(car.turn.junction, car);
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
+    car.roadEnd = roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE);
     // Let a pair finish its initial chase, then allow either taxi to break away
     // into a side street instead of blocking turns for the whole race.
-    if (!car.taxi || car.turn || car.turnCooldown > 0 || car.changing || car.overtake || car.feint || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
+    const required = car.roadEnd;
+    if (car.turn || car.changing || car.feint) continue;
+    if (required) {
+      if (!car.taxi && !greenLight(time, car.axis)) continue;
+    } else if (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
     const entryDistance = center - STOP_LINE - car.position * car.direction;
     if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
-    const turn = makeTurn(car, blockSize);
+    const turn = makeTurn(car, blockSize, car.track <= 0 ? -1 : 1);
+    if (roadLayout && !roadOpen(turn.axis, turn.line, Math.floor(turn.position / blockSize))) continue;
     if (!canTurn(car, turn, lanes, blockSize, locks)) continue;
     if (car.race) finishRace(car.race);
     car.turn = turn;
+    turn.required = required;
+    car.overtake = null;
     car.crossing = undefined;
     car.flashAge = null;
     car.turnsStarted = (car.turnsStarted ?? 0) + 1;
     locks.set(turn.junction, car);
   }
-  const crossingAccess = intersectionAccess(lanes, blockSize, time, locks);
+  const crossingAccess = intersectionAccess(lanes, blockSize, time, locks, roadLayout);
   // A turning car is still stored on its old street. Advertise its landing
   // position to the opposite stream before it transfers, so a taxi cannot
   // start a feint/overtake into the car that is about to appear there.
@@ -142,6 +151,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       track: turn.track, fromTrack: turn.track, offset: TRACKS[turn.track], steer: 0, changing: false, merge: 1,
       turn: null, turnCooldown: 4 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
+    if (turn.required) car.requiredTurnsCompleted = (car.requiredTurnsCompleted ?? 0) + 1;
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
     // Straight, settled cars fit wholly inside a continuous asphalt strip.

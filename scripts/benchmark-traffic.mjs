@@ -6,7 +6,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { cpus, platform } from 'node:os';
-import { resetSignal } from '../src/city/world.js';
+import { resetSignal, STOP_LINE } from '../src/city/world.js';
+import { relocateToRoad } from '../src/city/roadLayout.js';
 import { updateNetwork } from '../src/city/trafficNetwork.js';
 import { scenarioSettings, scenarioTraffic, summarize, trafficSnapshot } from '../src/city/benchmarkScenario.js';
 import { codeVersion } from './benchmark-version.mjs';
@@ -32,17 +33,17 @@ if (runs > 1) {
     console.error(`Run ${run + 1}/${runs}: ${report.runs.at(-1).timing.mean} ms`);
   }
 } else {
-  const lanes = scenarioTraffic(settings, { x: radius, z: radiusZ }, seed), initial = trafficSnapshot(lanes);
+  const lanes = scenarioTraffic(settings, { x: radius, z: radiusZ }, seed, true), initial = trafficSnapshot(lanes);
   function step(frame) {
     for (const lane of lanes.values()) for (const car of lane.cars) {
       const half = ((lane.axis === 0 ? radius : radiusZ) + 0.5) * blockSize;
       const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
       car.cruise = car.baseCruise * multiplier; car.acceleration = car.baseAcceleration * multiplier;
-      if (car.position < blockSize / 2 - half) { car.position += half * 2; resetSignal(car); }
-      if (car.position > blockSize / 2 + half) { car.position -= half * 2; resetSignal(car); }
+      if (car.position < blockSize / 2 - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, blockSize, STOP_LINE); }
+      if (car.position > blockSize / 2 + half) { car.position -= half * 2; resetSignal(car); relocateToRoad(car, blockSize, STOP_LINE); }
     }
     const clockMultiplier = Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
-    updateNetwork(lanes, 1 / 60, frame / 60 * clockMultiplier, { blockSize, weaving: settings.weaving / 100, clockMultiplier });
+    updateNetwork(lanes, 1 / 60, frame / 60 * clockMultiplier, { blockSize, weaving: settings.weaving / 100, clockMultiplier, roadLayout: true });
   }
   for (let i = 0; i < warmup; i++) step(i);
   const samples = [];
