@@ -20,6 +20,7 @@ import { populateMedian } from './boulevards.js';
 import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
 import { SceneryCache } from './sceneryCache.js';
+import { canalColumn, populateCanal } from './canal.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -31,6 +32,7 @@ const palette = {
 
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const parkLot = parkAt(gx, gz);
+  const canal = canalColumn(gx);
   const northRoad = roadOpen(0, gz, gx), westRoad = roadOpen(1, gx, gz);
   const northBoulevard = northRoad && boulevardRoad(0, gz), westBoulevard = westRoad && boulevardRoad(1, gx);
   const random = seededRandom(gx, gz);
@@ -51,7 +53,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  if (!parkLot) {
+  if (!parkLot && !canal) {
     put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
     put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
   }
@@ -73,6 +75,10 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 
   if (northBoulevard) populateMedian(batch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
+  if (canal) {
+    populateCanal(batch, x, z, blockSize);
+    return;
+  }
   if (parkLot) {
     if (parkLot.x === gx && parkLot.z === gz) populatePark(batch, x, z, blockSize, parkLot);
     return;
