@@ -37,6 +37,14 @@ const utf8 = getUtf8Encoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 
+export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
+  const boundedRemaining = Math.max(0, Math.min(MAX_DURABILITY, Number(secondsLeft)));
+  const missingSeconds = BigInt(MAX_DURABILITY - boundedRemaining);
+  const effectiveBase = BigInt(fareBase) + BigInt(pendingFare);
+  const fullRepairCost = effectiveBase * 25n / 100n;
+  return fullRepairCost * missingSeconds / BigInt(MAX_DURABILITY);
+}
+
 export async function protocolAddresses() {
   const [[config], [pool], [queue], [traineePool], [traineeQueue], [feeVault]] = await Promise.all([
     getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('config')] }),
@@ -174,6 +182,7 @@ export async function loadOwnedMachines(owner, knownStatus) {
       : [0n, 0n, 0n, 0n, 0n];
     const rewards = machine.claimable.map((value, rewardIndex) => value + pending[rewardIndex]);
     const secondsLeft = Math.max(0, Number(machine.activeUntil) - protocolNow);
+    const repairCost = calculateRepairQuote(machine.fareBase, pending[0], secondsLeft);
     return [{
       asset: address(asset.id),
       machineAddress: derived[index].machine,
@@ -183,6 +192,8 @@ export async function loadOwnedMachines(owner, knownStatus) {
       durability: Math.round(secondsLeft * 100 / MAX_DURABILITY),
       rewards,
       fareBase: machine.fareBase,
+      repairCost,
+      calculatedUntil: status.pool.effectiveCalculatedUntil,
       closed: machine.closed,
     }];
   });

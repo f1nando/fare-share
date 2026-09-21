@@ -122,13 +122,23 @@ export function decodeConfiguration(bytes) {
 
 export function decodeRewardPool(bytes) {
   const reader = new Reader(bytes);
-  return {
+  const result = {
     calculatedUntil: reader.i64(),
     totalActiveWeight: reader.u64(),
     accumulators: Array.from({ length: 5 }, () => reader.u128()),
     obligations: Array.from({ length: 5 }, () => reader.u64()),
     nextPool: Array.from({ length: 5 }, () => reader.u64()),
+    seriesInitial: Array.from({ length: 5 }, () => reader.u64()),
+    seriesRemaining: Array.from({ length: 5 }, () => reader.u64()),
+    seriesStart: reader.i64(),
+    seriesEnd: reader.i64(),
+    seriesCursor: reader.i64(),
+    seriesEventCutoff: reader.u64(),
+    seriesActive: reader.bool(),
+    bump: reader.u8(),
   };
+  result.effectiveCalculatedUntil = result.seriesActive ? result.seriesCursor : result.calculatedUntil;
+  return result;
 }
 
 export function decodeMachine(bytes) {
