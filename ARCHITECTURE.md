@@ -10,6 +10,7 @@
 
 - On-chain: Rust + Anchor, Solana programs и PDA accounts.
 - `$FARE`: стандартный SPL-совместимый mint, создаваемый pump.fun, без собственных Token-2022 extensions и административных mint/freeze-возможностей проекта.
+- Stock assets: только официальные xStocks mint на Solana; смешивание нескольких эмитентов не используется.
 - NFT: Solana NFT asset; предварительный кандидат — Metaplex Core.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
