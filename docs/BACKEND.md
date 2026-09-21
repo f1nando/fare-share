@@ -5,7 +5,7 @@ Backend не является источником истины для дене�
 ## Локальный запуск
 
 1. Скопировать `.env.example` в `.env`.
-2. Указать `MONGODB_URI`, 64-байтовый `BACKEND_SIGNER_SECRET_KEY` и случайный `TRAINEE_WORD_PEPPER`.
+2. Указать `MONGODB_URI`, 64-байтовые `BACKEND_SIGNER_SECRET_KEY` и `WORKER_KEYPAIR_SECRET_KEY`, случайный `TRAINEE_WORD_PEPPER` и production `JUPITER_API_KEY`.
 3. Убедиться, что публичный ключ backend signer совпадает с `Configuration.backend_signer` в Solana.
 4. Запустить `npm run dev:server`.
 
@@ -39,7 +39,7 @@ Frontend отправляет `wallet`, `campaignId`, найденное сло�
 
 ```sh
 npm run server:typecheck
-node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts
+node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts
 ```
 
 ## Permissionless worker
@@ -49,8 +49,12 @@ npm run worker
 npm run worker -- --once
 ```
 
-Раз в `WORKER_INTERVAL_MS` worker проверяет finalized on-chain состояние. Он вызывает `collect_fees` только при наличии нового свободного SOL и последовательно догоняет основную и стажёрскую очереди. Для каждой транзакции он читает heap-страницы, выбирает события строго по `timestamp + eventNumber`, добавляет только нужные writable Machine/Bucket PDA и не превышает лимит 20 событий. При большом числе разных аккаунтов batch автоматически уменьшается, чтобы не собирать заведомо слишком крупную транзакцию.
+Раз в `WORKER_INTERVAL_MS` worker проверяет finalized on-chain состояние. Он вызывает `collect_fees` только при наличии нового свободного SOL, обрабатывает накопленные swap-резервы и затем последовательно догоняет основную и стажёрскую очереди. Для каждой reward-транзакции он читает heap-страницы, выбирает события строго по `timestamp + eventNumber`, добавляет только нужные writable Machine/Bucket PDA и не превышает лимит 20 событий. При большом числе разных аккаунтов batch автоматически уменьшается, чтобы не собирать заведомо слишком крупную транзакцию.
 
-Jupiter swaps будут подключены отдельным адаптером: актуальный Swap API v1 требует API key, quote и `swap-instructions`, а наш контракт дополнительно подписывает и проверяет exact input, `minOut`, deadline, nonce и hash всех route accounts. До добавления ключа worker безопасно накапливает SOL в отдельных резервах и не создаёт фиктивные токеновые начисления.
+Swaps используют актуальный Jupiter Swap API V2 `/build`. Worker запрашивает маршрут `WSOL → нужный mint` от имени Configuration PDA, передаёт заранее созданный reward ATA, запрещает дополнительные setup/cleanup/auxiliary-инструкции и допускает только сам Configuration PDA как signer маршрута. Затем backend подписывает `amountIn`, `minOut`, deadline, nonce и hash всех route accounts, а программа повторно проверяет их перед CPI. `$FARE` и каждая stock-позиция обрабатываются независимо; ошибка одного направления не блокирует остальные. По умолчанию запускается swap всего резерва от `1_000_000` lamports с 5% slippage и десятиминутным планом; параметры задаются `SWAP_*` переменными.
+
+Без `JUPITER_API_KEY` worker продолжает собирать комиссии и считать уже купленные награды, но оставляет новые SOL-резервы нетронутыми. Ключ не хранится on-chain и не передаётся frontend.
+
+`BACKEND_SIGNER_SECRET_KEY` только подписывает ваучеры и swap-планы и не нуждается в SOL. Отдельный `WORKER_KEYPAIR_SECRET_KEY` является обычным permissionless caller/fee payer: на нём должен быть небольшой запас SOL для служебных транзакций, но он не получает административных прав и не контролирует vault.
 
 Worker не делит HTTP endpoint с admin-командами; admin-инструкции остаются только в ручной CLI на сервере.

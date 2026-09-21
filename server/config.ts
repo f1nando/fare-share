@@ -17,6 +17,16 @@ function integer(name: string, fallback: number, minimum: number): number {
   return value;
 }
 
+function boundedInteger(name: string, fallback: number, minimum: number, maximum: number): number {
+  const value = integer(name, fallback, minimum);
+  if (value > maximum) throw new Error(`${name} must be <= ${maximum}`);
+  return value;
+}
+
+function optional(name: string): string | undefined {
+  return process.env[name]?.trim() || undefined;
+}
+
 export type ServerConfig = ReturnType<typeof loadServerConfig>;
 
 export function loadServerConfig() {
@@ -28,9 +38,15 @@ export function loadServerConfig() {
     solanaRpcUrl: process.env.SOLANA_RPC_URL?.trim() || 'https://api.devnet.solana.com',
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
+    workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),
     wordPepper: required('TRAINEE_WORD_PEPPER'),
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
     trustProxy: process.env.TRUST_PROXY === 'true',
+    jupiterApiKey: optional('JUPITER_API_KEY'),
+    swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 1_000_000, 1)),
+    swapSlippageBps: boundedInteger('SWAP_SLIPPAGE_BPS', 500, 1, 10_000),
+    swapPlanTtlSeconds: integer('SWAP_PLAN_TTL_SECONDS', 600, 30),
+    jupiterMaxAccounts: boundedInteger('JUPITER_MAX_ACCOUNTS', 48, 1, 64),
   };
 }

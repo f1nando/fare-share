@@ -1435,6 +1435,7 @@ pub struct ProcessFareSwap<'info> {
     pub wsol_mint: Account<'info, anchor_spl::token::Mint>,
     #[account(mut, token::mint = wsol_mint, token::authority = config)]
     pub wsol_vault: Account<'info, LegacyTokenAccount>,
+    #[account(mut)]
     pub fare_mint: InterfaceAccount<'info, Mint>,
     #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
     pub reward_vault: InterfaceAccount<'info, TokenAccount>,
@@ -1804,13 +1805,16 @@ fn invoke_jupiter<'info>(
         .collect();
     let bump = [config.bump];
     let seeds: &[&[u8]] = &[b"config", &bump];
+    let mut account_infos = Vec::with_capacity(route_accounts.len() + 1);
+    account_infos.extend_from_slice(route_accounts);
+    account_infos.push(jupiter_program.to_account_info());
     invoke_signed(
         &Instruction {
             program_id: jupiter_program.key(),
             accounts,
             data: route_data,
         },
-        route_accounts,
+        &account_infos,
         &[seeds],
     )?;
     Ok(())

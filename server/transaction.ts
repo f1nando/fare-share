@@ -1,5 +1,6 @@
 import {
   appendTransactionMessageInstructions,
+  compressTransactionMessageUsingAddressLookupTables,
   compileTransaction,
   createKeyPairSignerFromBytes,
   createSolanaRpc,
@@ -11,6 +12,7 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
   type Instruction,
   type KeyPairSigner,
+  type AddressesByLookupTableAddress,
 } from '@solana/kit';
 
 export async function createWorkerSigner(secret: Uint8Array) {
@@ -22,6 +24,7 @@ export async function sendInstructions(
   signer: KeyPairSigner,
   instructions: Instruction[],
   additionalSigners: KeyPairSigner[] = [],
+  lookupTables: AddressesByLookupTableAddress = {},
 ) {
   const rpc = createSolanaRpc(rpcUrl);
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
@@ -30,6 +33,7 @@ export async function sendInstructions(
     transaction => setTransactionMessageFeePayerSigner(signer, transaction),
     transaction => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, transaction),
     transaction => appendTransactionMessageInstructions(instructions, transaction),
+    transaction => compressTransactionMessageUsingAddressLookupTables(transaction, lookupTables),
   );
   const compiled = compileTransaction(message);
   const signed = await partiallySignTransaction(

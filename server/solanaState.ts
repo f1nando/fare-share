@@ -13,7 +13,22 @@ export interface ProtocolClock {
   deploymentId: Uint8Array;
   backendSigner: Address;
   protocolTime: bigint;
+  chainTime: bigint;
   paused: boolean;
+}
+
+export interface WorkerConfiguration {
+  backendSigner: Address;
+  teamAccount: Address;
+  jupiterProgram: Address;
+  deploymentId: Uint8Array;
+  fareSwapNonce: bigint;
+  stockSwapNonces: [bigint, bigint, bigint, bigint];
+  collection: Address;
+  fareMint: Address;
+  stockMints: [Address, Address, Address, Address];
+  pausedAt: bigint;
+  totalPausedSeconds: bigint;
 }
 
 export async function loadProtocolClock(rpcUrl: string, programId: Address): Promise<ProtocolClock> {
@@ -35,24 +50,53 @@ export async function loadProtocolClock(rpcUrl: string, programId: Address): Pro
   return {
     deploymentId: state.deploymentId,
     backendSigner: state.backendSigner,
+    chainTime: chainNow,
     protocolTime: frozenNow - state.totalPausedSeconds,
     paused: state.pausedAt !== 0n,
   };
 }
 
 export function decodeClockFields(bytes: Uint8Array) {
+  const configuration = decodeWorkerConfiguration(bytes);
+  return {
+    backendSigner: configuration.backendSigner,
+    teamAccount: configuration.teamAccount,
+    jupiterProgram: configuration.jupiterProgram,
+    deploymentId: configuration.deploymentId,
+    pausedAt: configuration.pausedAt,
+    totalPausedSeconds: configuration.totalPausedSeconds,
+  };
+}
+
+export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguration {
   const reader = new Reader(bytes, 8);
   reader.skip(32 * 2);
   const backendSigner = reader.pubkey();
   const teamAccount = reader.pubkey();
   const jupiterProgram = reader.pubkey();
   const deploymentId = reader.take(32);
-  reader.skip(8 + 8 * 4 + 32 * 6);
+  const fareSwapNonce = reader.u64();
+  const stockSwapNonces = Array.from({ length: 4 }, () => reader.u64()) as [bigint, bigint, bigint, bigint];
+  const collection = reader.pubkey();
+  const fareMint = reader.pubkey();
+  const stockMints = Array.from({ length: 4 }, () => reader.pubkey()) as [Address, Address, Address, Address];
   for (let index = 0; index < 4; index += 1) reader.string();
   reader.skip(8 * 4 + 2 * 4 + 1);
   const pausedAt = reader.i64();
   const totalPausedSeconds = reader.i64();
-  return { backendSigner, teamAccount, jupiterProgram, deploymentId, pausedAt, totalPausedSeconds };
+  return {
+    backendSigner,
+    teamAccount,
+    jupiterProgram,
+    deploymentId,
+    fareSwapNonce,
+    stockSwapNonces,
+    collection,
+    fareMint,
+    stockMints,
+    pausedAt,
+    totalPausedSeconds,
+  };
 }
 
 async function rpc(url: string, method: string, params: unknown[]): Promise<unknown> {
@@ -82,6 +126,7 @@ class Reader {
   }
   skip(length: number) { this.take(length); }
   i64(): bigint { const value = this.view.getBigInt64(this.offset, true); this.offset += 8; return value; }
+  u64(): bigint { const value = this.view.getBigUint64(this.offset, true); this.offset += 8; return value; }
   pubkey(): Address { return address(addressDecoder.decode(this.take(32))); }
   string() {
     const length = this.view.getUint32(this.offset, true);
