@@ -46,6 +46,9 @@ test('buildings, trunks and landscaping leave the sidewalk riding strip clear at
     populateBlock({ add(kind, x, y, z, w, h, d) {
       if (['paint', 'crown'].includes(kind)) return;
       assert.ok(w > 0 && d > 0);
+      // Centre islands are also clear of the shoulder; they need not lie in a lot.
+      if ((Math.abs(z) + d / 2 < 0.2 && x - w / 2 > 7) ||
+          (Math.abs(x) + w / 2 < 0.2 && z - d / 2 > 7)) return;
       const left = Math.min(x - w / 2, z - d / 2);
       const right = Math.max(x + w / 2, z + d / 2);
       const boundary = y >= 0.4 ? trackOffset(SHOULDER_TRACK) + 0.52 : PAVED_ROAD / 2;

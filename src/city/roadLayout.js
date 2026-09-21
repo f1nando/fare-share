@@ -24,6 +24,15 @@ export function roadOpen(axis, line, segment) {
   return hash % 5 === 0 || ((hash >>> 4) & 1) !== 1 - axis;
 }
 
+// Whole street lines stay divided: a taxi never meets a new median halfway
+// through an oncoming overtake. Crossings and missing park roads remain open.
+export function boulevardRoad(axis, line) {
+  return ((line - axis * 3) % 6 + 6) % 6 === 0;
+}
+
+export const MEDIAN_WIDTH = 0.34;
+export const MEDIAN_INSET = 7.5;
+
 export function straightRoadOpen(car, blockSize, stopLine) {
   const center = Math.ceil((car.position * car.direction - stopLine) / blockSize) * car.direction;
   return roadOpen(car.axis, car.line, center - (car.direction < 0 ? 1 : 0));

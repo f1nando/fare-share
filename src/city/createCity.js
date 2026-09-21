@@ -15,7 +15,8 @@ import { trafficSnapshot } from './benchmarkScenario.js';
 import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
 import { TrafficWorkerClient } from './TrafficWorkerClient.js';
 import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
-import { parkAt, roadOpen, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
+import { parkAt, roadOpen, boulevardRoad, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
+import { populateMedian } from './boulevards.js';
 import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
 
@@ -30,6 +31,7 @@ const palette = {
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const parkLot = parkAt(gx, gz);
   const northRoad = roadOpen(0, gz, gx), westRoad = roadOpen(1, gx, gz);
+  const northBoulevard = northRoad && boulevardRoad(0, gz), westBoulevard = westRoad && boulevardRoad(1, gx);
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
   let layoutScale = 1;
@@ -60,14 +62,16 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 
   // Road markings stop before the intersection. Every tile owns two crossings.
   for (let p = 6.5; p < blockSize - 5; p += 3.3) {
-    if (northRoad) put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
-    if (westRoad) put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
+    if (northRoad && !northBoulevard) put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
+    if (westRoad && !westBoulevard) put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
   for (let p = -PAVED_ROAD / 2 + 0.65; p <= PAVED_ROAD / 2 - 0.65; p += 0.66) {
     if (northRoad) put('paint', PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
     if (westRoad) put('paint', p, 0.02, PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
+  if (northBoulevard) populateMedian(batch, 0, x, z, blockSize);
+  if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
   if (parkLot) {
     if (parkLot.x === gx && parkLot.z === gz) populatePark(batch, x, z, blockSize, parkLot);
     return;

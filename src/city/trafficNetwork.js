@@ -2,7 +2,7 @@ import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
-import { roadOpen, straightRoadOpen } from './roadLayout.js';
+import { roadOpen, straightRoadOpen, boulevardRoad } from './roadLayout.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -95,6 +95,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
     car.roadEnd = roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE);
+    car.dividedRoad = roadLayout && boulevardRoad(car.axis, car.line);
     // Let a pair finish its initial chase, then allow either taxi to break away
     // into a side street instead of blocking turns for the whole race.
     const required = car.roadEnd;

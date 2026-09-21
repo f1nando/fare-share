@@ -264,6 +264,7 @@ function canFeint(car, opposing, direction, blockSize) {
 }
 
 function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess, passTrack = ONCOMING_TRACK) {
+  if (car.dividedRoad && passTrack === ONCOMING_TRACK) return null;
   if (!leader || leader.turn || leader.changing) return null;
   const returnTrack = passTrack === SHOULDER_TRACK ? 1 : 0;
   const passSpeed = car.cruise * 1.25;
@@ -307,6 +308,7 @@ function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRe
 }
 
 function planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) {
+  if (car.dividedRoad && car.track === 0) return null;
   if (!car.taxi || car.changing || car.feint || car.overtake || car.turn || car.race || car.speed > 1 ||
       car.track < 0 || car.track > 1 || untilGreen < 2) return null;
   const center = Math.ceil((car.position * direction - STOP_LINE) / blockSize) * blockSize;
@@ -415,7 +417,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       car.overtake = overtake;
       car.burst = overtake.remaining + 0.8;
       startMerge(car, overtake.passTrack);
-    } else if (!car.roadEnd && opposing && !following && car.taxi && car.track === 0 && !car.changing && car.cooldown === 0 &&
+    } else if (!car.roadEnd && !car.dividedRoad && opposing && !following && car.taxi && car.track === 0 && !car.changing && car.cooldown === 0 &&
         car.feintCooldown === 0 && gap < 22 && leader && sourceClear && canFeint(car, opposing, direction, blockSize)) {
       car.feint = { age: 0 };
       car.feintCooldown = 5 / aggression;
