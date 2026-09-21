@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, vehiclePose, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
@@ -18,63 +19,6 @@ const palette = {
   leaves: ['#8d8d8d', '#a1a1a1', '#ababab', '#797979', '#969696'],
   cars: ['#ffffff', '#f4f4f4', '#e4e4e4', '#cdcdcd', '#a6a6a6', '#838383'],
 };
-
-// All repeated objects share geometry and use instancing, including moving cars.
-class Batches {
-  constructor(scene, geometries, dynamic = false) {
-    this.scene = scene;
-    this.geometries = geometries;
-    this.dynamic = dynamic;
-    this.items = new Map();
-    this.meshes = new Map();
-    this.matrix = new THREE.Object3D();
-    this.color = new THREE.Color();
-    this.material = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true });
-    this.taxiMaterial = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, toneMapped: false, emissive: '#ffbc00', emissiveIntensity: 0.12 });
-    this.lightMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
-    this.beamMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.48, depthWrite: false, toneMapped: false });
-  }
-  reset() { this.items.clear(); }
-  add(kind, x, y, z, sx, sy, sz, color, rotation = 0, pitch = 0, roll = 0) {
-    if (!this.items.has(kind)) this.items.set(kind, []);
-    this.items.get(kind).push([x, y, z, sx, sy, sz, color, rotation, pitch, roll]);
-  }
-  flush() {
-    for (const [kind, mesh] of this.meshes) if (!this.items.has(kind)) mesh.count = 0;
-    for (const [kind, items] of this.items) {
-      let mesh = this.meshes.get(kind);
-      if (!mesh || mesh.instanceMatrix.count < items.length) {
-        if (mesh) { this.scene.remove(mesh); mesh.dispose(); }
-        const material = kind === 'taxi' ? this.taxiMaterial : kind === 'light' ? this.lightMaterial : kind === 'beam' ? this.beamMaterial : this.material;
-        mesh = new THREE.InstancedMesh(this.geometries[kind], material, Math.ceil(items.length * 1.3));
-        mesh.castShadow = !['paint', 'paving', 'light', 'beam'].includes(kind);
-        mesh.receiveShadow = !['light', 'beam'].includes(kind);
-        if (this.dynamic) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        this.meshes.set(kind, mesh);
-        this.scene.add(mesh);
-      }
-      mesh.count = items.length;
-      items.forEach(([x, y, z, sx, sy, sz, color, rotation, pitch, roll], index) => {
-        this.matrix.position.set(x, y, z);
-        this.matrix.scale.set(sx, sy, sz);
-        this.matrix.rotation.set(pitch, rotation, roll, 'YXZ');
-        this.matrix.updateMatrix();
-        mesh.setMatrixAt(index, this.matrix.matrix);
-        mesh.setColorAt(index, this.color.set(color));
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor.needsUpdate = true;
-      mesh.computeBoundingSphere();
-    }
-  }
-  dispose() {
-    for (const mesh of this.meshes.values()) { this.scene.remove(mesh); mesh.dispose(); }
-    this.material.dispose();
-    this.taxiMaterial.dispose();
-    this.lightMaterial.dispose();
-    this.beamMaterial.dispose();
-  }
-}
 
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const random = seededRandom(gx, gz);
