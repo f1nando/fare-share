@@ -1,4 +1,4 @@
-import { boulevardRoad, THIRD_TRACK, junctionStop } from '../src/city/roadProfile.js';
+import { boulevardRoad, THIRD_TRACK, junctionStop, laneOffset } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { approachAtRing, diagonalAt, diagonalFromJunction, diagonalRoadDistance, DIAGONAL_HALF } from '../src/city/diagonalLayout.js';
@@ -19,7 +19,7 @@ function carAt(r,out,block,taxi=false,axis=out?1-r.axis:r.axis,d=out?1:r.directi
   let cruise=taxi?13:6;while(Math.abs(Math.round(cruise*100)+cross*7+line*11)%5>=4)cruise+=.01;
   const track=boulevardRoad(axis,line)?THIRD_TRACK:1;
   return {axis,line,direction:d,position:cross*block-d*(out?ROUNDABOUT_STOP:junctionStop(p.x,p.z)),track,
-    fromTrack:track,offset:TRACKS[track],taxi,speed:3,cruise,baseCruise:cruise,acceleration:taxi?24:4,
+    fromTrack:track,offset:laneOffset(axis,line,track),taxi,speed:3,cruise,baseCruise:cruise,acceleration:taxi?24:4,
     cooldown:10,turnCooldown:0,changing:false,merge:1,steer:0,flashCooldown:Infinity};
 }
 function lanesAt(r){const m=new Map();for(const axis of[0,1])for(let line=Math.min(r.a.x,r.a.z,r.b.x,r.b.z)-2;line<=Math.max(r.a.x,r.a.z,r.b.x,r.b.z)+2;line++)

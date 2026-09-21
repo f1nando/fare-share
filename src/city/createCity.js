@@ -1,4 +1,4 @@
-import { streetHalf } from './roadProfile.js';
+import { streetHalf, laneDividers } from './roadProfile.js';
 import { boulevardSceneryBatch } from './boulevardGeometry.js';
 import * as THREE from 'three';
 import { Batches } from './Batches.js';
@@ -95,7 +95,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   for(const axis of[0,1])if(axis===0?northBoulevard:westBoulevard){
     const start=ring?roundaboutStopAt(gx,gz,blockSize):Math.max(STOP_LINE,streetHalf(1-axis,axis===0?gx:gz)+1.5);
     const end=blockSize-((axis===0?eastRing:southRing)?roundaboutStopAt(gx+(axis===0?1:0),gz+(axis===1?1:0),blockSize):7);
-    for(let p=start+1;p<end;p+=3.3)for(const side of[-1,1])for(const offset of[1.635,3.265])
+    for(let p=start+1;p<end;p+=3.3)for(const side of[-1,1])for(const offset of laneDividers(axis,axis===0?gz:gx))
       put('paint',axis===0?p:side*offset,.018,axis===0?side*offset:p,axis===0?1.3:.1,.02,axis===0?.1:1.3,'#e9e9e9');
   }
   for (let p = -Math.max(streetHalf(0,gz),streetHalf(1,gx)) + 0.65; p <= Math.max(streetHalf(0,gz),streetHalf(1,gx)) - 0.65; p += 0.66) {

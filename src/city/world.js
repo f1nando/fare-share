@@ -1,4 +1,4 @@
-import { THIRD_TRACK } from './roadProfile.js';
+import { THIRD_TRACK, NORMAL_TRACKS, laneOffset } from './roadProfile.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { HORN_DURATION } from './hornAnimation.js';
@@ -10,7 +10,7 @@ export const BLOCK = 34;
 export const ROAD = 6.6;
 export const SHOULDER_WIDTH = 0.55;
 export const PAVED_ROAD = ROAD + SHOULDER_WIDTH * 2;
-export const TRACKS = [0.82, 2.45, undefined, 4.08];
+export const TRACKS = NORMAL_TRACKS;
 export const CAR_GAP = 2.9;
 export const TRAFFIC_SPACING = 10.5;
 export const TAXI_SHARE = 0.11;
@@ -22,7 +22,7 @@ export const FLASH_PERIOD = 0.36;
 export const FLASH_DURATION = FLASH_PERIOD * 3;
 export const ONCOMING_TRACK = -1;
 export const SHOULDER_TRACK = 2;
-export const trackOffset = track => track === ONCOMING_TRACK ? -TRACKS[0] :
+export const trackOffset = (track, car) => car?.dividedRoad ? laneOffset(car.axis,car.line,track) : track === ONCOMING_TRACK ? -TRACKS[0] :
   track === SHOULDER_TRACK ? PAVED_ROAD / 2 + 0.21 : TRACKS[track];
 export const taxiAggression = weaving => 1 + Math.max(0, Math.min(2, weaving)) * 0.5;
 export const FEINT_DURATION = 0.9;
@@ -70,7 +70,7 @@ export function resetSignal(car) {
   car.yieldRemaining = 0;
   if (car.feint || car.overtake || occupiesTrack(car, ONCOMING_TRACK) || occupiesTrack(car, SHOULDER_TRACK)) {
     car.track = car.fromTrack = car.overtake?.returnTrack ?? (car.track === SHOULDER_TRACK ? 1 : 0);
-    car.offset = trackOffset(car.track);
+    car.offset = trackOffset(car.track, car);
     car.changing = false;
     car.merge = 1;
     car.steer = 0;
@@ -522,9 +522,9 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     if (car.changing) {
       car.merge = Math.min(1, car.merge + delta / MERGE_DURATION);
       const blend = car.merge * car.merge * (3 - 2 * car.merge);
-      car.offset = trackOffset(car.fromTrack) + (trackOffset(car.track) - trackOffset(car.fromTrack)) * blend;
+      car.offset = trackOffset(car.fromTrack, car) + (trackOffset(car.track, car) - trackOffset(car.fromTrack, car)) * blend;
       if (car.merge === 1) {
-        car.offset = trackOffset(car.track);
+        car.offset = trackOffset(car.track, car);
         car.changing = false;
         if (car.overtake && car.track === (car.overtake.returnTrack ?? 0)) {
           if (car.overtake.launch?.phase === 'go' && (car.position - car.overtake.leader.position) * direction > CAR_GAP)
@@ -541,7 +541,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       car.steer = pose.steer;
       if (car.feint.age === FEINT_DURATION) {
         car.feint = null;
-        car.offset = TRACKS[car.track];
+        car.offset = trackOffset(car.track, car);
         car.steer = 0;
       }
     }

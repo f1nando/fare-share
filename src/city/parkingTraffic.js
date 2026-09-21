@@ -1,5 +1,6 @@
 import { PARKING_GATE_INSET, parkingLotForLane, parkingPoint, parkingPosition, parkingLocalPosition } from './parkingLayout.js';
-import { TRACKS, occupiesTrack } from './world.js';
+import { laneOffset } from './roadProfile.js';
+import { occupiesTrack } from './world.js';
 import { vehicleGap } from './vehicleTypes.js';
 
 const point=(x,z)=>({x,z});
@@ -130,7 +131,7 @@ export function updateParking(lanes,delta,block) {
           else if(state.phase==='merge') {
             car.position=parkingPosition(lot,lot.exit-1.8);car.speed=4;
             car.parking=null;car.lastParkingLot=lot.key;car.parkingExits=(car.parkingExits??0)+1;
-            car.track=car.fromTrack=lot.track;car.offset=TRACKS[lot.track];car.steer=0;car.cooldown=2;
+            car.track=car.fromTrack=lot.track;car.offset=laneOffset(lot.axis,lot.line,lot.track);car.steer=0;car.cooldown=2;
           }
         }
       }
