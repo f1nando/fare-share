@@ -51,10 +51,11 @@ test('simulation is deterministic through camera rebasing and moving cars', () =
 
 test('buffer preloads, stays bounded, pauses exactly, and recovers without extrapolation', () => {
   const buffer = new TrafficBuffer();
-  for (let i = 0; i <= 2; i++) buffer.push(emptyFrame(i / 30));
+  for (let i = 0; i <= 8; i++) buffer.push(emptyFrame(i / 30));
   assert.equal(buffer.advance(1 / 60, true).focusX, 0);
-  for (let i = 3; i < buffer.capacity; i++) buffer.push(emptyFrame(i / 30));
-  assert.equal(buffer.push(emptyFrame(7 / 30)), false);
+  for (let i = 9; i < buffer.capacity; i++) buffer.push(emptyFrame(i / 30));
+  assert.equal(buffer.ready,true);
+  assert.equal(buffer.push(emptyFrame(buffer.capacity / 30)), false);
   buffer.advance(1 / 60, true);
   const paused = buffer.time;
   for (let i = 0; i < 20; i++) buffer.advance(1 / 60, false);
@@ -66,7 +67,7 @@ test('buffer preloads, stays bounded, pauses exactly, and recovers without extra
   }
   assert.equal(buffer.underruns, 1);
   const stalled = buffer.time;
-  for (let i = 7; i <= 11; i++) buffer.push(emptyFrame(i / 30));
+  for (let i = buffer.capacity; i < buffer.capacity+5; i++) buffer.push(emptyFrame(i / 30));
   for (let i = 0; i < 10; i++) buffer.advance(1 / 60, true);
   assert.ok(buffer.time > stalled); assert.ok(buffer.rate <= 1.08);
   assert.equal(buffer.push(emptyFrame(1 / 30)), false);
@@ -78,16 +79,34 @@ test('client ignores old epochs, requests a bounded batch and terminates on fail
   const client = new TrafficWorkerClient(config(), message => { failure = message; }, () => fake);
   const receive = message => fake.onmessage({ data: { epoch: client.epoch, ...message } });
   receive({ type: 'frame', frame: emptyFrame(0) }); receive({ type: 'done' });
-  assert.equal(messages.at(-1).count, 6);
-  for (let i = 1; i <= 6; i++) receive({ type: 'frame', frame: emptyFrame(i / 30) });
-  receive({ type: 'done' });
-  assert.equal(messages.filter(m => m.type === 'produce').length, 1);
+  assert.equal(messages.at(-1).count, 4);
+  let next=1;
+  while(next<client.buffer.capacity) {
+    const count=messages.at(-1).count;
+    assert.ok(count<=4,'startup batches stay small');
+    for(let i=0;i<count;i++)receive({type:'frame',frame:emptyFrame(next++/30)});
+    receive({type:'done'});
+  }
+  assert.equal(client.buffer.frames.length,client.buffer.capacity);
+  assert.equal(client.busy,false);
   client.restart(config());
   receive({ epoch: client.epoch - 1, type: 'frame', frame: emptyFrame(1) });
   assert.equal(client.buffer.frames.length, 0);
   receive({ type: 'error', message: 'test failure' });
   assert.equal(failure, 'test failure'); assert.equal(fake.terminated, true);
   receive({ type: 'frame', frame: emptyFrame(0) }); assert.equal(client.buffer.frames.length, 0);
+});
+
+test('half-second reserve covers a 300 ms Worker delivery stall at both simulation rates', () => {
+  for(const hz of [30,60]) {
+    const buffer=new TrafficBuffer(1/hz);
+    for(let i=0;i<buffer.capacity;i++)buffer.push(emptyFrame(i/hz));
+    for(let i=0;i<18;i++)buffer.advance(1/60,true);
+    assert.equal(buffer.underruns,0);
+    assert.ok(buffer.rate>=.99,'playback keeps its speed during the short stall');
+    assert.ok(Math.abs(buffer.time-.3)<.005,'camera and traffic keep moving');
+    assert.ok(buffer.reserveMs>=190,'reserve remains available after the stall');
+  }
 });
 
 test('a long visible frame creates bounded recovery debt; pause never adds debt', () => {

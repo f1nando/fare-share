@@ -3,7 +3,8 @@ import { CAR_STRIDE } from './trafficFrames.js';
 export class TrafficBuffer {
   constructor(step = 1 / 30) {
     this.step = step;
-    this.capacity = Math.ceil(0.2 / step) + 1;
+    this.capacity = Math.ceil(0.5 / step) + 1;
+    this.preload = 0.3;
     this.reset();
   }
   reset() {
@@ -15,7 +16,7 @@ export class TrafficBuffer {
     frame.index = new Map();
     for (let i = 0; i < frame.data.length; i += CAR_STRIDE) frame.index.set(frame.data[i], i);
     this.frames.push(frame);
-    if (!this.ready && this.frames.at(-1).time - this.frames[0].time >= 0.1 - 1e-8) this.ready = true;
+    if (!this.ready && this.frames.at(-1).time - this.frames[0].time >= this.preload - 1e-8) this.ready = true;
     return true;
   }
   advance(delta, moving) {
@@ -28,8 +29,8 @@ export class TrafficBuffer {
       // the camera across the whole delay. Hidden time is excluded by the caller.
       this.desiredTime = Math.min(this.desiredTime + elapsed, this.time + 0.5);
       const reserve = latest - this.time;
-      const targetRate = reserve < 0.06 ? Math.max(0, reserve / 0.06)
-        : reserve > 0.12 ? Math.min(1.08, 1 + (this.desiredTime - this.time) * 0.4) : 1;
+      const targetRate = reserve < 0.12 ? Math.max(0, reserve / 0.12)
+        : reserve > this.preload ? Math.min(1.08, 1 + (this.desiredTime - this.time) * 0.4) : 1;
       this.rate += (targetRate - this.rate) * (1 - Math.exp(-delta * 12));
       const next = this.time + delta * this.rate;
       const starved = next > latest + 1e-8;

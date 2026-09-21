@@ -36,7 +36,9 @@ export class TrafficWorkerClient {
     const count = this.buffer.capacity - this.buffer.frames.length;
     if (!this.disposed && !this.busy && count >= 2) {
       this.busy = true;
-      this.worker.postMessage({ type: 'produce', epoch: this.epoch, count });
+      // Grow the reserve in small batches. The Worker still yields between
+      // individual steps and can process settings while preparing startup.
+      this.worker.postMessage({ type: 'produce', epoch: this.epoch, count: Math.min(4,count) });
     }
   }
   advance(delta, moving) {
