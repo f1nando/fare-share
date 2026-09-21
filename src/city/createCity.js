@@ -31,6 +31,8 @@ import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
+import { diagonalAt } from './diagonalLayout.js';
+import { diagonalLotGeometry, populateDiagonal } from './diagonalGeometry.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -44,6 +46,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const parkLot = parkAt(gx, gz);
   const canal = canalColumn(gx);
   const parking = parkingAt(gx,gz,blockSize);
+  const diagonal = diagonalAt(gx, gz, blockSize);
   const northRoad = roadOpen(0, gz, gx), westRoad = roadOpen(1, gx, gz);
   const northBoulevard = northRoad && boulevardRoad(0, gz), westBoulevard = westRoad && boulevardRoad(1, gx);
   const random = seededRandom(gx, gz);
@@ -68,7 +71,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  if (!parkLot && !canal && !parking) {
+  if (!parkLot && !canal && !parking && !diagonal) {
     put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
     put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
   }
@@ -95,6 +98,10 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   populateRoundabout(batch, gx, gz, x, z);
   if (northBoulevard && !canal) populateMedian(lotBatch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(lotBatch, 1, x, z, blockSize);
+  if (diagonal) {
+    populateDiagonal(batch, diagonal, x, z, blockSize);
+    return;
+  }
   if (canal) {
     populateCanal(batch, x, z, blockSize, gz, northBoulevard);
     return;
@@ -209,6 +216,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   benchmark?.onRenderer?.(renderer);
 
   const geometries = {
+    diagonalLot: diagonalLotGeometry(),
     boat: boatHullGeometry(),
     roundaboutCurb: roundaboutCornerGeometry(),
     roundaboutWalk: roundaboutCornerGeometry(0.21),
