@@ -125,7 +125,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('paving', 12, 0.56, 12, parkSize - 0.2, 0.025, 1.3, '#dddddd');
     for (const [tx, tz] of [[7,7], [16,7], [7,16], [16,16], [5.8,11], [18,13]]) tree(tx, tz, 1 + random() * 0.55);
   } else {
-    populateDistrict(districtKind(gx, gz), { put, tree, random, palette });
+    populateDistrict(districtKind(gx, gz), { put, tree, random, palette, gx, gz });
   }
   // Small curbside trees give even the denser blocks a soft green border.
   const treeInset = Math.max(4.2, (PAVED_ROAD / 2 + 1.4) / layoutScale);
