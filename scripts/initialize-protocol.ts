@@ -1,0 +1,39 @@
+import { address, createKeyPairSignerFromBytes } from '@solana/kit';
+import { initializeProtocol } from '../server/setup.js';
+import { parseSecretBytes } from '../server/signing.js';
+
+const required = (name: string) => {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+};
+const tuple = <T>(values: T[], name: string): [T, T, T, T] => {
+  if (values.length !== 4) throw new Error(`${name} must contain exactly four comma-separated values`);
+  return values as [T, T, T, T];
+};
+
+const deploymentHex = required('DEPLOYMENT_ID_HEX');
+if (!/^[0-9a-fA-F]{64}$/.test(deploymentHex)) throw new Error('DEPLOYMENT_ID_HEX must contain 64 hex characters');
+const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
+const result = await initializeProtocol({
+  rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
+  programId: address(process.env.TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY'),
+  admin,
+  backendSignerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
+  teamAccount: address(required('TEAM_ACCOUNT')),
+  jupiterProgram: address(process.env.JUPITER_PROGRAM_ID || 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'),
+  deploymentId: Uint8Array.from(Buffer.from(deploymentHex, 'hex')),
+  collectionName: process.env.COLLECTION_NAME || 'FARE Taxi Park',
+  collectionUri: required('COLLECTION_URI'),
+  fareMint: address(required('FARE_MINT')),
+  stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
+  mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
+  metadataUris: tuple(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
+});
+
+console.log(JSON.stringify({
+  ...result,
+  addresses: Object.fromEntries(Object.entries(result.addresses).map(([key, value]) => [key, String(value)])),
+  collection: result.collection && String(result.collection),
+  vaults: result.vaults.map(String),
+}, null, 2));

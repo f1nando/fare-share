@@ -10,11 +10,13 @@
     "server:typecheck": "tsc -p tsconfig.server.json",
     "campaign:create": "tsx scripts/create-trainee-campaign.ts",
     "worker": "tsx scripts/run-worker.ts",
+    "protocol:initialize": "tsx scripts/initialize-protocol.ts",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test"
   },
   "dependencies": {
+    "@solana-program/system": "^0.15.0",
     "@solana-program/token": "^0.17.0",
     "@solana/kit": "^8.3.0",
     "@wallet-standard/app": "^1.1.1",

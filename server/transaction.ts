@@ -21,6 +21,7 @@ export async function sendInstructions(
   rpcUrl: string,
   signer: KeyPairSigner,
   instructions: Instruction[],
+  additionalSigners: KeyPairSigner[] = [],
 ) {
   const rpc = createSolanaRpc(rpcUrl);
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
@@ -31,7 +32,10 @@ export async function sendInstructions(
     transaction => appendTransactionMessageInstructions(instructions, transaction),
   );
   const compiled = compileTransaction(message);
-  const signed = await partiallySignTransaction([signer.keyPair], compiled);
+  const signed = await partiallySignTransaction(
+    [signer, ...additionalSigners].map(item => item.keyPair),
+    compiled,
+  );
   const encoded = getBase64EncodedWireTransaction(signed);
   const signature = await rpc.sendTransaction(encoded, {
     encoding: 'base64',

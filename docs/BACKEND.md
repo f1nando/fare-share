@@ -11,6 +11,18 @@ Backend не является источником истины для дене�
 
 Проверка доступности: `GET /api/health`.
 
+## Первичная инициализация протокола
+
+После публикации программы заполнить admin/setup-поля в `.env` и один раз выполнить:
+
+```sh
+npm run protocol:initialize
+```
+
+Команда атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`, затем идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Если первая транзакция уже прошла, а создание token accounts прервалось, повторный запуск безопасно завершает только отсутствующий этап.
+
+До выполнения нужны реальные `FARE_MINT`, четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Заглушки из `.env.example` использовать нельзя.
+
 ## Кампания стажёра
 
 ```sh
@@ -27,7 +39,7 @@ Frontend отправляет `wallet`, `campaignId`, найденное сло�
 
 ```sh
 npm run server:typecheck
-node --import tsx --test tests/backend-voucher.test.ts
+node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts
 ```
 
 ## Permissionless worker

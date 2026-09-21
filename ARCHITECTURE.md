@@ -52,7 +52,7 @@
 - Machine PDA на каждый Metaplex Core Asset: вес, версия, `activeUntil`, checkpoints, `fareBase` и `claimable` по поддерживаемым mint. Core Asset хранит владение и публичные NFT-метаданные; изменяемое состояние машины хранится только в Machine PDA.
 - Event queue PDA: min-heap событий `MINT`, `REPAIR`, `EXPIRE`, упорядоченных по `timestamp + eventNumber`.
 - Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и записи `wallet + campaignId`.
-- Program-controlled SPL token accounts: `$FARE`, stock reserves и рассчитанные активы до пользовательского `claim`.
+- Program-controlled SPL token accounts: один reward account конфигурации для `$FARE`, по одному для каждого stock mint и отдельный WSOL account. Один и тот же token account принимает результат Jupiter swap и хранит рассчитанные активы до пользовательского `claim`; логические main/trainee/stock-пулы разделяются бухгалтерскими счётчиками программы, а не лишними token accounts.
 
 ## Публичные инструкции
 
@@ -67,6 +67,7 @@
 - `claim_trainee(campaign_id)`: выплачивает одну стажёрскую машину.
 - Административные инструкции: `pause`, `unpause`, двухшаговая смена admin, замена явно разрешённых зависимостей и согласованный rescue.
 - Global pause замораживает `protocolTime` и блокирует инструкции Taxi, но не блокирует стандартный transfer Metaplex Core Asset. Collection Freeze Plugin не используется.
+- Одноразовый setup создаёт основные PDA и неизменяемую Metaplex Core Collection одной транзакцией, после чего идемпотентно создаёт WSOL/FARE/xStocks token accounts конфигурации. Частично завершённый setup можно безопасно повторить.
 
 ## Неизменные экономические правила
 

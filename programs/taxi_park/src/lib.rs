@@ -11,7 +11,7 @@ use anchor_spl::token_interface::{
     self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked,
 };
 use mpl_core::accounts::{BaseAssetV1, BaseCollectionV1};
-use mpl_core::types::{DataState, UpdateAuthority};
+use mpl_core::types::{DataState, ImmutableMetadata, Plugin, PluginAuthorityPair, UpdateAuthority};
 
 pub mod error;
 pub mod math;
@@ -32,6 +32,13 @@ pub mod taxi_park {
 
     pub fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
+        require!(
+            !args.collection_name.is_empty()
+                && args.collection_name.len() <= MAX_COLLECTION_NAME_LEN
+                && !args.collection_uri.is_empty()
+                && args.collection_uri.len() <= MAX_METADATA_URI_LEN,
+            TaxiError::InvalidMetadataUri
+        );
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
         config.pending_admin = Pubkey::default();
@@ -39,7 +46,7 @@ pub mod taxi_park {
         config.team_account = args.team_account;
         config.jupiter_program = args.jupiter_program;
         config.deployment_id = args.deployment_id;
-        config.collection = args.collection;
+        config.collection = ctx.accounts.collection.key();
         config.fare_mint = args.fare_mint;
         config.stock_mints = args.stock_mints;
         require!(
@@ -73,6 +80,25 @@ pub mod taxi_park {
         ctx.accounts.trainee_queue.next_event_number = 1;
         ctx.accounts.trainee_queue.bump = ctx.bumps.trainee_queue;
         ctx.accounts.fee_vault.bump = ctx.bumps.fee_vault;
+
+        let config_info = config.to_account_info();
+        mpl_core::instructions::CreateCollectionV2Cpi {
+            collection: &ctx.accounts.collection.to_account_info(),
+            update_authority: Some(&config_info),
+            payer: &ctx.accounts.admin.to_account_info(),
+            system_program: &ctx.accounts.system_program.to_account_info(),
+            __program: &ctx.accounts.mpl_core_program.to_account_info(),
+            __args: mpl_core::instructions::CreateCollectionV2InstructionArgs {
+                name: args.collection_name,
+                uri: args.collection_uri,
+                plugins: Some(vec![PluginAuthorityPair {
+                    plugin: Plugin::ImmutableMetadata(ImmutableMetadata {}),
+                    authority: None,
+                }]),
+                external_plugin_adapters: None,
+            },
+        }
+        .invoke()?;
         Ok(())
     }
 
@@ -373,14 +399,8 @@ pub mod taxi_park {
             ctx.remaining_accounts,
             &ctx.accounts.config.key(),
             &ctx.accounts.wsol_vault.key(),
-            &ctx.accounts.staging_vault.key(),
+            &ctx.accounts.reward_vault.key(),
         )?;
-        require!(
-            ctx.accounts.staging_vault.key() != ctx.accounts.main_vault.key()
-                && ctx.accounts.staging_vault.key() != ctx.accounts.trainee_vault.key()
-                && ctx.accounts.main_vault.key() != ctx.accounts.trainee_vault.key(),
-            TaxiError::InvalidTokenAccount
-        );
 
         fund_wsol(
             &ctx.accounts.fee_vault.to_account_info(),
@@ -390,7 +410,7 @@ pub mod taxi_park {
         )?;
         ctx.accounts.wsol_vault.reload()?;
         let source_before = ctx.accounts.wsol_vault.amount;
-        let output_before = ctx.accounts.staging_vault.amount;
+        let output_before = ctx.accounts.reward_vault.amount;
         invoke_jupiter(
             &ctx.accounts.config,
             &ctx.accounts.jupiter_program,
@@ -398,42 +418,26 @@ pub mod taxi_park {
             route_data,
         )?;
         ctx.accounts.wsol_vault.reload()?;
-        ctx.accounts.staging_vault.reload()?;
+        ctx.accounts.reward_vault.reload()?;
         let spent = source_before
             .checked_sub(ctx.accounts.wsol_vault.amount)
             .ok_or(TaxiError::InvalidSwapInput)?;
         require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
         let received = ctx
             .accounts
-            .staging_vault
+            .reward_vault
             .amount
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
 
         let (main_amount, trainee_amount, burn_amount) = math::fare_swap_split(received)?;
-        transfer_from_config(
-            &ctx.accounts.config,
-            &ctx.accounts.staging_vault,
-            &ctx.accounts.main_vault,
-            &ctx.accounts.fare_mint,
-            &ctx.accounts.fare_token_program,
-            main_amount,
-        )?;
-        transfer_from_config(
-            &ctx.accounts.config,
-            &ctx.accounts.staging_vault,
-            &ctx.accounts.trainee_vault,
-            &ctx.accounts.fare_mint,
-            &ctx.accounts.fare_token_program,
-            trainee_amount,
-        )?;
         if burn_amount > 0 {
             let bump = [ctx.accounts.config.bump];
             let seeds: &[&[u8]] = &[b"config", &bump];
             let burn = BurnChecked {
                 mint: ctx.accounts.fare_mint.to_account_info(),
-                from: ctx.accounts.staging_vault.to_account_info(),
+                from: ctx.accounts.reward_vault.to_account_info(),
                 authority: ctx.accounts.config.to_account_info(),
             };
             token_interface::burn_checked(
@@ -524,12 +528,8 @@ pub mod taxi_park {
             ctx.remaining_accounts,
             &ctx.accounts.config.key(),
             &ctx.accounts.wsol_vault.key(),
-            &ctx.accounts.staging_vault.key(),
+            &ctx.accounts.reward_vault.key(),
         )?;
-        require!(
-            ctx.accounts.staging_vault.key() != ctx.accounts.reward_vault.key(),
-            TaxiError::InvalidTokenAccount
-        );
 
         fund_wsol(
             &ctx.accounts.fee_vault.to_account_info(),
@@ -539,7 +539,7 @@ pub mod taxi_park {
         )?;
         ctx.accounts.wsol_vault.reload()?;
         let source_before = ctx.accounts.wsol_vault.amount;
-        let output_before = ctx.accounts.staging_vault.amount;
+        let output_before = ctx.accounts.reward_vault.amount;
         invoke_jupiter(
             &ctx.accounts.config,
             &ctx.accounts.jupiter_program,
@@ -547,27 +547,19 @@ pub mod taxi_park {
             route_data,
         )?;
         ctx.accounts.wsol_vault.reload()?;
-        ctx.accounts.staging_vault.reload()?;
+        ctx.accounts.reward_vault.reload()?;
         let spent = source_before
             .checked_sub(ctx.accounts.wsol_vault.amount)
             .ok_or(TaxiError::InvalidSwapInput)?;
         require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
         let received = ctx
             .accounts
-            .staging_vault
+            .reward_vault
             .amount
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
 
-        transfer_from_config(
-            &ctx.accounts.config,
-            &ctx.accounts.staging_vault,
-            &ctx.accounts.reward_vault,
-            &ctx.accounts.stock_mint,
-            &ctx.accounts.stock_token_program,
-            received,
-        )?;
         let asset_index = stock_index + 1;
         ctx.accounts.pool.next_pool[asset_index] = ctx.accounts.pool.next_pool[asset_index]
             .checked_add(received)
@@ -1311,7 +1303,8 @@ pub struct InitializeArgs {
     pub team_account: Pubkey,
     pub jupiter_program: Pubkey,
     pub deployment_id: [u8; 32],
-    pub collection: Pubkey,
+    pub collection_name: String,
+    pub collection_uri: String,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
@@ -1334,6 +1327,12 @@ pub struct Initialize<'info> {
     pub trainee_queue: Box<Account<'info, EventQueue>>,
     #[account(init, payer = admin, space = 8 + FeeVault::INIT_SPACE, seeds = [b"fees"], bump)]
     pub fee_vault: Account<'info, FeeVault>,
+    /// CHECK: New Metaplex Core collection created atomically by initialize.
+    #[account(mut)]
+    pub collection: Signer<'info>,
+    /// CHECK: Fixed official Metaplex Core program.
+    #[account(address = mpl_core::ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1438,11 +1437,7 @@ pub struct ProcessFareSwap<'info> {
     pub wsol_vault: Account<'info, LegacyTokenAccount>,
     pub fare_mint: InterfaceAccount<'info, Mint>,
     #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
-    pub staging_vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
-    pub main_vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
-    pub trainee_vault: InterfaceAccount<'info, TokenAccount>,
+    pub reward_vault: InterfaceAccount<'info, TokenAccount>,
     /// CHECK: Address is the currently configured Jupiter router program.
     #[account(address = config.jupiter_program @ TaxiError::InvalidJupiterProgram)]
     pub jupiter_program: UncheckedAccount<'info>,
@@ -1467,8 +1462,6 @@ pub struct ProcessStockSwap<'info> {
     #[account(mut, token::mint = wsol_mint, token::authority = config)]
     pub wsol_vault: Account<'info, LegacyTokenAccount>,
     pub stock_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut, token::mint = stock_mint, token::authority = config, token::token_program = stock_token_program)]
-    pub staging_vault: InterfaceAccount<'info, TokenAccount>,
     #[account(mut, token::mint = stock_mint, token::authority = config, token::token_program = stock_token_program)]
     pub reward_vault: InterfaceAccount<'info, TokenAccount>,
     /// CHECK: Address is the currently configured Jupiter router program.
@@ -1821,32 +1814,6 @@ fn invoke_jupiter<'info>(
         &[seeds],
     )?;
     Ok(())
-}
-
-fn transfer_from_config<'info>(
-    config: &Account<'info, Configuration>,
-    source: &InterfaceAccount<'info, TokenAccount>,
-    destination: &InterfaceAccount<'info, TokenAccount>,
-    mint: &InterfaceAccount<'info, Mint>,
-    token_program: &Interface<'info, TokenInterface>,
-    amount: u64,
-) -> Result<()> {
-    if amount == 0 {
-        return Ok(());
-    }
-    let bump = [config.bump];
-    let seeds: &[&[u8]] = &[b"config", &bump];
-    let transfer = TransferChecked {
-        from: source.to_account_info(),
-        mint: mint.to_account_info(),
-        to: destination.to_account_info(),
-        authority: config.to_account_info(),
-    };
-    token_interface::transfer_checked(
-        CpiContext::new_with_signer(token_program.to_account_info(), transfer, &[seeds]),
-        amount,
-        mint.decimals,
-    )
 }
 
 fn class_terms(class: u8) -> Result<(u16, u16)> {
