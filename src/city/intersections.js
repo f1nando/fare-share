@@ -1,4 +1,4 @@
-import { CAR_GAP, STOP_LINE, greenLight } from './world.js';
+import { CAR_GAP, STOP_LINE, occupiesTrack, greenLight } from './world.js';
 
 function arrivalTime(distance, speed, acceleration, cruise) {
   const start = Math.min(speed, cruise);
@@ -18,6 +18,10 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     const nextCenter = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize * car.direction;
     const junctionKey = car.axis === 0 ? `${Math.round(nextCenter / blockSize)}:${car.line}` : `${car.line}:${Math.round(nextCenter / blockSize)}`;
     if (turnLocks.has(junctionKey)) return false;
+    // A taxi waiting for a green launch may be delayed by cross traffic. Keep
+    // the opposing inner lane at its stop line until it has merged back.
+    if (occupiesTrack(car, 0) && lanes.get(`${car.axis}:${car.line}:${-car.direction}`)?.cars.some(other =>
+      other.overtake?.passTrack === -1 && other.overtake.launch?.center === nextCenter)) return false;
     if (car.crossing !== undefined) {
       if (oriented <= car.crossing * car.direction + STOP_LINE) return true;
       car.crossing = undefined;

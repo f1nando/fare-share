@@ -1,4 +1,4 @@
-import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
+import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion } from './vehicleSurface.js';
@@ -113,6 +113,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     blockSize, weaving, crossingAccess,
     opposing: lanes.get(laneKey(lane.axis, lane.line, -lane.direction))?.cars ?? [],
     greenRemaining: greenTimeLeft(time, lane.axis) / Math.max(0.01, clockMultiplier),
+    untilGreen: mod((lane.axis === 0 ? 22 : 11) - mod(time, 22), 22) / Math.max(0.01, clockMultiplier),
   });
   // Snapshot the active set: adding to a later lane cannot process it again.
   for (const car of locks.values()) {

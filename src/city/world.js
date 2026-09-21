@@ -65,6 +65,8 @@ export function resetSignal(car) {
   car.overtake = null;
   car.feint = null;
   car.feintCooldown = 0;
+  car.launchAttempt = undefined;
+  car.launchChosen = false;
 }
 
 function updateSignals(cars, direction, delta) {
@@ -83,7 +85,7 @@ function updateSignals(cars, direction, delta) {
   }
   if (!delta) return;
   for (const taxi of cars) {
-    if (!taxi.taxi || taxi.turn || taxi.changing || taxi.flashCooldown > 0) continue;
+    if (!taxi.taxi || taxi.turn || taxi.overtake?.launch || taxi.changing || taxi.flashCooldown > 0) continue;
     let leader = null, gap = 17;
     for (const other of cars) {
       const distance = (other.position - taxi.position) * direction;
@@ -135,8 +137,8 @@ function updateRaces(cars, direction, delta) {
   }
   if (!delta) return;
   for (const follower of cars) {
-    if (!follower.taxi || follower.turn || follower.race || follower.raceCooldown > 0 || follower.feint) continue;
-    const leader = cars.find(other => other !== follower && other.taxi && !other.turn && !other.race && !other.feint &&
+    if (!follower.taxi || follower.turn || follower.overtake?.launch || follower.race || follower.raceCooldown > 0 || follower.feint) continue;
+    const leader = cars.find(other => other !== follower && other.taxi && !other.turn && !other.overtake?.launch && !other.race && !other.feint &&
       (other.raceCooldown ?? 0) === 0 && (other.position - follower.position) * direction > CAR_GAP + 1 &&
       (other.position - follower.position) * direction < 24);
     if (!leader) continue;
@@ -298,7 +300,47 @@ function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRe
   return { leader, remaining: duration, returnSpace, returnTrack, passTrack };
 }
 
-export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1, opposing, greenRemaining = Infinity, crossingAccess } = {}) {
+function planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) {
+  if (!car.taxi || car.changing || car.feint || car.overtake || car.turn || car.race || car.speed > 1 ||
+      car.track < 0 || car.track > 1 || untilGreen < 2) return null;
+  const center = Math.ceil((car.position * direction - STOP_LINE) / blockSize) * blockSize;
+  const toStop = center - STOP_LINE - car.position * direction;
+  if (toStop < CAR_GAP || toStop > blockSize * 0.65) return null;
+  const queue = cars.filter(other => other !== car && occupiesTrack(other, car.track) &&
+    (other.position - car.position) * direction > 0 && other.position * direction <= center - STOP_LINE + 0.05);
+  if (!queue.length || queue.some(other => other.speed > 0.7 || other.changing || other.turn)) return null;
+  if (car.launchAttempt !== center) {
+    car.launchAttempt = center;
+    const roll = queueRandom ? queueRandom() : seededRandom(Math.round(car.position * 100), Math.round(center + (car.line ?? 0) * 97 + (car.axis ?? 0) * 331))();
+    car.launchChosen = roll < 0.3 + (aggression - 1) * 0.1;
+  }
+  if (!car.launchChosen) return null;
+  const passTrack = car.track === 1 ? SHOULDER_TRACK : ONCOMING_TRACK;
+  if (cars.some(other => other !== car && other.overtake && Math.abs(other.position - car.position) < blockSize)) return null;
+  if (!canMerge(car, cars, passTrack, direction, opposing)) return null;
+  // Reserve the whole route to the front row, not just the initial lateral gap.
+  if (cars.some(other => other !== car && occupiesTrack(other, passTrack) &&
+      (other.position - car.position) * direction > -CAR_GAP && other.position * direction < center + STOP_LINE + CAR_GAP)) return null;
+  if (passTrack === ONCOMING_TRACK && opposing.some(other => {
+    if (!occupiesTrack(other, 0) && !other.overtake) return false;
+    const gap = (other.position - car.position) * direction;
+    if (gap < -CAR_GAP * 2) return false;
+    const duringRed = maximumTravel(other.speed, (other.acceleration ?? 4) * 2,
+      Math.max(other.speed, other.cruise * (other.taxi ? 1.25 : 1.65)), untilGreen);
+    const redPosition = other.taxi ? other.position - direction * duringRed :
+      advanceVehicle(other.position, duringRed, -direction, false, blockSize);
+    const redEndSpeed = !other.taxi && Math.abs(redPosition - other.position) < duringRed - 0.001 ? 0 :
+      Math.max(other.speed, other.cruise * (other.taxi ? 1.25 : 1.65));
+    const afterGreen = maximumTravel(redEndSpeed,
+      (other.acceleration ?? 4) * 2, other.cruise * (other.taxi ? 1.25 : 1.65), 2.5);
+    return (redPosition - car.position) * direction < toStop + car.cruise * 2 + afterGreen + CAR_GAP * 2;
+  })) return null;
+  const leader = queue.reduce((front, other) => other.position * direction > front.position * direction ? other : front);
+  return { leader, remaining: untilGreen + 4, returnSpace: CAR_GAP * 2 + 1 + car.cruise * 1.25 * MERGE_DURATION,
+    returnTrack: car.track, passTrack, launch: { center: center * direction, phase: 'staging' } };
+}
+
+export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK, weaving = 1, opposing, greenRemaining = Infinity, untilGreen = 0, queueRandom, crossingAccess } = {}) {
   const aggression = taxiAggression(weaving);
   cars.sort((a, b) => (b.position - a.position) * direction);
   updateRaces(cars, direction, delta);
@@ -307,6 +349,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     // Turning cars retain their source-lane slot until the network transfers
     // them. Their curved motion is advanced exactly once after straight traffic.
     if (car.turn) continue;
+    if (green) { car.launchAttempt = undefined; car.launchChosen = false; }
     const previousSpeed = car.speed;
     car.cooldown = Math.max(0, car.cooldown - delta);
     car.burst = Math.max(0, (car.burst ?? 0) - delta);
@@ -325,6 +368,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       return { gap, leader };
     };
     const { gap, leader } = ahead(car.track);
+    const queueLaunch = !green && delta > 0 && opposing ? planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) : null;
     const { gap: targetGap, leader: targetLeader } = ahead(1 - car.track);
     const fasterLane = targetLeader && leader && targetLeader.speed > leader.speed + 1;
     const passing = gap < 24 && (targetGap > gap + 0.4 || fasterLane);
@@ -339,7 +383,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const chaseTrack = following ? car.race.leader.track : challenging ? 1 - car.race.leader.track : null;
     const chaseMerge = (chaseTrack === 0 || chaseTrack === 1) && chaseTrack !== car.track;
     const taxiPassing = car.taxi && (!green || car.signalWait === 0) && (following ? chaseMerge : passing || returning || challenging && chaseMerge);
-    const overtake = !car.overtake && opposing && (green || crossingAccess) && car.taxi && (car.track === 0 || car.track === 1) &&
+    const overtake = !queueLaunch && !car.overtake && opposing && (green || crossingAccess) && car.taxi && (car.track === 0 || car.track === 1) &&
       (!following || car.race.leader.overtake?.returnTrack === car.track) &&
       !car.changing && !car.feint && car.cooldown === 0 && !(car.track === 1 && car.seekInner > 0) && gap < 28 && sourceClear
       ? planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess,
@@ -347,14 +391,29 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     if (car.feint) {
       car.feint.age = Math.min(FEINT_DURATION, car.feint.age + delta);
     } else if (car.overtake) {
-      car.overtake.remaining = Math.max(0, car.overtake.remaining - delta);
+      const launch = car.overtake.launch;
+      if (launch && launch.phase !== 'go' && green) {
+        launch.phase = 'go';
+        car.overtake.remaining = 4;
+        car.burst = 4;
+        car.launchesStarted = (car.launchesStarted ?? 0) + 1;
+      }
+      const waiting = launch && launch.phase !== 'go';
+      if (waiting && Math.abs(car.position - (launch.center - direction * STOP_LINE)) < 0.05) launch.phase = 'ready';
+      if (waiting) car.overtake.remaining = untilGreen + 4;
+      else car.overtake.remaining = Math.max(0, car.overtake.remaining - delta);
       const passed = (car.position - car.overtake.leader.position) * direction > CAR_GAP + 0.4;
       const urgent = car.overtake.remaining < MERGE_DURATION + 0.4;
       const homeTrack = car.overtake.returnTrack ?? 0;
-      if (car.track === (car.overtake.passTrack ?? ONCOMING_TRACK) && !car.changing && (passed || urgent) && canMerge(car, cars, homeTrack, direction, opposing)) {
+      if (!waiting && car.track === (car.overtake.passTrack ?? ONCOMING_TRACK) && !car.changing && (passed || urgent) && canMerge(car, cars, homeTrack, direction, opposing)) {
         startMerge(car, homeTrack);
         car.cooldown = 1.5 / aggression;
       }
+    } else if (queueLaunch) {
+      car.overtake = queueLaunch;
+      car.crossing = undefined;
+      car.launchesPrepared = (car.launchesPrepared ?? 0) + 1;
+      startMerge(car, queueLaunch.passTrack);
     } else if (overtake) {
       car.overtake = overtake;
       car.burst = overtake.remaining + 0.8;
@@ -373,6 +432,13 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     let clearance = ahead(car.track).gap;
     if (car.changing) clearance = Math.min(clearance, ahead(car.fromTrack).gap);
     if (following) clearance = Math.min(clearance, Math.max(CAR_GAP, (car.race.leader.position - car.position) * direction));
+    const crossingClearance = clearance;
+    if (car.overtake?.launch && occupiesTrack(car, ONCOMING_TRACK)) {
+      for (const other of opposing ?? []) {
+        const distance = (other.position - car.position) * direction;
+        if (occupiesTrack(other, 0) && distance > 0) clearance = Math.min(clearance, distance);
+      }
+    }
     // Headway depends on actual speed, so stopped queues compress to 0.65 units
     // between bumpers and open up again as individual drivers accelerate.
     const reservedGap = cars.find(other => other.overtake?.leader === car)?.overtake.returnSpace ?? CAR_GAP;
@@ -388,7 +454,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       ? Math.min(cruise, car.mergeSpeed ?? car.speed)
       : Math.min(desiredSpeed, car.speed + acceleration * delta);
     const travel = Math.min(speed * delta, Math.max(0, clearance - reservedGap));
-    const permitted = crossingAccess ? crossingAccess(car, travel, green, clearance, speed) : green;
+    const permitted = car.overtake?.launch && !green ? false : crossingAccess ? crossingAccess(car, travel, green, crossingClearance, speed) : green;
     const next = advanceVehicle(car.position, travel, direction, permitted, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;
@@ -400,6 +466,8 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
         car.offset = trackOffset(car.track);
         car.changing = false;
         if (car.overtake && car.track === (car.overtake.returnTrack ?? 0)) {
+          if (car.overtake.launch?.phase === 'go' && (car.position - car.overtake.leader.position) * direction > CAR_GAP)
+            car.launchesCompleted = (car.launchesCompleted ?? 0) + 1;
           if (car.overtake.passTrack === SHOULDER_TRACK) car.seekInner = 3;
           car.overtake = null;
         }

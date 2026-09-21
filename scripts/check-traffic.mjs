@@ -16,7 +16,7 @@ for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for 
   }
   lanes.set(`${axis}:${line}:${direction}`, { axis, line, direction, cars });
 }
-const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0, turns: 0, completedTurns: 0, turnConflicts: 0, driftingFrames: 0, curbHops: 0, sidewalkFrames: 0 };
+const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0, turns: 0, completedTurns: 0, turnConflicts: 0, driftingFrames: 0, curbHops: 0, sidewalkFrames: 0, queueOncoming: 0, queueShoulder: 0, queueCompleted: 0 };
 for (let frame = 0; frame < 1500; frame++) {
   const time = frame * 0.04;
   for (const lane of lanes.values()) for (const car of lane.cars) {
@@ -45,6 +45,8 @@ for (let frame = 0; frame < 1500; frame++) {
         }
       }
       if (!car.taxi) continue;
+      if (car.overtake?.launch && !passing) counts[car.overtake.passTrack === -1 ? 'queueOncoming' : 'queueShoulder']++;
+      if (passing?.launch && !car.overtake && (car.position - passing.leader.position) * lane.direction > CAR_GAP) counts.queueCompleted++;
       if (car.rideHeight - car.surfaceSupport > 0.06 && previousAir <= 0.06) counts.curbHops++;
       if (Math.max(...car.wheelHeights) - Math.min(...car.wheelHeights) > 0.3) counts.sidewalkFrames++;
       if (car.feint && !feint) counts.feints++;
@@ -70,7 +72,7 @@ for (let frame = 0; frame < 1500; frame++) {
   }
 }
 console.log(JSON.stringify(counts));
-if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0 || counts.returnedFeints < 2 || counts.raceWins < 1 || counts.completedTurns < 2 || counts.turnConflicts > 0 || counts.driftingFrames < 10 || counts.curbHops < 3 || counts.sidewalkFrames < 10) process.exitCode = 1;
+if (counts.redCrossings < 20 || counts.completedOvertakes < 3 || counts.completedShoulderOvertakes < 3 || counts.oncomingConflicts > 0 || counts.shoulderConflicts > 0 || counts.returnedFeints < 2 || counts.raceWins < 1 || counts.completedTurns < 2 || counts.turnConflicts > 0 || counts.driftingFrames < 10 || counts.curbHops < 3 || counts.sidewalkFrames < 10 || counts.queueCompleted < 1) process.exitCode = 1;
 
 function overlap(a, b) {
   const axes = pose => [{ x: Math.sin(pose.angle), z: Math.cos(pose.angle), radius: 1.125 }, { x: Math.cos(pose.angle), z: -Math.sin(pose.angle), radius: 0.52 }];
