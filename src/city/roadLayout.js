@@ -27,6 +27,31 @@ export function roadOpen(axis, line, segment) {
   return hash % 5 === 0 || ((hash >>> 4) & 1) !== 1 - axis;
 }
 
+// One possible site per 4x4 group, always away from water and missing roads.
+// Coordinates own the site, so rendering, spawning and Worker agree forever.
+export function roadworkAt(axis, line, segment, block) {
+  const x = axis === 0 ? segment : line, z = axis === 0 ? line : segment;
+  const dx = Math.floor(x / 4), dz = Math.floor(z / 4), code = districtCode(dx + 41, dz - 53);
+  if (x !== dx * 4 + 1 + (code & 1) || z !== dz * 4 + 1 + ((code >>> 1) & 1) || axis !== ((code >>> 2) & 1)) return null;
+  if (!roadOpen(axis, line, segment) || (axis === 0 ? canalColumn(segment) : canalColumn(line) || canalColumn(line - 1))) return null;
+  const length = Math.min(6, block * 0.16), center = (segment + 0.5) * block;
+  return { axis, line, segment, direction: (code & 8) ? 1 : -1, start: center - length / 2, end: center + length / 2 };
+}
+
+export function laneRoadworks(lane, block) {
+  let first = Infinity, last = -Infinity;
+  for (const car of lane.cars) { first = Math.min(first, car.position); last = Math.max(last, car.position); }
+  first = Math.floor(first / block) - 2; last = Math.floor(last / block) + 2;
+  if (lane.workFirst === first && lane.workLast === last && lane.workBlock === block) return lane.roadworks;
+  const works = [];
+  for (let segment = first; segment <= last; segment++) {
+    const work = roadworkAt(lane.axis, lane.line, segment, block);
+    if (work?.direction === lane.direction) works.push(work);
+  }
+  lane.workFirst = first; lane.workLast = last; lane.workBlock = block;
+  return lane.roadworks = works;
+}
+
 // Whole street lines stay divided: a taxi never meets a new median halfway
 // through an oncoming overtake. Crossings and missing park roads remain open.
 export function boulevardRoad(axis, line) {
@@ -42,8 +67,14 @@ export function straightRoadOpen(car, blockSize, stopLine) {
 }
 
 export function spawnRoadOpen(car, blockSize, stopLine) {
-  return roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) &&
-    roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize));
+  if (!roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) ||
+    !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize))) return false;
+  if (car.track !== 1) return true;
+  const work = roadworkAt(car.axis, car.line, Math.floor(car.position / blockSize), blockSize);
+  if (!work || work.direction !== car.direction) return true;
+  const entry = car.direction > 0 ? work.start - car.position : car.position - work.end;
+  const braking = (car.speed ?? 0) ** 2 / (car.taxi ? 26 : 14) + (car.speed ?? 0) * 0.4 + 2;
+  return entry > braking || entry + work.end - work.start < -2;
 }
 
 // Recycling happens outside the visible area. Move a recycled car past any
@@ -51,6 +82,11 @@ export function spawnRoadOpen(car, blockSize, stopLine) {
 export function relocateToRoad(car, blockSize, stopLine) {
   for (let i = 0; i < 3 && !spawnRoadOpen(car, blockSize, stopLine); i++) {
     let segment = Math.floor(car.position / blockSize);
+    const work = car.track === 1 && roadworkAt(car.axis, car.line, segment, blockSize);
+    if (work && work.direction === car.direction && roadOpen(car.axis, car.line, segment)) {
+      car.position = car.direction > 0 ? work.end + 2.1 : work.start - 2.1;
+      continue;
+    }
     if (roadOpen(car.axis, car.line, segment)) segment = Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize);
     const exit = segment + (car.direction > 0 ? 1 : 0);
     car.position = exit * blockSize + car.direction * (stopLine + 1);

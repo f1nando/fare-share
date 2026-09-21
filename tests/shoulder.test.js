@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { populateBlock } from '../src/city/createCity.js';
 import { canalColumn } from '../src/city/canal.js';
+import { populateRoadworks } from '../src/city/roadworkGeometry.js';
 import { CAR_GAP, PAVED_ROAD, STOP_LINE, TRACKS, SHOULDER_TRACK, trackOffset, occupiesTrack, updateTraffic, canMerge, resetSignal } from '../src/city/world.js';
 import { intersectionAccess } from '../src/city/intersections.js';
 
@@ -45,7 +46,10 @@ test('occupied shoulder is rejected and recycling restores the outer home lane',
 test('buildings, trunks and landscaping leave the sidewalk riding strip clear at every block size', () => {
   for (const size of [24, 40, 48]) for (let seed = 0; seed < 30; seed++) {
     if (canalColumn(seed)) continue; // Bridge/bank clearances are covered in canal.test.js.
+    const workParts = new Set();
+    populateRoadworks({ add: (...p) => workParts.add(JSON.stringify(p.slice(0,7))) }, seed, -seed, 0, 0, size);
     populateBlock({ add(kind, x, y, z, w, h, d) {
+      if (workParts.has(JSON.stringify([kind,x,y,z,w,h,d]))) return; // Roadwork clearances have their own test.
       if (['paint', 'crown'].includes(kind)) return;
       assert.ok(w > 0 && d > 0);
       // Centre islands are also clear of the shoulder; they need not lie in a lot.

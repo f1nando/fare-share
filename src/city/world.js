@@ -1,6 +1,7 @@
 import { updateBodyMotion } from './vehicleBody.js';
 import { HORN_DURATION } from './hornAnimation.js';
 import { LaneIndex } from './laneIndex.js';
+import { nextRoadwork, workEntryDistance, workMergeClear, WORK_MARGIN } from './roadworkRules.js';
 
 export const BLOCK = 34;
 export const ROAD = 6.6;
@@ -43,6 +44,7 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  car.roadworks = undefined; car.workBypass = null;
   car.rideHeight = car.rideVelocity = car.surfaceSupport = car.roadRoll = car.roadPitch = 0;
   car.wheelHeights = null;
   if (car.turn) car.steer = 0;
@@ -212,6 +214,7 @@ export function occupiesTrack(car, track) {
 
 // Test both the current gap and where its neighbours will be during the merge.
 export function canMerge(car, cars, targetTrack, direction, opposing = []) {
+  if (!workMergeClear(car, targetTrack, direction, MERGE_DURATION)) return false;
   // Keep the return slot and borrowed lane free while an overtake is underway.
   if (cars.some(other => other !== car && other.overtake && targetTrack === (other.overtake.returnTrack ?? 0) &&
       !(car.overtake && (car.position - other.position) * direction > CAR_GAP) &&
@@ -367,6 +370,9 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     car.feintCooldown = Math.max(0, (car.feintCooldown ?? 0) - delta);
     const ahead = track => index.ahead(car, track);
     const { gap, leader } = ahead(car.track);
+    const work = nextRoadwork(car, direction);
+    const workDistance = work ? workEntryDistance(work, car.position, direction) : Infinity;
+    const workApproach = work && car.track === 1 && workDistance < Math.max(18, car.speed * car.speed / (car.taxi ? 26 : 14) + car.speed * 0.6 + 4);
     const queueLaunch = !car.roadEnd && !green && delta > 0 && opposing ? planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) : null;
     const { gap: targetGap, leader: targetLeader } = car.taxi ? ahead(1 - car.track) : { gap: Infinity, leader: null };
     const fasterLane = targetLeader && leader && targetLeader.speed > leader.speed + 1;
@@ -387,8 +393,22 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       !car.changing && !car.feint && car.cooldown === 0 && !(car.track === 1 && car.seekInner > 0) && gap < 28 && sourceClear
       ? planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess,
         car.track === 1 ? SHOULDER_TRACK : ONCOMING_TRACK) : null;
+    const workMerge = workApproach && !car.changing && !car.feint && sourceClear && workDistance >= car.speed * MERGE_DURATION + WORK_MARGIN - 1e-6
+      ? canMerge(car, cars, 0, direction, opposing) ? 0 : car.taxi && canMerge(car, cars, SHOULDER_TRACK, direction, opposing) ? SHOULDER_TRACK : null
+      : null;
     if (car.feint) {
       car.feint.age = Math.min(FEINT_DURATION, car.feint.age + delta);
+    } else if (car.workBypass) {
+      const exit = (direction > 0 ? car.workBypass.end : -car.workBypass.start);
+      if (!car.changing && car.position * direction > exit + WORK_MARGIN && canMerge(car, cars, 1, direction, opposing)) {
+        startMerge(car, 1); car.workBypass = null; car.cooldown = 1;
+      }
+    } else if (workMerge !== null) {
+      car.overtake = null;
+      if (car.race) finishRace(car.race);
+      if (workMerge === SHOULDER_TRACK) car.workBypass = work;
+      startMerge(car, workMerge); car.cooldown = 1;
+      car.workAvoidances = (car.workAvoidances ?? 0) + 1;
     } else if (car.overtake) {
       const launch = car.overtake.launch;
       if (launch && launch.phase !== 'go' && green) {
@@ -455,12 +475,14 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const desiredSpeed = Math.min(cruise, Math.max(0, frontSpeed + (clearance - desiredGap) * (car.taxi ? 2 : 1.4)));
     const acceleration = (car.acceleration ?? (car.taxi ? 25 : 4)) * (yielding ? 2 : car.burst > 0 ? 1.8 : 1);
     const braking = car.taxi ? 13 : 7;
+    const workClearance = work && occupiesTrack(car, 1) ? workDistance - WORK_MARGIN : Infinity;
     // Lane changing itself never applies the normal following slowdown. Hard
     // clearance and stop-line limits below still handle newly blocked traffic.
     let speed = car.changing && !yielding && (car.mergeSpeed ?? car.speed) > 1
       ? Math.min(cruise, car.mergeSpeed ?? car.speed)
       : Math.max(car.speed - braking * delta, Math.min(desiredSpeed, car.speed + acceleration * delta));
     if (!car.changing && Number.isFinite(clearance)) speed = Math.min(speed, stoppingSpeed(clearance - CAR_GAP, braking, delta, frontSpeed));
+    if (Number.isFinite(workClearance)) speed = Math.min(speed, stoppingSpeed(workClearance, braking, delta));
     const oriented = car.position * direction;
     const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - STOP_LINE - oriented;
     if (speed > 0 && untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
@@ -470,7 +492,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     }
     // A reserved return slot is a following target, not an invisible bumper.
     // Only actual vehicle clearance can hard-limit this frame's travel.
-    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
+    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP), Math.max(0, workClearance));
     // Before the stop line, this step cannot enter the intersection. Keep live
     // claims updated, but avoid scanning cross traffic for the rest of the queue.
     const needsAccess = travel > untilStop || car.crossing !== undefined;

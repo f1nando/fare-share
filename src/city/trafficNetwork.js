@@ -2,7 +2,7 @@ import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
-import { roadOpen, straightRoadOpen, boulevardRoad } from './roadLayout.js';
+import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt } from './roadLayout.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -96,6 +96,10 @@ function canTurn(car, turn, lanes, blockSize, locks) {
 export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.1, clockMultiplier = 1, roadLayout = false } = {}) {
   if (delta <= 0) return;
   const locks = new Map();
+  for (const lane of lanes.values()) {
+    const works = roadLayout ? laneRoadworks(lane, blockSize) : undefined;
+    for (const car of lane.cars) car.roadworks = works;
+  }
   for (const lane of lanes.values()) for (const car of lane.cars) {
     car.turnCooldown = Math.max(0, (car.turnCooldown ?? 0) - delta);
     if (car.turn && !lanes.has(laneKey(car.turn.axis, car.turn.line, car.turn.direction))) {
@@ -117,6 +121,9 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     const entryDistance = center - STOP_LINE - car.position * car.direction;
     if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
     const turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1);
+    // Enter the open lane directly instead of landing in front of a work site.
+    const work = roadLayout && roadworkAt(turn.axis, turn.line, Math.floor(turn.position / blockSize), blockSize);
+    if (work && work.direction === turn.direction) turn.track = 0;
     if (roadLayout && !roadOpen(turn.axis, turn.line, Math.floor(turn.position / blockSize))) continue;
     if (!canTurn(car, turn, lanes, blockSize, locks)) continue;
     // A blocked car can retry for hundreds of steps. Sample the curve only
@@ -126,6 +133,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     car.turn = turn;
     turn.required = required;
     car.overtake = null;
+    car.workBypass = null;
     car.crossing = undefined;
     car.flashAge = null;
     car.turnsStarted = (car.turnsStarted ?? 0) + 1;
