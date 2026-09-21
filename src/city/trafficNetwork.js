@@ -1,7 +1,7 @@
 import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
-import { updateSurfaceMotion } from './vehicleSurface.js';
+import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -144,6 +144,9 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
+    // Straight, settled cars fit wholly inside a continuous asphalt strip.
+    // Avoid allocating coordinates and computing wheel poses for this case.
+    if (!car.turn && !car.steer && Math.abs(car.offset) + WHEEL_SIDES[1] < PAVED_ROAD / 2 && settleOnFlatRoad(car)) continue;
     const position = carCoordinates(car, blockSize);
     const pose = car.turn ? position : vehiclePose(position.x, position.z, car.axis, car.direction, car.steer);
     updateSurfaceMotion(car, pose, delta, blockSize, PAVED_ROAD / 2);

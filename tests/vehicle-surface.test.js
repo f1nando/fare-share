@@ -1,9 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAVED_ROAD, TRACKS, STOP_LINE, CAR_GAP, trackOffset, vehiclePose, resetSignal } from '../src/city/world.js';
-import { roadHeight, updateSurfaceMotion } from '../src/city/vehicleSurface.js';
+import { roadHeight, updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES, WHEEL_AXLES } from '../src/city/vehicleSurface.js';
 import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
 import { addCar } from '../src/city/createCity.js';
+
+test('flat fast path covers rotated wheel footprints and reuses the wheel array', () => {
+  for (const blockSize of [24, 40, 48]) for (const angle of [0, 0.2, 1.1, Math.PI, -2]) {
+    const car = { speed: 18 };
+    const pose = { x: -blockSize / 2, z: 2.4, angle };
+    updateSurfaceMotion(car, pose, 1 / 60, blockSize, PAVED_ROAD / 2);
+    const heights = car.wheelHeights;
+    for (const axle of WHEEL_AXLES) for (const side of WHEEL_SIDES) {
+      assert.equal(roadHeight(pose.x + side * Math.cos(angle) + axle * Math.sin(angle),
+        pose.z - side * Math.sin(angle) + axle * Math.cos(angle), blockSize, PAVED_ROAD / 2), 0);
+    }
+    updateSurfaceMotion(car, pose, 1 / 60, blockSize, PAVED_ROAD / 2);
+    assert.equal(car.wheelHeights, heights);
+    assert.deepEqual(heights, [0, 0, 0, 0]);
+    assert.equal(car.rideHeight, 0);
+  }
+});
+
+test('flat fast path cannot freeze a jump, launch velocity or raised support', () => {
+  for (const state of [{ rideHeight: 0.3 }, { rideVelocity: 1 }, { surfaceSupport: 0.21 }]) {
+    const car = { speed: 16, ...state };
+    assert.equal(settleOnFlatRoad(car), false);
+    updateSurfaceMotion(car, { x: 20, z: 0, angle: 0 }, 0.02, 40, PAVED_ROAD / 2);
+    assert.notDeepEqual(car, { speed: 16, ...state });
+    for (let i = 0; i < 200; i++) updateSurfaceMotion(car, { x: 20, z: 0, angle: 0 }, 0.02, 40, PAVED_ROAD / 2);
+    assert.equal(car.rideHeight, 0);
+    assert.equal(car.rideVelocity, 0);
+  }
+});
 
 test('narrow shoulder route straddles the sidewalk in either direction on either road axis', () => {
   for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const blockSize of [24, 40, 48]) {
@@ -47,7 +76,9 @@ test('actual shoulder overtakes hop in the network; tyres rise independently and
     const lanes = new Map([[`${axis}:0:${direction}`, { axis, line: 0, direction, cars }]]);
     let hopped = false, climbed = false;
     for (let i = 0; i < 250; i++) {
-      updateNetwork(lanes, 0.02, 9, { blockSize: 40, weaving: 0 });
+      // Let a queue-launch taxi reach green instead of waiting forever at a
+      // frozen red light; it must traverse the curb at driving speed as well.
+      updateNetwork(lanes, 0.02, 9 + i * 0.02, { blockSize: 40, weaving: 0 });
       hopped ||= car.rideHeight - car.surfaceSupport > 0.06;
       if (Math.max(...car.wheelHeights) > 0.4 && Math.min(...car.wheelHeights) === 0) {
         climbed = true;
