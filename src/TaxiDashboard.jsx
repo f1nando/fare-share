@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CityBackground } from './CityBackground.jsx';
 import {
+  activateTrainee,
   claimMachine,
+  claimTrainee,
   connectWallet,
   explorerTransaction,
   loadOwnedMachines,
+  loadOwnedTrainees,
   loadProtocolStatus,
   mintMachine,
   repairMachine,
@@ -27,6 +30,9 @@ export function TaxiDashboard() {
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: 'devnet' });
   const [cars, setCars] = useState(DEMO_CARS);
+  const [trainees, setTrainees] = useState([]);
+  const [campaignId, setCampaignId] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [lastSignature, setLastSignature] = useState('');
@@ -60,9 +66,13 @@ export function TaxiDashboard() {
     if (!connection || !currentStatus.deployed) return;
     setBusy('refresh');
     try {
-      const next = await loadOwnedMachines(connection.account.address, currentStatus);
-      setCars(next);
-      setNotice(next.length ? 'Гараж обновлён.' : 'В этом кошельке пока нет машин коллекции.');
+      const [nextCars, nextTrainees] = await Promise.all([
+        loadOwnedMachines(connection.account.address, currentStatus),
+        loadOwnedTrainees(connection.account.address),
+      ]);
+      setCars(nextCars);
+      setTrainees(nextTrainees);
+      setNotice(nextCars.length || nextTrainees.length ? 'Гараж обновлён.' : 'В этом кошельке пока нет машин.');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -88,8 +98,12 @@ export function TaxiDashboard() {
       setLastSignature(signature);
       const nextStatus = await loadProtocolStatus();
       setStatus({ ...nextStatus, loading: false });
-      const nextCars = await loadOwnedMachines(wallet.account.address, nextStatus);
+      const [nextCars, nextTrainees] = await Promise.all([
+        loadOwnedMachines(wallet.account.address, nextStatus),
+        loadOwnedTrainees(wallet.account.address),
+      ]);
       setCars(nextCars);
+      setTrainees(nextTrainees);
       setNotice(success);
     } catch (error) {
       setNotice(error.message || 'Транзакция не выполнена.');
@@ -149,6 +163,32 @@ export function TaxiDashboard() {
             </article>)}
           </div>
           <p className="demo-note">{status.deployed ? 'Данные читаются из finalized Solana accounts.' : 'Демо-данные исчезнут после подключения развернутой Solana-программы.'}</p>
+        </section>
+
+        <section className="panel trainee-panel" aria-labelledby="trainee-title">
+          <div className="section-title">
+            <div><p className="eyebrow">Бесплатный тест</p><h2 id="trainee-title">Стажёрская машина</h2></div>
+          </div>
+          <p className="trainee-copy">Найдите номер кампании и кодовое слово в наших публикациях. Каждую кампанию можно активировать один раз на кошелёк.</p>
+          <div className="trainee-form">
+            <label>Кампания<input inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="Например, 1" /></label>
+            <label>Кодовое слово<input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Слово из публикации" /></label>
+            <button disabled={Boolean(busy) || !campaignId || !keyword.trim()} onClick={() => runAction(
+              'activate-trainee',
+              () => activateTrainee(wallet, campaignId, keyword, status),
+              'Стажёрская машина активирована.',
+            )}>Активировать</button>
+          </div>
+          {trainees.length > 0 && <div className="trainee-list">
+            {trainees.map(trainee => <article key={String(trainee.campaignId)}>
+              <span><strong>Кампания #{String(trainee.campaignId)}</strong><small>Работает до {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('ru-RU')}</small></span>
+              <button disabled={Boolean(busy)} onClick={() => runAction(
+                `claim-trainee-${trainee.campaignId}`,
+                () => claimTrainee(wallet, trainee, status),
+                'Доход стажёрской машины отправлен.',
+              )}>Забрать FARE</button>
+            </article>)}
+          </div>}
         </section>
 
         <section className="panel mint-panel" aria-labelledby="mint-title">

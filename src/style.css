@@ -87,6 +87,15 @@ button:focus-visible { outline: 2px solid #ffd329; outline-offset: 4px; }
 .reward strong { margin-bottom: 4px; color: #f0f0eb; font-size: 13px; }
 .row-actions { display: flex; gap: 7px; }.row-actions button, .class-card button { padding: 10px 13px; border: 0; border-radius: 8px; color: #171713; background: #ffd329; font-size: 11px; font-weight: 800; }.row-actions .secondary { color: #ddd; background: #33332f; }
 .demo-note { margin: 14px 0 0; color: #777771; font-size: 10px; }
+.trainee-copy { margin: 0 0 18px; color: #9d9d97; font-size: 13px; }
+.trainee-form { display: grid; grid-template-columns: minmax(120px, .55fr) minmax(220px, 1fr) auto; gap: 12px; align-items: end; }
+.trainee-form label { display: grid; gap: 7px; color: #8e8e88; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.trainee-form input { min-width: 0; padding: 12px 13px; border: 1px solid #ffffff24; border-radius: 9px; color: #f4f4ef; background: #10100f99; text-transform: none; letter-spacing: normal; }
+.trainee-form button, .trainee-list button { padding: 12px 15px; border: 0; border-radius: 9px; color: #171713; background: #ffd329; font-size: 11px; font-weight: 800; }
+.trainee-form button:disabled, .trainee-list button:disabled, .row-actions button:disabled, .class-card button:disabled { cursor: not-allowed; opacity: .5; }
+.trainee-list { display: grid; gap: 8px; margin-top: 16px; }
+.trainee-list article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border-radius: 10px; background: #ffffff0d; }
+.trainee-list span, .trainee-list small { display: block; }.trainee-list small { margin-top: 3px; color: #888; font-size: 10px; }
 .class-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
 .class-card { padding: 17px; border: 1px solid #ffffff12; border-radius: 14px; background: #20201e; }
 .class-top { display: flex; justify-content: space-between; font-weight: 800; }.class-top b { color: #ffd329; }
@@ -94,4 +103,4 @@ button:focus-visible { outline: 2px solid #ffd329; outline-offset: 4px; }
 .class-card dl { margin: 3px 0 15px; }.class-card dl div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ffffff0e; }.class-card dt { color: #888; font-size: 10px; }.class-card dd { margin: 0; color: #ddd; font-size: 11px; font-weight: 700; }.class-card button { width: 100%; }
 .taxi-notice { position: fixed; z-index: 10; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 18px; max-width: 460px; padding: 14px 14px 14px 17px; border: 1px solid #ffd32966; border-radius: 12px; color: #deded8; background: #1b1b18f5; box-shadow: 0 12px 40px #0008; font-size: 12px; }.taxi-notice button { border: 0; color: #ffd329; background: transparent; font-size: 18px; }
 @media (max-width: 850px) { .class-grid { grid-template-columns: repeat(2, 1fr); }.car-row { grid-template-columns: 42px 1fr auto; }.durability { grid-column: 2 / 4; }.reward { grid-column: 2; }.row-actions { grid-column: 3; }.pool-strip { grid-template-columns: 1fr; }.pool-strip div { border-right: 0; border-bottom: 1px solid #ffffff14; } }
-@media (max-width: 560px) { .taxi-header { height: 64px; padding: 0 16px; }.network-pill { display: none; }.wallet-button { padding: 0 11px; }.taxi-content { width: calc(100% - 24px); padding-top: 100px; }.hero-card { min-height: 400px; }.hero-card h1 { font-size: 43px; }.panel { padding: 17px; border-radius: 16px; }.class-grid { grid-template-columns: 1fr; }.car-row { grid-template-columns: 42px 1fr; }.durability, .reward, .row-actions { grid-column: 1 / 3; }.row-actions button { flex: 1; } }
+@media (max-width: 560px) { .taxi-header { height: 64px; padding: 0 16px; }.network-pill { display: none; }.wallet-button { padding: 0 11px; }.taxi-content { width: calc(100% - 24px); padding-top: 100px; }.hero-card { min-height: 400px; }.hero-card h1 { font-size: 43px; }.panel { padding: 17px; border-radius: 16px; }.class-grid, .trainee-form { grid-template-columns: 1fr; }.trainee-list article { align-items: stretch; flex-direction: column; }.car-row { grid-template-columns: 42px 1fr; }.durability, .reward, .row-actions { grid-column: 1 / 3; }.row-actions button { flex: 1; } }

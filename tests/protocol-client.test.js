@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PROGRAM_ID, protocolAddresses, shortAddress } from '../src/protocol/solana.js';
-import { chooseEventPage, TAXI_DISCRIMINATORS } from '../src/protocol/anchorClient.js';
+import {
+  buildActivateTraineeInstructions,
+  chooseEventPage,
+  TAXI_DISCRIMINATORS,
+} from '../src/protocol/anchorClient.js';
 
 test('protocol PDAs are deterministic and distinct', async () => {
   const first = await protocolAddresses();
@@ -22,4 +26,28 @@ test('mint routing chooses a page with room for both machine events', () => {
 test('wallet addresses are shortened for the primitive UI', () => {
   assert.equal(shortAddress('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY'), '7SpH…KwnY');
   assert.equal(shortAddress('short'), 'short');
+});
+
+test('trainee activation puts Ed25519 verification immediately before the program instruction', async () => {
+  const programAddress = PROGRAM_ID;
+  const owner = '11111111111111111111111111111111';
+  const instructions = await buildActivateTraineeInstructions({
+    programAddress,
+    owner,
+    configAddress: (await protocolAddresses()).config,
+    traineeQueue: (await protocolAddresses()).traineeQueue,
+    voucher: {
+      backendSigner: owner,
+      signature: Buffer.alloc(64, 7).toString('base64'),
+      message: Buffer.from('signed voucher').toString('base64'),
+      args: {
+        campaignId: '12', nonce: '34', durationMinutes: 360,
+        expiresAt: '1000', activeFrom: '1020', activeUntil: '22620', pageIndex: 2,
+      },
+    },
+  });
+  assert.equal(instructions.length, 2);
+  assert.equal(String(instructions[0].programAddress), 'Ed25519SigVerify111111111111111111111111111');
+  assert.deepEqual([...instructions[1].data.slice(0, 8)], [...TAXI_DISCRIMINATORS.activateTrainee]);
+  assert.equal(instructions[1].accounts.length, 9);
 });

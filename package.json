@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
+    "dev:server": "tsx watch server/index.ts",
+    "server": "tsx server/index.ts",
+    "server:typecheck": "tsc -p tsconfig.server.json",
+    "campaign:create": "tsx scripts/create-trainee-campaign.ts",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test"
@@ -13,12 +17,16 @@
     "@solana-program/token": "^0.17.0",
     "@solana/kit": "^8.3.0",
     "@wallet-standard/app": "^1.1.1",
+    "mongodb": "^6.21.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@types/node": "^24.13.6",
     "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "vite": "^7.1.0"
   }
 }

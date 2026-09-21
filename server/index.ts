@@ -1,0 +1,72 @@
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { loadServerConfig } from './config.js';
+import { connectDatabase } from './database.js';
+import { createVoucherService, VoucherError } from './voucherService.js';
+
+const config = loadServerConfig();
+const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
+const issueVoucher = createVoucherService(config, database);
+
+const server = createServer(async (request, response) => {
+  setCors(response);
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204).end();
+    return;
+  }
+  try {
+    if (request.method === 'GET' && request.url === '/api/health') {
+      json(response, 200, { ok: true });
+      return;
+    }
+    if (request.method === 'POST' && request.url === '/api/trainee/voucher') {
+      const body = await readJson(request);
+      const forwarded = config.trustProxy ? request.headers['x-forwarded-for'] : undefined;
+      const remote = Array.isArray(forwarded)
+        ? forwarded[0]
+        : forwarded?.split(',')[0]?.trim() || request.socket.remoteAddress || 'unknown';
+      json(response, 200, await issueVoucher(body, remote));
+      return;
+    }
+    json(response, 404, { error: 'Not found' });
+  } catch (error) {
+    const status = error instanceof VoucherError ? error.status : 500;
+    if (status === 500) console.error(error);
+    json(response, status, { error: status === 500 ? 'Внутренняя ошибка сервера.' : String((error as Error).message) });
+  }
+});
+
+server.listen(config.port, () => {
+  console.log(`Taxi backend listening on http://127.0.0.1:${config.port}`);
+});
+
+async function readJson(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.from(chunk);
+    size += buffer.length;
+    if (size > 16_384) throw new VoucherError('Запрос слишком большой.', 413);
+    chunks.push(buffer);
+  }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  catch { throw new VoucherError('Неверный JSON.', 400); }
+}
+
+function setCors(response: ServerResponse) {
+  response.setHeader('access-control-allow-origin', config.allowedOrigin);
+  response.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
+  response.setHeader('access-control-allow-headers', 'content-type');
+  response.setHeader('vary', 'origin');
+}
+
+function json(response: ServerResponse, status: number, value: unknown) {
+  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+  response.end(JSON.stringify(value));
+}
+
+async function shutdown() {
+  server.close();
+  await database.client.close();
+}
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);

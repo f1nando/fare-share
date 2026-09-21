@@ -7,7 +7,9 @@ import {
 import { getWallets } from '@wallet-standard/app';
 import {
   base64Bytes,
+  buildActivateTraineeInstructions,
   buildClaimInstructions,
+  buildClaimTraineeInstructions,
   buildMintMachine,
   buildRepairInstruction,
   chooseEventPage,
@@ -15,6 +17,7 @@ import {
   decodeEventQueue,
   decodeMachine,
   decodeRewardPool,
+  decodeTrainee,
   deriveTaxiAddresses,
   sendWalletInstructions,
 } from './anchorClient.js';
@@ -28,6 +31,7 @@ export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com
 export const SOLANA_CHAIN = RPC_URL.includes('devnet') ? 'solana:devnet' : 'solana:mainnet';
 
 const DAS_URL = env.VITE_SOLANA_DAS_URL || RPC_URL;
+const BACKEND_URL = String(env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const rpc = createSolanaRpc(RPC_URL);
 const utf8 = getUtf8Encoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
@@ -47,7 +51,13 @@ export async function protocolAddresses() {
 
 export async function loadProtocolStatus() {
   const addresses = await protocolAddresses();
-  const accounts = await rpc.getMultipleAccounts([addresses.config, addresses.pool, addresses.queue], {
+  const accounts = await rpc.getMultipleAccounts([
+    addresses.config,
+    addresses.pool,
+    addresses.queue,
+    addresses.traineePool,
+    addresses.traineeQueue,
+  ], {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
@@ -60,7 +70,84 @@ export async function loadProtocolStatus() {
     config: decodeConfiguration(accountBytes(accounts.value[0])),
     pool: decodeRewardPool(accountBytes(accounts.value[1])),
     queue: decodeEventQueue(accountBytes(accounts.value[2])),
+    traineePool: decodeRewardPool(accountBytes(accounts.value[3])),
+    traineeQueue: decodeEventQueue(accountBytes(accounts.value[4])),
   };
+}
+
+export async function loadOwnedTrainees(owner) {
+  const response = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'fare-trainees',
+      method: 'getProgramAccounts',
+      params: [String(PROGRAM_ID), {
+        commitment: 'finalized',
+        encoding: 'base64',
+        filters: [{ dataSize: 90 }, { memcmp: { offset: 8, bytes: String(owner) } }],
+      }],
+    }),
+  });
+  const body = await response.json();
+  if (body.error) throw new Error(`Не удалось прочитать стажёрские машины: ${body.error.message}`);
+  return (body.result || []).map(item => ({
+    address: address(item.pubkey),
+    ...decodeTrainee(base64Bytes(item.account.data[0])),
+  }));
+}
+
+export async function activateTrainee(connection, campaignId, keyword, knownStatus) {
+  const status = await refreshTraineeStatus(knownStatus);
+  const pageIndex = chooseEventPage(status.traineeQueue, 2);
+  const owner = address(connection.account.address);
+  const response = await fetch(`${BACKEND_URL}/api/trainee/voucher`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ wallet: owner, campaignId, keyword, pageIndex }),
+  });
+  const voucher = await response.json();
+  if (!response.ok) throw new Error(voucher.error || 'Backend не выдал ваучер.');
+  const instructions = await buildActivateTraineeInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: status.addresses.config,
+    traineeQueue: status.addresses.traineeQueue,
+    voucher,
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions,
+  });
+}
+
+export async function claimTrainee(connection, trainee, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const mintAccount = await rpc.getAccountInfo(status.config.fareMint, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  const instructions = await buildClaimTraineeInstructions({
+    programAddress: PROGRAM_ID,
+    owner: address(connection.account.address),
+    configAddress: status.addresses.config,
+    traineePool: status.addresses.traineePool,
+    trainee,
+    fareMint: status.config.fareMint,
+    tokenProgram: address(mintAccount.value.owner),
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions,
+  });
 }
 
 export async function loadOwnedMachines(owner, knownStatus) {
@@ -211,6 +298,16 @@ async function refreshStatus(status) {
   }).send();
   if (!queueAccount.value) throw new Error('Очередь программы недоступна.');
   return { ...status, queue: decodeEventQueue(accountBytes(queueAccount.value)) };
+}
+
+async function refreshTraineeStatus(status) {
+  if (!status?.deployed) return loadProtocolStatus();
+  const queueAccount = await rpc.getAccountInfo(status.addresses.traineeQueue, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!queueAccount.value) throw new Error('Стажёрская очередь программы недоступна.');
+  return { ...status, traineeQueue: decodeEventQueue(accountBytes(queueAccount.value)) };
 }
 
 async function loadDASAssets(owner, collection) {

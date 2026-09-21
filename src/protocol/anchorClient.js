@@ -22,11 +22,15 @@ import {
 
 export const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 export const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
+export const ED25519_PROGRAM = address('Ed25519SigVerify111111111111111111111111111');
+export const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
 
 export const TAXI_DISCRIMINATORS = Object.freeze({
   mintMachine: Uint8Array.from([163, 170, 168, 54, 183, 79, 113, 45]),
   claim: Uint8Array.from([62, 198, 214, 193, 213, 159, 108, 210]),
   repair: Uint8Array.from([97, 230, 48, 23, 128, 133, 201, 192]),
+  activateTrainee: Uint8Array.from([192, 95, 221, 239, 185, 89, 60, 75]),
+  claimTrainee: Uint8Array.from([65, 255, 2, 105, 62, 175, 216, 215]),
 });
 
 const utf8 = getUtf8Encoder();
@@ -144,6 +148,20 @@ export function decodeMachine(bytes) {
   };
 }
 
+export function decodeTrainee(bytes) {
+  const reader = new Reader(bytes);
+  return {
+    owner: reader.pubkey(),
+    campaignId: reader.u64(),
+    nonce: reader.u64(),
+    activeFrom: reader.i64(),
+    activeUntil: reader.i64(),
+    checkpoint: reader.u128(),
+    checkpointInitialized: reader.bool(),
+    bump: reader.u8(),
+  };
+}
+
 export function decodeEventQueue(bytes, pageCount = 80) {
   const reader = new Reader(bytes);
   const pages = Array.from({ length: pageCount }, (_, index) => ({
@@ -179,6 +197,33 @@ export async function deriveEventPage(programAddress, pageIndex) {
     programAddress,
     seeds: [utf8.encode('event-page'), Uint8Array.of(pageIndex)],
   }))[0];
+}
+
+export async function deriveTraineeAddresses(programAddress, owner, campaignId, activeFrom, activeUntil, pageIndex) {
+  const entries = await Promise.all([
+    getProgramDerivedAddress({
+      programAddress,
+      seeds: [utf8.encode('trainee'), addressBytes(owner), u64Bytes(campaignId)],
+    }),
+    getProgramDerivedAddress({
+      programAddress,
+      seeds: [utf8.encode('trainee-bucket'), i64Bytes(activeFrom)],
+    }),
+    getProgramDerivedAddress({
+      programAddress,
+      seeds: [utf8.encode('trainee-bucket'), i64Bytes(activeUntil)],
+    }),
+    getProgramDerivedAddress({
+      programAddress,
+      seeds: [utf8.encode('trainee-event-page'), Uint8Array.of(pageIndex)],
+    }),
+  ]);
+  return {
+    trainee: entries[0][0],
+    startBucket: entries[1][0],
+    endBucket: entries[2][0],
+    eventPage: entries[3][0],
+  };
 }
 
 export function chooseEventPage(queue, requiredSlots = 2) {
@@ -296,6 +341,118 @@ export async function buildRepairInstruction({
   };
 }
 
+export async function buildActivateTraineeInstructions({
+  programAddress,
+  owner,
+  configAddress,
+  traineeQueue,
+  voucher,
+}) {
+  const args = {
+    campaignId: BigInt(voucher.args.campaignId),
+    nonce: BigInt(voucher.args.nonce),
+    durationMinutes: Number(voucher.args.durationMinutes),
+    expiresAt: BigInt(voucher.args.expiresAt),
+    activeFrom: BigInt(voucher.args.activeFrom),
+    activeUntil: BigInt(voucher.args.activeUntil),
+    pageIndex: Number(voucher.args.pageIndex),
+  };
+  const signature = base64Bytes(voucher.signature);
+  const message = base64Bytes(voucher.message);
+  const signer = addressBytes(voucher.backendSigner);
+  if (signature.length !== 64 || signer.length !== 32 || message.length > 65535) {
+    throw new Error('Backend вернул повреждённый ваучер.');
+  }
+  const publicKeyOffset = 16;
+  const signatureOffset = publicKeyOffset + 32;
+  const messageOffset = signatureOffset + 64;
+  const ed25519Data = concatBytes(
+    Uint8Array.of(1, 0),
+    u16Bytes(signatureOffset), u16Bytes(65535),
+    u16Bytes(publicKeyOffset), u16Bytes(65535),
+    u16Bytes(messageOffset), u16Bytes(message.length), u16Bytes(65535),
+    signer,
+    signature,
+    message,
+  );
+  const addresses = await deriveTraineeAddresses(
+    programAddress,
+    owner,
+    args.campaignId,
+    args.activeFrom,
+    args.activeUntil,
+    args.pageIndex,
+  );
+  const activateData = concatBytes(
+    TAXI_DISCRIMINATORS.activateTrainee,
+    u64Bytes(args.campaignId),
+    u64Bytes(args.nonce),
+    u16Bytes(args.durationMinutes),
+    i64Bytes(args.expiresAt),
+    i64Bytes(args.activeFrom),
+    i64Bytes(args.activeUntil),
+    Uint8Array.of(args.pageIndex),
+  );
+  return [
+    { programAddress: ED25519_PROGRAM, accounts: [], data: ed25519Data },
+    {
+      programAddress,
+      accounts: [
+        meta(owner, AccountRole.WRITABLE_SIGNER),
+        meta(configAddress, AccountRole.READONLY),
+        meta(traineeQueue, AccountRole.WRITABLE),
+        meta(addresses.eventPage, AccountRole.WRITABLE),
+        meta(addresses.trainee, AccountRole.WRITABLE),
+        meta(addresses.startBucket, AccountRole.WRITABLE),
+        meta(addresses.endBucket, AccountRole.WRITABLE),
+        meta(INSTRUCTIONS_SYSVAR, AccountRole.READONLY),
+        meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+      ],
+      data: activateData,
+    },
+  ];
+}
+
+export async function buildClaimTraineeInstructions({
+  programAddress,
+  owner,
+  configAddress,
+  traineePool,
+  trainee,
+  fareMint,
+  tokenProgram,
+}) {
+  const addresses = await deriveTraineeAddresses(
+    programAddress,
+    owner,
+    trainee.campaignId,
+    trainee.activeFrom,
+    trainee.activeUntil,
+    0,
+  );
+  const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint: fareMint, tokenProgram });
+  const [destination] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
+  return [
+    getCreateAssociatedTokenIdempotentInstruction({ payer: owner, ata: destination, owner, mint: fareMint, tokenProgram }),
+    {
+      programAddress,
+      accounts: [
+        meta(owner, AccountRole.WRITABLE_SIGNER),
+        meta(configAddress, AccountRole.READONLY),
+        meta(traineePool, AccountRole.WRITABLE),
+        meta(addresses.trainee, AccountRole.WRITABLE),
+        meta(addresses.startBucket, AccountRole.READONLY),
+        meta(addresses.endBucket, AccountRole.READONLY),
+        meta(fareMint, AccountRole.READONLY),
+        meta(vault, AccountRole.WRITABLE),
+        meta(destination, AccountRole.WRITABLE),
+        meta(tokenProgram, AccountRole.READONLY),
+      ],
+      data: TAXI_DISCRIMINATORS.claimTrainee,
+    },
+  ];
+}
+
 export async function sendWalletInstructions({ rpc, wallet, account, chain, instructions, additionalSigners = [] }) {
   const feature = wallet.features['solana:signAndSendTransaction'];
   if (!feature) throw new Error('Phantom не поддерживает отправку транзакций через Wallet Standard.');
@@ -319,7 +476,13 @@ function meta(value, role) {
   return { address: address(value), role };
 }
 
-function addressBytes(value) {
+function u16Bytes(value) {
+  const bytes = new Uint8Array(2);
+  new DataView(bytes.buffer).setUint16(0, Number(value), true);
+  return bytes;
+}
+
+export function addressBytes(value) {
   // PDA seeds use the raw 32-byte public key. The Kit address encoder is deliberately
   // avoided here to keep this module browser-only and small.
   const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
