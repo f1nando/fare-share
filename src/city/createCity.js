@@ -22,6 +22,7 @@ import { districtKind, populateDistrict } from './districts.js';
 import { SceneryCache } from './sceneryCache.js';
 import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
+import { boatHullGeometry, addBoats } from './boats.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
@@ -199,6 +200,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   benchmark?.onRenderer?.(renderer);
 
   const geometries = {
+    boat: boatHullGeometry(),
     roundaboutCurb: roundaboutCornerGeometry(),
     roundaboutWalk: roundaboutCornerGeometry(0.21),
     roundaboutCapCurb: roundaboutCornerGeometry(0,true),
@@ -248,6 +250,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   let lastCellX = NaN, lastCellZ = NaN;
   let lanes = new Map();
   let time = 0, previous = 0, disposed = false;
+  let boatTime = 0;
   const simulationClock = new SimulationClock(1 / (benchmark?.simulationHz === 60 ? 60 : 30));
   const fixedSimulation = benchmark?.fixedStep !== false;
   let previousPoses = new WeakMap(), renderAlpha = 1;
@@ -326,6 +329,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const delta = previous ? Math.min((timestamp - previous) / 1000, 0.06) : 0;
     previous = timestamp;
     const moving = !document.hidden && (benchmark || !reducedMotion.matches) && !settings.paused;
+    if (moving) boatTime += delta;
     const bufferStart = benchmark ? performance.now() : 0;
     if (worker) {
       workerFrame = worker.advance(rafMs / 1000, moving);
@@ -394,6 +398,7 @@ export function createCity(container, initialSettings, benchmark = null) {
           fixedSimulation ? previousPoses.get(car) : null, renderAlpha)) visibleCars++;
       }
     }
+    addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     carsBatch.flush();
     // At most one incoming tile in a light frame. A slow frame never has to
     // finish the entire next strip; missing tiles still have a synchronous path.
