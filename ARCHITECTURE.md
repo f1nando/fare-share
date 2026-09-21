@@ -15,6 +15,7 @@
 - NFT: Metaplex Core Assets в официальной коллекции проекта. Phantom и основные Solana NFT-интерфейсы показывают их как обычные коллекционные NFT.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard. В первой версии подключаем Phantom; собственный embedded/passkey wallet и хранение пользовательских ключей отсутствуют.
 - Network fees: пользователь самостоятельно платит SOL за mint, `claim`, ремонт и активацию/claim стажёра. Backend платит только за служебные транзакции, которые отправляет сам; fee sponsorship и компенсации отсутствуют.
+- Account creation: команда финансирует первоначальные configuration/pool/vault/collection accounts. После запуска fee payer каждой транзакции оплачивает rent-exempt deposit всех новых accounts, которые создаёт эта транзакция: пользовательские Core Asset, Machine/Trainee PDA, event-queue pages и недостающие token accounts либо служебные accounts backend.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
 - Stock swaps: Jupiter. Backend получает котировку и собирает короткоживущий маршрут; программа разрешает вызов только настроенного Jupiter program ID и проверяет входной SOL, выходной xStocks mint, `minOut`, deadline и nonce.
 - Локальные проверки: Rust unit tests, Anchor tests, LiteSVM или `solana-test-validator`.
@@ -57,7 +58,7 @@
 
 ## Главные открытые зависимости
 
-Следующим нужно решить SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: кто оплачивает создание Solana accounts. Безопасность выбранного batch-лимита отдельно подтверждается benchmark перед mainnet.
+Базовые вопросы SOL-1—SOL-11 решены. Оставшиеся продуктовые параметры, адреса интеграций и обязательные проверки перед mainnet перечислены в `docs/TECHNICAL-QUESTIONS.md`.
 
 ## Технические основания
 
