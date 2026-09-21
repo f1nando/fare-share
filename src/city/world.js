@@ -391,8 +391,8 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     // Reserve enough room in both lanes to complete the manoeuvre at entry speed.
     const sourceClear = !leader || gap + (leader.speed - car.speed) * MERGE_DURATION >= CAR_GAP - 1e-6;
     const yielding = !car.taxi && car.yieldRemaining > 0 && car.yieldDelay === 0;
-    const following = car.race?.follower === car && car.race.phase === 'follow';
-    const challenging = car.race?.follower === car && car.race.phase === 'challenge';
+    let following = car.race?.follower === car && car.race.phase === 'follow';
+    let challenging = car.race?.follower === car && car.race.phase === 'challenge';
     const chaseTrack = following ? car.race.leader.track : challenging ? 1 - car.race.leader.track : null;
     const chaseMerge = (chaseTrack === 0 || chaseTrack === 1) && chaseTrack !== car.track;
     const taxiPassing = car.taxi && (!green || car.signalWait === 0) && (following ? chaseMerge : passing || returning || challenging && chaseMerge);
@@ -414,6 +414,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     } else if (workMerge !== null) {
       car.overtake = null;
       if (car.race) finishRace(car.race);
+      following = challenging = false;
       if (workMerge === SHOULDER_TRACK) car.workBypass = work;
       startMerge(car, workMerge); car.cooldown = 1;
       car.workAvoidances = (car.workAvoidances ?? 0) + 1;
