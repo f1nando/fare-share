@@ -372,24 +372,32 @@ async function refreshTraineeStatus(status) {
   return { ...status, traineeQueue: decodeEventQueue(accountBytes(queueAccount.value)) };
 }
 
-async function loadDASAssets(owner, collection) {
+export async function loadDASAssets(owner, collection, fetchImplementation = fetch) {
   try {
-    const response = await fetch(DAS_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'fare-machines',
-        method: 'getAssetsByOwner',
-        params: { ownerAddress: String(owner), page: 1, limit: 1000 },
-      }),
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json();
-    if (body.error) throw new Error(body.error.message || 'DAS request failed');
-    return (body.result?.items || []).filter(item => (
-      item.grouping?.some(group => group.group_key === 'collection' && group.group_value === String(collection))
-    ));
+    const matches = [];
+    const limit = 1000;
+    for (let page = 1; page <= 100; page += 1) {
+      const response = await fetchImplementation(DAS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: `fare-machines-${page}`,
+          method: 'getAssetsByOwner',
+          params: { ownerAddress: String(owner), page, limit },
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const body = await response.json();
+      if (body.error) throw new Error(body.error.message || 'DAS request failed');
+      const items = body.result?.items;
+      if (!Array.isArray(items)) throw new Error('DAS returned malformed assets');
+      matches.push(...items.filter(item => (
+        item.grouping?.some(group => group.group_key === 'collection' && group.group_value === String(collection))
+      )));
+      if (items.length < limit) return matches;
+    }
+    throw new Error('DAS pagination exceeded 100 pages');
   } catch (error) {
     throw new Error(`Не удалось загрузить NFT-машины. Проверьте VITE_SOLANA_DAS_URL: ${error.message}`);
   }

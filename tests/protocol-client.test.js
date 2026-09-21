@@ -16,6 +16,7 @@ import {
   PROGRAM_ID,
   calculateRepairQuote,
   formatTokenAmount,
+  loadDASAssets,
   protocolAddresses,
   selectActiveMultiplier,
   shortAddress,
@@ -61,6 +62,32 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   assert.equal(selectActiveMultiplier(update, 199), 1.01);
   assert.equal(selectActiveMultiplier(update, 200), 1.02);
   assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
+});
+
+test('DAS garage loads every page when a wallet owns more than one thousand assets', async () => {
+  const owner = '11111111111111111111111111111111';
+  const collection = 'collection';
+  const calls = [];
+  const fetchImplementation = async (_url, options) => {
+    const request = JSON.parse(options.body);
+    calls.push(request.params.page);
+    const count = request.params.page === 1 ? 1000 : 1;
+    return {
+      ok: true,
+      json: async () => ({
+        result: {
+          items: Array.from({ length: count }, (_, index) => ({
+            id: `${request.params.page}-${index}`,
+            grouping: [{ group_key: 'collection', group_value: collection }],
+          })),
+        },
+      }),
+    };
+  };
+
+  const assets = await loadDASAssets(owner, collection, fetchImplementation);
+  assert.equal(assets.length, 1001);
+  assert.deepEqual(calls, [1, 2]);
 });
 
 test('trainee activation puts Ed25519 verification immediately before the program instruction', async () => {
