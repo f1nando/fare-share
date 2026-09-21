@@ -9,7 +9,9 @@ import { parkingAt } from '../src/city/parkingLayout.js';
 import { canalColumn } from '../src/city/bridgeProfile.js';
 import { carCoordinates, turnPose, updateNetwork } from '../src/city/trafficNetwork.js';
 import { roadHeight } from '../src/city/vehicleSurface.js';
-import { TRACKS, STOP_LINE, PAVED_ROAD } from '../src/city/world.js';
+import { TRACKS, STOP_LINE, PAVED_ROAD, vehiclePose } from '../src/city/world.js';
+import { scenarioSettings } from '../src/city/benchmarkScenario.js';
+import { vehicleType } from '../src/city/vehicleTypes.js';
 import { ROUNDABOUT_STOP } from '../src/city/roundaboutDimensions.js';
 import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
@@ -91,4 +93,37 @@ test('standard density uses new approaches for cars and taxis without increasing
     }
   }
   assert.ok(entered.size>=10);assert.ok(completed.size>=6,`completed ${completed.size}`);assert.equal(flows.size,2);assert.ok(taxi&&ordinary);
+});
+
+test('a diagonal queue at the boulevard stop boundary releases cross traffic without body collisions',()=>{
+  const sim=new TrafficSimulation({settings:{...scenarioSettings('main'),cameraSpeed:0},area:{x:3,z:3,extents:{x:70,z:70}},focus:{x:120,z:40},simulationHz:30});
+  const waits=new Map(),passed=new Set();let longest=0;
+  const overlap=(a,b)=>{
+    const dx=b.pose.x-a.pose.x,dz=b.pose.z-a.pose.z;
+    for(const[x,z]of[[a.pose.cos,-a.pose.sin],[a.pose.sin,a.pose.cos],[b.pose.cos,-b.pose.sin],[b.pose.sin,b.pose.cos]]){
+      const extent=c=>c.type.width/2*Math.abs(x*c.pose.cos-z*c.pose.sin)+c.type.length/2*Math.abs(x*c.pose.sin+z*c.pose.cos);
+      if(Math.abs(dx*x+dz*z)>=extent(a)+extent(b))return false;
+    }return true;
+  };
+  for(let i=0;i<2700;i++){
+    sim.advance();const local=[];
+    for(const lane of sim.lanes.values())for(const car of lane.cars){
+      if(car.parking||car.turn||car.axis!==0||car.line!==0)waits.delete(car);
+      if(car.parking)continue;
+      if(!car.turn&&car.axis===0&&car.line===0){
+        const stopped=car.speed<.01&&car.position>95&&car.position<115;
+        const wait=stopped?(waits.get(car)??0)+1:0;waits.set(car,wait);longest=Math.max(longest,wait/30);
+        if(wait===0&&car.speed>1&&car.position>104&&car.position<109)passed.add(car.direction);
+      }
+      const diagonal=car.turn?.kind==='diagonal'&&car.turn.roadId==='3:1'&&!car.turn.ringActive;
+      if(!diagonal&&(car.turn||car.axis!==0||car.line!==0))continue;
+      const p=carCoordinates(car,40),pose=car.turn?p:vehiclePose(p.x,p.z,car.axis,car.direction,car.steer);
+      if(Math.abs(p.x-106.667)>12||Math.abs(p.z)>10)continue;
+      local.push({pose,type:vehicleType(car),diagonal});
+    }
+    for(let a=0;a<local.length;a++)for(let b=a+1;b<local.length;b++)if(local[a].diagonal!==local[b].diagonal)
+      assert.ok(!overlap(local[a],local[b]),`crossing bodies overlap at step ${i}`);
+  }
+  assert.ok(longest<33,`cross traffic stuck ${longest.toFixed(1)}s at the intermediate boulevard crossing`);
+  assert.equal(passed.size,2,'both boulevard directions make progress');
 });
