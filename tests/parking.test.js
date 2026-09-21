@@ -186,7 +186,7 @@ test('more lots cover all four frontages while preserving diagonals, rings and w
       assert.ok((entry-exit)*lot.direction>0,'traffic meets the exit before the entry');
       assert.ok(Math.abs(nextJunction-entry)<Math.abs(nextJunction-exit),'entry is nearer the next traffic light');
     }
-    assert.ok(after>before*1.6&&after<before*2.5,JSON.stringify({block,before,after}));assert.equal(rotations.size,4);
+    assert.ok(after>before*2.4&&after<before*3.5,JSON.stringify({block,before,after}));assert.equal(rotations.size,4);
     // These established approaches must retain their original endpoints.
     assert.deepEqual(approachAtRing(3,1,block).a,{x:2,z:-2});
   }

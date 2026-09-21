@@ -33,7 +33,7 @@ function orientation(x,z,block) {
   return -1;
 }
 export function parkingAt(x,z,block=40) {
-  if(![1,4].includes(mod(x+z*2,7))||canalColumn(x)||parkAt(x,z))return false;
+  if(![1,3,4].includes(mod(x+z*2,7))||canalColumn(x)||parkAt(x,z))return false;
   for(const dx of [0,1])for(const dz of [0,1])if(roundaboutAt(x+dx,z+dz))return false;
   return orientation(x,z,block)>=0&&!diagonalAt(x,z,block);
 }
@@ -94,6 +94,16 @@ export function populateParking(batch,gx,gz,x,z,block) {
   rect(cursor,x+block-6,south,z+block-inner);
   batch.add('box',x+block/2,.01,(north+south)/2,block-12,.02,south-north,'#999999');
   for(const gate of openings)batch.add('box',gate,.01,(south+z+block-inner)/2,4,.02,z+block-inner-south,'#999999');
+  // Gate arrows make the reversed driveway order readable from the city view.
+  for(const [gate,direction] of [[lot.entry,-1],[lot.exit,1]]) {
+    const center=lot.aisle+(lot.street-lot.aisle)*.65;
+    const stroke=(px,pz,length,angle)=>{
+      const p=parkingPoint(lot,px,pz);
+      target.add('paint',p.x+dx,.04,p.z+dz,.12,.018,length,'#eeeeee',angle-lot.rotation*Math.PI/2);
+    };
+    stroke(gate,center,1.1,0);
+    for(const side of [-1,1])stroke(gate+side*.2,center+direction*.32,Math.hypot(.4,.46),Math.atan2(side*.4,-direction*.46));
+  }
   for(const slot of lot.slots) {
     batch.add('paint',slot+dx-1.15,.035,lot.bay+dz,.08,.018,3.1,'#ededed');
   }

@@ -68,7 +68,7 @@ function drawBoat(batch, boat, x, y, z, direction) {
 // World-anchored spacing keeps boats continuous across camera origin shifts.
 // Only the nearby copies are drawn, so the endless canal needs no growing state.
 export function addBoats(batch, block, worldX, worldZ, area, time) {
-  const { width } = canalDimensions(block), spacing = block * 3;
+  const { width } = canalDimensions(block), spacing = block * 1.2;
   const minZ = (worldZ - area.z) * block - 12;
   const maxZ = (worldZ + area.z + 1) * block + 12;
   for (let column = Math.ceil((worldX - area.x) / 12) * 12; column <= worldX + area.x; column += 12) {
