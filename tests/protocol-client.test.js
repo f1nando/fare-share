@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {
+  address,
+  appendTransactionMessageInstructions,
+  compileTransaction,
+  createTransactionMessage,
+  generateKeyPairSigner,
+  getTransactionEncoder,
+  pipe,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+} from '@solana/kit';
 
 import {
   PROGRAM_ID,
@@ -9,9 +20,13 @@ import {
 } from '../src/protocol/solana.js';
 import {
   buildActivateTraineeInstructions,
+  buildClaimInstructions,
   chooseEventPage,
   TAXI_DISCRIMINATORS,
 } from '../src/protocol/anchorClient.js';
+
+const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const TOKEN_2022_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
 test('protocol PDAs are deterministic and distinct', async () => {
   const first = await protocolAddresses();
@@ -61,4 +76,30 @@ test('trainee activation puts Ed25519 verification immediately before the progra
   assert.equal(String(instructions[0].programAddress), 'Ed25519SigVerify111111111111111111111111111');
   assert.deepEqual([...instructions[1].data.slice(0, 8)], [...TAXI_DISCRIMINATORS.activateTrainee]);
   assert.equal(instructions[1].accounts.length, 9);
+});
+
+test('claim transaction size is measured with five missing destination accounts', async () => {
+  const signers = await Promise.all(Array.from({ length: 10 }, () => generateKeyPairSigner()));
+  const [owner, config, pool, machine, asset, ...mints] = signers.map(signer => signer.address);
+  const instructions = await buildClaimInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    machine,
+    asset,
+    mints,
+    tokenPrograms: [TOKEN_PROGRAM, ...Array(4).fill(TOKEN_2022_PROGRAM)],
+  });
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(instructions, transaction),
+  );
+  const bytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(bytes.length <= 1100, `claim transaction is ${bytes.length} bytes`);
 });

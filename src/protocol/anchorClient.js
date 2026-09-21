@@ -3,6 +3,7 @@ import {
   address,
   appendTransactionMessageInstructions,
   compileTransaction,
+  createNoopSigner,
   createTransactionMessage,
   generateKeyPairSigner,
   getAddressDecoder,
@@ -276,6 +277,7 @@ export async function buildClaimInstructions({
   mints,
   tokenPrograms,
 }) {
+  const payer = createNoopSigner(address(owner));
   const setup = [];
   const rewardAccounts = [];
   for (let index = 0; index < mints.length; index += 1) {
@@ -284,7 +286,7 @@ export async function buildClaimInstructions({
     const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint, tokenProgram });
     const [destination] = await findAssociatedTokenPda({ owner, mint, tokenProgram });
     setup.push(getCreateAssociatedTokenIdempotentInstruction({
-      payer: owner,
+      payer,
       ata: destination,
       owner,
       mint,
@@ -432,6 +434,7 @@ export async function buildClaimTraineeInstructions({
   fareMint,
   tokenProgram,
 }) {
+  const payer = createNoopSigner(address(owner));
   const addresses = await deriveTraineeAddresses(
     programAddress,
     owner,
@@ -443,7 +446,7 @@ export async function buildClaimTraineeInstructions({
   const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint: fareMint, tokenProgram });
   const [destination] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
   return [
-    getCreateAssociatedTokenIdempotentInstruction({ payer: owner, ata: destination, owner, mint: fareMint, tokenProgram }),
+    getCreateAssociatedTokenIdempotentInstruction({ payer, ata: destination, owner, mint: fareMint, tokenProgram }),
     {
       programAddress,
       accounts: [
