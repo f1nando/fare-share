@@ -6,7 +6,17 @@ export const COLOR_SCHEMES = Object.freeze({
 // Compress displayed contrast, including lighting and shadows, without an extra
 // render pass. Taxi materials stay outside this treatment.
 export function createBackgroundFade(scheme) {
-  const strength = { value: COLOR_SCHEMES[scheme].fade };
+  let from = COLOR_SCHEMES[scheme].fade;
+  let target = from;
+  let startedAt = 0;
+  const duration = 1200;
+  const strength = {
+    get value() {
+      const progress = Math.min(1, Math.max(0, (performance.now() - startedAt) / duration));
+      const eased = progress * progress * (3 - 2 * progress);
+      return from + (target - from) * eased;
+    },
+  };
   return {
     apply(material) {
       material.onBeforeCompile = shader => {
@@ -17,6 +27,13 @@ export function createBackgroundFade(scheme) {
         );
       };
     },
-    setScheme(value) { strength.value = COLOR_SCHEMES[value].fade; },
+    setScheme(value) {
+      const next = COLOR_SCHEMES[value].fade;
+      if (next === target) return;
+      from = strength.value;
+      target = next;
+      startedAt = performance.now();
+      if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) from = target;
+    },
   };
 }

@@ -24,6 +24,12 @@ export function SettingsPanel({ settings, onChange }) {
             {Object.entries(COLOR_SCHEMES).map(([value, scheme]) => <option key={value} value={value}>{scheme.label}</option>)}
           </select>
         </label>
+        <button className="palette-preview" onClick={() => onChange({
+          ...settings, colorScheme: settings.colorScheme === 'classic' ? 'pale' : 'classic',
+        })}>
+          {settings.colorScheme === 'classic' ? 'Плавно к блёклой →' : '← Плавно к исходной'}
+        </button>
+        <p className="palette-preview-note">Тест перехода 0 ↔ 84% · 1,2 секунды</p>
         {SETTING_GROUPS.map(group => <fieldset key={group.title}>
           <legend>{group.title}</legend>
           {group.controls.map(control => <label className="setting" key={control.key} htmlFor={`setting-${control.key}`}>
