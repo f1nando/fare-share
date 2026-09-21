@@ -67,7 +67,7 @@ Frontend отправляет `wallet`, `campaignId`, найденное сло�
 
 ```sh
 npm run server:typecheck
-node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts tests/backend-admin.test.ts tests/backend-preflight.test.ts
+npm run test:backend
 ```
 
 ## Permissionless worker
