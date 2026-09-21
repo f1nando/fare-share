@@ -49,8 +49,10 @@ export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   const boundedRemaining = Math.max(0, Math.min(MAX_DURABILITY, Number(secondsLeft)));
   const missingSeconds = BigInt(MAX_DURABILITY - boundedRemaining);
   const effectiveBase = BigInt(fareBase) + BigInt(pendingFare);
-  const fullRepairCost = effectiveBase * 25n / 100n;
-  return fullRepairCost * missingSeconds / BigInt(MAX_DURABILITY);
+  if (effectiveBase === 0n || missingSeconds === 0n) return 0n;
+  const denominator = 100n * BigInt(MAX_DURABILITY);
+  const numerator = effectiveBase * 25n * missingSeconds;
+  return (numerator + denominator - 1n) / denominator;
 }
 
 export function selectActiveMultiplier(value, nowSeconds = Math.floor(Date.now() / 1000)) {
@@ -242,6 +244,7 @@ export async function loadOwnedMachines(owner, knownStatus) {
       fareBase: machine.fareBase,
       repairCost,
       repairCostDisplay: formatTokenAmount(repairCost, rewardDecimals[0]),
+      missingSeconds: MAX_DURABILITY - secondsLeft,
       calculatedUntil: status.pool.effectiveCalculatedUntil,
       closed: machine.closed,
     }];

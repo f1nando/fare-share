@@ -745,6 +745,7 @@ pub mod taxi_park {
         let missing = MAX_DURABILITY_SECONDS
             .checked_sub(remaining)
             .ok_or(TaxiError::MathOverflow)?;
+        require!(missing > 0, TaxiError::NothingToRepair);
         let cost = math::repair_cost(ctx.accounts.machine.fare_base, missing)?;
 
         if cost > 0 {

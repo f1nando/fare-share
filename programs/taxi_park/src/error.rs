@@ -72,6 +72,8 @@ pub enum TaxiError {
     InvalidAssetOwner,
     #[msg("Machine is permanently closed")]
     MachineClosed,
+    #[msg("Machine already has full durability")]
+    NothingToRepair,
     #[msg("Machine class supply is exhausted")]
     ClassSoldOut,
     #[msg("NFT sale has not started")]

@@ -165,8 +165,8 @@ export function TaxiDashboard() {
               </div>
               <div className="row-actions">
                 <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Награды отправлены в кошелёк.')}>Забрать</button>
-                <button disabled={Boolean(busy)} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Машина восстановлена на 5 дней.')}>
-                  {car.repairCost === undefined ? 'Починить' : `Починить · ${car.repairCostDisplay} FARE`}
+                <button disabled={Boolean(busy) || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Машина восстановлена на 5 дней.')}>
+                  {car.missingSeconds === 0 ? 'Полная прочность' : car.repairCost === undefined ? 'Починить' : `Починить · ${car.repairCostDisplay} FARE`}
                 </button>
               </div>
             </article>)}
