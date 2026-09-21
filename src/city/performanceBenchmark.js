@@ -47,6 +47,8 @@ const cases = [
   { name: 'Зона 7 × 7 кварталов', radius: 3 },
   { name: 'Бордюры без скруглений', simpleCurbs: true },
   { name: '7 × 7 + простые бордюры', radius: 3, simpleCurbs: true },
+  { name: 'Расчёт на каждом кадре', fixedStep: false },
+  { name: 'Симуляция 60 Гц', simulationHz: 60 },
 ];
 
 export function startBenchmark(root) {
@@ -147,8 +149,11 @@ export function startBenchmark(root) {
           metrics[key] = summarize(rows.map(row => row[key]));
         }
         const result = { name: variant.name, valid, warning: valid ? null : 'Слишком редкие кадры; возможное ограничение браузера. FPS недостоверен.',
-          options: variant, pixelRatio: variant.pixelRatio ?? pixelRatio, initial, final, samples: rows,
+          options: variant, simulationHz: variant.fixedStep === false ? 'frame' : variant.simulationHz ?? 30,
+          pixelRatio: variant.pixelRatio ?? pixelRatio, initial, final, samples: rows,
           frames: rows.length, ...metrics, gpuMs: summarize(gpu.values),
+          simulationStepsPerSecond: rows.reduce((sum, row) => sum + row.simulationSteps, 0) / (rows.reduce((sum, row) => sum + row.rafMs, 0) / 1000),
+          simulationCpuMsPerSecond: rows.reduce((sum, row) => sum + row.simulationMs, 0) / (rows.reduce((sum, row) => sum + row.rafMs, 0) / 1000),
           gpuSamples: gpu.values.length, rebuildMs: summarize(rows.filter(row => row.rebuildMs > 0).map(row => row.rebuildMs)),
           steadyCpuMs: summarize(rows.filter(row => !row.rebuildMs).map(row => row.cpuMs)),
           framesOver33ms: rows.filter(row => row.rafMs > 33.34).length,

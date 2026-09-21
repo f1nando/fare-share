@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, vehiclePose, headlightsOn, resetSignal, seededRandom } from './world.js';
+import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
-import { carCoordinates, turnPose, updateNetwork } from './trafficNetwork.js';
+import { carCoordinates, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
 import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
-import { hornAnimation } from './hornAnimation.js';
+import { SimulationClock } from './simulationClock.js';
+import { presentation, interpolatePresentation, visiblePosition } from './vehiclePresentation.js';
 import { HornEffects } from './hornEffects.js';
 import { populateLane } from './trafficPopulation.js';
 import { trafficSnapshot } from './benchmarkScenario.js';
@@ -91,19 +92,15 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 }
 
-export function addCar(batch, car, originX, originZ, focus, camera, blockSize, hornEffects) {
+export function addCar(batch, car, originX, originZ, focus, camera, blockSize, hornEffects, previousPose = null, alpha = 1) {
   const coordinates = carCoordinates(car, blockSize);
-  const x = coordinates.x - originX, z = coordinates.z - originZ;
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
-  const dx = x - focus.x, dz = z - focus.z;
-  if (Math.abs(dx * 0.882 - dz * 0.471) > camera.right + 5 ||
-      Math.abs(dx * 0.42 + dz * 0.786) > camera.top + 7) return;
-  const pose = car.turn ? { ...turnPose(car.turn), x, z } : vehiclePose(x, z, car.axis, car.direction, car.steer);
-  const pitch = (car.taxi ? car.pitch ?? 0 : 0) + (car.roadPitch ?? 0);
-  const roll = (car.taxi ? car.roll ?? 0 : 0) + (car.roadRoll ?? 0);
-  const hop = hornAnimation(car.hornAge).bounce;
-  const lift = (car.rideHeight ?? 0) + hop;
-  if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, x, z, camera);
+  if (!visiblePosition(coordinates, originX, originZ, focus, camera)) return;
+  const pose = interpolatePresentation(presentation(car, coordinates), previousPose, alpha);
+  pose.x -= originX; pose.z -= originZ;
+  pose.sin = Math.sin(pose.angle); pose.cos = Math.cos(pose.angle);
+  const { pitch, roll, lift } = pose;
+  if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, pose.x, pose.z, camera);
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
     batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0),
@@ -113,9 +110,8 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
   part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
-  const airborne = Math.max(0, lift - (car.surfaceSupport ?? 0));
   for (const [a, axle] of WHEEL_AXLES.entries()) for (const [s, side] of WHEEL_SIDES.entries()) {
-    part('box', side, 0.22 + (car.wheelHeights?.[a * 2 + s] ?? 0) + airborne, axle, 0.18, 0.32, 0.34, '#303030', false);
+    part('box', side, 0.22 + pose.wheels[a * 2 + s], axle, 0.18, 0.32, 0.34, '#303030', false);
   }
   if (car.taxi) {
     part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
@@ -186,6 +182,9 @@ export function createCity(container, initialSettings, benchmark = null) {
   let lastCellX = NaN, lastCellZ = NaN;
   let lanes = new Map();
   let time = 0, previous = 0, disposed = false;
+  const simulationClock = new SimulationClock(1 / (benchmark?.simulationHz === 60 ? 60 : 30));
+  const fixedSimulation = benchmark?.fixedStep !== false;
+  let previousPoses = new WeakMap(), renderAlpha = 1;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   function rebuild() {
@@ -243,7 +242,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     previous = timestamp;
     const moving = !document.hidden && (benchmark || !reducedMotion.matches) && !settings.paused;
     if (moving) {
-      time += delta * Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
       // Positive camera displacement projects down and right on the ground.
       focus.x += delta * 0.92 * settings.cameraSpeed / 100;
       focus.z += delta * 0.36 * settings.cameraSpeed / 100;
@@ -272,18 +270,35 @@ export function createCity(container, initialSettings, benchmark = null) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
         car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) { car.position += half * 2; resetSignal(car); }
-        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
+        if (car.position < center - half) { car.position += half * 2; resetSignal(car); previousPoses.delete(car); }
+        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); previousPoses.delete(car); }
       }
     }
     const simulationStart = benchmark ? performance.now() : 0;
-    if (moving && benchmark?.simulate !== false) updateNetwork(lanes, delta, time, { blockSize: BLOCK, weaving: settings.weaving / 100,
-      clockMultiplier: Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100) });
+    let simulationSteps = 0;
+    if (moving && benchmark?.simulate !== false) {
+      const clockMultiplier = Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
+      const simulate = step => {
+        if (fixedSimulation) for (const lane of lanes.values()) for (const car of lane.cars) {
+          const coordinates = carCoordinates(car, BLOCK);
+          if (visiblePosition(coordinates, originX, originZ, focus, camera, 2)) {
+            previousPoses.set(car, presentation(car, coordinates, previousPoses.get(car)));
+          } else previousPoses.delete(car);
+        }
+        time += step * clockMultiplier;
+        updateNetwork(lanes, step, time, { blockSize: BLOCK, weaving: settings.weaving / 100, clockMultiplier });
+      };
+      if (fixedSimulation) {
+        const result = simulationClock.advance(delta, simulate);
+        simulationSteps = result.steps; renderAlpha = result.alpha;
+      } else { simulate(delta); simulationSteps = delta > 0 ? 1 : 0; }
+    }
     const prepareStart = benchmark ? performance.now() : 0;
     let visibleCars = 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
-        if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects)) visibleCars++;
+        if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects,
+          fixedSimulation ? previousPoses.get(car) : null, renderAlpha)) visibleCars++;
       }
     }
     carsBatch.flush();
@@ -294,7 +309,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       const end = performance.now();
       benchmark.afterRender?.();
       benchmark.onFrame?.({ rafMs, cpuMs: end - start, rebuildMs,
-        simulationMs: prepareStart - simulationStart, prepareMs: renderStart - prepareStart,
+        simulationMs: prepareStart - simulationStart, simulationSteps, prepareMs: renderStart - prepareStart,
         renderSubmitMs: end - renderStart, visibleCars,
         totalCars: [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
         blocks: (area.x * 2 + 1) * (area.z * 2 + 1), radiusX: area.x, radiusZ: area.z,
@@ -307,7 +322,10 @@ export function createCity(container, initialSettings, benchmark = null) {
   observer.observe(container);
   resize();
   renderer.setAnimationLoop(frame);
-  const visibility = () => { previous = 0; renderer.setAnimationLoop(document.hidden ? null : frame); };
+  const visibility = () => {
+    previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
+    renderer.setAnimationLoop(document.hidden ? null : frame);
+  };
   document.addEventListener('visibilitychange', visibility);
   function updateSettings(value) {
     const next = normalizeSettings(value);
@@ -323,6 +341,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         BLOCK = settings.blockSize;
         originX = worldX * BLOCK; originZ = worldZ * BLOCK;
         lanes.clear();
+        previousPoses = new WeakMap(); simulationClock.reset(); renderAlpha = 1;
         lastCellX = NaN;
         resize();
       }, 180);

@@ -3,6 +3,8 @@ import { carCoordinates, updateNetwork } from '../src/city/trafficNetwork.js';
 
 const lanes = new Map(), radius = 2, blockSize = 40, half = (radius + 0.5) * blockSize;
 const weaving = Number(process.argv[2] ?? 0.1);
+const delta = process.argv[3] ? 1 / Number(process.argv[3]) : 0.04;
+if (!Number.isFinite(delta) || delta <= 0 || delta > 0.06) throw new Error('Expected simulation frequency of at least 17 Hz');
 for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for (const direction of [-1, 1]) {
   const random = seededRandom(line * 7 + axis, direction * 991), cars = [];
   for (const track of [0, 1]) for (let i = 0; i < 13; i++) {
@@ -17,14 +19,14 @@ for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for 
   lanes.set(`${axis}:${line}:${direction}`, { axis, line, direction, cars });
 }
 const counts = { redCrossings: 0, oncomingOvertakes: 0, shoulderOvertakes: 0, completedOvertakes: 0, completedShoulderOvertakes: 0, abortedOvertakes: 0, oncomingConflicts: 0, shoulderConflicts: 0, feints: 0, returnedFeints: 0, races: 0, raceWins: 0, turns: 0, completedTurns: 0, turnConflicts: 0, driftingFrames: 0, curbHops: 0, sidewalkFrames: 0, queueOncoming: 0, queueShoulder: 0, queueCompleted: 0, abruptBraking: 0 };
-for (let frame = 0; frame < 1500; frame++) {
-  const time = frame * 0.04;
+for (let frame = 0; frame < Math.round(60 / delta); frame++) {
+  const time = frame * delta;
   for (const lane of lanes.values()) for (const car of lane.cars) {
     if (car.position < -half) { car.position += half * 2; resetSignal(car); }
     if (car.position > half) { car.position -= half * 2; resetSignal(car); }
   }
   const before = [...lanes.values()].flatMap(lane => lane.cars.map(car => [car, car.position, car.overtake, !!car.feint, car.race, car.raceResult, lane.axis, lane.direction, car.turnsStarted ?? 0, car.turnsCompleted ?? 0, (car.rideHeight ?? 0) - (car.surfaceSupport ?? 0), car.speed, !!car.turn]));
-  updateNetwork(lanes, 0.04, time, { blockSize, weaving });
+  updateNetwork(lanes, delta, time, { blockSize, weaving });
   const allCars = [...lanes.values()].flatMap(lane => lane.cars);
   if (allCars.length !== before.length || new Set(allCars).size !== before.length) throw new Error('A lane transfer lost or duplicated a vehicle');
   for (const lane of lanes.values()) {
