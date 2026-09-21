@@ -10,6 +10,8 @@ Uses the existing `monosoftware-wildcard` certificate.
 
 Upload each build to a new `/var/www/taxi-city/releases/<release>/` directory,
 then atomically replace `/var/www/taxi-city/current` with a symlink to it.
+Set uploaded directories to mode `755` and static files to `644` so nginx can read them
+(Windows SCP may copy restrictive directory permissions).
 Run `nginx -t` before reloading nginx for configuration changes.
 Rollback: atomically point `current` to the previous release. Keep old releases
 until they are no longer needed. Never upload source files or environment files.
