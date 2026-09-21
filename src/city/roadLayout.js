@@ -27,6 +27,13 @@ export function roadOpen(axis, line, segment) {
   return hash % 5 === 0 || ((hash >>> 4) & 1) !== 1 - axis;
 }
 
+// A small four-arm roundabout per 6x6 district; no river banks or T junctions.
+export function roundaboutAt(x, z) {
+  if (((x % 6) + 6) % 6 !== 3 || ((z % 6) + 6) % 6 !== 1) return false;
+  return !canalColumn(x) && !canalColumn(x - 1) &&
+    roadOpen(0, z, x - 1) && roadOpen(0, z, x) && roadOpen(1, x, z - 1) && roadOpen(1, x, z);
+}
+
 // One possible site per 4x4 group, always away from water and missing roads.
 // Coordinates own the site, so rendering, spawning and Worker agree forever.
 export function roadworkAt(axis, line, segment, block) {
@@ -67,6 +74,9 @@ export function straightRoadOpen(car, blockSize, stopLine) {
 }
 
 export function spawnRoadOpen(car, blockSize, stopLine) {
+  const cross = Math.round(car.position / blockSize);
+  if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
+      Math.abs(car.position - cross * blockSize) < stopLine + 1.1) return false;
   if (!roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) ||
     !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize))) return false;
   if (car.track !== 1) return true;
@@ -81,6 +91,12 @@ export function spawnRoadOpen(car, blockSize, stopLine) {
 // missing segment before putting it back into the traffic simulation.
 export function relocateToRoad(car, blockSize, stopLine) {
   for (let i = 0; i < 3 && !spawnRoadOpen(car, blockSize, stopLine); i++) {
+    const cross = Math.round(car.position / blockSize);
+    if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
+        Math.abs(car.position - cross * blockSize) < stopLine + 1.1) {
+      car.position = cross * blockSize + car.direction * (stopLine + 1.2);
+      continue;
+    }
     let segment = Math.floor(car.position / blockSize);
     const work = car.track === 1 && roadworkAt(car.axis, car.line, segment, blockSize);
     if (work && work.direction === car.direction && roadOpen(car.axis, car.line, segment)) {

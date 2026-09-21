@@ -1,5 +1,5 @@
 import { CAR_GAP, STOP_LINE, occupiesTrack, greenLight } from './world.js';
-import { straightRoadOpen } from './roadLayout.js';
+import { straightRoadOpen, roundaboutAt } from './roadLayout.js';
 
 function arrivalTime(distance, speed, acceleration, cruise) {
   const start = Math.min(speed, cruise);
@@ -18,6 +18,9 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     if (roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE)) return false;
     const oriented = car.position * car.direction;
     const nextCenter = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize * car.direction;
+    // A roundabout is entered exclusively through its curved path planner.
+    if (roadLayout && roundaboutAt(car.axis === 0 ? Math.round(nextCenter / blockSize) : car.line,
+      car.axis === 0 ? car.line : Math.round(nextCenter / blockSize))) return false;
     const junctionKey = car.axis === 0 ? `${Math.round(nextCenter / blockSize)}:${car.line}` : `${car.line}:${Math.round(nextCenter / blockSize)}`;
     if (turnLocks.has(junctionKey)) return false;
     // A taxi waiting for a green launch may be delayed by cross traffic. Keep

@@ -50,7 +50,7 @@ test('buildings, trunks and landscaping leave the sidewalk riding strip clear at
     populateRoadworks({ add: (...p) => workParts.add(JSON.stringify(p.slice(0,7))) }, seed, -seed, 0, 0, size);
     populateBlock({ add(kind, x, y, z, w, h, d) {
       if (workParts.has(JSON.stringify([kind,x,y,z,w,h,d]))) return; // Roadwork clearances have their own test.
-      if (['paint', 'crown'].includes(kind)) return;
+      if (['paint', 'crown', 'island'].includes(kind)) return;
       assert.ok(w > 0 && d > 0);
       // Centre islands are also clear of the shoulder; they need not lie in a lot.
       if ((Math.abs(z) + d / 2 < 0.2 && x - w / 2 > 7) ||

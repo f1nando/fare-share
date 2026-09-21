@@ -24,6 +24,7 @@ import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
+import { populateRoundabout } from './roundabouts.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -79,6 +80,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 
   populateRoadworks(batch, gx, gz, x, z, blockSize);
+  populateRoundabout(batch, gx, gz, x, z);
   if (northBoulevard && !canal) populateMedian(batch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
   if (canal) {
@@ -190,6 +192,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   benchmark?.onRenderer?.(renderer);
 
   const geometries = {
+    island: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
     cone: new THREE.ConeGeometry(0.5, 1, 4),
     box: new THREE.BoxGeometry(1, 1, 1),
     paint: new THREE.BoxGeometry(1, 1, 1),
