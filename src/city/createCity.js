@@ -9,6 +9,7 @@ import { hornAnimation } from './hornAnimation.js';
 import { HornEffects } from './hornEffects.js';
 import { populateLane } from './trafficPopulation.js';
 import { trafficSnapshot } from './benchmarkScenario.js';
+import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -234,33 +235,42 @@ export function createCity(container, initialSettings, benchmark = null) {
   scene.add(sunlight, sunlight.target);
 
   const camera = new THREE.OrthographicCamera(-80, 80, 45, -45, 1, 400);
-  const cameraOffset = new THREE.Vector3(24, 100, 45);
+  const cameraOffset = new THREE.Vector3(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
   const focus = new THREE.Vector3(BLOCK / 2, 0, BLOCK / 2);
-  let originX = 0, originZ = 0, worldX = 0, worldZ = 0, radius = 6;
+  let originX = 0, originZ = 0, worldX = 0, worldZ = 0;
+  let area = { x: 6, z: 6, extents: { x: 80, z: 80 } };
   let lastCellX = NaN, lastCellZ = NaN;
   let lanes = new Map();
   let time = 0, previous = 0, disposed = false;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   function rebuild() {
+    const layoutSettings = { ...settings, blockSize: BLOCK };
     staticBatch.reset();
-    for (let x = -radius; x <= radius; x++) {
-      for (let z = -radius; z <= radius; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK, BLOCK);
+    for (let x = -area.x; x <= area.x; x++) {
+      for (let z = -area.z; z <= area.z; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK, BLOCK);
     }
     staticBatch.flush();
     const next = new Map();
     for (let axis = 0; axis < 2; axis++) {
       const centerLine = axis === 0 ? worldZ : worldX;
       const centerPosition = (axis === 0 ? worldX : worldZ) * BLOCK;
-      for (let line = centerLine - radius; line <= centerLine + radius; line++) {
+      const along = axis === 0 ? area.x : area.z, across = axis === 0 ? area.z : area.x;
+      for (let line = centerLine - across; line <= centerLine + across; line++) {
         for (const direction of [-1, 1]) {
           const key = `${axis}:${line}:${direction}`;
           let lane = lanes.get(key);
-          if (!lane) lane = populateLane(axis, line, direction, settings, radius, centerPosition, benchmark?.seed ?? 0);
+          if (!lane) lane = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0);
+          else if (lane.radius !== along) {
+            const generated = populateLane(axis, line, direction, layoutSettings, along, centerPosition, benchmark?.seed ?? 0);
+            resizeLanePopulation(lane, generated, centerPosition + (axis === 0 ? focus.x : focus.z),
+              (along + 0.5) * BLOCK, axis === 0 ? area.extents.x : area.extents.z);
+          }
           next.set(key, lane);
         }
       }
     }
+    releaseOutsideLanes(lanes, next);
     lanes = next;
   }
 
@@ -274,8 +284,10 @@ export function createCity(container, initialSettings, benchmark = null) {
     camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
-    const nextRadius = benchmark?.radius ?? Math.max(5, Math.ceil(Math.hypot(viewWidth, viewHeight) / BLOCK / 2) + 2);
-    if (radius !== nextRadius) { radius = nextRadius; lastCellX = NaN; }
+    const nextArea = activeWorldSize(viewWidth, viewHeight, { ...settings, blockSize: BLOCK });
+    if (benchmark?.radius !== undefined) nextArea.x = nextArea.z = benchmark.radius;
+    if (area.x !== nextArea.x || area.z !== nextArea.z) lastCellX = NaN;
+    area = nextArea;
   }
 
   function frame(timestamp) {
@@ -292,7 +304,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       focus.x += delta * 0.92 * settings.cameraSpeed / 100;
       focus.z += delta * 0.36 * settings.cameraSpeed / 100;
     }
-    const shiftX = Math.floor(focus.x / BLOCK), shiftZ = Math.floor(focus.z / BLOCK);
+    const shiftX = originShift(focus.x, BLOCK), shiftZ = originShift(focus.z, BLOCK);
     if (shiftX || shiftZ) {
       worldX += shiftX; worldZ += shiftZ;
       focus.x -= shiftX * BLOCK; focus.z -= shiftZ * BLOCK;
@@ -311,7 +323,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     hornEffects.reset();
     for (const lane of lanes.values()) {
       const center = lane.axis === 0 ? originX + focus.x : originZ + focus.z;
-      const half = (radius + 0.5) * BLOCK;
+      const half = ((lane.axis === 0 ? area.x : area.z) + 0.5) * BLOCK;
       for (const car of lane.cars) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
@@ -341,7 +353,8 @@ export function createCity(container, initialSettings, benchmark = null) {
         simulationMs: prepareStart - simulationStart, prepareMs: renderStart - prepareStart,
         renderSubmitMs: end - renderStart, visibleCars,
         totalCars: [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
-        blocks: (radius * 2 + 1) ** 2, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls,
+        blocks: (area.x * 2 + 1) * (area.z * 2 + 1), radiusX: area.x, radiusZ: area.z,
+        triangles: renderer.info.render.triangles, calls: renderer.info.render.calls,
         geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures });
     }
   }
@@ -355,7 +368,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   function updateSettings(value) {
     const next = normalizeSettings(value);
     const regenerate = next.blockSize !== settings.blockSize || next.density !== settings.density || next.taxiShare !== settings.taxiShare;
-    const zoomChanged = next.zoom !== settings.zoom;
+    const zoomChanged = next.zoom !== settings.zoom || next.trafficSpeed !== settings.trafficSpeed || next.taxiSpeed !== settings.taxiSpeed;
     settings = next;
     if (zoomChanged) resize();
     if (regenerate) {

@@ -14,8 +14,12 @@ export function scenarioSettings(name = 'main') {
 
 export function scenarioTraffic(settings, radius = 5, seed = 0) {
   const lanes = new Map();
-  for (const axis of [0, 1]) for (let line = -radius; line <= radius; line++) for (const direction of [-1, 1]) {
-    lanes.set(`${axis}:${line}:${direction}`, populateLane(axis, line, direction, settings, radius, 0, seed));
+  const x = typeof radius === 'number' ? radius : radius.x, z = typeof radius === 'number' ? radius : radius.z;
+  for (const axis of [0, 1]) {
+    const across = axis === 0 ? z : x, along = axis === 0 ? x : z;
+    for (let line = -across; line <= across; line++) for (const direction of [-1, 1]) {
+      lanes.set(`${axis}:${line}:${direction}`, populateLane(axis, line, direction, settings, along, 0, seed));
+    }
   }
   return lanes;
 }

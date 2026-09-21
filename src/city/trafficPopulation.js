@@ -18,5 +18,5 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
       baseCruise: cruise, baseAcceleration: acceleration,
       changing: false, merge: 1, cooldown: random(), steer: 0 });
   }
-  return { axis, line, direction, cars };
+  return { axis, line, direction, cars, radius };
 }
