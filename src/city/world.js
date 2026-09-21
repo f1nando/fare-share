@@ -23,6 +23,11 @@ export const taxiAggression = weaving => 1 + Math.max(0, Math.min(2, weaving)) *
 export const FEINT_DURATION = 0.9;
 export const FEINT_REACH = 0.58;
 
+export function stoppingSpeed(distance, braking, delta, leaderSpeed = 0) {
+  const step = braking * delta;
+  return Math.max(0, Math.sqrt(step * step + leaderSpeed * leaderSpeed + 2 * braking * Math.max(0, distance)) - step);
+}
+
 export function feintPose(progress) {
   const t = Math.max(0, Math.min(1, progress));
   return {
@@ -429,14 +434,21 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       if (car.taxi) car.burst = 1.4;
       car.cooldown = yielding ? 5 : 0.35 + 0.45 / aggression;
     }
-    let clearance = ahead(car.track).gap;
-    if (car.changing) clearance = Math.min(clearance, ahead(car.fromTrack).gap);
-    if (following) clearance = Math.min(clearance, Math.max(CAR_GAP, (car.race.leader.position - car.position) * direction));
+    const front = ahead(car.track);
+    let clearance = front.gap, frontSpeed = front.leader?.speed ?? 0;
+    if (car.changing) {
+      const source = ahead(car.fromTrack);
+      if (source.gap < clearance) { clearance = source.gap; frontSpeed = source.leader?.speed ?? 0; }
+    }
+    if (following) {
+      const raceGap = Math.max(CAR_GAP, (car.race.leader.position - car.position) * direction);
+      if (raceGap < clearance) { clearance = raceGap; frontSpeed = car.race.leader.speed; }
+    }
     const crossingClearance = clearance;
     if (car.overtake?.launch && occupiesTrack(car, ONCOMING_TRACK)) {
       for (const other of opposing ?? []) {
         const distance = (other.position - car.position) * direction;
-        if (occupiesTrack(other, 0) && distance > 0) clearance = Math.min(clearance, distance);
+        if (occupiesTrack(other, 0) && distance > 0 && distance < clearance) { clearance = distance; frontSpeed = 0; }
       }
     }
     // Headway depends on actual speed, so stopped queues compress to 0.65 units
@@ -446,14 +458,25 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     // Race boosts remain inside the 25% passing-speed envelope used by gap
     // predictions. The follower only attacks after copying the leader's move.
     const cruise = car.cruise * (yielding ? 1.65 : car.burst > 0 || challenging ? 1.25 : car.race ? 1.05 : 1);
-    const desiredSpeed = Math.min(cruise, Math.max(0, (clearance - desiredGap) * (car.taxi ? 4 : 2.4)));
+    const desiredSpeed = Math.min(cruise, Math.max(0, frontSpeed + (clearance - desiredGap) * (car.taxi ? 2 : 1.4)));
     const acceleration = (car.acceleration ?? (car.taxi ? 25 : 4)) * (yielding ? 2 : car.burst > 0 ? 1.8 : 1);
+    const braking = car.taxi ? 13 : 7;
     // Lane changing itself never applies the normal following slowdown. Hard
     // clearance and stop-line limits below still handle newly blocked traffic.
-    const speed = car.changing && !yielding && (car.mergeSpeed ?? car.speed) > 1
+    let speed = car.changing && !yielding && (car.mergeSpeed ?? car.speed) > 1
       ? Math.min(cruise, car.mergeSpeed ?? car.speed)
-      : Math.min(desiredSpeed, car.speed + acceleration * delta);
-    const travel = Math.min(speed * delta, Math.max(0, clearance - reservedGap));
+      : Math.max(car.speed - braking * delta, Math.min(desiredSpeed, car.speed + acceleration * delta));
+    if (!car.changing && Number.isFinite(clearance)) speed = Math.min(speed, stoppingSpeed(clearance - CAR_GAP, braking, delta, frontSpeed));
+    const oriented = car.position * direction;
+    const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - STOP_LINE - oriented;
+    if (untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
+      const mustWait = car.overtake?.launch && !green || (crossingAccess?.preview
+        ? !crossingAccess.preview(car, untilStop + 0.01, green, crossingClearance, speed) : !green);
+      if (mustWait) speed = Math.min(speed, stoppingSpeed(untilStop, braking, delta));
+    }
+    // A reserved return slot is a following target, not an invisible bumper.
+    // Only actual vehicle clearance can hard-limit this frame's travel.
+    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
     const permitted = car.overtake?.launch && !green ? false : crossingAccess ? crossingAccess(car, travel, green, crossingClearance, speed) : green;
     const next = advanceVehicle(car.position, travel, direction, permitted, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;

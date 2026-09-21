@@ -109,9 +109,20 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     locks.set(turn.junction, car);
   }
   const crossingAccess = intersectionAccess(lanes, blockSize, time, locks);
+  // A turning car is still stored on its old street. Advertise its landing
+  // position to the opposite stream before it transfers, so a taxi cannot
+  // start a feint/overtake into the car that is about to appear there.
+  const landings = new Map();
+  for (const car of locks.values()) {
+    const turn = car.turn, key = laneKey(turn.axis, turn.line, turn.direction);
+    if (!landings.has(key)) landings.set(key, []);
+    landings.get(key).push({ axis: turn.axis, line: turn.line, direction: turn.direction, position: turn.position,
+      track: turn.track, taxi: car.taxi, speed: car.cruise * 1.25, cruise: car.cruise, acceleration: car.acceleration });
+  }
   for (const lane of lanes.values()) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), {
     blockSize, weaving, crossingAccess,
-    opposing: lanes.get(laneKey(lane.axis, lane.line, -lane.direction))?.cars ?? [],
+    opposing: [...(lanes.get(laneKey(lane.axis, lane.line, -lane.direction))?.cars ?? []),
+      ...(landings.get(laneKey(lane.axis, lane.line, -lane.direction)) ?? [])],
     greenRemaining: greenTimeLeft(time, lane.axis) / Math.max(0.01, clockMultiplier),
     untilGreen: mod((lane.axis === 0 ? 22 : 11) - mod(time, 22), 22) / Math.max(0.01, clockMultiplier),
   });

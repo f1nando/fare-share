@@ -18,6 +18,18 @@ const step = (fixture, delta = 0.02, weaving = 0) => updateNetwork(fixture.lanes
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 const angleClose = (a, b) => close(Math.sin(a - b), 0);
 
+test('opposing taxis account for a car still turning onto their street before starting a feint', () => {
+  const f = fixture(); step(f);
+  assert.ok(f.car.turn);
+  const base = { axis: 1, line: -1, direction: 1, track: 0, fromTrack: 0, offset: TRACKS[0],
+    speed: 0, cruise: 0, acceleration: 4, changing: false, merge: 1, cooldown: 0, steer: 0, turnCooldown: 10, flashCooldown: Infinity };
+  const taxi = { ...base, taxi: true, position: -48.35, cruise: 16, acceleration: 26 };
+  f.lanes.get('1:-1:1').cars.push(taxi, { ...base, position: -40 - STOP_LINE });
+  f.lanes.get('1:-1:-1').cars.push({ ...base, direction: -1, position: 10, speed: 4, cruise: 4 });
+  step(f);
+  assert.ok(!taxi.feint, 'the incoming turning car already occupies the future oncoming gap');
+});
+
 test('a taxi can leave an established race through a clear side street and releases its partner', () => {
   const f = fixture();
   const follower = { ...f.car, position: f.car.position - 10 };

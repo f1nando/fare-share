@@ -13,7 +13,7 @@ function arrivalTime(distance, speed, acceleration, cruise) {
 // the same live car objects, so permission granted earlier in a frame is visible
 // to the perpendicular stream immediately.
 export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()) {
-  return (car, travel, green, clearance, speed) => {
+  const access = (car, travel, green, clearance, speed, commit = true) => {
     const oriented = car.position * car.direction;
     const nextCenter = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize * car.direction;
     const junctionKey = car.axis === 0 ? `${Math.round(nextCenter / blockSize)}:${car.line}` : `${car.line}:${Math.round(nextCenter / blockSize)}`;
@@ -24,13 +24,13 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
       other.overtake?.passTrack === -1 && other.overtake.launch?.center === nextCenter)) return false;
     if (car.crossing !== undefined) {
       if (oriented <= car.crossing * car.direction + STOP_LINE) return true;
-      car.crossing = undefined;
+      if (commit) car.crossing = undefined;
     }
     const center = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize;
     const untilEntry = center - STOP_LINE - oriented;
     // Also register cars created inside a crossing when the camera reveals it.
     if (untilEntry < -0.001) {
-      car.crossing = center * car.direction;
+      if (commit) car.crossing = center * car.direction;
       return true;
     }
     if (travel <= untilEntry) return green;
@@ -61,8 +61,14 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
         }
       }
     }
-    car.crossing = crossingPosition;
-    if (car.taxi && !green && speed < car.cruise * 0.5) car.burst = Math.max(car.burst ?? 0, 1.2);
+    if (commit) {
+      car.crossing = crossingPosition;
+      if (car.taxi && !green && speed < car.cruise * 0.5) car.burst = Math.max(car.burst ?? 0, 1.2);
+    }
     return true;
   };
+  // Looking ahead must never reserve a junction or change another driver's
+  // permissions. Only the actual crossing/overtake request commits the claim.
+  access.preview = (car, travel, green, clearance, speed) => access(car, travel, green, clearance, speed, false);
+  return access;
 }

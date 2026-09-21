@@ -120,8 +120,11 @@ test('custom block sizes move stop lines with their actual intersections', () =>
   for (const blockSize of [24, 40, 48]) {
     const stop = blockSize - STOP_LINE;
     const car = vehicle(stop - 0.1, 0);
-    updateTraffic([car], 1, 0.1, false, { blockSize });
-    assert.ok(Math.abs(car.position - stop) < 1e-9);
+    for (let i = 0; i < 80; i++) {
+      updateTraffic([car], 1, 0.02, false, { blockSize });
+      assert.ok(car.position <= stop + 1e-9);
+    }
+    assert.ok(Math.abs(car.position - stop) < 1e-6);
   }
 });
 
