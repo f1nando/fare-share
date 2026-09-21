@@ -65,8 +65,8 @@ test('wallet chain is explicit for private RPC URLs', () => {
   assert.throws(() => resolveSolanaChain('devnet', 'https://rpc.example'), /VITE_SOLANA_CHAIN/);
 });
 
-test('repair quote mirrors the on-chain 25% five-day formula', () => {
-  assert.equal(calculateRepairQuote(20_000_000n, 0n, 4 * 24 * 60 * 60), 1_000_000n);
+test('repair quote charges 25% of earned FARE for any non-zero wear', () => {
+  assert.equal(calculateRepairQuote(20_000_000n, 0n, 4 * 24 * 60 * 60), 5_000_000n);
   assert.equal(calculateRepairQuote(18_000_000n, 2_000_000n, 0), 5_000_000n);
   assert.equal(calculateRepairQuote(20_000_000n, 0n, 5 * 24 * 60 * 60), 0n);
   assert.equal(calculateRepairQuote(1n, 0n, 5 * 24 * 60 * 60 - 1), 1n);

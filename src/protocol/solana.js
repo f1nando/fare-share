@@ -52,9 +52,7 @@ export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   const missingSeconds = BigInt(MAX_DURABILITY - boundedRemaining);
   const effectiveBase = BigInt(fareBase) + BigInt(pendingFare);
   if (effectiveBase === 0n || missingSeconds === 0n) return 0n;
-  const denominator = 100n * BigInt(MAX_DURABILITY);
-  const numerator = effectiveBase * 25n * missingSeconds;
-  return (numerator + denominator - 1n) / denominator;
+  return (effectiveBase * 25n + 99n) / 100n;
 }
 
 export function calculateProtocolTime(config, chainUnixTime) {

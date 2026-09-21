@@ -746,7 +746,7 @@ pub mod taxi_park {
             .checked_sub(remaining)
             .ok_or(TaxiError::MathOverflow)?;
         require!(missing > 0, TaxiError::NothingToRepair);
-        let cost = math::repair_cost(ctx.accounts.machine.fare_base, missing)?;
+        let cost = math::repair_cost(ctx.accounts.machine.fare_base)?;
 
         require_keys_eq!(
             *ctx.accounts.fare_mint.to_account_info().owner,

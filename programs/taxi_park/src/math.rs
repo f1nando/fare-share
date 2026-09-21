@@ -44,23 +44,17 @@ pub fn machine_reward(accumulator: u128, checkpoint: u128, weight: u16) -> Resul
     u64::try_from(amount).map_err(|_| error!(TaxiError::MathOverflow))
 }
 
-pub fn repair_cost(fare_base: u64, missing_seconds: i64) -> Result<u64> {
-    if fare_base == 0 || missing_seconds <= 0 {
+pub fn repair_cost(fare_base: u64) -> Result<u64> {
+    if fare_base == 0 {
         return Ok(0);
     }
-    let missing = u64::try_from(missing_seconds).map_err(|_| error!(TaxiError::MathOverflow))?;
     let numerator = u128::from(fare_base)
         .checked_mul(25)
-        .ok_or(TaxiError::MathOverflow)?
-        .checked_mul(u128::from(missing))
-        .ok_or(TaxiError::MathOverflow)?;
-    let denominator = 100_u128
-        .checked_mul(crate::MAX_DURABILITY_SECONDS as u128)
         .ok_or(TaxiError::MathOverflow)?;
     let cost = numerator
-        .checked_add(denominator - 1)
+        .checked_add(99)
         .ok_or(TaxiError::MathOverflow)?
-        .checked_div(denominator)
+        .checked_div(100)
         .ok_or(TaxiError::MathOverflow)?;
     u64::try_from(cost).map_err(|_| error!(TaxiError::MathOverflow))
 }
@@ -80,14 +74,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn one_missing_day_costs_five_percent_of_base() {
-        assert_eq!(repair_cost(20_000_000, 86_400).unwrap(), 1_000_000);
+    fn any_non_zero_repair_costs_twenty_five_percent_of_base() {
+        assert_eq!(repair_cost(20_000_000).unwrap(), 5_000_000);
     }
 
     #[test]
     fn non_zero_repair_cost_rounds_up_to_one_raw_unit() {
-        assert_eq!(repair_cost(1, 1).unwrap(), 1);
-        assert_eq!(repair_cost(1, 0).unwrap(), 0);
+        assert_eq!(repair_cost(1).unwrap(), 1);
+        assert_eq!(repair_cost(0).unwrap(), 0);
     }
 
     #[test]
