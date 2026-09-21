@@ -179,28 +179,30 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
       }
     }
   }
+  return true;
 }
 
-export function createCity(container, initialSettings) {
+export function createCity(container, initialSettings, benchmark = null) {
   let settings = normalizeSettings(initialSettings);
   let BLOCK = settings.blockSize;
   let rebuildTimer;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#dedede');
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(benchmark?.pixelRatio ?? Math.min(window.devicePixelRatio, 1.6));
+  renderer.shadowMap.enabled = benchmark?.shadows ?? true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
   renderer.domElement.setAttribute('aria-hidden', 'true');
   container.appendChild(renderer.domElement);
+  benchmark?.onRenderer?.(renderer);
 
   const geometries = {
     box: new THREE.BoxGeometry(1, 1, 1),
     paint: new THREE.BoxGeometry(1, 1, 1),
     paving: new THREE.BoxGeometry(1, 1, 1),
-    round: new RoundedBoxGeometry(1, 1, 1, 2, 0.075),
+    round: benchmark?.simpleCurbs ? new THREE.BoxGeometry(1, 1, 1) : new RoundedBoxGeometry(1, 1, 1, 2, 0.075),
     building: new THREE.BoxGeometry(1, 1, 1),
     car: new THREE.BoxGeometry(1, 1, 1),
     taxi: new THREE.BoxGeometry(1, 1, 1),
@@ -289,15 +291,18 @@ export function createCity(container, initialSettings) {
     camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
-    const nextRadius = Math.max(5, Math.ceil(Math.hypot(viewWidth, viewHeight) / BLOCK / 2) + 2);
+    const nextRadius = benchmark?.radius ?? Math.max(5, Math.ceil(Math.hypot(viewWidth, viewHeight) / BLOCK / 2) + 2);
     if (radius !== nextRadius) { radius = nextRadius; lastCellX = NaN; }
   }
 
   function frame(timestamp) {
     if (disposed) return;
+    const start = benchmark ? performance.now() : 0;
+    const rafMs = previous ? timestamp - previous : 0;
+    let rebuildMs = 0;
     const delta = previous ? Math.min((timestamp - previous) / 1000, 0.06) : 0;
     previous = timestamp;
-    const moving = !document.hidden && !reducedMotion.matches && !settings.paused;
+    const moving = !document.hidden && (benchmark || !reducedMotion.matches) && !settings.paused;
     if (moving) {
       time += delta * Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
       // Positive camera displacement projects down and right on the ground.
@@ -311,8 +316,10 @@ export function createCity(container, initialSettings) {
       originX = worldX * BLOCK; originZ = worldZ * BLOCK;
     }
     if (lastCellX !== worldX || lastCellZ !== worldZ) {
+      const rebuildStart = benchmark ? performance.now() : 0;
       rebuild(); lastCellX = worldX; lastCellZ = worldZ;
       renderer.shadowMap.needsUpdate = true;
+      if (benchmark) rebuildMs = performance.now() - rebuildStart;
     }
     camera.position.copy(focus).add(cameraOffset);
     camera.lookAt(focus);
@@ -330,15 +337,29 @@ export function createCity(container, initialSettings) {
         if (car.position > center + half) { car.position -= half * 2; resetSignal(car); }
       }
     }
-    if (moving) updateNetwork(lanes, delta, time, { blockSize: BLOCK, weaving: settings.weaving / 100,
+    const simulationStart = benchmark ? performance.now() : 0;
+    if (moving && benchmark?.simulate !== false) updateNetwork(lanes, delta, time, { blockSize: BLOCK, weaving: settings.weaving / 100,
       clockMultiplier: Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100) });
+    const prepareStart = benchmark ? performance.now() : 0;
+    let visibleCars = 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
-        addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects);
+        if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects)) visibleCars++;
       }
     }
     carsBatch.flush();
+    const renderStart = benchmark ? performance.now() : 0;
+    benchmark?.beforeRender?.();
     renderer.render(scene, camera);
+    if (benchmark) {
+      const end = performance.now();
+      benchmark.afterRender?.();
+      benchmark.onFrame?.({ rafMs, cpuMs: end - start, rebuildMs,
+        simulationMs: prepareStart - simulationStart, prepareMs: renderStart - prepareStart,
+        renderSubmitMs: end - renderStart, visibleCars,
+        totalCars: [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
+        blocks: (radius * 2 + 1) ** 2, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls });
+    }
   }
 
   const observer = new ResizeObserver(resize);
