@@ -1,5 +1,6 @@
 import { updateBodyMotion } from './vehicleBody.js';
 import { HORN_DURATION } from './hornAnimation.js';
+import { LaneIndex } from './laneIndex.js';
 
 export const BLOCK = 34;
 export const ROAD = 6.6;
@@ -350,31 +351,22 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
   cars.sort((a, b) => (b.position - a.position) * direction);
   updateRaces(cars, direction, delta);
   updateSignals(cars, direction, delta);
+  const index = new LaneIndex(cars, direction, occupiesTrack);
   for (const car of cars) {
     // Turning cars retain their source-lane slot until the network transfers
     // them. Their curved motion is advanced exactly once after straight traffic.
     if (car.turn) continue;
+    const previousLeader = car.overtake?.leader;
     if (green) { car.launchAttempt = undefined; car.launchChosen = false; }
     const previousSpeed = car.speed;
     car.cooldown = Math.max(0, car.cooldown - delta);
     car.burst = Math.max(0, (car.burst ?? 0) - delta);
     car.seekInner = Math.max(0, (car.seekInner ?? 0) - delta);
     car.feintCooldown = Math.max(0, (car.feintCooldown ?? 0) - delta);
-    // Find the nearest car, independent of the array's farthest-first ordering.
-    const ahead = (track) => {
-      let gap = Infinity, leader = null;
-      for (const other of cars) {
-        const distance = (other.position - car.position) * direction;
-        if (other !== car && distance > 0 && distance < gap && occupiesTrack(other, track)) {
-          gap = distance;
-          leader = other;
-        }
-      }
-      return { gap, leader };
-    };
+    const ahead = track => index.ahead(car, track);
     const { gap, leader } = ahead(car.track);
     const queueLaunch = !green && delta > 0 && opposing ? planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) : null;
-    const { gap: targetGap, leader: targetLeader } = ahead(1 - car.track);
+    const { gap: targetGap, leader: targetLeader } = car.taxi ? ahead(1 - car.track) : { gap: Infinity, leader: null };
     const fasterLane = targetLeader && leader && targetLeader.speed > leader.speed + 1;
     const passing = gap < 24 && (targetGap > gap + 0.4 || fasterLane);
     // Come back towards the centre after passing. Raising activity shortens the
@@ -453,7 +445,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     }
     // Headway depends on actual speed, so stopped queues compress to 0.65 units
     // between bumpers and open up again as individual drivers accelerate.
-    const reservedGap = cars.find(other => other.overtake?.leader === car)?.overtake.returnSpace ?? CAR_GAP;
+    const reservedGap = index.reservation(car)?.returnSpace ?? CAR_GAP;
     const desiredGap = Math.max(reservedGap, CAR_GAP + car.speed * (car.taxi ? 0.08 : yielding ? 0.3 : 0.7));
     // Race boosts remain inside the 25% passing-speed envelope used by gap
     // predictions. The follower only attacks after copying the leader's move.
@@ -508,5 +500,6 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       }
     }
     updateBodyMotion(car, delta, previousSpeed);
+    index.sync(car, previousLeader);
   }
 }
