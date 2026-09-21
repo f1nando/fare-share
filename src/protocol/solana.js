@@ -384,13 +384,14 @@ async function loadDASAssets(owner, collection) {
         params: { ownerAddress: String(owner), page: 1, limit: 1000 },
       }),
     });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const body = await response.json();
-    if (body.error) return [];
+    if (body.error) throw new Error(body.error.message || 'DAS request failed');
     return (body.result?.items || []).filter(item => (
       item.grouping?.some(group => group.group_key === 'collection' && group.group_value === String(collection))
     ));
-  } catch {
-    return [];
+  } catch (error) {
+    throw new Error(`Не удалось загрузить NFT-машины. Проверьте VITE_SOLANA_DAS_URL: ${error.message}`);
   }
 }
 
