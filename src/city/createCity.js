@@ -205,7 +205,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     box: new THREE.BoxGeometry(1, 1, 1),
     paint: new THREE.BoxGeometry(1, 1, 1),
     paving: new THREE.BoxGeometry(1, 1, 1),
-    round: benchmark?.simpleCurbs ? new THREE.BoxGeometry(1, 1, 1) : new RoundedBoxGeometry(1, 1, 1, 2, 0.075),
+    round: benchmark?.simpleCurbs ? new THREE.BoxGeometry(1, 1, 1) : new RoundedBoxGeometry(1, 1, 1, 1, 0.075),
     building: new THREE.BoxGeometry(1, 1, 1),
     car: new THREE.BoxGeometry(1, 1, 1),
     taxi: new THREE.BoxGeometry(1, 1, 1),
