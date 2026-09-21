@@ -46,3 +46,52 @@ button:focus-visible { outline: 2px solid #ffd329; outline-offset: 4px; }
   .settings-body { max-height: calc(100dvh - 92px); }
   .settings-toggle { padding: 15px 17px; }
 }
+
+/* Primitive protocol UI. The existing city remains available at ?city=1. */
+.taxi-app { position: relative; min-height: 100%; color: #f5f5f1; background: #111; overflow: auto; }
+.taxi-app .city-background { z-index: 0; filter: saturate(.72) contrast(.96); }
+.taxi-shade { position: fixed; z-index: 1; inset: 0; background: linear-gradient(90deg, #111e 0%, #111c 45%, #1119), linear-gradient(0deg, #111 0%, transparent 52%); pointer-events: none; }
+.taxi-header { position: fixed; z-index: 5; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 72px; padding: 0 5vw; border-bottom: 1px solid #ffffff1a; background: #111b; backdrop-filter: blur(16px); }
+.taxi-brand { display: flex; align-items: center; gap: 11px; color: #fff; text-decoration: none; font-weight: 900; letter-spacing: -.04em; }
+.taxi-brand small { display: block; color: #9d9d96; font-size: 8px; letter-spacing: .22em; }
+.brand-mark { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 9px; color: #171713; background: #ffd329; transform: skew(-7deg); }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.network-pill { padding: 9px 12px; border: 1px solid #ffffff19; border-radius: 99px; color: #aaa; background: #1b1b19cc; font-size: 11px; }
+.network-pill i { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #eb9d31; }
+.network-pill.online i { background: #58ca82; }
+.wallet-button, .ghost-button { border: 1px solid #ffffff21; border-radius: 10px; color: #f3f3ef; background: #262624e8; }
+.wallet-button { min-height: 40px; padding: 0 16px; font-size: 12px; font-weight: 700; }
+.wallet-button:hover, .ghost-button:hover { border-color: #ffd32999; }
+.taxi-content { position: relative; z-index: 2; width: min(1180px, 90vw); margin: 0 auto; padding: 145px 0 80px; }
+.hero-card { max-width: 780px; min-height: 430px; display: flex; flex-direction: column; justify-content: center; }
+.eyebrow { margin: 0 0 10px; color: #ffd329; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.hero-card h1 { margin: 0; color: #f6f6f2; font-size: clamp(44px, 6vw, 78px); line-height: .96; letter-spacing: -.065em; }
+.hero-card h1 span { color: #ffd329; }
+.hero-copy { max-width: 510px; margin: 25px 0 28px; color: #b8b8b2; font-size: 16px; line-height: 1.55; }
+.pool-strip { display: grid; grid-template-columns: repeat(3, 1fr); width: min(680px, 100%); border: 1px solid #ffffff1c; border-radius: 14px; background: #181816dc; backdrop-filter: blur(15px); overflow: hidden; }
+.pool-strip div { padding: 16px 18px; border-right: 1px solid #ffffff14; }
+.pool-strip div:last-child { border: 0; }
+.pool-strip small, .pool-strip strong { display: block; }
+.pool-strip small { margin-bottom: 6px; color: #888883; font-size: 10px; text-transform: uppercase; }
+.pool-strip strong { color: #f1f1ed; font-size: 14px; }
+.panel { margin-top: 22px; padding: 25px; border: 1px solid #ffffff18; border-radius: 20px; background: #171715ed; box-shadow: 0 20px 70px #0005; backdrop-filter: blur(18px); }
+.section-title { display: flex; justify-content: space-between; align-items: end; margin-bottom: 18px; }
+.section-title h2 { margin: 0; font-size: 28px; letter-spacing: -.035em; }
+.ghost-button { padding: 9px 13px; font-size: 11px; }
+.car-list { display: grid; gap: 9px; }
+.car-row { display: grid; grid-template-columns: 46px 1.2fr 1.5fr 1fr auto; align-items: center; gap: 16px; padding: 15px; border: 1px solid #ffffff10; border-radius: 13px; background: #20201e; }
+.car-icon { display: grid; width: 43px; height: 43px; place-items: center; border-radius: 11px; color: #ffd329; background: #ffd32918; font-size: 13px; }
+.car-main strong, .car-main span, .reward strong, .reward small { display: block; }
+.car-main strong { font-size: 14px; }.car-main strong small { color: #777; }.car-main span, .reward small, .durability small { color: #8e8e88; font-size: 10px; }
+.durability > span { display: block; height: 5px; margin-bottom: 7px; border-radius: 8px; background: #33332f; overflow: hidden; }.durability b { display: block; height: 100%; border-radius: inherit; background: #ffd329; }
+.reward strong { margin-bottom: 4px; color: #f0f0eb; font-size: 13px; }
+.row-actions { display: flex; gap: 7px; }.row-actions button, .class-card button { padding: 10px 13px; border: 0; border-radius: 8px; color: #171713; background: #ffd329; font-size: 11px; font-weight: 800; }.row-actions .secondary { color: #ddd; background: #33332f; }
+.demo-note { margin: 14px 0 0; color: #777771; font-size: 10px; }
+.class-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+.class-card { padding: 17px; border: 1px solid #ffffff12; border-radius: 14px; background: #20201e; }
+.class-top { display: flex; justify-content: space-between; font-weight: 800; }.class-top b { color: #ffd329; }
+.taxi-silhouette { display: grid; height: 88px; place-content: center; color: #ffd329; font-size: 64px; line-height: 1; transform: skew(-8deg); text-shadow: 0 12px 28px #ffd32926; }
+.class-card dl { margin: 3px 0 15px; }.class-card dl div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #ffffff0e; }.class-card dt { color: #888; font-size: 10px; }.class-card dd { margin: 0; color: #ddd; font-size: 11px; font-weight: 700; }.class-card button { width: 100%; }
+.taxi-notice { position: fixed; z-index: 10; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 18px; max-width: 460px; padding: 14px 14px 14px 17px; border: 1px solid #ffd32966; border-radius: 12px; color: #deded8; background: #1b1b18f5; box-shadow: 0 12px 40px #0008; font-size: 12px; }.taxi-notice button { border: 0; color: #ffd329; background: transparent; font-size: 18px; }
+@media (max-width: 850px) { .class-grid { grid-template-columns: repeat(2, 1fr); }.car-row { grid-template-columns: 42px 1fr auto; }.durability { grid-column: 2 / 4; }.reward { grid-column: 2; }.row-actions { grid-column: 3; }.pool-strip { grid-template-columns: 1fr; }.pool-strip div { border-right: 0; border-bottom: 1px solid #ffffff14; } }
+@media (max-width: 560px) { .taxi-header { height: 64px; padding: 0 16px; }.network-pill { display: none; }.wallet-button { padding: 0 11px; }.taxi-content { width: calc(100% - 24px); padding-top: 100px; }.hero-card { min-height: 400px; }.hero-card h1 { font-size: 43px; }.panel { padding: 17px; border-radius: 16px; }.class-grid { grid-template-columns: 1fr; }.car-row { grid-template-columns: 42px 1fr; }.durability, .reward, .row-actions { grid-column: 1 / 3; }.row-actions button { flex: 1; } }
