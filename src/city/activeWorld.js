@@ -1,4 +1,6 @@
-import { CAR_GAP, STOP_LINE, resetSignal } from './world.js';
+import { CAR_GAP, STOP_LINE, resetSignal, occupiesTrack, trackOffset } from './world.js';
+import { relocateToRoad, spawnRoadOpen } from './roadLayout.js';
+import { vehicleGap } from './vehicleTypes.js';
 
 export const CAMERA_OFFSET = Object.freeze({ x: 24, y: 100, z: 45 });
 
@@ -26,6 +28,25 @@ export function activeWorldSize(width, height, settings) {
 }
 
 export const originShift = (focus, blockSize) => Math.floor(focus / blockSize + 0.5);
+
+// Re-enter only through vacant offscreen road. Wrapping directly onto a queue
+// can interlock two bodies permanently, even though the collision starts hidden.
+export function recycleVehicle(lane, car, center, half, visibleHalf, block) {
+  if (car.position >= center-half && car.position <= center+half) return false;
+  const side=car.position>center+half?-1:1;
+  const candidate={...car,race:null};resetSignal(candidate);
+  for(let distance=half-.1;distance>visibleHalf+10;distance-=1.5) {
+    candidate.position=center+side*distance;
+    relocateToRoad(candidate,block,STOP_LINE);
+    if(Math.abs(candidate.position-center)>half||side*(candidate.position-center)<=visibleHalf+10||!spawnRoadOpen(candidate,block,STOP_LINE))continue;
+    if(lane.cars.some(other=>other!==car && occupiesTrack(other,candidate.track) &&
+      Math.abs(other.position-candidate.position)<vehicleGap(candidate,other)+.3))continue;
+    resetSignal(car);car.position=candidate.position;car.speed=0;
+    car.fromTrack=car.track;car.changing=false;car.merge=1;car.steer=0;car.offset=trackOffset(car.track,car);
+    return true;
+  }
+  return false;
+}
 
 // Resize only offscreen population. Keep every car in the visible part of a
 // retained street, and fill newly exposed simulation buffers at the same density.

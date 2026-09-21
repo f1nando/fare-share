@@ -1,8 +1,8 @@
 import { normalizeSettings } from './settings.js';
-import { originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
+import { originShift, resizeLanePopulation, releaseOutsideLanes, recycleVehicle } from './activeWorld.js';
 import { populateLane } from './trafficPopulation.js';
-import { resetSignal, STOP_LINE } from './world.js';
-import { relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
+import { STOP_LINE } from './world.js';
+import { spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
 import { updateNetwork } from './trafficNetwork.js';
 import { packTraffic } from './trafficFrames.js';
 
@@ -61,8 +61,7 @@ export class TrafficSimulation {
         if(car.turn?.kind==='diagonal')continue;
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier; car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, block, STOP_LINE); }
-        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); relocateToRoad(car, block, STOP_LINE); }
+        recycleVehicle(lane,car,center,half,lane.axis===0?area.extents.x:area.extents.z,block);
       }
     }
     if (this.simulate) {

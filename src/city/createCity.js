@@ -16,10 +16,10 @@ import { presentation, interpolatePresentation, visiblePosition } from './vehicl
 import { HornEffects } from './hornEffects.js';
 import { populateLane } from './trafficPopulation.js';
 import { trafficSnapshot } from './benchmarkScenario.js';
-import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
+import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes, recycleVehicle } from './activeWorld.js';
 import { TrafficWorkerClient } from './TrafficWorkerClient.js';
 import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
-import { parkAt, roadOpen, boulevardRoad, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT, roundaboutAt, roundaboutStopAt } from './roadLayout.js';
+import { parkAt, roadOpen, boulevardRoad, spawnRoadOpen, CAMERA_DRIFT, roundaboutAt, roundaboutStopAt } from './roadLayout.js';
 import { populateMedian } from './boulevards.js';
 import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
@@ -412,8 +412,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
         car.acceleration = car.baseAcceleration * multiplier;
-        if (car.position < center - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, BLOCK, STOP_LINE); previousPoses.delete(car); }
-        if (car.position > center + half) { car.position -= half * 2; resetSignal(car); relocateToRoad(car, BLOCK, STOP_LINE); previousPoses.delete(car); }
+        if(recycleVehicle(lane,car,center,half,lane.axis===0?area.extents.x:area.extents.z,BLOCK))previousPoses.delete(car);
       }
     }
     const simulationStart = benchmark ? performance.now() : 0;
