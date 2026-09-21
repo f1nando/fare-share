@@ -52,13 +52,13 @@ export class HornEffects {
     renderer.compile(this.scene, camera);
     this.reset();
   }
-  add(car, x, z, camera) {
+  add(car, x, z, camera, bridgeLift = 0) {
     const animation = hornAnimation(car.hornAge, car.signalIndex);
     for (const wave of animation.waves) {
       let ring = this.rings[this.ringCount++];
       if (!ring) ring = this.createRing();
       ring.visible = true;
-      ring.position.set(x, 0.65 + (car.rideHeight ?? 0), z);
+      ring.position.set(x, 0.65 + (car.rideHeight ?? 0) + bridgeLift, z);
       ring.scale.setScalar(wave.radius);
       ring.material.opacity = wave.opacity;
     }
@@ -67,7 +67,7 @@ export class HornEffects {
       let sprite = this.labels[this.labelCount++];
       if (!sprite) sprite = this.createLabel();
       sprite.visible = true;
-      sprite.position.set(x + right.x * label.x, label.y + (car.rideHeight ?? 0), z + right.z * label.x);
+      sprite.position.set(x + right.x * label.x, label.y + (car.rideHeight ?? 0) + bridgeLift, z + right.z * label.x);
       sprite.scale.set(2.9 * label.size, 1.1 * label.size, 1);
       sprite.material.map = this.textures.get(label.word);
       sprite.material.opacity = label.opacity;

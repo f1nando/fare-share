@@ -1,3 +1,5 @@
+import { canalColumn, canalBridge } from './bridgeProfile.js';
+
 // One isolated two-block park per district. No global cache grows as the camera
 // travels; negative coordinates follow the same deterministic layout.
 function districtCode(dx, dz) {
@@ -17,6 +19,7 @@ export function parkAt(x, z) {
 }
 
 export function roadOpen(axis, line, segment) {
+  if (axis === 0 && canalColumn(segment) && !canalBridge(line)) return false;
   const x = axis === 0 ? segment : line - 1, z = axis === 0 ? line - 1 : segment;
   const dx = Math.floor(x / 4), dz = Math.floor(z / 4);
   if (dx * 4 + 1 !== x || dz * 4 + 1 !== z) return true;

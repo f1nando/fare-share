@@ -27,7 +27,7 @@ test('packed traffic preserves drawing, wheel motion, signals and car identity',
   const buffer = new TrafficBuffer(); buffer.push(frame);
   const original = [], packed = [], camera = { right: 10000, top: 10000 }, focus = { x: 0, z: 0 };
   for (const lane of simulation.lanes.values()) for (const car of lane.cars) addCar({ add: (...args) => original.push(args) }, car, 0, 0, focus, camera, 40);
-  addTrafficFrame({ add: (...args) => packed.push(args) }, buffer.advance(0, false), 0, 0, focus, camera);
+  addTrafficFrame({ add: (...args) => packed.push(args) }, buffer.advance(0, false), 0, 0, focus, camera, undefined, 40);
   const normalize = items => items.map(args => args.map((value, index) => index === 7 && typeof value === 'string' ? parseInt(value.slice(1), 16) : value));
   assert.deepEqual(normalize(packed), normalize(original));
   simulation.configure({ ...config(), settings: { ...config().settings, trafficSpeed: 150, blockSize: 48, density: 100 } });

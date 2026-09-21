@@ -1,56 +1,68 @@
 import { PAVED_ROAD } from './world.js';
+import { canalBridge, bridgeHeight, BRIDGE_START, BRIDGE_HALF, BRIDGE_SEGMENTS } from './bridgeProfile.js';
+import { MEDIAN_WIDTH } from './roadLayout.js';
 
-// A multiple-of-four column cannot intersect a two-block park (which occupies
-// columns 4n+1/4n+2). Every crossing and both bank roads already exist in the grid.
-export const canalColumn = x => ((x % 12) + 12) % 12 === 0;
-export const CANAL_BRIDGE_HALF = PAVED_ROAD / 2 + 1.75;
+export { canalColumn } from './bridgeProfile.js';
+export const CANAL_BRIDGE_HALF = BRIDGE_HALF;
 export const CANAL_WATER_LEVEL = -2.4;
 
 export function canalDimensions(block) {
-  const width = block - 2 * Math.max(PAVED_ROAD / 2 + 3.1, block * 0.26);
+  // Preserve the sidewalk-riding clearance even at the smallest block size.
+  const width = block - 2 * Math.max(PAVED_ROAD / 2 + 3.1, block * 0.19);
   return { width, left: (block - width) / 2, right: (block + width) / 2 };
 }
 
-export function populateCanal(batch, x, z, block) {
+export function populateCanal(batch, x, z, block, line = 0, divided = false) {
   const { width, left, right } = canalDimensions(block), roadHalf = PAVED_ROAD / 2;
+  const north = canalBridge(line), south = canalBridge(line + 1);
+  const bankStart = north ? roadHalf : 0, bankEnd = block - (south ? roadHalf : 0);
+  const walkStart = bankStart + (north ? 0.21 : 0), walkEnd = bankEnd - (south ? 0.21 : 0);
+  const wallStart = north ? BRIDGE_HALF : 0, wallEnd = block - (south ? BRIDGE_HALF : 0);
   const put = (kind, px, y, pz, w, h, d, color, roll = 0) => batch.add(kind, x + px, y, z + pz, w, h, d, color, 0, 0, roll);
-  // Water runs below street level, including beneath every bridge opening.
   put('paving', block / 2, CANAL_WATER_LEVEL - 0.01, block / 2, width, 0.02, block, '#777777');
   for (const [across, along] of [[0.42, 0.3], [0.58, 0.68]]) {
-    put('paint', left + width * across, CANAL_WATER_LEVEL + 0.006, CANAL_BRIDGE_HALF + (block - CANAL_BRIDGE_HALF * 2) * along,
+    put('paint', left + width * across, CANAL_WATER_LEVEL + 0.006, BRIDGE_HALF + (block - BRIDGE_HALF * 2) * along,
       0.09, 0.003, block * 0.16, '#b3b3b3');
   }
-  // The road stays at y=0, so cars use their original routes and suspension.
-  // Its exposed underside and open space below make this read as a bridge.
-  put('box', block / 2, -0.3, 0, width + 0.6, 0.6, CANAL_BRIDGE_HALF * 2, '#555555');
   for (const side of [-1, 1]) {
     const bankWidth = left - roadHalf;
     const bankX = side < 0 ? roadHalf + bankWidth / 2 : right + bankWidth / 2;
     const edgeX = side < 0 ? left : right;
     put('box', edgeX + side * 0.12, CANAL_WATER_LEVEL / 2, block / 2, 0.24, -CANAL_WATER_LEVEL, block, '#858585');
-    put('box', bankX, 0.1, block / 2, bankWidth, 0.3, block - PAVED_ROAD, '#bdbdbd');
-    put('paving', bankX - side * 0.105, 0.25, block / 2, bankWidth - 0.21, 0.34, block - PAVED_ROAD - 0.42, '#dedede');
-    put('box', edgeX + side * 0.12, 0.38, block / 2, 0.24, 0.76, block - CANAL_BRIDGE_HALF * 2, '#aaaaaa');
-    // Wide pavement on both sides of the bridge supports shoulder manoeuvres.
-    // Parapets sit beyond the furthest body/wheel reach of a passing taxi.
-    const curbZ = side * (roadHalf + 0.875), railZ = side * (CANAL_BRIDGE_HALF - 0.12);
-    put('box', block / 2, 0.1, curbZ, width + 0.6, 0.3, 1.75, '#bdbdbd');
-    put('paving', block / 2, 0.25, curbZ + side * 0.105, width + 0.6, 0.34, 1.54, '#dedede');
-    put('box', block / 2, 1, railZ, width + 0.6, 0.15, 0.18, '#999999');
-    for (const fraction of [0, 0.5, 1]) {
-      const top = fraction === 0.5 ? 2.5 : 1.05;
-      put('box', left + width * fraction, (top + 0.4) / 2, railZ, 0.18, top - 0.4, 0.18, '#999999');
-    }
-    // Three straight beams give a readable low-poly bridge silhouette even
-    // from the original steep camera, without moving the road or the cars.
-    const arch = [[left, 1.05], [left + width * 0.25, 2.5], [right - width * 0.25, 2.5], [right, 1.05]];
-    for (let i = 1; i < arch.length; i++) {
-      const [ax, ay] = arch[i - 1], [bx, by] = arch[i];
-      put('box', (ax + bx) / 2, (ay + by) / 2, railZ, Math.hypot(bx - ax, by - ay), 0.22, 0.22, '#888888', Math.atan2(by - ay, bx - ax));
-    }
+    put('box', bankX, 0.1, (bankStart + bankEnd) / 2, bankWidth, 0.3, bankEnd - bankStart, '#bdbdbd');
+    put('paving', bankX - side * 0.105, 0.25, (walkStart + walkEnd) / 2, bankWidth - 0.21, 0.34, walkEnd - walkStart, '#dedede');
+    put('box', edgeX + side * 0.12, 0.38, (wallStart + wallEnd) / 2, 0.24, 0.76, wallEnd - wallStart, '#aaaaaa');
     for (const fraction of [0.3, 0.7]) {
       put('box', bankX, 1.05, block * fraction, 0.28, 1.4, 0.28, '#777777');
       put('crown', bankX, 2.35, block * fraction, 0.95, 1.25, 0.95, '#969696');
     }
+  }
+  if (!north) return;
+
+  // Eight sections share exactly the profile used by the cars. Upper deck
+  // faces meet edge-to-edge; thickness extends below that surface.
+  const span = block - 2 * BRIDGE_START;
+  for (let i = 0; i < BRIDGE_SEGMENTS; i++) {
+    const a = BRIDGE_START + span * i / BRIDGE_SEGMENTS, b = BRIDGE_START + span * (i + 1) / BRIDGE_SEGMENTS;
+    const ay = bridgeHeight(a, block), by = bridgeHeight(b, block);
+    const angle = Math.atan2(by - ay, b - a), length = Math.hypot(b - a, by - ay);
+    const middleX = (a + b) / 2, middleY = (ay + by) / 2;
+    const piece = (kind, offsetY, offsetZ, height, depth, color) => {
+      put(kind, middleX - Math.sin(angle) * offsetY, middleY + Math.cos(angle) * offsetY,
+        offsetZ, length, height, depth, color, angle);
+    };
+    piece('box', -0.3, 0, 0.6, BRIDGE_HALF * 2, '#555555');
+    if (divided) piece('box', 0.09, 0, 0.18, MEDIAN_WIDTH, '#bdbdbd');
+    for (const side of [-1, 1]) {
+      const curbZ = side * (roadHalf + 0.875), railZ = side * (BRIDGE_HALF - 0.12);
+      piece('box', 0.1, curbZ, 0.3, 1.75, '#bdbdbd');
+      piece('paving', 0.25, curbZ + side * 0.105, 0.34, 1.54, '#dedede');
+      piece('box', 1.05, railZ, 0.16, 0.2, '#888888');
+    }
+  }
+  for (let i = 0; i <= BRIDGE_SEGMENTS; i += 2) {
+    const along = BRIDGE_START + span * i / BRIDGE_SEGMENTS;
+    for (const side of [-1, 1]) put('box', along, bridgeHeight(along, block) + 0.7,
+      side * (BRIDGE_HALF - 0.12), 0.18, 0.7, 0.18, '#999999');
   }
 }

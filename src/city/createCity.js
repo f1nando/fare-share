@@ -22,6 +22,7 @@ import { districtKind, populateDistrict } from './districts.js';
 import { SceneryCache } from './sceneryCache.js';
 import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
+import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -47,7 +48,9 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
       w = Math.min(w, 2 * Math.min(dx * layoutScale - inset, blockSize - dx * layoutScale - inset) / layoutScale);
       d = Math.min(d, 2 * Math.min(dz * layoutScale - inset, blockSize - dz * layoutScale - inset) / layoutScale);
     }
-    batch.add(kind, x + dx * layoutScale, y, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation);
+    const lift = canal && northRoad && kind === 'paint' && Math.abs(dz) < PAVED_ROAD / 2 + 0.1 ? bridgeHeight(dx, blockSize) : 0;
+    const tilt = lift ? Math.atan2(bridgeHeight(dx + w / 2, blockSize) - bridgeHeight(dx - w / 2, blockSize), w) : 0;
+    batch.add(kind, x + dx * layoutScale, y + lift, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation, 0, tilt);
   };
   const tree = (tx, tz, size = 1) => {
     put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777');
@@ -74,10 +77,10 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     if (westRoad) put('paint', p, 0.02, PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
-  if (northBoulevard) populateMedian(batch, 0, x, z, blockSize);
+  if (northBoulevard && !canal) populateMedian(batch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
   if (canal) {
-    populateCanal(batch, x, z, blockSize);
+    populateCanal(batch, x, z, blockSize, gz, northBoulevard);
     return;
   }
   if (parkLot) {
@@ -112,14 +115,15 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
   if (!visiblePosition(coordinates, originX, originZ, focus, camera)) return;
   const pose = interpolatePresentation(presentation(car, coordinates), previousPose, alpha);
-  return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects);
+  return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize);
 }
 
-function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects) {
+function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize) {
+  const bridgeLift = liftBridgePose(pose, blockSize);
   pose.x -= originX; pose.z -= originZ;
   pose.sin = Math.sin(pose.angle); pose.cos = Math.cos(pose.angle);
   const { pitch, roll, lift } = pose;
-  if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, pose.x, pose.z, camera);
+  if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, pose.x, pose.z, camera, bridgeLift);
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
     batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0),
@@ -137,14 +141,14 @@ function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects) {
     if (car.headlights ?? headlightsOn(car)) {
       for (const side of [-1, 1]) {
         part('light', side * 0.29, 0.5, 1.14, 0.24, 0.2, 0.06, '#fffce2');
-        part('beam', side * 0.31, 0.035, 2.5, 0.62, 1, 2.6, '#fffce2', false);
+        part('beam', side * 0.31, 0.035 + bridgeLift, 2.5, 0.62, 1, 2.6, '#fffce2', false);
       }
     }
   }
   return true;
 }
 
-export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, hornEffects) {
+export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, hornEffects, blockSize = BLOCK) {
   if (!frame) return 0;
   const { lower, upper, alpha } = frame, pose = {}, previousPose = {}, car = {};
   let visible = 0;
@@ -161,7 +165,7 @@ export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, h
       car.hornAge += (upper.data[offset + 14] - car.hornAge) * alpha;
     }
     if (before !== undefined) car.rideHeight = lower.data[before + 16] + (upper.data[offset + 16] - lower.data[before + 16]) * alpha;
-    drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects); visible++;
+    drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize); visible++;
   }
   return visible;
 }
@@ -366,7 +370,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       } else { simulate(delta); simulationSteps = delta > 0 ? 1 : 0; }
     }
     const prepareStart = benchmark ? performance.now() : 0;
-    let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, focus, camera, hornEffects) : 0;
+    let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, focus, camera, hornEffects, BLOCK) : 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
         if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects,
