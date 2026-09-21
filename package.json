@@ -15,6 +15,7 @@
     "protocol:benchmark": "tsx scripts/benchmark-reward-batch.ts",
     "protocol:check-xstocks": "tsx scripts/check-xstocks-liquidity.ts",
     "build": "vite build",
+    "build:city": "vite build --mode city",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test"
   },
