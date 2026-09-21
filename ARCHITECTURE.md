@@ -21,6 +21,7 @@
 - NFT: Metaplex Core Assets в официальной коллекции проекта. Phantom и основные Solana NFT-интерфейсы показывают их как обычные коллекционные NFT.
 - NFT metadata готовятся до продажи и показываются сразу: reveal отсутствует. Изображения и JSON загружаются в Arweave через Irys. После проверки всех постоянных URI `ImmutableMetadata` на Core Collection навсегда блокирует изменение имени и URI всех машин.
 - Metaplex Core Royalties plugin не устанавливается: проект не получает комиссию со вторичной продажи или передачи NFT-машин.
+- Владелец может напрямую сжечь Core Asset. Backend после finalized burn вызывает permissionless `cleanup_burned_machine`, но это может сделать любой: программа проверяет сожжённый Asset, ставит `BURN`-событие на текущий `protocolTime`, прекращает будущий вес машины и возвращает её незабранные активы в следующие reward pools. Момент внешнего burn задним числом не восстанавливается.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard. В первой версии подключаем Phantom; собственный embedded/passkey wallet и хранение пользовательских ключей отсутствуют.
 - Network fees: пользователь самостоятельно платит SOL за mint, `claim`, ремонт и активацию/claim стажёра. Backend платит только за служебные транзакции, которые отправляет сам; fee sponsorship и компенсации отсутствуют.
 - Account creation: команда финансирует первоначальные configuration/pool/vault/collection accounts. После запуска fee payer каждой транзакции оплачивает rent-exempt deposit всех новых accounts, которые создаёт эта транзакция: пользовательские Core Asset, Machine/Trainee PDA, event-queue pages и недостающие token accounts либо служебные accounts backend.
@@ -54,6 +55,7 @@
 - `process_stock_swap(mint, plan, route_accounts...)`: permissionless отдельно покупает одну разрешённую xStocks-позицию через Jupiter из её собственного SOL-резерва.
 - `calculate_rewards(group, limit, accounts...)`: permissionless продвигает выбранную очередь максимум на 20 событий и обновляет глобальный доход на единицу веса. Caller может указать меньший `limit`; больше compile-time предела программа отклоняет.
 - `claim(asset)`: текущий owner получает рассчитанный доход одной NFT.
+- `cleanup_burned_machine(asset)`: permissionless проверяет, что Core Asset сожжён, и ставит событие удаления машины из расчёта на текущее `protocolTime`.
 - `repair(asset)`: текущий owner сжигает рассчитанную сумму `$FARE` и восстанавливает 5 дней прочности.
 - `activate_trainee(voucher)`: проверяет ed25519-ваучер backend и создаёт временную стажёрскую запись.
 - `claim_trainee(campaign_id)`: выплачивает одну стажёрскую машину.
