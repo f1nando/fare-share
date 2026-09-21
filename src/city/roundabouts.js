@@ -92,7 +92,7 @@ export function buildRoundaboutPath(car, turn, start, end) {
   for (let i = 1; i < points.length; i++) samples.push(samples[i - 1] + Math.hypot(points[i].x - points[i-1].x, points[i].z - points[i-1].z));
   const angles = points.map((p, i) => i === 0 ? Math.PI / 2 - incoming : i === points.length - 1 ? Math.PI / 2 - outgoing :
     Math.atan2(points[i+1].x-points[i-1].x, points[i+1].z-points[i-1].z));
-  Object.assign(turn, { kind: 'roundabout', path: points, angles, samples, length: samples.at(-1), distance: 0, elapsed: 0,
+  Object.assign(turn, { kind: 'roundabout', path: points, angles, samples, entryLength: samples[16], length: samples.at(-1), distance: 0, elapsed: 0,
     startSpeed: car.speed, acceleration: car.acceleration ?? (car.taxi ? 25 : 4),
     limit: Math.max(car.speed, Math.min(car.cruise, car.taxi ? 10 : 7)), incoming, outgoing });
   return turn;
@@ -133,6 +133,16 @@ function bodyGap(a,b) {
   return false;
 }
 
+function predictedPose(turn, distance) {
+  const pose = roundaboutPose(turn,distance);
+  // A finished car continues down its exit instead of remaining an imaginary
+  // stationary obstacle at the landing point for the rest of the prediction.
+  const beyond = Math.max(0,distance-turn.length);
+  pose.x += Math.cos(turn.outgoing)*beyond;
+  pose.z += Math.sin(turn.outgoing)*beyond;
+  return pose;
+}
+
 // Reserve a gap in time, not the whole ring. The same analytic speed profile
 // drives both prediction and actual motion, including cars accelerating in.
 export function roundaboutGap(turn, circulating) {
@@ -143,7 +153,7 @@ export function roundaboutGap(turn, circulating) {
     const step = Math.min(.08,.5/Math.max(turn.limit,other.limit,1));
     for (let t = 0; t <= horizon + step; t += step) {
       const incoming = roundaboutMotion(turn, t), existing = roundaboutMotion(other, other.elapsed + t);
-      const a = roundaboutPose(turn, incoming.distance), b = roundaboutPose(other, existing.distance);
+      const a = predictedPose(turn, incoming.distance), b = predictedPose(other, existing.distance);
       // Oriented bodies distinguish adjacent lanes from a crossing conflict.
       // The margin covers movement between samples, even for fast taxi entries.
       if (!bodyGap(a,b)) return false;

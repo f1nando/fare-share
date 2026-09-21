@@ -160,6 +160,49 @@ test('an empty roundabout accepts a moving car before forced yield-line braking'
   assert.equal(car.turn?.kind,'roundabout');assert.ok(minimum>=7.9,'no mandatory near-stop at an empty entry');
 });
 
+test('dense queues share moving exits and clear without source-slot ghosts', () => {
+  const lanes=new Map(),cars=[];
+  // This ring has no roadworks on its approaches; outgoing traffic leaves
+  // the fixture only once its body has cleared the exit.
+  for(const axis of [0,1])for(const direction of [-1,1]) {
+    const line=axis?3:7,lane={axis,line,direction,cars:[]};lanes.set(`${axis}:${line}:${direction}`,lane);
+    for(const track of [0,1])for(let i=0;i<5;i++) {
+      const car=vehicle(axis,direction,track);
+      Object.assign(car,{line,position:(axis?280:120)-direction*(9.5+i*3.2),speed:0,cooldown:100});
+      lane.cars.push(car);cars.push(car);
+    }
+  }
+  let departed=0,at15=0,maxActive=0;
+  for(let step=0;step<900&&departed<cars.length;step++) {
+    updateNetwork(lanes,1/30,12,{blockSize:40,roadLayout:true});
+    const live=[...lanes.values()].flatMap(l=>l.cars),poses=live.map(pose);
+    maxActive=Math.max(maxActive,live.filter(c=>c.turn).length);
+    for(let a=0;a<live.length;a++)for(let b=a+1;b<live.length;b++)assert.ok(!overlaps(poses[a],poses[b]),`queue overlap at ${step}: ${a}/${b}`);
+    for(const lane of lanes.values())lane.cars=lane.cars.filter(c=>{
+      if(c.roundaboutsCompleted&&Math.abs(c.position-(c.axis?280:120))>14){departed++;return false;}
+      return true;
+    });
+    if(step===449)at15=departed;
+  }
+  assert.ok(at15>=24,`${at15}/40 clear in 15 seconds`);
+  assert.equal(departed,40,'all queues drain within 30 seconds');
+  assert.ok(maxActive>=6,'several cars share the ring');
+});
+
+test('a stopped exit queue cannot be hit by following circulating cars', () => {
+  const lanes=new Map();
+  for(const axis of [0,1])for(const direction of [-1,1]) {
+    const line=axis?3:7;lanes.set(`${axis}:${line}:${direction}`,{axis,line,direction,cars:[]});
+  }
+  const cars=[vehicle(0,1,1),vehicle(0,1,1),vehicle(0,1,1)];
+  cars.forEach((car,i)=>Object.assign(car,{line:7,position:i===2?134.9:110.5-i*3.2,speed:0,cruise:i===2?0:7,cooldown:100}));
+  lanes.get('0:7:1').cars.push(...cars);
+  for(let step=0;step<450;step++) {
+    updateNetwork(lanes,1/30,12,{blockSize:40,roadLayout:true});
+    for(let a=0;a<cars.length;a++)for(let b=a+1;b<cars.length;b++)assert.ok(!overlaps(pose(cars[a]),pose(cars[b])),`blocked exit overlap at ${step}: ${a}/${b}`);
+  }
+});
+
 test('T rings close their missing arm visually and route all traffic through existing exits', () => {
   for(const block of [24,40,48])for(const [cx,cz] of [[-6,1],[9,10]]) {
     const arms=junctionArms(cx,cz),closed=roundaboutClosedArm(cx,cz),lanes=new Map(),cars=[];

@@ -74,6 +74,10 @@ function buildTurnPath(car, blockSize, turn) {
 
 function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
   if ((!roundabout && locks.has(turn.junction)) || !lanes.has(laneKey(turn.axis, turn.line, turn.direction))) return false;
+  let reservedExits = 0;
+  // Keep enough physical queue space beyond the exit for all cars already
+  // committed to it. A stopped downstream queue must not invalidate a platoon.
+  let exitSpace = blockSize - STOP_LINE - ROUNDABOUT_STOP - 1;
   // Lock only an empty crossing. This includes same-axis cars and early claims
   // from oncoming/shoulder overtakes, which can span the junction before entry.
   for (const axis of [0, 1]) for (const direction of [-1, 1]) {
@@ -82,8 +86,10 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
     for (const other of lanes.get(laneKey(axis, line, direction))?.cars ?? []) {
       if (other === car) continue;
       if (roundabout && other.turn?.kind === 'roundabout') {
-        if (other.turn.axis === turn.axis && other.turn.line === turn.line && other.turn.direction === turn.direction &&
-            other.turn.track === turn.track && Math.abs(other.turn.position - turn.position) < CAR_GAP + 1) return false;
+        // Sharing an exit is allowed with a time gap; the trajectory planner
+        // checks the moving cars instead of locking an exit for the whole lap.
+        if(other.turn.junction===turn.junction && other.turn.axis===turn.axis && other.turn.direction===turn.direction &&
+          other.turn.track===turn.track) reservedExits++;
         continue;
       }
       if (other.overtake?.leader === car) return false;
@@ -93,9 +99,13 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
       // borrowing this road from the opposite direction.
       const inLandingTrack = direction === turn.direction ? occupiesTrack(other, turn.track) : turn.track === 0 && occupiesTrack(other, -1);
       if (axis === turn.axis && inLandingTrack && Math.abs(other.position - turn.position) < CAR_GAP + 1) return false;
+      if(roundabout && axis===turn.axis && inLandingTrack) {
+        const ahead=(other.position-turn.position)*turn.direction;
+        if(ahead>=0) exitSpace=Math.min(exitSpace,ahead);
+      }
     }
   }
-  return true;
+  return !roundabout || exitSpace >= (reservedExits+1)*CAR_GAP+1;
 }
 
 // One network step is shared by the renderer and traffic smoke test. Transfers
