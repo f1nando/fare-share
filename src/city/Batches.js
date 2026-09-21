@@ -42,7 +42,7 @@ export class Batches {
         const material = kind === 'taxi' ? this.taxiMaterial : kind === 'taxiDetail' ? this.taxiDetailMaterial : kind === 'light' ? this.lightMaterial : kind === 'beam' ? this.beamMaterial : this.material;
         mesh = new THREE.InstancedMesh(this.geometries[kind], material, Math.ceil(count * 1.3));
         mesh.userData.colors = [];
-        mesh.castShadow = !['paint', 'paving', 'paintBend', 'pavingBend', 'light', 'beam'].includes(kind);
+        mesh.castShadow = !['paint', 'paving', 'light', 'beam'].includes(kind);
         mesh.receiveShadow = !['light', 'beam'].includes(kind);
         if (this.dynamic) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.meshes.set(kind, mesh);
