@@ -350,6 +350,46 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn cleanup_burned_machine(ctx: Context<CleanupBurnedMachine>, page_index: u8) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
+        require!(usize::from(page_index) < MAX_QUEUE_PAGES, TaxiError::InvalidQueuePage);
+        require!(ctx.accounts.event_page.events.len() < EVENTS_PER_PAGE, TaxiError::EventPageCapacity);
+
+        let asset_info = ctx.accounts.asset.to_account_info();
+        require!(
+            asset_info.lamports() == 0 && asset_info.data_is_empty(),
+            TaxiError::AssetNotBurned
+        );
+
+        let now = ctx.accounts.config.protocol_time(Clock::get()?.unix_timestamp)?;
+        ctx.accounts.machine.closed = true;
+        ctx.accounts.machine.active_until = now;
+
+        let page = &mut ctx.accounts.event_page;
+        if page.events.is_empty() {
+            page.index = page_index;
+            page.bump = ctx.bumps.event_page;
+        }
+        require!(page.index == page_index, TaxiError::InvalidQueuePage);
+        let event_number = ctx.accounts.queue.take_event_number()?;
+        page.push(MachineEvent::new(
+            now,
+            event_number,
+            ctx.accounts.machine.asset,
+            EventKind::Burn,
+            ctx.accounts.machine.scheduled_generation,
+        ))?;
+        ctx.accounts.queue.update_page(page)?;
+
+        emit!(MachineBurnQueued {
+            asset: ctx.accounts.machine.asset,
+            detected_by: ctx.accounts.caller.key(),
+            timestamp: now,
+        });
+        Ok(())
+    }
+
     pub fn claim<'info>(ctx: Context<'_, '_, 'info, 'info, Claim<'info>>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
@@ -683,6 +723,30 @@ pub struct RepairMachine<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(page_index: u8)]
+pub struct CleanupBurnedMachine<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
+    pub queue: Account<'info, EventQueue>,
+    #[account(
+        init_if_needed,
+        payer = caller,
+        space = 8 + EventPage::INIT_SPACE,
+        seeds = [b"event-page".as_ref(), &[page_index]],
+        bump
+    )]
+    pub event_page: Account<'info, EventPage>,
+    #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
+    pub machine: Account<'info, Machine>,
+    /// CHECK: Its address is bound to Machine; a burned Core asset has zero lamports and no data.
+    pub asset: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct Claim<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -796,6 +860,13 @@ pub struct MachineRepaired {
     pub missing_seconds: i64,
     pub active_until: i64,
     pub generation: u32,
+}
+
+#[event]
+pub struct MachineBurnQueued {
+    pub asset: Pubkey,
+    pub detected_by: Pubkey,
+    pub timestamp: i64,
 }
 
 #[event]

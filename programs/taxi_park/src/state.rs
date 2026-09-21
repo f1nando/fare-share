@@ -480,6 +480,35 @@ mod tests {
     }
 
     #[test]
+    fn queued_burn_removes_weight_and_returns_unclaimed_rewards() {
+        let asset = Pubkey::new_unique();
+        let mut pool = RewardPool {
+            total_active_weight: 3,
+            accumulators: [math::ACCUMULATOR_SCALE, 0, 0, 0, 0],
+            obligations: [2, 0, 0, 0, 0],
+            ..RewardPool::default()
+        };
+        let mut machine = Machine {
+            asset,
+            weight: 2,
+            reward_active: true,
+            closed: true,
+            ..Machine::default()
+        };
+
+        machine
+            .apply_event(&mut pool, &MachineEvent::new(10, 1, asset, EventKind::Burn, 0))
+            .unwrap();
+
+        assert!(machine.closed);
+        assert!(!machine.reward_active);
+        assert_eq!(pool.total_active_weight, 1);
+        assert_eq!(pool.obligations[0], 0);
+        assert_eq!(pool.next_pool[0], 2);
+        assert_eq!(machine.claimable[0], 0);
+    }
+
+    #[test]
     fn queue_accounts_fit_normal_anchor_initialization() {
         assert!(EventQueue::INIT_SPACE + 8 <= 10_240);
         assert!(EventPage::INIT_SPACE + 8 <= 10_240);

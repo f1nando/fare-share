@@ -88,4 +88,6 @@ pub enum TaxiError {
     InvalidJupiterProgram,
     #[msg("Rescue amount is zero or exceeds the vault balance")]
     InvalidRescueAmount,
+    #[msg("The Metaplex Core asset still exists and has not been burned")]
+    AssetNotBurned,
 }
