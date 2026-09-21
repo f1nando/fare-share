@@ -1,4 +1,4 @@
-import { parkingAt } from '../src/city/parkingLayout.js';
+import { parkingAt, parkingLayout, parkingPosition } from '../src/city/parkingLayout.js';
 import { seedParking } from '../src/city/parkingTraffic.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {THIRD_TRACK,streetTracks,streetHalf,junctionStop}from'../src/city/roadProfile.js';
@@ -84,9 +84,11 @@ test('avenue lots, trees and houses leave room for the third lane',()=>{
 
 test('parking on an avenue exits into the third normal lane',()=>{
   let lot;
-  for(let x=-16;x<=16&&!lot;x++)for(const z of[-1,5])if(parkingAt(x,z,40)){lot={x,z};break;}
+  for(let x=-16;x<=16&&!lot;x++)for(const z of[-1,5])if(parkingAt(x,z,40)){
+    const candidate=parkingLayout(x,z,40);if(candidate.track===THIRD_TRACK){lot=candidate;break;}
+  }
   assert.ok(lot);
-  const c=car(0,lot.z+1,-1,THIRD_TRACK,lot.x*40+20),lane={axis:0,line:lot.z+1,direction:-1,cars:[c]};
+  const c=car(lot.axis,lot.line,lot.direction,THIRD_TRACK,parkingPosition(lot,lot.left+20)),lane={axis:lot.axis,line:lot.line,direction:lot.direction,cars:[c]};
   seedParking(lane,40);assert.ok(c.parking);assert.equal(c.parking.lot.track,THIRD_TRACK);
   const lanes=new Map([[key(c),lane]]);
   for(let i=0;i<900&&!c.parkingExits;i++)updateNetwork(lanes,1/30,i/30,{blockSize:40,roadLayout:true});
