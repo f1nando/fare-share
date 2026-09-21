@@ -1,4 +1,4 @@
-import { THIRD_TRACK, junctionStop, streetHalf } from './roadProfile.js';
+import { THIRD_TRACK, junctionStop, streetHalf, laneOffset } from './roadProfile.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
@@ -55,11 +55,12 @@ export function makeTurn(car, blockSize, side = car.track === 0 ? -1 : 1) {
   return buildTurnPath(car, blockSize, turnTarget(car, blockSize, side));
 }
 
-function buildTurnPath(car, blockSize, turn) {
+function buildTurnPath(car, blockSize, turn, roadLayout = true) {
   const { axis, direction, track, position } = turn;
   const center = turn.line * blockSize;
   const a = carCoordinates(car, blockSize);
-  const d = point(axis, position, center + (axis === 0 ? 1 : -1) * direction * TRACKS[track]);
+  const offset = roadLayout ? laneOffset(axis,turn.line,track) : TRACKS[track];
+  const d = point(axis, position, center + (axis === 0 ? 1 : -1) * direction * offset);
   const incoming = point(car.axis, car.direction, 0), outgoing = point(axis, direction, 0);
   const corner = car.axis === 0 ? { x: d.x, z: a.z } : { x: a.x, z: d.z };
   const entryLength = Math.hypot(corner.x - a.x, corner.z - a.z);
@@ -218,11 +219,11 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       if(occupied||exitBlocked)continue;
       if(turn.ringActive){if(!roundaboutGap(turn,circulating))continue;circulating.push(turn);}
     } else if (car.roundaboutApproach) {
-      const end = point(turn.axis, turn.position, turn.line * blockSize + (turn.axis === 0 ? 1 : -1) * turn.direction * TRACKS[turn.track]);
+      const end = point(turn.axis, turn.position, turn.line * blockSize + (turn.axis === 0 ? 1 : -1) * turn.direction * laneOffset(turn.axis,turn.line,turn.track));
       buildRoundaboutPath(car, turn, carCoordinates(car, blockSize), end);
       if (!roundaboutGap(turn, circulating)) continue;
       circulating.push(turn);
-    } else buildTurnPath(car, blockSize, turn);
+    } else buildTurnPath(car, blockSize, turn, roadLayout);
     if (car.race) finishRace(car.race);
     car.turn = turn;
     turn.required = required;
@@ -296,7 +297,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     source.cars.splice(source.cars.indexOf(car), 1);
     destination.cars.push(car);
     Object.assign(car, { axis: turn.axis, line: turn.line, direction: turn.direction, position: turn.position,
-      track: turn.track, fromTrack: turn.track, offset: TRACKS[turn.track], steer: 0, changing: false, merge: 1,
+      track: turn.track, fromTrack: turn.track, offset: roadLayout ? laneOffset(turn.axis,turn.line,turn.track) : TRACKS[turn.track], steer: 0, changing: false, merge: 1,
       turn: null, turnCooldown: 4 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
     if (turn.kind === 'roundabout') car.roundaboutsCompleted = (car.roundaboutsCompleted ?? 0) + 1;

@@ -1,4 +1,4 @@
-import { THIRD_TRACK, boulevardRoad, streetHalf, junctionStop } from './roadProfile.js';
+import { THIRD_TRACK, boulevardRoad, streetHalf, junctionStop, laneOffset } from './roadProfile.js';
 import { DIAGONAL_LANE, DIAGONAL_HALF, diagonalFromJunction, approachesNear } from './diagonalLayout.js';
 import { TRACKS, STOP_LINE, PAVED_ROAD, occupiesTrack, greenLight, stoppingSpeed } from './world.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
@@ -6,8 +6,8 @@ import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { buildRoundaboutPath, roundaboutPose } from './roundabouts.js';
 
 const laneKey=t=>`${t.axis}:${t.line}:${t.direction}`;
-const lanePoint=(t,block)=>t.axis===0?{x:t.position,z:t.line*block+t.direction*TRACKS[t.track]}:
-  {x:t.line*block-t.direction*TRACKS[t.track],z:t.position};
+const lanePoint=(t,block)=>t.axis===0?{x:t.position,z:t.line*block+t.direction*laneOffset(t.axis,t.line,t.track)}:
+  {x:t.line*block-t.direction*laneOffset(t.axis,t.line,t.track),z:t.position};
 const onRoad=(road,d,flow,block)=>({x:road.a.x*block+road.dx*d-road.dz*DIAGONAL_LANE*flow,
   z:road.a.z*block+road.dz*d+road.dx*DIAGONAL_LANE*flow});
 export function diagonalTarget(car,cross,block){

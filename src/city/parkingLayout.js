@@ -1,4 +1,4 @@
-import { boulevardRoad, THIRD_TRACK } from './roadProfile.js';
+import { boulevardRoad, THIRD_TRACK, laneOffset, streetHalf } from './roadProfile.js';
 import { parkAt, roadOpen, roadworkAt, roundaboutAt } from './roadLayout.js';
 import { canalColumn } from './bridgeProfile.js';
 import { diagonalAt } from './diagonalLayout.js';
@@ -67,8 +67,9 @@ export function parkingLayout(x,z,block) {
   const rotation=Math.max(0,orientation(x,z,block)),road=frontage(x,z,rotation),boulevard=boulevardRoad(road.axis,road.line);
   const entry=left+PARKING_GATE_INSET,exit=right-PARKING_GATE_INSET,first=entry+2.2,last=exit-2.2;
   const count=Math.min(10,Math.floor((last-first)/2.4)+1);
-  return {key:`${x}:${z}`,x,z,block,left,right,bottom,entry,exit,rotation,...road,aisle:bottom-6.6,bay:bottom-10.8,
-    track:boulevard?THIRD_TRACK:1,street:bottom-(boulevard?4.08:2.45),slots:Array.from({length:count},(_,i)=>first+(last-first)*i/Math.max(1,count-1))};
+  const aisle=bottom-Math.max(6.6,streetHalf(road.axis,road.line)+1.12),track=boulevard?THIRD_TRACK:1;
+  return {key:`${x}:${z}`,x,z,block,left,right,bottom,entry,exit,rotation,...road,aisle,bay:aisle-4.2,
+    track,street:bottom-laneOffset(road.axis,road.line,track),slots:Array.from({length:count},(_,i)=>first+(last-first)*i/Math.max(1,count-1))};
 }
 
 export function populateParking(batch,gx,gz,x,z,block) {
@@ -83,7 +84,7 @@ export function populateParking(batch,gx,gz,x,z,block) {
     batch.add('box',(left+right)/2,.1,(top+bottom)/2,right-left,.3,bottom-top,'#bdbdbd');
     batch.add('box',(left+right)/2,.25,(top+bottom)/2,right-left,.34,bottom-top,'#dedede');
   };
-  const north=z+block-13.5,south=z+block-5,inner=3.85;
+  const north=lot.bay+dz-2.7,south=lot.aisle+dz+1.6,inner=3.85;
   rect(x+inner,x+block-inner,z+inner,north);
   rect(x+inner,x+6,north,z+block-inner);
   rect(x+block-6,x+block-inner,north,z+block-inner);

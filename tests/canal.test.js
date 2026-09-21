@@ -1,4 +1,4 @@
-import { streetHalf } from '../src/city/roadProfile.js';
+import { streetHalf, laneOffset } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canalColumn, canalDimensions, CANAL_BRIDGE_HALF, CANAL_WATER_LEVEL, populateCanal } from '../src/city/canal.js';
@@ -97,7 +97,7 @@ test('bridge parapets, bank walls and trunks leave normal and borrowed tracks cl
     const obstacles = parts.filter(p => p[0] === 'box' && p[2] > 0.3 && (p[4] < 0.5 || p[6] < 0.5));
     for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const track of (axis===0?[-1,0,1,2,3]:[-1,0,1,2])) {
       for (let along = 8; along <= block - 8; along += 0.5) {
-        const car = { axis, line: 0, direction, position: along, offset: trackOffset(track) };
+        const car = { axis, line: 0, direction, position: along, offset: laneOffset(axis,0,track) };
         const coordinates = carCoordinates(car, block);
         for (const steer of [-MAX_MERGE_ANGLE, 0, MAX_MERGE_ANGLE]) {
           const pose = vehiclePose(coordinates.x, coordinates.z, axis, direction, steer);

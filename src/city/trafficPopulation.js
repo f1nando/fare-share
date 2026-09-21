@@ -1,4 +1,4 @@
-import { streetTracks } from './roadProfile.js';
+import { streetTracks, laneOffset } from './roadProfile.js';
 import { seededRandom, TRACKS, TRAFFIC_SPACING, STOP_LINE } from './world.js';
 import { spawnRoadOpen } from './roadLayout.js';
 import { seedParking } from './parkingTraffic.js';
@@ -22,7 +22,7 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
     cars.push({ axis, line, direction,
       position: centerPosition - radius * settings.blockSize + i * spacing + tracks.indexOf(track) * spacing / tracks.length + random() * 1.5,
       taxi, kind, color: colors[Math.floor(random() * colors.length)],
-      track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise, acceleration,
+      track, fromTrack: track, offset: roadLayout ? laneOffset(axis,line,track) : TRACKS[track], cruise, speed: cruise, acceleration,
       baseCruise: cruise, baseAcceleration: acceleration,
       changing: false, merge: 1, cooldown: random(), steer: 0,
       // Keep one object layout through parking, turns and taxi manoeuvres.

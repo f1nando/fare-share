@@ -1,4 +1,4 @@
-import { streetHalf, boulevardRoad } from '../src/city/roadProfile.js';
+import { streetHalf, boulevardRoad, laneOffset } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { roundaboutAt, roadOpen, spawnRoadOpen, relocateToRoad, junctionArms, roundaboutClosedArm } from '../src/city/roadLayout.js';
@@ -25,7 +25,7 @@ function fixture() {
   return lanes;
 }
 function vehicle(axis, direction, track, taxi = false, distance = ROUNDABOUT_STOP + 0.8) {
-  return { axis, direction, line: axis === 0 ? 1 : 3, track, fromTrack: track, offset: TRACKS[track],
+  return { axis, direction, line: axis === 0 ? 1 : 3, track, fromTrack: track, offset: laneOffset(axis,axis===0?1:3,track),
     position: (axis === 0 ? center.x : center.z) - direction * distance,
     taxi, speed: taxi ? 4 : 3, cruise: taxi ? 14 : 7, baseCruise: taxi ? 14 : 7, acceleration: taxi ? 25 : 4,
     changing:false, merge:1, cooldown:5, steer:0, turnCooldown:100, flashCooldown:Infinity };
@@ -112,8 +112,9 @@ test('all entries, tracks and exits have continuous paths that clear the island 
     const car=vehicle(axis,direction,track), incoming=heading(axis,direction), outgoing=incoming+side*Math.PI/2;
     const targetAxis=side?1-axis:axis, targetDirection=side ? direction*side*(axis===0?1:-1):direction;
     const targetTrack=side<0?0:track;
-    const end={x:center.x+Math.cos(outgoing)*(ROUNDABOUT_STOP+1)-Math.sin(outgoing)*TRACKS[targetTrack],
-      z:center.z+Math.sin(outgoing)*(ROUNDABOUT_STOP+1)+Math.cos(outgoing)*TRACKS[targetTrack]};
+    const offset=laneOffset(targetAxis,targetAxis===0?1:3,targetTrack);
+    const end={x:center.x+Math.cos(outgoing)*(ROUNDABOUT_STOP+1)-Math.sin(outgoing)*offset,
+      z:center.z+Math.sin(outgoing)*(ROUNDABOUT_STOP+1)+Math.cos(outgoing)*offset};
     const turn=buildRoundaboutPath(car,{axis:targetAxis,direction:targetDirection,centerX:center.x,centerZ:center.z},carCoordinates(car,40),end);
     let previous=roundaboutPose(turn,0);
     for(let d=0;d<=turn.length;d+=.04) {

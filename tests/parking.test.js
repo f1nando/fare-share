@@ -15,7 +15,7 @@ import { diagonalAt, approachAtRing } from '../src/city/diagonalLayout.js';
 import { canalColumn } from '../src/city/bridgeProfile.js';
 import { roadOpen, roadworkAt, roundaboutAt } from '../src/city/roadLayout.js';
 
-const carAt=(lot,position=parkingPosition(lot,lot.entry+2))=>({axis:lot.axis,line:lot.line,direction:lot.direction,position,track:lot.track,fromTrack:lot.track,offset:lot.track===3?4.08:2.45,
+const carAt=(lot,position=parkingPosition(lot,lot.entry+2))=>({axis:lot.axis,line:lot.line,direction:lot.direction,position,track:lot.track,fromTrack:lot.track,offset:lot.bottom-lot.street,
   taxi:false,color:'#ffffff',speed:4,cruise:6,baseCruise:6,acceleration:4,baseAcceleration:4,cooldown:0,merge:1,steer:0});
 const network=cars=>new Map([[`${cars[0].axis}:${cars[0].line}:${cars[0].direction}`,{axis:cars[0].axis,line:cars[0].line,direction:cars[0].direction,cars}]]);
 

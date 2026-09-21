@@ -1,17 +1,17 @@
 import { parkingAt, parkingLayout, parkingPosition } from '../src/city/parkingLayout.js';
 import { seedParking } from '../src/city/parkingTraffic.js';
 import test from 'node:test';import assert from 'node:assert/strict';
-import {THIRD_TRACK,streetTracks,streetHalf,junctionStop}from'../src/city/roadProfile.js';
+import {THIRD_TRACK,streetTracks,streetHalf,junctionStop,laneOffset,BOULEVARD_LANE_SCALE,laneDividers}from'../src/city/roadProfile.js';
 import {populateLane}from'../src/city/trafficPopulation.js';
 import {DEFAULT_SETTINGS}from'../src/city/settings.js';
-import {TRACKS,SHOULDER_TRACK,STOP_LINE,vehiclePose}from'../src/city/world.js';
+import {TRACKS,SHOULDER_TRACK,STOP_LINE,vehiclePose,updateTraffic,MERGE_DURATION}from'../src/city/world.js';
 import {updateNetwork,carCoordinates,makeTurn,turnPose}from'../src/city/trafficNetwork.js';
 import {roundaboutStopAt}from'../src/city/roadLayout.js';
 import {vehicleType,extraHalfLength}from'../src/city/vehicleTypes.js';
 import {roadHeight}from'../src/city/vehicleSurface.js';
 import {populateBlock}from'../src/city/createCity.js';
 const key=c=>`${c.axis}:${c.line}:${c.direction}`;
-const car=(axis,line,direction,track,position,kind='car')=>({axis,line,direction,track,fromTrack:track,position,offset:TRACKS[track],kind,taxi:false,
+const car=(axis,line,direction,track,position,kind='car')=>({axis,line,direction,track,fromTrack:track,position,offset:laneOffset(axis,line,track),kind,taxi:false,
  speed:4,cruise:6,baseCruise:6,acceleration:4,cooldown:100,turnCooldown:100,changing:false,merge:1,steer:0});
 function onAsphalt(c,p,block){const type=vehicleType(c);for(const side of[-type.width/2,type.width/2])for(const front of[-type.length/2,type.length/2])
   assert.ok(roadHeight(p.x+side*p.cos+front*p.sin,p.z-side*p.sin+front*p.cos,block,3.85)<.06,JSON.stringify({c:{axis:c.axis,line:c.line,track:c.track,kind:c.kind},p}));}
@@ -32,6 +32,10 @@ test('planted avenues have three normal tracks each way with unchanged total den
     assert.deepEqual([...new Set(l.cars.filter(c=>!c.parking).map(c=>c.track))].sort(),[0,1,3]);
     assert.ok(l.cars.length<=base.cars.length);assert.deepEqual(streetTracks(axis,line+1),[0,1]);
     assert.ok(l.cars.every(c=>c.track!==SHOULDER_TRACK));
+    for(const c of l.cars)assert.equal(c.offset,laneOffset(axis,line,c.track));
+    const centres=streetTracks(axis,line).map(t=>laneOffset(axis,line,t));
+    assert.ok(Math.abs((centres[1]-centres[0])/(TRACKS[1]-TRACKS[0])-BOULEVARD_LANE_SCALE)<1e-10);
+    assert.deepEqual(laneDividers(axis,line),[(centres[0]+centres[1])/2,(centres[1]+centres[2])/2]);
     l.cars.filter(c=>c.taxi).forEach(c=>taxiTracks.add(c.track));
   }
   assert.deepEqual([...taxiTracks].sort(),[0,1,3]);
@@ -45,6 +49,23 @@ test('all three lanes carry moving cars and heavy vehicles through normal crossi
       for(const c of cars){const p=carCoordinates(c,40);onAsphalt(c,c.turn?p:vehiclePose(p.x,p.z,axis,d,c.steer),40);}
     }
     assert.ok(cars.every(c=>c.position*d>120*d));assert.deepEqual(cars.map(c=>c.track),[0,1,3]);
+  }
+});
+
+test('wide-lane changes keep heavy bodies on asphalt and reach the matching lane centre',()=>{
+  for(const axis of[0,1])for(const d of[-1,1])for(const[from,to]of[[0,1],[1,0],[1,3],[3,1]])for(const kind of['car','truck','bus']){
+    const c=car(axis,axis===0?6:3,d,to,260,kind);
+    Object.assign(c,{fromTrack:from,offset:laneOffset(c.axis,c.line,from),changing:true,merge:0,dividedRoad:true});
+    for(let i=0;i<60;i++){
+      updateTraffic([c],d,MERGE_DURATION/50,true,{blockSize:40});
+      const p=carCoordinates(c,40),pose=vehiclePose(p.x,p.z,axis,d,c.steer);onAsphalt(c,pose,40);
+      const type=vehicleType(c);
+      for(const side of[-type.width/2,type.width/2])for(const front of[-type.length/2,type.length/2]){
+        const across=axis===0?pose.z-side*pose.sin+front*pose.cos:pose.x+side*pose.cos+front*pose.sin;
+        assert.ok(Math.abs(across-c.line*40)>.17,'whole body clears median');
+      }
+    }
+    assert.equal(c.changing,false);assert.equal(c.offset,laneOffset(c.axis,c.line,to));
   }
 });
 test('third-lane turns land on an ordinary two-lane street with bodies clear of curbs',()=>{
@@ -92,5 +113,5 @@ test('parking on an avenue exits into the third normal lane',()=>{
   seedParking(lane,40);assert.ok(c.parking);assert.equal(c.parking.lot.track,THIRD_TRACK);
   const lanes=new Map([[key(c),lane]]);
   for(let i=0;i<900&&!c.parkingExits;i++)updateNetwork(lanes,1/30,i/30,{blockSize:40,roadLayout:true});
-  assert.equal(c.parkingExits,1);assert.equal(c.track,THIRD_TRACK);assert.equal(c.offset,TRACKS[THIRD_TRACK]);
+  assert.equal(c.parkingExits,1);assert.equal(c.track,THIRD_TRACK);assert.equal(c.offset,laneOffset(c.axis,c.line,THIRD_TRACK));
 });
