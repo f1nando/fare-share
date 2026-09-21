@@ -273,7 +273,11 @@ pub mod taxi_park {
             TaxiError::InvalidRewardMint
         );
 
-        let accounted = ctx.accounts.pool.accounted_tokens(index)?;
+        let accounted = total_accounted_reward_tokens(
+            &ctx.accounts.pool,
+            &ctx.accounts.trainee_pool,
+            index,
+        )?;
         let actual = ctx.accounts.vault.amount;
         let received = actual
             .checked_sub(accounted)
@@ -945,7 +949,11 @@ pub mod taxi_park {
 
     pub fn sync_trainee_fare(ctx: Context<SyncTraineeFare>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        let accounted = ctx.accounts.trainee_pool.accounted_tokens(0)?;
+        let accounted = total_accounted_reward_tokens(
+            &ctx.accounts.pool,
+            &ctx.accounts.trainee_pool,
+            0,
+        )?;
         let received = ctx
             .accounts
             .vault
@@ -1387,6 +1395,8 @@ pub struct SyncRewardAsset<'info> {
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
     pub pool: Box<Account<'info, RewardPool>>,
+    #[account(seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
     pub mint: InterfaceAccount<'info, Mint>,
     #[account(
         token::mint = mint,
@@ -1639,6 +1649,8 @@ pub struct SyncTraineeFare<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
     pub config: Box<Account<'info, Configuration>>,
+    #[account(seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
     pub trainee_pool: Box<Account<'info, RewardPool>>,
     pub fare_mint: InterfaceAccount<'info, Mint>,
@@ -1755,6 +1767,41 @@ fn require_route_accounts(
         );
     }
     Ok(())
+}
+
+fn total_accounted_reward_tokens(
+    pool: &RewardPool,
+    trainee_pool: &RewardPool,
+    index: usize,
+) -> Result<u64> {
+    let main = pool.accounted_tokens(index)?;
+    if index == 0 {
+        main.checked_add(trainee_pool.accounted_tokens(0)?)
+            .ok_or_else(|| error!(TaxiError::MathOverflow))
+    } else {
+        Ok(main)
+    }
+}
+
+#[cfg(test)]
+mod accounting_tests {
+    use super::*;
+
+    #[test]
+    fn fare_vault_accounting_includes_the_trainee_pool() {
+        let main = RewardPool {
+            obligations: [10, 20, 0, 0, 0],
+            next_pool: [30, 40, 0, 0, 0],
+            ..RewardPool::default()
+        };
+        let trainee = RewardPool {
+            obligations: [5, 0, 0, 0, 0],
+            next_pool: [7, 0, 0, 0, 0],
+            ..RewardPool::default()
+        };
+        assert_eq!(total_accounted_reward_tokens(&main, &trainee, 0).unwrap(), 52);
+        assert_eq!(total_accounted_reward_tokens(&main, &trainee, 1).unwrap(), 60);
+    }
 }
 
 fn fund_wsol<'info>(
