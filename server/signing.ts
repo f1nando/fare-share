@@ -21,18 +21,7 @@ export interface BackendSigner {
 }
 
 export function parseBackendSigner(serialized: string): BackendSigner {
-  let secret: Uint8Array;
-  try {
-    const parsed = JSON.parse(serialized) as unknown;
-    if (!Array.isArray(parsed) || parsed.length !== 64) throw new Error('expected 64 bytes');
-    const values = parsed.map(Number);
-    if (values.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
-      throw new Error('contains an invalid byte');
-    }
-    secret = Uint8Array.from(values);
-  } catch (error) {
-    throw new Error(`BACKEND_SIGNER_SECRET_KEY must be a JSON array with 64 bytes: ${String(error)}`);
-  }
+  const secret = parseSecretBytes(serialized, 'BACKEND_SIGNER_SECRET_KEY');
   const publicBytes = secret.slice(32);
   const publicKey = addressFromBytes(publicBytes);
   const privateKey = createPrivateKey({
@@ -46,6 +35,20 @@ export function parseBackendSigner(serialized: string): BackendSigner {
       return Uint8Array.from(sign(null, Buffer.from(message), privateKey));
     },
   };
+}
+
+export function parseSecretBytes(serialized: string, name = 'secret key'): Uint8Array {
+  try {
+    const parsed = JSON.parse(serialized) as unknown;
+    if (!Array.isArray(parsed) || parsed.length !== 64) throw new Error('expected 64 bytes');
+    const values = parsed.map(Number);
+    if (values.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
+      throw new Error('contains an invalid byte');
+    }
+    return Uint8Array.from(values);
+  } catch (error) {
+    throw new Error(`${name} must be a JSON array with 64 bytes: ${String(error)}`);
+  }
 }
 
 export function buildTraineeVoucherMessage(

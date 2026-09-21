@@ -44,14 +44,15 @@ export function decodeClockFields(bytes: Uint8Array) {
   const reader = new Reader(bytes, 8);
   reader.skip(32 * 2);
   const backendSigner = reader.pubkey();
-  reader.skip(32 * 2);
+  const teamAccount = reader.pubkey();
+  const jupiterProgram = reader.pubkey();
   const deploymentId = reader.take(32);
   reader.skip(8 + 8 * 4 + 32 * 6);
   for (let index = 0; index < 4; index += 1) reader.string();
   reader.skip(8 * 4 + 2 * 4 + 1);
   const pausedAt = reader.i64();
   const totalPausedSeconds = reader.i64();
-  return { backendSigner, deploymentId, pausedAt, totalPausedSeconds };
+  return { backendSigner, teamAccount, jupiterProgram, deploymentId, pausedAt, totalPausedSeconds };
 }
 
 async function rpc(url: string, method: string, params: unknown[]): Promise<unknown> {

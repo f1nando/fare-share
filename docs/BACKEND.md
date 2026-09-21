@@ -30,4 +30,15 @@ npm run server:typecheck
 node --import tsx --test tests/backend-voucher.test.ts
 ```
 
-Worker для `collect_fees`, Jupiter swaps и продвижения reward queues будет запускаться отдельным процессом. Он не должен делить HTTP endpoint с admin-командами; admin-инструкции остаются только в ручной CLI на сервере.
+## Permissionless worker
+
+```sh
+npm run worker
+npm run worker -- --once
+```
+
+Раз в `WORKER_INTERVAL_MS` worker проверяет finalized on-chain состояние. Он вызывает `collect_fees` только при наличии нового свободного SOL и последовательно догоняет основную и стажёрскую очереди. Для каждой транзакции он читает heap-страницы, выбирает события строго по `timestamp + eventNumber`, добавляет только нужные writable Machine/Bucket PDA и не превышает лимит 20 событий. При большом числе разных аккаунтов batch автоматически уменьшается, чтобы не собирать заведомо слишком крупную транзакцию.
+
+Jupiter swaps будут подключены отдельным адаптером: актуальный Swap API v1 требует API key, quote и `swap-instructions`, а наш контракт дополнительно подписывает и проверяет exact input, `minOut`, deadline, nonce и hash всех route accounts. До добавления ключа worker безопасно накапливает SOL в отдельных резервах и не создаёт фиктивные токеновые начисления.
+
+Worker не делит HTTP endpoint с admin-командами; admin-инструкции остаются только в ручной CLI на сервере.
