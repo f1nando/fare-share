@@ -1,7 +1,9 @@
 import { vehicleType } from './vehicleTypes.js';
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 
-import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
+import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE, roundaboutCornerEdge } from './roundaboutDimensions.js';
+import { approachAtRing } from './diagonalLayout.js';
+import { outsideApproach, polygonSlab } from './diagonalGeometry.js';
 export { RING_RADIUS, ISLAND_RADIUS } from './roundaboutDimensions.js';
 const TAU = Math.PI * 2;
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -43,12 +45,24 @@ export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
   } };
 }
 
-export function populateRoundabout(batch, gx, gz, x, z) {
+export function populateRoundabout(batch, gx, gz, x, z, block = 40) {
   if (!roundaboutAt(gx, gz)) return;
   const closed=roundaboutClosedArm(gx,gz);
+  const approach=approachAtRing(gx,gz,block);
   for (let quadrant = 0; quadrant < 4; quadrant++) {
     if(closed>=0&&(quadrant===(5-closed)%4||quadrant===(4-closed)%4))continue;
     const rotation = quadrant * Math.PI / 2;
+    if(approach){
+      for(const [inset,y,h,color]of[[0,.1,.3,'#bdbdbd'],[.21,.25,.34,'#dedede']]){
+        const edge=roundaboutCornerEdge(inset);
+        const points=[...edge,{x:ROUNDABOUT_CLEARANCE,z:ROUNDABOUT_CLEARANCE}].map(p=>({
+          x:gx*block+p.x*Math.cos(rotation)+p.z*Math.sin(rotation),
+          z:gz*block-p.x*Math.sin(rotation)+p.z*Math.cos(rotation)}));
+        for(const poly of outsideApproach(points,approach,block,inset))
+          polygonSlab(batch,poly,y,h,color,x-gx*block,z-gz*block);
+      }
+      continue;
+    }
     batch.add('roundaboutCurb',x,0.1,z,1,0.3,1,'#bdbdbd',rotation);
     batch.add('roundaboutWalk',x,0.25,z,1,0.34,1,'#dedede',rotation);
   }
@@ -76,12 +90,13 @@ const cubic = (a, b, c, d, t) => {
 // Entry and exit are tangent to the circle and to the original street lanes.
 // A distance table is built only when admitting a car, never for the whole city.
 export function buildRoundaboutPath(car, turn, start, end) {
-  const incoming = heading(car.axis, car.direction), outgoing = heading(turn.axis, turn.direction);
+  const incoming = turn.incomingHeading ?? heading(car.axis, car.direction), outgoing = turn.outgoingHeading ?? heading(turn.axis, turn.direction);
   const entry = incoming + Math.PI * 0.75, exit = outgoing + Math.PI * 0.25;
   const sweep = ((entry - exit) % TAU + TAU) % TAU;
   const onRing = angle => ({ x: turn.centerX + RING_RADIUS * Math.cos(angle), z: turn.centerZ + RING_RADIUS * Math.sin(angle) });
   const a = onRing(entry), b = onRing(exit), points = [start];
-  const before = { x: start.x + Math.cos(incoming) * 2.8, z: start.z + Math.sin(incoming) * 2.8 };
+  const handle=Math.max(2.8,Math.hypot(start.x-turn.centerX,start.z-turn.centerZ)-9.5);
+  const before = { x: start.x + Math.cos(incoming) * handle, z: start.z + Math.sin(incoming) * handle };
   const join = { x: a.x - Math.sin(entry) * 2, z: a.z + Math.cos(entry) * 2 };
   for (let i = 1; i <= 16; i++) points.push(cubic(start, before, join, a, i / 16));
   const count = Math.ceil(sweep / (Math.PI / 48));

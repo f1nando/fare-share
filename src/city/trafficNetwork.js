@@ -3,11 +3,11 @@ import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
-import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt, roundaboutAt } from './roadLayout.js';
+import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt, roundaboutAt, roundaboutStopAt } from './roadLayout.js';
 import { buildRoundaboutPath, roundaboutPose, roundaboutMotion, roundaboutGap } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { updateParking } from './parkingTraffic.js';
-import { diagonalTarget, buildDiagonalPath, diagonalLandingClear } from './diagonalTraffic.js';
+import { diagonalTarget, buildDiagonalPath, diagonalLandingClear, beginInboundRing, beginOutboundRoad, prepareApproachCrossings, diagonalTravelLimit, advanceDiagonal } from './diagonalTraffic.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -81,14 +81,14 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
   let reservedExits = 0;
   // Keep enough physical queue space beyond the exit for all cars already
   // committed to it. A stopped downstream queue must not invalidate a platoon.
-  let exitSpace = blockSize - STOP_LINE - ROUNDABOUT_STOP - 1;
+  let exitSpace = blockSize - STOP_LINE - Math.abs(turn.position-(turn.axis===0?turn.centerX:turn.centerZ));
   // Lock only an empty crossing. This includes same-axis cars and early claims
   // from oncoming/shoulder overtakes, which can span the junction before entry.
   for (const axis of [0, 1]) for (const direction of [-1, 1]) {
     const line = Math.round((axis === 0 ? turn.centerZ : turn.centerX) / blockSize);
     const center = axis === 0 ? turn.centerX : turn.centerZ;
     for (const other of lanes.get(laneKey(axis, line, direction))?.cars ?? []) {
-      if (other === car) continue;
+      if (other === car || other.turn?.kind === 'diagonal' && other.turn.sourceCleared) continue;
       if (roundabout && other.turn?.kind === 'roundabout') {
         // Sharing an exit is allowed with a time gap; the trajectory planner
         // checks the moving cars instead of locking an exit for the whole lap.
@@ -119,7 +119,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
   if(roadLayout)updateParking(lanes,delta,blockSize);
   const locks = new Map();
   const activeTurns = [], circulating = [];
-  const occupiedDiagonals = new Set();
+
   for (const lane of lanes.values()) {
     const works = roadLayout ? laneRoadworks(lane, blockSize) : undefined;
     for (const car of lane.cars) car.roadworks = works;
@@ -130,11 +130,11 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       car.turn = null; car.steer = 0; // Destination fell outside the camera window.
     }
     if (car.turn) {
-      if (car.turn.kind !== 'diagonal' || car.turn.distance < car.turn.entryLength) locks.set(car.turn.junction, car);
+      if (car.turn.kind !== 'diagonal' || !car.turn.sourceCleared) locks.set(car.turn.junction, car);
       activeTurns.push(car);
       if (car.turn.kind === 'diagonal') {
-        locks.set(car.turn.exitJunction, car);
-        occupiedDiagonals.add(car.turn.roadId);
+        if(car.turn.phase==='roadOut'&&car.turn.exitGranted)locks.set(car.turn.exitJunction,car);
+        if(car.turn.ringActive)circulating.push(car.turn);
       }
       if (car.turn.kind === 'roundabout') circulating.push(car.turn);
     }
@@ -146,6 +146,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
     const cross = Math.round(center * car.direction / blockSize);
     car.roundaboutApproach = roadLayout && roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross);
+    car.roundaboutStop=car.roundaboutApproach?Math.min(roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize),Math.max(ROUNDABOUT_STOP,center-car.position*car.direction-extraHalfLength(car))):undefined;
     // Let a pair finish its initial chase, then allow either taxi to break away
     // into a side street instead of blocking turns for the whole race.
     const required = car.roadEnd;
@@ -158,34 +159,34 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     } else if (!ordinaryDiagonal && (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1)) continue;
     // Large vehicles must wait outside the same body envelope canTurn checks.
     // Otherwise a bus at the yield line blocks every approach to an empty ring.
-    const stopLine = (car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(car);
+    const stopLine = (car.roundaboutApproach ? car.roundaboutStop : STOP_LINE) + extraHalfLength(car);
     const entryDistance = center - stopLine - car.position * car.direction;
     const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
       blockSize - ROUNDABOUT_STOP - STOP_LINE - 1.2) : Math.max(1, car.speed * delta + 0.1);
-    if (entryDistance < -0.001 || entryDistance > entryLookahead) continue;
+    if (entryDistance < -(car.roundaboutApproach?car.roundaboutStop-ROUNDABOUT_STOP:0)-0.001 || entryDistance > entryLookahead) continue;
     if (car.roundaboutApproach && lane.cars.some(other => {
       if(other===car||other.turn)return false;
       const ahead=(other.position-car.position)*car.direction;
       // The inner entry crosses the outer approach: let its adjacent car go
       // first, then use the trajectory reservation once that car is on the ring.
-      return occupiesTrack(other,car.track)&&ahead>0&&ahead<entryDistance+CAR_GAP ||
+      return occupiesTrack(other,car.track)&&ahead>0&&ahead<center-car.position*car.direction+CAR_GAP ||
         other.offset>car.offset+.5&&Math.abs(ahead)<entryDistance+CAR_GAP+2;
     })) continue;
-    const chooseDiagonal = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 100) + cross * 7 + car.line * 11) % 5 < (car.taxi ? 3 : 2);
-    const diagonal = roadLayout && !required && !car.roundaboutApproach && chooseDiagonal && !car.overtake
+    const chooseDiagonal = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 100) + cross * 7 + car.line * 11) % 5 < 4;
+    let diagonal = roadLayout && !required && chooseDiagonal && !car.overtake
       ? diagonalTarget(car, cross, blockSize) : null;
+    if(diagonal&&!lanes.has(laneKey(diagonal.axis,diagonal.line,diagonal.direction)))diagonal=null;
     if (ordinaryDiagonal && !diagonal && !required && !car.roundaboutApproach) continue;
     let turn = diagonal ?? turnTarget(car, blockSize, car.track <= 0 ? -1 : 1, stopLine);
-    if (diagonal && (occupiedDiagonals.has(turn.roadId) || !canTurn(car, { ...turn,
-      junction: turn.exitJunction, centerX: turn.exitX, centerZ: turn.exitZ }, lanes, blockSize, locks))) continue;
-    if (car.roundaboutApproach) {
+    if (car.roundaboutApproach && !diagonal) {
       // Stable choice across retries: most cars continue straight, taxis turn more.
       const choice = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 1000) + cross * 7 + car.line * 11) % 10;
       const preferred = choice < (car.taxi ? 3 : 1) ? -1 : choice < (car.taxi ? 6 : 2) ? 1 : 0;
       const target = side => {
-        const result = turnTarget(car,blockSize,side || 1,stopLine,center*car.direction);
+        const exitLine=ROUNDABOUT_STOP+extraHalfLength(car);
+        const result = turnTarget(car,blockSize,side || 1,exitLine,center*car.direction);
         if (!side) Object.assign(result, { axis:car.axis,line:car.line,direction:car.direction,
-          track:car.track===1?1:0,position:center*car.direction+car.direction*(stopLine+1),side:0 });
+          track:car.track===1?1:0,position:center*car.direction+car.direction*(exitLine+1),side:0 });
         return result;
       };
       turn = [preferred,0,-1,1].map(target).find(candidate => roadOpen(candidate.axis,candidate.line,Math.floor(candidate.position/blockSize)) &&
@@ -196,18 +197,29 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     const work = roadLayout && roadworkAt(turn.axis, turn.line, Math.floor(turn.position / blockSize), blockSize);
     if (work && work.direction === turn.direction) turn.track = 0;
     if (roadLayout && !roadOpen(turn.axis, turn.line, Math.floor(turn.position / blockSize))) continue;
-    if (!canTurn(car, turn, lanes, blockSize, locks, car.roundaboutApproach)) continue;
+    if (!diagonal && !canTurn(car, turn, lanes, blockSize, locks, car.roundaboutApproach)) continue;
+    if (diagonal && (!lanes.has(laneKey(turn.axis,turn.line,turn.direction)) ||
+      !diagonal.sourceCleared && !car.roundaboutApproach && !canTurn(car,turn,lanes,blockSize,locks))) continue;
     // A blocked car can retry for hundreds of steps. Sample the curve only
     // after its destination and crossing are clear, immediately before entry.
-    if (car.roundaboutApproach) {
+    if (diagonal) {
+      turn.block=blockSize;
+      buildDiagonalPath(car,turn,carCoordinates(car,blockSize),blockSize);
+      // A ring exit needs space only on the beginning of the approach.
+      const occupied=activeTurns.some(other=>other.turn.kind==='diagonal'&&other.turn.roadId===turn.roadId&&
+        Math.hypot(turn.path[0].x-turnPose(other.turn).x,turn.path[0].z-turnPose(other.turn).z)<vehicleGap(car,other)+2);
+      const exitBlocked=turn.ringActive&&activeTurns.some(other=>other.turn.kind==='diagonal'&&
+        other.turn.roadId===turn.roadId&&other.turn.flow===-1&&(()=>{
+          const p=turnPose(other.turn),r=turn.road;
+          return (p.x-r.a.x*blockSize)*r.dx+(p.z-r.a.z*blockSize)*r.dz>r.length-ROUNDABOUT_STOP-vehicleGap(car,other)-4;
+        })());
+      if(occupied||exitBlocked)continue;
+      if(turn.ringActive){if(!roundaboutGap(turn,circulating))continue;circulating.push(turn);}
+    } else if (car.roundaboutApproach) {
       const end = point(turn.axis, turn.position, turn.line * blockSize + (turn.axis === 0 ? 1 : -1) * turn.direction * TRACKS[turn.track]);
       buildRoundaboutPath(car, turn, carCoordinates(car, blockSize), end);
       if (!roundaboutGap(turn, circulating)) continue;
       circulating.push(turn);
-    } else if (diagonal) {
-      buildDiagonalPath(car, turn, carCoordinates(car, blockSize), blockSize);
-      occupiedDiagonals.add(turn.roadId);
-      locks.set(turn.exitJunction, car);
     } else buildTurnPath(car, blockSize, turn);
     if (car.race) finishRace(car.race);
     car.turn = turn;
@@ -220,13 +232,33 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     locks.set(turn.junction, car);
     activeTurns.push(car);
   }
+  // Admit the next short stage only at its boundary. Long approaches do not
+  // hold the circle or the far junction while cars travel along three blocks.
+  for(const car of activeTurns){
+    const turn=car.turn;
+    if(turn.kind!=='diagonal')continue;
+    if(turn.phase==='roadIn'&&turn.length-turn.distance<.01){
+      const ring=beginInboundRing(car,turn,blockSize);
+      if(canTurn(car,ring,lanes,blockSize,locks,true)&&roundaboutGap(ring,circulating)){
+        car.turn=ring;circulating.push(ring);
+      }
+    }else if(turn.phase==='roadOut'&&!turn.exitGranted&&turn.exitStart-turn.distance<1){
+      const target={...turn,junction:turn.exitJunction,centerX:turn.exitX,centerZ:turn.exitZ};
+      if(greenLight(time,turn.axis)&&diagonalLandingClear(car,turn,lanes)&&canTurn(car,target,lanes,blockSize,locks)){
+        turn.exitGranted=true;locks.set(turn.exitJunction,car);
+      }
+    }
+  }
+  if(roadLayout)prepareApproachCrossings(lanes,activeTurns,time,blockSize);
   const crossingAccess = intersectionAccess(lanes, blockSize, time, locks, roadLayout);
   // A turning car is still stored on its old street. Advertise its landing
   // position to the opposite stream before it transfers, so a taxi cannot
   // start a feint/overtake into the car that is about to appear there.
   const landings = new Map();
   for (const car of activeTurns) {
-    const turn = car.turn, key = laneKey(turn.axis, turn.line, turn.direction);
+    const turn = car.turn;
+    if(turn.kind==='diagonal'&&!turn.ringActive&&!turn.exitGranted)continue;
+    const key = laneKey(turn.axis, turn.line, turn.direction);
     if (!landings.has(key)) landings.set(key, []);
     landings.get(key).push({ axis: turn.axis, line: turn.line, direction: turn.direction, position: turn.position,
       track: turn.track, taxi: car.taxi, kind: car.kind, speed: car.cruise * 1.25, cruise: car.cruise, acceleration: car.acceleration });
@@ -241,21 +273,22 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
   // Snapshot the active set: adding to a later lane cannot process it again.
   for (const car of activeTurns) {
     const turn = car.turn, previousSpeed = car.speed;
-    if (turn.kind === 'roundabout') {
+    if (turn.kind === 'roundabout' || turn.ringActive) {
       turn.elapsed += delta;
       const motion = roundaboutMotion(turn, turn.elapsed);
       car.speed = motion.speed; turn.distance = Math.min(turn.length, motion.distance);
       car.steer = -0.18 * Math.sin(Math.PI * turn.distance / turn.length);
+    } else if(turn.kind==='diagonal') {
+      advanceDiagonal(car,diagonalTravelLimit(car,activeTurns,lanes,time,blockSize),delta);
     } else {
       car.speed = Math.min(car.cruise * 1.1, car.speed + car.acceleration * delta);
-      let limit = turn.length;
-      if (turn.kind === 'diagonal' && turn.distance <= turn.exitStart && !diagonalLandingClear(car, turn, lanes)) limit = turn.exitStart;
-      turn.distance = Math.min(limit, turn.distance + car.speed * delta);
-      if (limit < turn.length && turn.distance === limit) car.speed = 0;
+      turn.distance = Math.min(turn.length, turn.distance + car.speed * delta);
       car.steer = turn.side * 0.2 * Math.sin(Math.PI * turn.distance / turn.length);
     }
     updateBodyMotion(car, delta, previousSpeed);
     if (turn.distance < turn.length) continue;
+    if(turn.kind==='diagonal'&&turn.phase==='roadIn')continue;
+    if(turn.kind==='diagonal'&&turn.phase==='ringOut'){beginOutboundRoad(turn,blockSize);continue;}
     const source = lanes.get(laneKey(car.axis, car.line, car.direction));
     const destination = lanes.get(laneKey(turn.axis, turn.line, turn.direction));
     source.cars.splice(source.cars.indexOf(car), 1);

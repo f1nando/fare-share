@@ -16,7 +16,7 @@ import { trafficSnapshot } from './benchmarkScenario.js';
 import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
 import { TrafficWorkerClient } from './TrafficWorkerClient.js';
 import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
-import { parkAt, roadOpen, boulevardRoad, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT, roundaboutAt } from './roadLayout.js';
+import { parkAt, roadOpen, boulevardRoad, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT, roundaboutAt, roundaboutStopAt } from './roadLayout.js';
 import { populateMedian } from './boulevards.js';
 import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
@@ -31,8 +31,8 @@ import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
-import { diagonalAt } from './diagonalLayout.js';
-import { diagonalLotGeometry, populateDiagonal } from './diagonalGeometry.js';
+import { diagonalAt, approachesNear } from './diagonalLayout.js';
+import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -51,6 +51,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const northBoulevard = northRoad && boulevardRoad(0, gz), westBoulevard = westRoad && boulevardRoad(1, gx);
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
+  const streetBatch=approachStreetBatch(batch,approachesNear(gx+.5,gz+.5,blockSize),blockSize,x-gx*blockSize,z-gz*blockSize);
   const lotBatch = roundaboutSceneryBatch(batch, gx, gz, x, z, blockSize);
   const ring = roundaboutAt(gx, gz), eastRing = roundaboutAt(gx + 1, gz), southRing = roundaboutAt(gx, gz + 1);
   let layoutScale = 1;
@@ -64,7 +65,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     }
     const lift = canal && northRoad && kind === 'paint' && Math.abs(dz) < PAVED_ROAD / 2 + 0.1 ? bridgeHeight(dx, blockSize) : 0;
     const tilt = lift ? Math.atan2(bridgeHeight(dx + w / 2, blockSize) - bridgeHeight(dx - w / 2, blockSize), w) : 0;
-    (kind === 'paint' ? batch : lotBatch).add(kind, x + dx * layoutScale, y + lift, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation, 0, tilt);
+    (kind === 'paint' ? streetBatch : lotBatch).add(kind, x + dx * layoutScale, y + lift, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation, 0, tilt);
   };
   const tree = (tx, tz, size = 1) => {
     put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777');
@@ -77,8 +78,8 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
   // A narrow asphalt shoulder lets taxis ride the pavement with one side.
   for (const side of [-1, 1]) {
-    const start = ring ? ROUNDABOUT_STOP : STOP_LINE;
-    const endX = blockSize - (eastRing ? ROUNDABOUT_STOP : STOP_LINE), endZ = blockSize - (southRing ? ROUNDABOUT_STOP : STOP_LINE);
+    const start = ring ? roundaboutStopAt(gx,gz,blockSize) : STOP_LINE;
+    const endX = blockSize - (eastRing ? roundaboutStopAt(gx+1,gz,blockSize) : STOP_LINE), endZ = blockSize - (southRing ? roundaboutStopAt(gx,gz+1,blockSize) : STOP_LINE);
     if (northRoad) put('paint', (start + endX) / 2, 0.015, side * ROAD / 2, endX - start, 0.018, 0.06, '#8d8d8d');
     if (westRoad) put('paint', side * ROAD / 2, 0.015, (start + endZ) / 2, 0.06, 0.018, endZ - start, '#8d8d8d');
   }
@@ -90,16 +91,16 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     if (westRoad && !westBoulevard && (!southRing || p < blockSize - ROUNDABOUT_STOP - 1)) put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
   for (let p = -PAVED_ROAD / 2 + 0.65; p <= PAVED_ROAD / 2 - 0.65; p += 0.66) {
-    if (northRoad) put('paint', ring ? ROUNDABOUT_STOP : PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
-    if (westRoad) put('paint', p, 0.02, ring ? ROUNDABOUT_STOP : PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
+    if (northRoad) put('paint', ring ? roundaboutStopAt(gx,gz,blockSize) : PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
+    if (westRoad) put('paint', p, 0.02, ring ? roundaboutStopAt(gx,gz,blockSize) : PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
   populateRoadworks(batch, gx, gz, x, z, blockSize);
-  populateRoundabout(batch, gx, gz, x, z);
-  if (northBoulevard && !canal) populateMedian(lotBatch, 0, x, z, blockSize);
-  if (westBoulevard) populateMedian(lotBatch, 1, x, z, blockSize);
+  populateRoundabout(batch, gx, gz, x, z, blockSize);
+  if (northBoulevard && !canal) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 0, x, z, blockSize);
+  if (westBoulevard) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 1, x, z, blockSize);
   if (diagonal) {
-    populateDiagonal(batch, diagonal, x, z, blockSize);
+    populateDiagonal(batch, diagonal, x, z, blockSize, gx, gz);
     return;
   }
   if (canal) {
@@ -386,6 +387,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       const center = lane.axis === 0 ? originX + focus.x : originZ + focus.z;
       const half = ((lane.axis === 0 ? area.x : area.z) + 0.5) * BLOCK;
       for (const car of lane.cars) {
+        if(car.turn?.kind==='diagonal')continue;
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier;
         car.acceleration = car.baseAcceleration * multiplier;

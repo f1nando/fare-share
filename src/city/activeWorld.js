@@ -51,6 +51,12 @@ export function resizeLanePopulation(lane, generated, center, half, visibleHalf,
 }
 
 export function releaseOutsideLanes(previous, next) {
+  // A long approach can remain visible after its source street leaves the
+  // window. Retain only its travelling cars until they reach a retained exit.
+  for(const [key,lane] of previous)if(!next.has(key)){
+    const cars=lane.cars.filter(car=>car.turn?.kind==='diagonal'&&next.has(`${car.turn.axis}:${car.turn.line}:${car.turn.direction}`));
+    if(cars.length)next.set(key,{...lane,cars});
+  }
   const active = new Set();
   for (const lane of next.values()) for (const car of lane.cars) active.add(car);
   for (const [key, lane] of previous) if (!next.has(key)) for (const car of lane.cars) resetSignal(car);

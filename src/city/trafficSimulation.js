@@ -58,6 +58,7 @@ export class TrafficSimulation {
       const center = lane.axis === 0 ? focus.x : focus.z;
       const half = ((lane.axis === 0 ? area.x : area.z) + 0.5) * block;
       for (const car of lane.cars) {
+        if(car.turn?.kind==='diagonal')continue;
         const multiplier = (car.taxi ? settings.taxiSpeed : settings.trafficSpeed) / 100;
         car.cruise = car.baseCruise * multiplier; car.acceleration = car.baseAcceleration * multiplier;
         if (car.position < center - half) { car.position += half * 2; resetSignal(car); relocateToRoad(car, block, STOP_LINE); }

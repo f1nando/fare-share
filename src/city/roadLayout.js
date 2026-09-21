@@ -1,3 +1,4 @@
+import { approachAtRing } from './diagonalLayout.js';
 import { canalColumn, canalBridge } from './bridgeProfile.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 
@@ -48,6 +49,10 @@ export function roundaboutAt(x, z) {
   return true;
 }
 
+export function roundaboutStopAt(x,z,block=40){
+  return ROUNDABOUT_STOP+(approachAtRing(x,z,block)?4:0);
+}
+
 // One possible site per 4x4 group, always away from water and missing roads.
 // Coordinates own the site, so rendering, spawning and Worker agree forever.
 export function roadworkAt(axis, line, segment, block) {
@@ -91,7 +96,7 @@ export function straightRoadOpen(car, blockSize, stopLine) {
 export function spawnRoadOpen(car, blockSize, stopLine) {
   const cross = Math.round(car.position / blockSize);
   if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
-      Math.abs(car.position - cross * blockSize) < ROUNDABOUT_STOP + 1.1) return false;
+      Math.abs(car.position - cross * blockSize) < roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize) + 1.1) return false;
   if (!roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) ||
     !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize))) return false;
   if (car.track !== 1) return true;
@@ -108,8 +113,8 @@ export function relocateToRoad(car, blockSize, stopLine) {
   for (let i = 0; i < 3 && !spawnRoadOpen(car, blockSize, stopLine); i++) {
     const cross = Math.round(car.position / blockSize);
     if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
-        Math.abs(car.position - cross * blockSize) < ROUNDABOUT_STOP + 1.1) {
-      car.position = cross * blockSize + car.direction * (ROUNDABOUT_STOP + 1.2);
+        Math.abs(car.position - cross * blockSize) < roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize) + 1.1) {
+      car.position = cross * blockSize + car.direction * (roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize) + 1.2);
       continue;
     }
     let segment = Math.floor(car.position / blockSize);

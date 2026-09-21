@@ -216,7 +216,7 @@ export function occupiesTrack(car, track) {
   if(car.parking)return car.parking.roadOccupancy && (track===1||track===2);
   // Once its rear clears the entry, a circulating car no longer occupies its
   // old queue slot. Ring trajectories handle conflicts after this point.
-  if ((car.turn?.kind === 'roundabout' || car.turn?.kind === 'diagonal') && car.turn.distance >= car.turn.entryLength) return false;
+  if (car.turn?.kind === 'diagonal' ? car.turn.sourceCleared : car.turn?.kind === 'roundabout' && car.turn.distance >= car.turn.entryLength) return false;
   return car.track === track || (car.changing && car.fromTrack === track) || (track === ONCOMING_TRACK && !!car.feint);
 }
 
@@ -484,6 +484,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     const desiredSpeed = Math.min(cruise, Math.max(0, frontSpeed + (clearance - desiredGap) * (car.taxi ? 2 : 1.4)));
     const acceleration = (car.acceleration ?? (car.taxi ? 25 : 4)) * (yielding ? 2 : car.burst > 0 ? 1.8 : 1);
     const braking = car.taxi ? 13 : 7;
+    const approachClearance = car.approachClearance ?? Infinity;
     const workClearance = work && occupiesTrack(car, 1) ? workDistance - WORK_MARGIN : Infinity;
     // Lane changing itself never applies the normal following slowdown. Hard
     // clearance and stop-line limits below still handle newly blocked traffic.
@@ -492,8 +493,9 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       : Math.max(car.speed - braking * delta, Math.min(desiredSpeed, car.speed + acceleration * delta));
     if (!car.changing && Number.isFinite(clearance)) speed = Math.min(speed, stoppingSpeed(clearance - CAR_GAP, braking, delta, frontSpeed));
     if (Number.isFinite(workClearance)) speed = Math.min(speed, stoppingSpeed(workClearance, braking, delta));
+    if(Number.isFinite(approachClearance))speed=Math.min(speed,stoppingSpeed(approachClearance,braking,delta));
     const oriented = car.position * direction;
-    const stopLine = (car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(car);
+    const stopLine = (car.roundaboutApproach ? car.roundaboutStop ?? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(car);
     const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - stopLine - oriented;
     if (speed > 0 && untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
       const mustWait = car.overtake?.launch && !green || (crossingAccess?.preview
@@ -502,7 +504,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     }
     // A reserved return slot is a following target, not an invisible bumper.
     // Only actual vehicle clearance can hard-limit this frame's travel.
-    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP), Math.max(0, workClearance));
+    const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP), Math.max(0, workClearance), Math.max(0, approachClearance));
     // Before the stop line, this step cannot enter the intersection. Keep live
     // claims updated, but avoid scanning cross traffic for the rest of the queue.
     const needsAccess = travel > untilStop || car.crossing !== undefined;
