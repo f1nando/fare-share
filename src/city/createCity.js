@@ -1,3 +1,4 @@
+import { SceneReveal, REVEAL } from './sceneReveal.js';
 import { streetHalf } from './roadProfile.js';
 import { boulevardSceneryBatch } from './boulevardGeometry.js';
 import * as THREE from 'three';
@@ -57,7 +58,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const lotBatch = roundaboutSceneryBatch(boulevardSceneryBatch(batch,gx,gz,x,z,blockSize), gx, gz, x, z, blockSize);
   const ring = roundaboutAt(gx, gz), eastRing = roundaboutAt(gx + 1, gz), southRing = roundaboutAt(gx, gz + 1);
   let layoutScale = 1;
-  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => {
+  const put = (kind, dx, y, dz, w, h, d, color, rotation = 0, stage) => {
     // Small block settings must not push raised lawns or building plinths into
     // the driveable shoulder. Tree trunks are placed inside this boundary too.
     if (y >= 0.4 && ['round', 'paving', 'building'].includes(kind)) {
@@ -67,10 +68,10 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     }
     const lift = canal && northRoad && kind === 'paint' && Math.abs(dz) < PAVED_ROAD / 2 + 0.1 ? bridgeHeight(dx, blockSize) : 0;
     const tilt = lift ? Math.atan2(bridgeHeight(dx + w / 2, blockSize) - bridgeHeight(dx - w / 2, blockSize), w) : 0;
-    (kind === 'paint' ? streetBatch : lotBatch).add(kind, x + dx * layoutScale, y + lift, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation, 0, tilt);
+    (kind === 'paint' ? streetBatch : lotBatch).add(kind, x + dx * layoutScale, y + lift, z + dz * layoutScale, w * layoutScale, h, d * layoutScale, color, rotation, 0, tilt, stage);
   };
   const tree = (tx, tz, size = 1) => {
-    put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777');
+    put('box', tx, 0.85, tz, 0.32, 1.45, 0.32, '#777777', 0, REVEAL.trees);
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
@@ -248,9 +249,11 @@ export function createCity(container, initialSettings, benchmark = null) {
     ], 3)).setIndex([0, 2, 1, 2, 3, 1]),
     crown: new THREE.DodecahedronGeometry(1, 0),
   };
-  const staticBatch = new Batches(scene, geometries);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const reveal = new SceneReveal({ reducedMotion: reducedMotion.matches, paused: settings.paused });
+  const staticBatch = new Batches(scene, geometries, false, reveal);
   const scenery = new SceneryCache(populateBlock);
-  const carsBatch = new Batches(scene, geometries, true);
+  const carsBatch = new Batches(scene, geometries, true, reveal);
   const hornEffects = new HornEffects(scene);
   const airTraffic = new AirTraffic(scene);
   for (const material of airTraffic.materials) {
@@ -258,6 +261,12 @@ export function createCity(container, initialSettings, benchmark = null) {
   }
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   for (const material of [staticBatch.material, carsBatch.material, groundMaterial]) backgroundFade.apply(material);
+  for (const batch of [staticBatch, carsBatch]) {
+    for (const material of [batch.material, batch.taxiMaterial, batch.taxiDetailMaterial, batch.lightMaterial, batch.beamMaterial]) {
+      reveal.apply(material, batch.dynamic ? REVEAL.cars : null);
+    }
+  }
+  reveal.apply(groundMaterial, REVEAL.roads);
   const ground = new THREE.Mesh(createCanalGround(BLOCK), groundMaterial);
   let groundBlock = BLOCK, groundColumn = 0;
   ground.receiveShadow = true;
@@ -285,7 +294,6 @@ export function createCity(container, initialSettings, benchmark = null) {
   const simulationClock = new SimulationClock(1 / (benchmark?.simulationHz === 60 ? 60 : 30));
   const fixedSimulation = benchmark?.fixedStep !== false;
   let previousPoses = new WeakMap(), renderAlpha = 1;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let worker = null, workerFrame = null, workerFailure = null;
   const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
     focus: { x: originX + focus.x, z: originZ + focus.z }, lightTime: time,
@@ -310,6 +318,11 @@ export function createCity(container, initialSettings, benchmark = null) {
       for (let z = -area.z; z <= area.z; z++) scenery.draw(staticBatch, worldX + x, worldZ + z, worldX, worldZ);
     }
     staticBatch.flush();
+    if (!reveal.done && !reveal.initialized) {
+      reveal.waterPresent = [...staticBatch.items.values()].some(group =>
+        group.values.slice(0, group.count).some(item => item[11] === REVEAL.water));
+      reveal.initialized = true;
+    }
     if (worker) return;
     const next = new Map();
     for (let axis = 0; axis < 2; axis++) {
@@ -433,6 +446,11 @@ export function createCity(container, initialSettings, benchmark = null) {
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     airTraffic.update(boatTime, focus, camera);
     carsBatch.flush();
+    if (!reveal.done) {
+      reveal.advance(delta, { paused: settings.paused || document.hidden, reducedMotion: reducedMotion.matches });
+      // Horns are pooled transparent sprites with their own animated opacity.
+      for (const effect of [...hornEffects.rings, ...hornEffects.labels]) effect.material.opacity *= reveal.opacity.value[REVEAL.cars];
+    }
     // At most one incoming tile in a light frame. A slow frame never has to
     // finish the entire next strip; missing tiles still have a synchronous path.
     if (moving && performance.now() - start < 4) scenery.warmOne();
@@ -504,6 +522,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
+    reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
     Object.values(geometries).forEach(geometry => geometry.dispose());
     ground.geometry.dispose(); groundMaterial.dispose();

@@ -25,10 +25,10 @@ export class SceneryCache {
     const key = `${x}:${z}`;
     if (this.tiles.has(key)) return this.tiles.get(key);
     const tile = { x, z, records: [] }, matrix = this.matrix;
-    this.populate({ add(kind, px, y, pz, sx, sy, sz, color, rotation = 0, pitch = 0, roll = 0) {
+    this.populate({ add(kind, px, y, pz, sx, sy, sz, color, rotation = 0, pitch = 0, roll = 0, stage) {
       matrix.position.set(px, y, pz); matrix.scale.set(sx, sy, sz);
       matrix.rotation.set(pitch, rotation, roll, 'YXZ'); matrix.updateMatrix();
-      tile.records.push({ kind, values: [px, y, pz, sx, sy, sz, color, rotation, pitch, roll], matrix: matrix.matrix.elements.slice() });
+      tile.records.push({ kind, values: [px, y, pz, sx, sy, sz, color, rotation, pitch, roll, stage], matrix: matrix.matrix.elements.slice() });
     } }, x, z, 0, 0, this.blockSize);
     this.tiles.set(key, tile);
     return tile;

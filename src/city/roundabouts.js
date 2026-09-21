@@ -1,3 +1,4 @@
+import { sceneryStage } from './revealStages.js';
 import { streetHalf, boulevardRoad } from './roadProfile.js';
 import { vehicleType } from './vehicleTypes.js';
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
@@ -20,7 +21,7 @@ export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
       top: z + dz * block - ROUNDABOUT_CLEARANCE, bottom: z + dz * block + ROUNDABOUT_CLEARANCE });
   }
   if (!cuts.length) return batch;
-  return { add(kind, px, y, pz, w, h, d, color, rotation = 0, pitch = 0, roll = 0) {
+  return { add(kind, px, y, pz, w, h, d, color, rotation = 0, pitch = 0, roll = 0, stage = sceneryStage(kind, y)) {
     const flat = h < 0.65 && rotation === 0 && !pitch && !roll;
     const scale = kind === 'crown' ? 1 : 0.5;
     const halfX = (Math.abs(Math.cos(rotation)) * w + Math.abs(Math.sin(rotation)) * d) * scale;
@@ -40,9 +41,9 @@ export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
       }
       pieces = next;
     }
-    if (!changed) batch.add(kind, px, y, pz, w, h, d, color, rotation, pitch, roll);
+    if (!changed) batch.add(kind, px, y, pz, w, h, d, color, rotation, pitch, roll, stage);
     else for (const p of pieces) batch.add('box', (p.left + p.right) / 2, y, (p.top + p.bottom) / 2,
-      p.right - p.left, h, p.bottom - p.top, color);
+      p.right - p.left, h, p.bottom - p.top, color, 0, 0, 0, stage);
   } };
 }
 

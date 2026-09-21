@@ -1,3 +1,4 @@
+import { sceneryStage } from './revealStages.js';
 import { streetHalf, boulevardRoad } from './roadProfile.js';
 import { roadOpen } from './roadLayout.js';
 
@@ -13,7 +14,7 @@ export function boulevardSceneryBatch(batch,gx,gz,x,z,block){
       {left:cx-half,right:cx+half,top:z+s*block,bottom:z+(s+1)*block});
   }
   if(!cuts.length)return batch;
-  return {add(kind,px,y,pz,w,h,d,color,rotation=0,pitch=0,roll=0){
+  return {add(kind,px,y,pz,w,h,d,color,rotation=0,pitch=0,roll=0,stage=sceneryStage(kind,y)){
     const scale=kind==='crown'?1:.5,hw=(Math.abs(Math.cos(rotation))*w+Math.abs(Math.sin(rotation))*d)*scale,
       hd=(Math.abs(Math.sin(rotation))*w+Math.abs(Math.cos(rotation))*d)*scale;
     let pieces=[{left:px-hw,right:px+hw,top:pz-hd,bottom:pz+hd}],changed=false;
@@ -27,7 +28,7 @@ export function boulevardSceneryBatch(batch,gx,gz,x,z,block){
         if(p.bottom>c.bottom)next.push({left,right,top:c.bottom,bottom:p.bottom});
       }pieces=next;
     }
-    if(!changed)batch.add(kind,px,y,pz,w,h,d,color,rotation,pitch,roll);
-    else for(const p of pieces)batch.add('box',(p.left+p.right)/2,y,(p.top+p.bottom)/2,p.right-p.left,h,p.bottom-p.top,color);
+    if(!changed)batch.add(kind,px,y,pz,w,h,d,color,rotation,pitch,roll,stage);
+    else for(const p of pieces)batch.add('box',(p.left+p.right)/2,y,(p.top+p.bottom)/2,p.right-p.left,h,p.bottom-p.top,color,0,0,0,stage);
   }};
 }

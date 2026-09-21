@@ -1,3 +1,4 @@
+import { REVEAL, sceneryStage } from './revealStages.js';
 import { streetHalf } from './roadProfile.js';
 import { BufferGeometry, Float32BufferAttribute, ShapeUtils, Vector2 } from 'three';
 import { PAVED_ROAD } from './world.js';
@@ -27,7 +28,7 @@ export function outsideApproach(poly,road,block,inset=0){
   return [-1,1].map(side=>clipPolygon(poly,p=>side*signed(p)-DIAGONAL_HALF-inset)).filter(p=>p.length>=3);
 }
 // Arbitrary convex polygons use the same instanced right-triangle prism.
-export function polygonSlab(batch,poly,y,h,color,offsetX=0,offsetZ=0){
+export function polygonSlab(batch,poly,y,h,color,offsetX=0,offsetZ=0,stage){
   for(const indices of ShapeUtils.triangulateShape(poly.map(p=>new Vector2(p.x,p.z)),[])){
     let [a,b,c]=indices.map(i=>poly[i]);
     const length=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -40,7 +41,7 @@ export function polygonSlab(batch,poly,y,h,color,offsetX=0,offsetZ=0){
       let u={x:tip.x-foot.x,z:tip.z-foot.z},v={x:c.x-foot.x,z:c.z-foot.z};
       if(u.x*v.z-u.z*v.x<0)[u,v]=[v,u];
       const w=Math.hypot(u.x,u.z),d=Math.hypot(v.x,v.z);
-      if(w*d>1e-7)batch.add('diagonalLot',foot.x+offsetX,y,foot.z+offsetZ,w,h,d,color,-Math.atan2(u.z,u.x));
+      if(w*d>1e-7)batch.add('diagonalLot',foot.x+offsetX,y,foot.z+offsetZ,w,h,d,color,-Math.atan2(u.z,u.x),0,0,stage);
     }
   }
 }
@@ -83,7 +84,7 @@ export function populateDiagonal(batch,road,x,z,block,gx=Math.round(x/block),gz=
       const h=2.5+((ix*3+iz+gx+gz)%4+4)%4;
       batch.add('building',px+ox,.42+h/2,pz+oz,w,h,w,'#d3d3d3');
     }else if(lots.some(p=>inside(p,px,pz,1.3))){
-      batch.add('box',px+ox,1,pz+oz,.25,1.2,.25,'#777777');
+      batch.add('box',px+ox,1,pz+oz,.25,1.2,.25,'#777777',0,0,0,REVEAL.trees);
       batch.add('crown',px+ox,2,pz+oz,.85,1.1,.85,'#969696');
     }
   }
@@ -101,7 +102,7 @@ export function populateDiagonal(batch,road,x,z,block,gx=Math.round(x/block),gz=
 // Clear only the old grid's markings/medians where a new arm passes through.
 // The new approach's own curb and paint use the original batch directly.
 export function approachStreetBatch(batch,roads,block,offsetX,offsetZ){
-  return {add(kind,x,y,z,w,h,d,color,rotation=0,pitch=0,roll=0){
+  return {add(kind,x,y,z,w,h,d,color,rotation=0,pitch=0,roll=0,stage=sceneryStage(kind,y)){
     let polys=[[{x:x-w/2-offsetX,z:z-d/2-offsetZ},{x:x+w/2-offsetX,z:z-d/2-offsetZ},
       {x:x+w/2-offsetX,z:z+d/2-offsetZ},{x:x-w/2-offsetX,z:z+d/2-offsetZ}]],changed=false;
     for(const road of roads){
@@ -112,7 +113,7 @@ export function approachStreetBatch(batch,roads,block,offsetX,offsetZ){
       if(h>.65||rotation||pitch||roll)return;
       polys=polys.flatMap(p=>outsideApproach(p,road,block,.2));changed=true;
     }
-    if(!changed)batch.add(kind,x,y,z,w,h,d,color,rotation,pitch,roll);
-    else for(const poly of polys)polygonSlab(batch,poly,y,h,color,offsetX,offsetZ);
+    if(!changed)batch.add(kind,x,y,z,w,h,d,color,rotation,pitch,roll,stage);
+    else for(const poly of polys)polygonSlab(batch,poly,y,h,color,offsetX,offsetZ,stage);
   }};
 }
