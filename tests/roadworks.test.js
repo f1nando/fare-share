@@ -75,6 +75,22 @@ test('blocked normal car brakes progressively and resumes once the adjacent lane
   }
 });
 
+test('a race follower can end the race to avoid roadworks within the same update', () => {
+  for (const direction of [-1, 1]) {
+    const leader = vehicle(18, 0, true, direction), follower = vehicle(0, 1, true, direction);
+    leader.cooldown = 10;
+    const race = { leader, follower, age: 0, phase: 'follow' };
+    leader.race = follower.race = race;
+    follower.roadworks = [closure(direction)];
+    updateTraffic([leader, follower], direction, 1 / 30, true, { blockSize: 80, opposing: [] });
+    assert.equal(follower.workAvoidances, 1);
+    assert.equal(follower.race, null);
+    assert.equal(leader.race, null);
+    assert.equal(follower.track, 0);
+    assert.ok(Number.isFinite(follower.speed));
+  }
+});
+
 test('taxi uses a clear shoulder when the inner lane is blocked and returns after the works', () => {
   for (const direction of [-1,1]) {
     const work = closure(direction), car = vehicle(0,1,true,direction); car.roadworks = [work];
