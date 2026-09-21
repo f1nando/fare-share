@@ -17,6 +17,7 @@ import { TrafficWorkerClient } from './TrafficWorkerClient.js';
 import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
 import { parkAt, roadOpen, relocateToRoad, spawnRoadOpen, CAMERA_DRIFT } from './roadLayout.js';
 import { populatePark } from './parkGeometry.js';
+import { districtKind, populateDistrict } from './districts.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -82,19 +83,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('paving', 12, 0.56, 12, parkSize - 0.2, 0.025, 1.3, '#dddddd');
     for (const [tx, tz] of [[7,7], [16,7], [7,16], [16,16], [5.8,11], [18,13]]) tree(tx, tz, 1 + random() * 0.55);
   } else {
-    for (const [lx, lz] of [[7.8,7.8], [16,7.8], [7.8,16], [16,16]]) {
-      if (random() < 0.27) {
-        put('round', lx, 0.46, lz, 6.4, 0.16, 6.4, pick(palette.grass));
-        tree(lx - 1.2, lz + 0.7, 1.15 + random() * 0.4);
-        tree(lx + 1.5, lz - 1.6, 0.65 + random() * 0.4);
-        continue;
-      }
-      const width = 4.3 + random() * 1.8;
-      const depth = 4.0 + random() * 2.1;
-      const height = 1.6 + random() * 3.7 + (random() < 0.09 ? 2.2 : 0);
-      put('round', lx, 0.48, lz, width + 0.65, 0.2, depth + 0.65, palette.paving);
-      put('building', lx, 0.55 + height / 2, lz, width, height, depth, pick(palette.buildings));
-    }
+    populateDistrict(districtKind(gx, gz), { put, tree, random, palette });
   }
   // Small curbside trees give even the denser blocks a soft green border.
   const treeInset = Math.max(4.2, (PAVED_ROAD / 2 + 1.4) / layoutScale);
