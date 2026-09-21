@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   address,
@@ -52,6 +53,20 @@ test('mint routing chooses a page with room for both machine events', () => {
   const queue = { pages: [{ index: 0, count: 127 }, { index: 1, count: 126 }] };
   assert.equal(chooseEventPage(queue, 2), 1);
   assert.deepEqual([...TAXI_DISCRIMINATORS.mintMachine], [163, 170, 168, 54, 183, 79, 113, 45]);
+});
+
+test('every wallet instruction uses the current Anchor discriminator', () => {
+  const names = {
+    mintMachine: 'mint_machine',
+    claim: 'claim',
+    repair: 'repair',
+    activateTrainee: 'activate_trainee',
+    claimTrainee: 'claim_trainee',
+  };
+  for (const [key, name] of Object.entries(names)) {
+    const expected = createHash('sha256').update(`global:${name}`).digest().subarray(0, 8);
+    assert.deepEqual(Buffer.from(TAXI_DISCRIMINATORS[key]), expected, key);
+  }
 });
 
 test('wallet addresses are shortened for the primitive UI', () => {
