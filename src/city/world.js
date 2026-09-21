@@ -46,6 +46,7 @@ export function headlightsOn(car) {
 }
 
 export function resetSignal(car) {
+  car.parking=null;car.lastParkingLot=undefined;
   car.roundaboutApproach = false;
   car.roadworks = undefined; car.workBypass = null;
   car.rideHeight = car.rideVelocity = car.surfaceSupport = car.roadRoll = car.roadPitch = 0;
@@ -212,6 +213,7 @@ export function advanceVehicle(position, distance, direction, green, blockSize =
 }
 
 export function occupiesTrack(car, track) {
+  if(car.parking)return car.parking.roadOccupancy && (track===1||track===2);
   // Once its rear clears the entry, a circulating car no longer occupies its
   // old queue slot. Ring trajectories handle conflicts after this point.
   if (car.turn?.kind === 'roundabout' && car.turn.distance >= car.turn.entryLength) return false;
@@ -366,7 +368,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
   for (const car of cars) {
     // Turning cars retain their source-lane slot until the network transfers
     // them. Their curved motion is advanced exactly once after straight traffic.
-    if (car.turn) continue;
+    if (car.turn || car.parking) continue;
     const previousLeader = car.overtake?.leader;
     if (green) { car.launchAttempt = undefined; car.launchChosen = false; }
     const previousSpeed = car.speed;

@@ -29,6 +29,7 @@ import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
+import { parkingAt, populateParking } from './parkingLayout.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -41,6 +42,7 @@ const palette = {
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const parkLot = parkAt(gx, gz);
   const canal = canalColumn(gx);
+  const parking = parkingAt(gx,gz,blockSize);
   const northRoad = roadOpen(0, gz, gx), westRoad = roadOpen(1, gx, gz);
   const northBoulevard = northRoad && boulevardRoad(0, gz), westBoulevard = westRoad && boulevardRoad(1, gx);
   const random = seededRandom(gx, gz);
@@ -65,7 +67,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     put('crown', tx, 1.55 + size * 0.65, tz, 1.25 * size, 1.55 * size, 1.2 * size, pick(palette.leaves), random() * 6);
   };
 
-  if (!parkLot && !canal) {
+  if (!parkLot && !canal && !parking) {
     put('round', blockSize / 2, 0.10, blockSize / 2, blockSize - PAVED_ROAD, 0.3, blockSize - PAVED_ROAD, palette.curb);
     put('round', blockSize / 2, 0.25, blockSize / 2, blockSize - PAVED_ROAD - 0.42, 0.34, blockSize - PAVED_ROAD - 0.42, palette.sidewalk);
   }
@@ -98,6 +100,10 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
   if (parkLot) {
     if (parkLot.x === gx && parkLot.z === gz) populatePark(lotBatch, x, z, blockSize, parkLot);
+    return;
+  }
+  if (parking) {
+    populateParking(batch,gx,gz,x,z,blockSize);
     return;
   }
 

@@ -3,7 +3,7 @@ import { turnPose } from './trafficNetwork.js';
 import { hornAnimation } from './hornAnimation.js';
 
 export function presentation(car, coordinates, target = {}) {
-  const pose = car.turn ? turnPose(car.turn) : vehiclePose(coordinates.x, coordinates.z, car.axis, car.direction, car.steer);
+  const pose = car.parking ? coordinates : car.turn ? turnPose(car.turn) : vehiclePose(coordinates.x, coordinates.z, car.axis, car.direction, car.steer);
   target.x = pose.x; target.z = pose.z; target.angle = pose.angle;
   target.pitch = (car.taxi ? car.pitch ?? 0 : 0) + (car.roadPitch ?? 0);
   target.roll = (car.taxi ? car.roll ?? 0 : 0) + (car.roadRoll ?? 0);

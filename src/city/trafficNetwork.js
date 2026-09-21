@@ -6,10 +6,12 @@ import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSur
 import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt, roundaboutAt } from './roadLayout.js';
 import { buildRoundaboutPath, roundaboutPose, roundaboutMotion, roundaboutGap } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
+import { updateParking } from './parkingTraffic.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
 export function carCoordinates(car, blockSize) {
+  if(car.parking)return car.parking.pose;
   if (car.turn) return turnPose(car.turn);
   return point(car.axis, car.position, car.line * blockSize + (car.axis === 0 ? 1 : -1) * car.direction * car.offset);
 }
@@ -113,6 +115,7 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
 // happen after every straight lane has advanced, so no taxi moves twice/frame.
 export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.1, clockMultiplier = 1, roadLayout = false } = {}) {
   if (delta <= 0) return;
+  if(roadLayout)updateParking(lanes,delta,blockSize);
   const locks = new Map();
   const activeTurns = [], circulating = [];
   for (const lane of lanes.values()) {
@@ -130,6 +133,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     }
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
+    if(car.parking)continue;
     car.roadEnd = roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE);
     car.dividedRoad = roadLayout && boulevardRoad(car.axis, car.line);
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
@@ -243,6 +247,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
   for (const lane of lanes.values()) for (const car of lane.cars) {
     // Straight, settled cars fit wholly inside a continuous asphalt strip.
     // Avoid allocating coordinates and computing wheel poses for this case.
+    if(car.parking){settleOnFlatRoad(car);continue;}
     if (!car.turn && !car.steer && Math.abs(car.offset) + WHEEL_SIDES[1] < PAVED_ROAD / 2 && settleOnFlatRoad(car)) continue;
     const position = carCoordinates(car, blockSize);
     const pose = car.turn ? position : vehiclePose(position.x, position.z, car.axis, car.direction, car.steer);

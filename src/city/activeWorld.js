@@ -38,8 +38,8 @@ export function resizeLanePopulation(lane, generated, center, half, visibleHalf,
   }
   for (const car of generated.cars) {
     if (kept.length >= target) break;
-    if (car.position < center - half) car.position += half * 2;
-    if (car.position > center + half) car.position -= half * 2;
+    if (car.position < center - half) { car.position += half * 2; if(car.parking)resetSignal(car); }
+    if (car.position > center + half) { car.position -= half * 2; if(car.parking)resetSignal(car); }
     if (!allow(car)) continue;
     if (Math.abs(car.position - center) <= visibleHalf + 10) continue;
     if (kept.some(other => Math.abs(other.position - car.position) < CAR_GAP &&

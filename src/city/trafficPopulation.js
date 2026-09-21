@@ -1,5 +1,6 @@
 import { seededRandom, TRACKS, TRAFFIC_SPACING, STOP_LINE } from './world.js';
 import { spawnRoadOpen } from './roadLayout.js';
+import { seedParking } from './parkingTraffic.js';
 
 import { chooseVehicleKind, VEHICLE_TYPES } from './vehicleTypes.js';
 
@@ -23,5 +24,7 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
       baseCruise: cruise, baseAcceleration: acceleration,
       changing: false, merge: 1, cooldown: random(), steer: 0 });
   }
-  return { axis, line, direction, cars: roadLayout ? cars.filter(car => spawnRoadOpen(car, settings.blockSize, STOP_LINE)) : cars, radius };
+  const lane={ axis, line, direction, cars: roadLayout ? cars.filter(car => spawnRoadOpen(car, settings.blockSize, STOP_LINE)) : cars, radius };
+  if(roadLayout)seedParking(lane,settings.blockSize);
+  return lane;
 }
