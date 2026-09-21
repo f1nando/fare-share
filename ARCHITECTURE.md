@@ -32,7 +32,7 @@
 ## Публичные инструкции
 
 - `collect_fees`: permissionless обрабатывает pump.fun Creator Fee, поступивший напрямую на program-controlled PDA, делит SOL по направлениям и запускает необходимые покупки `$FARE` и stock-токенов.
-- `calculate_rewards(group, accounts...)`: permissionless продвигает выбранную очередь bounded batch и обновляет глобальный доход на единицу веса.
+- `calculate_rewards(group, limit, accounts...)`: permissionless продвигает выбранную очередь максимум на 20 событий и обновляет глобальный доход на единицу веса. Caller может указать меньший `limit`; больше compile-time предела программа отклоняет.
 - `claim(asset)`: текущий owner получает рассчитанный доход одной NFT.
 - `repair(asset)`: текущий owner сжигает рассчитанную сумму `$FARE` и восстанавливает 5 дней прочности.
 - `activate_trainee(voucher)`: проверяет ed25519-ваучер backend и создаёт временную стажёрскую запись.
@@ -54,7 +54,7 @@
 
 ## Главные открытые зависимости
 
-В первую очередь нужно решить оставшиеся пункты SOL-8—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
+В первую очередь нужно решить оставшиеся пункты SOL-9—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts. Безопасность выбранного batch-лимита отдельно подтверждается benchmark перед mainnet.
 
 ## Технические основания
 
