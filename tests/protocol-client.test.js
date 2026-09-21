@@ -20,6 +20,7 @@ import {
   loadDASAssets,
   loadMultipleAccounts,
   protocolAddresses,
+  resolveSolanaChain,
   selectActiveMultiplier,
   shortAddress,
 } from '../src/protocol/solana.js';
@@ -52,6 +53,12 @@ test('mint routing chooses a page with room for both machine events', () => {
 test('wallet addresses are shortened for the primitive UI', () => {
   assert.equal(shortAddress('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY'), '7SpH…KwnY');
   assert.equal(shortAddress('short'), 'short');
+});
+
+test('wallet chain is explicit for private RPC URLs', () => {
+  assert.equal(resolveSolanaChain('solana:devnet', 'https://private-rpc.example'), 'solana:devnet');
+  assert.equal(resolveSolanaChain('solana:mainnet', 'https://api.devnet.solana.com'), 'solana:mainnet');
+  assert.throws(() => resolveSolanaChain('devnet', 'https://rpc.example'), /VITE_SOLANA_CHAIN/);
 });
 
 test('repair quote mirrors the on-chain 25% five-day formula', () => {

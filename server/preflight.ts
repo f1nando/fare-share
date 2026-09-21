@@ -60,6 +60,10 @@ export function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Preflight
   validUrl('VITE_SOLANA_DAS_URL', ['http:', 'https:']);
   validUrl('VITE_BACKEND_URL', ['http:', 'https:']);
   validUrl('ALLOWED_ORIGIN', ['http:', 'https:']);
+  const frontendChain = required('VITE_SOLANA_CHAIN');
+  if (frontendChain && frontendChain !== 'solana:devnet' && frontendChain !== 'solana:mainnet') {
+    errors.push('VITE_SOLANA_CHAIN: допустимы только solana:devnet или solana:mainnet');
+  }
 
   const programId = validAddress('TAXI_PROGRAM_ID');
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');

@@ -6,8 +6,9 @@ Backend не является источником истины для дене�
 
 1. Скопировать `.env.example` в `.env`.
 2. Указать `MONGODB_URI`, 64-байтовые `BACKEND_SIGNER_SECRET_KEY` и `WORKER_KEYPAIR_SECRET_KEY`, случайный `TRAINEE_WORD_PEPPER` и production `JUPITER_API_KEY`.
-3. Убедиться, что публичный ключ backend signer совпадает с `Configuration.backend_signer` в Solana.
-4. Запустить `npm run dev:server`.
+3. Явно указать frontend-сеть через `VITE_SOLANA_CHAIN=solana:devnet` или `solana:mainnet`; она не угадывается по приватному RPC URL.
+4. Убедиться, что публичный ключ backend signer совпадает с `Configuration.backend_signer` в Solana.
+5. Запустить `npm run dev:server`.
 
 Все backend/CLI-команды автоматически читают существующий `.env` из корня проекта. Перед инициализацией или запуском production выполните локальную проверку, которая не обращается к сети и не выводит значения секретов:
 

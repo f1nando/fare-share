@@ -28,7 +28,7 @@ export const PROGRAM_ID = address(
   env.VITE_TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY',
 );
 export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-export const SOLANA_CHAIN = RPC_URL.includes('devnet') ? 'solana:devnet' : 'solana:mainnet';
+export const SOLANA_CHAIN = resolveSolanaChain(env.VITE_SOLANA_CHAIN, RPC_URL);
 
 const DAS_URL = env.VITE_SOLANA_DAS_URL || RPC_URL;
 const BACKEND_URL = String(env.VITE_BACKEND_URL || '').replace(/\/$/, '');
@@ -38,6 +38,12 @@ const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 const XSTOCKS_API_URL = 'https://api.xstocks.fi/api/v2/public/assets';
+
+export function resolveSolanaChain(configuredChain, rpcUrl) {
+  if (configuredChain === 'solana:devnet' || configuredChain === 'solana:mainnet') return configuredChain;
+  if (configuredChain) throw new Error('VITE_SOLANA_CHAIN должен быть solana:devnet или solana:mainnet.');
+  return String(rpcUrl).includes('devnet') ? 'solana:devnet' : 'solana:mainnet';
+}
 
 export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   const boundedRemaining = Math.max(0, Math.min(MAX_DURABILITY, Number(secondsLeft)));

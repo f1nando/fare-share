@@ -9,6 +9,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     MONGODB_URI: 'mongodb://127.0.0.1:27017',
     SOLANA_RPC_URL: 'https://rpc.example.test',
     VITE_SOLANA_RPC_URL: 'https://rpc.example.test',
+    VITE_SOLANA_CHAIN: 'solana:devnet',
     VITE_SOLANA_DAS_URL: 'https://das.example.test',
     VITE_BACKEND_URL: 'https://api.example.test',
     ALLOWED_ORIGIN: 'https://example.test',
