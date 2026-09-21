@@ -31,6 +31,7 @@ import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
+import { StreetBends, streetOffset, streetMargin, sectionGeometry, curvedSceneryBatch } from './streetBends.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -133,7 +134,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 export function addCar(batch, car, originX, originZ, focus, camera, blockSize, hornEffects, previousPose = null, alpha = 1) {
   const coordinates = carCoordinates(car, blockSize);
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
-  if (!visiblePosition(coordinates, originX, originZ, focus, camera)) return;
+  if (!visiblePosition(coordinates, originX, originZ, focus, camera, streetMargin(blockSize))) return;
   const pose = interpolatePresentation(presentation(car, coordinates), previousPose, alpha);
   return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize);
 }
@@ -175,11 +176,11 @@ export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, h
   let visible = 0;
   for (let offset = 0; offset < upper.data.length; offset += CAR_STRIDE) {
     pose.x = upper.data[offset + 1]; pose.z = upper.data[offset + 2];
-    if (!visiblePosition(pose, originX, originZ, focus, camera, 2)) continue;
+    if (!visiblePosition(pose, originX, originZ, focus, camera, 2 + streetMargin(blockSize))) continue;
     readPose(upper.data, offset, pose);
     const before = lower.index.get(upper.data[offset]);
     if (before !== undefined) interpolatePresentation(pose, readPose(lower.data, before, previousPose), alpha);
-    if (!visiblePosition(pose, originX, originZ, focus, camera)) continue;
+    if (!visiblePosition(pose, originX, originZ, focus, camera, streetMargin(blockSize))) continue;
     const source = before !== undefined && alpha < 1 ? lower : upper;
     readAppearance(source.data, source === lower ? before ?? offset : offset, car);
     if (car.hornAge !== undefined && upper.data[offset + 14] >= 0 && car.signalIndex === upper.data[offset + 15]) {
@@ -231,8 +232,10 @@ export function createCity(container, initialSettings, benchmark = null) {
     ], 3)).setIndex([0, 2, 1, 2, 3, 1]),
     crown: new THREE.DodecahedronGeometry(1, 0),
   };
+  for (const kind of ['round', 'paint', 'paving', 'box', 'building']) geometries[`${kind}Bend`] = sectionGeometry(geometries[kind]);
+  const streetBends = new StreetBends();
   const staticBatch = new Batches(scene, geometries);
-  const scenery = new SceneryCache(populateBlock);
+  const scenery = new SceneryCache((batch, ...args) => populateBlock(curvedSceneryBatch(batch), ...args));
   const carsBatch = new Batches(scene, geometries, true);
   const hornEffects = new HornEffects(scene);
   const airTraffic = new AirTraffic(scene);
@@ -256,6 +259,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const camera = new THREE.OrthographicCamera(-80, 80, 45, -45, 1, 400);
   const cameraOffset = new THREE.Vector3(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
   const focus = new THREE.Vector3(BLOCK / 2, 0, BLOCK / 2);
+  const bentFocus = new THREE.Vector3();
   let originX = 0, originZ = 0, worldX = 0, worldZ = 0;
   let area = { x: 6, z: 6, extents: { x: 80, z: 80 } };
   let lastCellX = NaN, lastCellZ = NaN;
@@ -366,8 +370,11 @@ export function createCity(container, initialSettings, benchmark = null) {
       renderer.shadowMap.needsUpdate = true;
       if (benchmark) rebuildMs = performance.now() - rebuildStart;
     }
-    camera.position.copy(focus).add(cameraOffset);
-    camera.lookAt(focus);
+    streetBends.configure(BLOCK, originX);
+    bentFocus.copy(focus);
+    bentFocus.z += streetOffset(originX + focus.x, BLOCK) - streetOffset(originX, BLOCK);
+    camera.position.copy(bentFocus).add(cameraOffset);
+    camera.lookAt(bentFocus);
 
     carsBatch.reset();
     hornEffects.reset();
@@ -389,7 +396,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       const simulate = step => {
         if (fixedSimulation) for (const lane of lanes.values()) for (const car of lane.cars) {
           const coordinates = carCoordinates(car, BLOCK);
-          if (visiblePosition(coordinates, originX, originZ, focus, camera, 2)) {
+          if (visiblePosition(coordinates, originX, originZ, focus, camera, 2 + streetMargin(BLOCK))) {
             previousPoses.set(car, presentation(car, coordinates, previousPoses.get(car)));
           } else previousPoses.delete(car);
         }
@@ -416,6 +423,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     // finish the entire next strip; missing tiles still have a synchronous path.
     if (moving && performance.now() - start < 4) scenery.warmOne();
     const renderStart = benchmark ? performance.now() : 0;
+    streetBends.prepare(scene);
     benchmark?.beforeRender?.();
     renderer.render(scene, camera);
     if (benchmark) {
@@ -483,7 +491,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
-    scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
+    scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose(); streetBends.dispose();
     Object.values(geometries).forEach(geometry => geometry.dispose());
     ground.geometry.dispose(); groundMaterial.dispose();
     sunlight.shadow.map?.dispose();
