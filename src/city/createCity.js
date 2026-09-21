@@ -21,6 +21,7 @@ import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
 import { SceneryCache } from './sceneryCache.js';
 import { canalColumn, populateCanal } from './canal.js';
+import { createCanalGround } from './canalGround.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -76,7 +77,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   if (northBoulevard) populateMedian(batch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
   if (canal) {
-    populateCanal(batch, x, z, blockSize, gz);
+    populateCanal(batch, x, z, blockSize);
     return;
   }
   if (parkLot) {
@@ -203,8 +204,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   const hornEffects = new HornEffects(scene);
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   for (const material of [staticBatch.material, carsBatch.material, groundMaterial]) backgroundFade.apply(material);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
+  const ground = new THREE.Mesh(createCanalGround(BLOCK), groundMaterial);
+  let groundBlock = BLOCK, groundColumn = 0;
   ground.receiveShadow = true;
   scene.add(ground);
   scene.add(new THREE.HemisphereLight('#ffffff', '#b8b8b8', 1.8));
@@ -243,6 +244,11 @@ export function createCity(container, initialSettings, benchmark = null) {
 
   function rebuild() {
     const layoutSettings = { ...settings, blockSize: BLOCK };
+    if (groundBlock !== BLOCK || groundColumn !== worldX) {
+      ground.geometry.dispose();
+      ground.geometry = createCanalGround(BLOCK, worldX);
+      groundBlock = BLOCK; groundColumn = worldX;
+    }
     staticBatch.reset();
     scenery.configure(worldX, worldZ, area, BLOCK);
     for (let x = -area.x; x <= area.x; x++) {

@@ -52,14 +52,11 @@ test('recycling skips a removed road without jumping two whole blocks towards th
   }
 });
 
-test('ordinary cars and taxis turn into open streets at park and canal T approaches', () => {
-  const approaches = [0, 1].map(axis => {
-    const park = parks.find(p => p.axis === 1 - axis);
-    return { axis, line: (axis === 0 ? park.z : park.x) + 1, segment: axis === 0 ? park.x : park.z };
-  });
-  approaches.push({ axis: 0, line: 1, segment: 0 }, { axis: 0, line: -3, segment: -12 });
-  for (const { axis, line, segment } of approaches) for (const direction of [-1, 1]) for (const track of [-1, 0, 1, 2]) for (const taxi of [false, true]) {
+test('ordinary cars and taxis turn into open streets at every T approach and track', () => {
+  for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const track of [-1, 0, 1, 2]) for (const taxi of [false, true]) {
     if (!taxi && (track < 0 || track > 1)) continue;
+    const park = parks.find(p => p.axis === 1 - axis);
+    const line = (axis === 0 ? park.z : park.x) + 1, segment = axis === 0 ? park.x : park.z;
     const center = segment + (direction < 0 ? 1 : 0);
     const cx = axis === 0 ? center : line, cz = axis === 0 ? line : center;
     const lanes = new Map();

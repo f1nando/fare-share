@@ -17,16 +17,12 @@ export function parkAt(x, z) {
 }
 
 export function roadOpen(axis, line, segment) {
-  if (axis === 0 && canalColumn(segment) && !canalBridge(line)) return false;
   const x = axis === 0 ? segment : line - 1, z = axis === 0 ? line - 1 : segment;
   const dx = Math.floor(x / 4), dz = Math.floor(z / 4);
   if (dx * 4 + 1 !== x || dz * 4 + 1 !== z) return true;
   const hash = districtCode(dx, dz);
   return hash % 5 === 0 || ((hash >>> 4) & 1) !== 1 - axis;
 }
-
-export const canalColumn = x => ((x % 12) + 12) % 12 === 0;
-export const canalBridge = line => line % 2 === 0;
 
 // Whole street lines stay divided: a taxi never meets a new median halfway
 // through an oncoming overtake. Crossings and missing park roads remain open.
