@@ -69,7 +69,7 @@ export function TaxiDashboard() {
     try {
       const [nextCars, nextTrainees] = await Promise.all([
         loadOwnedMachines(connection.account.address, currentStatus),
-        loadOwnedTrainees(connection.account.address),
+        loadOwnedTrainees(connection.account.address, currentStatus),
       ]);
       setCars(nextCars);
       setTrainees(nextTrainees);
@@ -101,7 +101,7 @@ export function TaxiDashboard() {
       setStatus({ ...nextStatus, loading: false });
       const [nextCars, nextTrainees] = await Promise.all([
         loadOwnedMachines(wallet.account.address, nextStatus),
-        loadOwnedTrainees(wallet.account.address),
+        loadOwnedTrainees(wallet.account.address, nextStatus),
       ]);
       setCars(nextCars);
       setTrainees(nextTrainees);
@@ -190,8 +190,8 @@ export function TaxiDashboard() {
           </div>
           {trainees.length > 0 && <div className="trainee-list">
             {trainees.map(trainee => <article key={String(trainee.campaignId)}>
-              <span><strong>Кампания #{String(trainee.campaignId)}</strong><small>Работает до {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('ru-RU')}</small></span>
-              <button disabled={Boolean(busy)} onClick={() => runAction(
+              <span><strong>Кампания #{String(trainee.campaignId)} · {trainee.rewardDisplay} FARE</strong><small>Работает до {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('ru-RU')}</small></span>
+              <button disabled={Boolean(busy) || trainee.reward === 0n} onClick={() => runAction(
                 `claim-trainee-${trainee.campaignId}`,
                 () => claimTrainee(wallet, trainee, status),
                 'Доход стажёрской машины отправлен.',

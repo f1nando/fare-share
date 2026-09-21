@@ -18,6 +18,8 @@ import {
   decodeMachine,
   decodeRewardPool,
   decodeTrainee,
+  decodeTraineeBucket,
+  deriveTraineeAddresses,
   deriveTaxiAddresses,
   sendWalletInstructions,
 } from './anchorClient.js';
@@ -59,6 +61,17 @@ export function calculateProtocolTime(config, chainUnixTime) {
   const chainTime = BigInt(chainUnixTime);
   const frozenTime = config.pausedAt !== 0n ? config.pausedAt : chainTime;
   return frozenTime - config.totalPausedSeconds;
+}
+
+export function calculateTraineeReward(trainee, pool, startBucket, endBucket) {
+  const effectiveUntil = pool.effectiveCalculatedUntil;
+  if (!startBucket?.processed || effectiveUntil < trainee.activeFrom) return 0n;
+  const target = effectiveUntil >= trainee.activeUntil
+    ? (endBucket?.processed ? endBucket.accumulator : null)
+    : pool.accumulators[0];
+  if (target === null) return 0n;
+  const checkpoint = trainee.checkpointInitialized ? trainee.checkpoint : startBucket.accumulator;
+  return target >= checkpoint ? (target - checkpoint) / ACCUMULATOR_SCALE : 0n;
 }
 
 export function selectActiveMultiplier(value, nowSeconds = Math.floor(Date.now() / 1000)) {
@@ -124,7 +137,8 @@ export async function loadProtocolStatus() {
   };
 }
 
-export async function loadOwnedTrainees(owner) {
+export async function loadOwnedTrainees(owner, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   const response = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -141,10 +155,36 @@ export async function loadOwnedTrainees(owner) {
   });
   const body = await response.json();
   if (body.error) throw new Error(`Не удалось прочитать стажёрские машины: ${body.error.message}`);
-  return (body.result || []).map(item => ({
+  const trainees = (body.result || []).map(item => ({
     address: address(item.pubkey),
     ...decodeTrainee(base64Bytes(item.account.data[0])),
   }));
+  if (!trainees.length) return [];
+  const bucketAddresses = await Promise.all(trainees.map(async trainee => {
+    const derived = await deriveTraineeAddresses(
+      PROGRAM_ID,
+      owner,
+      trainee.campaignId,
+      trainee.activeFrom,
+      trainee.activeUntil,
+      0,
+    );
+    return [derived.startBucket, derived.endBucket];
+  }));
+  const [bucketAccounts, mintAccount] = await Promise.all([
+    loadMultipleAccounts(bucketAddresses.flat()),
+    rpc.getAccountInfo(status.config.fareMint, { commitment: 'finalized', encoding: 'base64' }).send(),
+  ]);
+  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  const decimals = mintDecimals(accountBytes(mintAccount.value));
+  return trainees.map((trainee, index) => {
+    const startAccount = bucketAccounts[index * 2];
+    const endAccount = bucketAccounts[index * 2 + 1];
+    const start = startAccount ? decodeTraineeBucket(accountBytes(startAccount)) : null;
+    const end = endAccount ? decodeTraineeBucket(accountBytes(endAccount)) : null;
+    const reward = calculateTraineeReward(trainee, status.traineePool, start, end);
+    return { ...trainee, reward, rewardDisplay: formatTokenAmount(reward, decimals) };
+  });
 }
 
 export async function activateTrainee(connection, campaignId, keyword, knownStatus) {
@@ -189,6 +229,7 @@ export async function claimTrainee(connection, trainee, knownStatus) {
     trainee,
     fareMint: status.config.fareMint,
     tokenProgram: address(mintAccount.value.owner),
+    amount: trainee.reward,
   });
   return sendWalletInstructions({
     rpc,

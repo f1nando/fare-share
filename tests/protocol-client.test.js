@@ -16,6 +16,7 @@ import {
   PROGRAM_ID,
   calculateRepairQuote,
   calculateProtocolTime,
+  calculateTraineeReward,
   formatTokenAmount,
   formatSolAmount,
   loadDASAssets,
@@ -29,6 +30,7 @@ import {
   buildActivateTraineeInstructions,
   buildClaimInstructions,
   buildRepairInstructions,
+  buildClaimTraineeInstructions,
   chooseEventPage,
   TAXI_DISCRIMINATORS,
   waitForFinalizedSignature,
@@ -73,6 +75,21 @@ test('repair quote mirrors the on-chain 25% five-day formula', () => {
 test('durability uses finalized Solana time and freezes during pause', () => {
   assert.equal(calculateProtocolTime({ pausedAt: 0n, totalPausedSeconds: 50n }, 1050), 1000n);
   assert.equal(calculateProtocolTime({ pausedAt: 900n, totalPausedSeconds: 50n }, 5000), 850n);
+});
+
+test('trainee reward uses processed start/end bucket boundaries', () => {
+  const trainee = {
+    activeFrom: 60n,
+    activeUntil: 3600n,
+    checkpointInitialized: false,
+    checkpoint: 0n,
+  };
+  const start = { processed: true, accumulator: 3n * 1_000_000_000_000_000_000n };
+  const end = { processed: true, accumulator: 8n * 1_000_000_000_000_000_000n };
+  const activePool = { effectiveCalculatedUntil: 120n, accumulators: [5n * 1_000_000_000_000_000_000n] };
+  assert.equal(calculateTraineeReward(trainee, activePool, start, end), 2n);
+  assert.equal(calculateTraineeReward(trainee, { ...activePool, effectiveCalculatedUntil: 4000n }, start, end), 5n);
+  assert.equal(calculateTraineeReward(trainee, { ...activePool, effectiveCalculatedUntil: 4000n }, start, null), 0n);
 });
 
 test('stock display activates the scheduled xStocks multiplier without changing raw accounting', () => {
@@ -220,6 +237,22 @@ test('free repair does not create a FARE token account while paid repair can cre
   };
   assert.equal((await buildRepairInstructions({ ...input, repairCost: 0n })).length, 1);
   assert.equal((await buildRepairInstructions({ ...input, repairCost: 1n })).length, 2);
+});
+
+test('trainee claim creates a FARE token account only for a positive reward', async () => {
+  const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, traineePool, traineeAddress, fareMint] = signers.map(signer => signer.address);
+  const input = {
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress,
+    traineePool,
+    trainee: { address: traineeAddress, campaignId: 1n, activeFrom: 60n, activeUntil: 3600n },
+    fareMint,
+    tokenProgram: TOKEN_PROGRAM,
+  };
+  assert.equal((await buildClaimTraineeInstructions({ ...input, amount: 0n })).length, 1);
+  assert.equal((await buildClaimTraineeInstructions({ ...input, amount: 1n })).length, 2);
 });
 
 test('wallet transaction waits until Solana reports finalized', async () => {

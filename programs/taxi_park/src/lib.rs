@@ -1227,6 +1227,27 @@ pub mod taxi_park {
         let amount = math::machine_reward(target, checkpoint, TRAINEE_WEIGHT)?;
 
         if amount > 0 {
+            let destination_info = ctx.accounts.destination.to_account_info();
+            require_keys_eq!(
+                *destination_info.owner,
+                ctx.accounts.token_program.key(),
+                TaxiError::InvalidTokenProgram
+            );
+            {
+                let data = destination_info.try_borrow_data()?;
+                let mut data_slice: &[u8] = &data;
+                let destination = TokenAccount::try_deserialize(&mut data_slice)?;
+                require_keys_eq!(
+                    destination.mint,
+                    ctx.accounts.fare_mint.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                require_keys_eq!(
+                    destination.owner,
+                    ctx.accounts.owner.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+            }
             let bump = [ctx.accounts.config.bump];
             let seeds: &[&[u8]] = &[b"config", &bump];
             let transfer = TransferChecked {
@@ -1865,13 +1886,9 @@ pub struct ClaimTrainee<'info> {
         token::token_program = token_program
     )]
     pub vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-        mut,
-        token::mint = fare_mint,
-        token::authority = owner,
-        token::token_program = token_program
-    )]
-    pub destination: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: May reuse the vault for a zero claim; validated before a positive transfer.
+    #[account(mut)]
+    pub destination: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 

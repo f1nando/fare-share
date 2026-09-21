@@ -173,6 +173,17 @@ export function decodeTrainee(bytes) {
   };
 }
 
+export function decodeTraineeBucket(bytes) {
+  const reader = new Reader(bytes);
+  return {
+    timestamp: reader.i64(),
+    weightDelta: reader.i64(),
+    accumulator: reader.u128(),
+    processed: reader.bool(),
+    bump: reader.u8(),
+  };
+}
+
 export function decodeEventQueue(bytes, pageCount = 80) {
   const reader = new Reader(bytes);
   const pages = Array.from({ length: pageCount }, (_, index) => ({
@@ -453,6 +464,7 @@ export async function buildClaimTraineeInstructions({
   trainee,
   fareMint,
   tokenProgram,
+  amount,
 }) {
   const payer = createNoopSigner(address(owner));
   const addresses = await deriveTraineeAddresses(
@@ -465,9 +477,8 @@ export async function buildClaimTraineeInstructions({
   );
   const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint: fareMint, tokenProgram });
   const [destination] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
-  return [
-    getCreateAssociatedTokenIdempotentInstruction({ payer, ata: destination, owner, mint: fareMint, tokenProgram }),
-    {
+  const hasReward = BigInt(amount) > 0n;
+  const claim = {
       programAddress,
       accounts: [
         meta(owner, AccountRole.WRITABLE_SIGNER),
@@ -478,11 +489,15 @@ export async function buildClaimTraineeInstructions({
         meta(addresses.endBucket, AccountRole.READONLY),
         meta(fareMint, AccountRole.READONLY),
         meta(vault, AccountRole.WRITABLE),
-        meta(destination, AccountRole.WRITABLE),
+        meta(hasReward ? destination : vault, AccountRole.WRITABLE),
         meta(tokenProgram, AccountRole.READONLY),
       ],
       data: TAXI_DISCRIMINATORS.claimTrainee,
-    },
+  };
+  if (!hasReward) return [claim];
+  return [
+    getCreateAssociatedTokenIdempotentInstruction({ payer, ata: destination, owner, mint: fareMint, tokenProgram }),
+    claim,
   ];
 }
 
