@@ -4,6 +4,7 @@ import { canalColumn } from './bridgeProfile.js';
 import { diagonalAt } from './diagonalLayout.js';
 
 const mod=(n,d)=>((n%d)+d)%d;
+export const PARKING_GATE_INSET=8.5;
 
 // Preserve the established diagonal corridors when adding more parking lots.
 // The corridor planner uses only this original reservation, never parkingAt.
@@ -58,12 +59,13 @@ export function parkingLotForLane(lane,segment,block) {
   return lot.axis===lane.axis&&lot.line===lane.line&&lot.direction===lane.direction?lot:null;
 }
 
-// One-way aisle: enter from the right, reverse out of a bay, exit to the left.
+// Street traffic meets the upstream exit first, then the downstream entry.
+// Inside the lot the one-way aisle runs back towards the upstream exit.
 // All dimensions are shared by scenery and traffic, including small blocks.
 export function parkingLayout(x,z,block) {
   const left=x*block,right=left+block,bottom=(z+1)*block;
   const rotation=Math.max(0,orientation(x,z,block)),road=frontage(x,z,rotation),boulevard=boulevardRoad(road.axis,road.line);
-  const entry=right-8.5,exit=left+8.5,first=exit+2.2,last=entry-2.2;
+  const entry=left+PARKING_GATE_INSET,exit=right-PARKING_GATE_INSET,first=entry+2.2,last=exit-2.2;
   const count=Math.min(10,Math.floor((last-first)/2.4)+1);
   return {key:`${x}:${z}`,x,z,block,left,right,bottom,entry,exit,rotation,...road,aisle:bottom-6.6,bay:bottom-10.8,
     track:boulevard?THIRD_TRACK:1,street:bottom-(boulevard?4.08:2.45),slots:Array.from({length:count},(_,i)=>first+(last-first)*i/Math.max(1,count-1))};
@@ -85,7 +87,7 @@ export function populateParking(batch,gx,gz,x,z,block) {
   rect(x+inner,x+block-inner,z+inner,north);
   rect(x+inner,x+6,north,z+block-inner);
   rect(x+block-6,x+block-inner,north,z+block-inner);
-  const openings=[lot.exit+dx,lot.entry+dx];
+  const openings=[lot.entry+dx,lot.exit+dx];
   let cursor=x+6;
   for(const gate of openings){rect(cursor,gate-2,south,z+block-inner);cursor=gate+2;}
   rect(cursor,x+block-6,south,z+block-inner);
