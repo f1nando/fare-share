@@ -22,7 +22,7 @@
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard. В первой версии подключаем Phantom; собственный embedded/passkey wallet и хранение пользовательских ключей отсутствуют.
 - Network fees: пользователь самостоятельно платит SOL за mint, `claim`, ремонт и активацию/claim стажёра. Backend платит только за служебные транзакции, которые отправляет сам; fee sponsorship и компенсации отсутствуют.
 - Account creation: команда финансирует первоначальные configuration/pool/vault/collection accounts. После запуска fee payer каждой транзакции оплачивает rent-exempt deposit всех новых accounts, которые создаёт эта транзакция: пользовательские Core Asset, Machine/Trainee PDA, event-queue pages и недостающие token accounts либо служебные accounts backend.
-- Backend/indexer: Node.js + TypeScript + MongoDB.
+- Backend/indexer: Node.js + TypeScript + MongoDB. On-chain события принимаются в работу только после commitment `finalized`; `confirmed` используется лишь как возможный промежуточный статус во frontend.
 - Stock swaps: Jupiter. Backend получает котировку и собирает короткоживущий маршрут; программа разрешает вызов только настроенного Jupiter program ID и проверяет входной SOL, выходной xStocks mint, `minOut`, deadline и nonce.
 - Локальные проверки: Rust unit tests, Anchor tests, LiteSVM или `solana-test-validator`.
 - Окружения: local validator → devnet → mainnet-beta только по отдельному разрешению.
