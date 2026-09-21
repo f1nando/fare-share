@@ -1,4 +1,4 @@
-import { address } from '@solana/kit';
+import { address, createKeyPairSignerFromBytes } from '@solana/kit';
 import { parseSecretBytes } from './signing.js';
 
 export const OFFICIAL_XSTOCK_MINTS = [
@@ -13,7 +13,7 @@ export interface PreflightResult {
   warnings: string[];
 }
 
-export function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): PreflightResult {
+export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Promise<PreflightResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const value = (name: string) => env[name]?.trim() || '';
@@ -101,9 +101,14 @@ export function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Preflight
     const raw = required(name);
     if (!raw) continue;
     try {
-      secrets.push(Buffer.from(parseSecretBytes(raw, name)).toString('hex'));
+      const bytes = parseSecretBytes(raw, name);
+      await createKeyPairSignerFromBytes(bytes);
+      secrets.push(Buffer.from(bytes).toString('hex'));
     } catch (error) {
-      errors.push((error as Error).message);
+      const message = (error as Error).message;
+      errors.push(message.startsWith(`${name} `)
+        ? message
+        : `${name}: приватная и публичная части keypair не совпадают`);
     }
   }
   if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {

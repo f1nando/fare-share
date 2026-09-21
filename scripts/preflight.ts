@@ -1,6 +1,6 @@
 import { validateDeploymentEnvironment } from '../server/preflight.js';
 
-const result = validateDeploymentEnvironment(process.env);
+const result = await validateDeploymentEnvironment(process.env);
 
 for (const warning of result.warnings) console.warn(`WARN  ${warning}`);
 for (const error of result.errors) console.error(`ERROR ${error}`);
