@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CityBackground } from './CityBackground.jsx';
-import { connectWallet, loadProtocolStatus, shortAddress } from './protocol/solana.js';
+import {
+  claimMachine,
+  connectWallet,
+  explorerTransaction,
+  loadOwnedMachines,
+  loadProtocolStatus,
+  mintMachine,
+  repairMachine,
+  shortAddress,
+} from './protocol/solana.js';
 
 const CLASSES = [
   { name: 'Эконом', count: 1000, weight: 1, price: '$49', tone: 'economy' },
@@ -17,12 +26,19 @@ const DEMO_CARS = [
 export function TaxiDashboard() {
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: 'devnet' });
+  const [cars, setCars] = useState(DEMO_CARS);
+  const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
+  const [lastSignature, setLastSignature] = useState('');
 
   useEffect(() => {
     let active = true;
     loadProtocolStatus()
-      .then(next => active && setStatus({ ...next, loading: false }))
+      .then(next => {
+        if (!active) return;
+        setStatus({ ...next, loading: false });
+        if (next.deployed) setCars([]);
+      })
       .catch(() => active && setStatus({ loading: false, deployed: false, network: 'devnet' }));
     return () => { active = false; };
   }, []);
@@ -34,15 +50,52 @@ export function TaxiDashboard() {
     try {
       const connected = await connectWallet();
       setWallet(connected);
+      if (status.deployed) await refreshGarage(connected, status);
     } catch (error) {
       setNotice(error.message);
     }
   }
 
-  function unavailable(action) {
-    setNotice(status.deployed
-      ? `${action}: инструкция появится после подключения сгенерированного клиента программы.`
-      : `${action}: программа ещё не развёрнута в devnet. Сейчас открыт безопасный демо-режим.`);
+  async function refreshGarage(connection = wallet, currentStatus = status) {
+    if (!connection || !currentStatus.deployed) return;
+    setBusy('refresh');
+    try {
+      const next = await loadOwnedMachines(connection.account.address, currentStatus);
+      setCars(next);
+      setNotice(next.length ? 'Гараж обновлён.' : 'В этом кошельке пока нет машин коллекции.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function runAction(key, action, success) {
+    if (!status.deployed) {
+      setNotice('Программа ещё не развёрнута в выбранной сети. Сейчас открыт демо-режим.');
+      return;
+    }
+    if (!wallet) {
+      setNotice('Сначала подключите Phantom.');
+      return;
+    }
+    setBusy(key);
+    setNotice('Подтвердите транзакцию в Phantom…');
+    setLastSignature('');
+    try {
+      const result = await action();
+      const signature = typeof result === 'string' ? result : result.signature;
+      setLastSignature(signature);
+      const nextStatus = await loadProtocolStatus();
+      setStatus({ ...nextStatus, loading: false });
+      const nextCars = await loadOwnedMachines(wallet.account.address, nextStatus);
+      setCars(nextCars);
+      setNotice(success);
+    } catch (error) {
+      setNotice(error.message || 'Транзакция не выполнена.');
+    } finally {
+      setBusy('');
+    }
   }
 
   return (
@@ -70,8 +123,8 @@ export function TaxiDashboard() {
           <h1>Твой таксопарк платит<br /><span>FARE и акциями</span></h1>
           <p className="hero-copy">Парк делит только реально заработанные комиссии. Нет торгового объёма — нет выплаты.</p>
           <div className="pool-strip">
-            <div><small>Касса сейчас</small><strong>—</strong></div>
-            <div><small>Активный вес</small><strong>— / {totalWeight}</strong></div>
+            <div><small>Касса сейчас</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
+            <div><small>Активный вес</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
             <div><small>Следующий расчёт</small><strong>ожидает backend</strong></div>
           </div>
         </section>
@@ -79,38 +132,39 @@ export function TaxiDashboard() {
         <section className="panel" aria-labelledby="garage-title">
           <div className="section-title">
             <div><p className="eyebrow">Мой гараж</p><h2 id="garage-title">Машины</h2></div>
-            <button className="ghost-button" onClick={() => unavailable('Обновление')}>Обновить</button>
+            <button className="ghost-button" disabled={busy === 'refresh'} onClick={() => refreshGarage()}>
+              {busy === 'refresh' ? 'Обновляем…' : 'Обновить'}
+            </button>
           </div>
           <div className="car-list">
-            {DEMO_CARS.map(car => <article className="car-row" key={car.id}>
+            {cars.map(car => <article className="car-row" key={car.asset || car.id}>
               <div className="car-icon" aria-hidden="true">●</div>
               <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Вес {car.weight}</span></div>
               <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Прочность {car.durability}%</small></div>
-              <div className="reward"><strong>{car.reward}</strong><small>+ {car.stocks} в акциях</small></div>
+              <div className="reward"><strong>{car.rewards ? `${car.rewards[0]} raw FARE` : car.reward}</strong><small>{car.rewards ? `+ ${car.rewards.slice(1).reduce((sum, value) => sum + value, 0n)} raw stock` : `+ ${car.stocks} в акциях`}</small></div>
               <div className="row-actions">
-                <button onClick={() => unavailable('Claim')}>Забрать</button>
-                <button className="secondary" onClick={() => unavailable('Ремонт')}>Починить</button>
+                <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Награды отправлены в кошелёк.')}>Забрать</button>
+                <button disabled={Boolean(busy)} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Машина восстановлена на 5 дней.')}>Починить</button>
               </div>
             </article>)}
           </div>
-          <p className="demo-note">Демо-данные исчезнут после подключения развернутой Solana-программы.</p>
+          <p className="demo-note">{status.deployed ? 'Данные читаются из finalized Solana accounts.' : 'Демо-данные исчезнут после подключения развернутой Solana-программы.'}</p>
         </section>
 
         <section className="panel mint-panel" aria-labelledby="mint-title">
           <div className="section-title"><div><p className="eyebrow">1425 машин</p><h2 id="mint-title">Выбрать класс</h2></div></div>
           <div className="class-grid">
-            {CLASSES.map(item => <article className={`class-card ${item.tone}`} key={item.name}>
+            {CLASSES.map((item, classIndex) => <article className={`class-card ${item.tone}`} key={item.name}>
               <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
               <div className="taxi-silhouette" aria-hidden="true">▰</div>
               <dl><div><dt>Цена</dt><dd>{item.price}</dd></div><div><dt>Тираж</dt><dd>{item.count}</dd></div></dl>
-              <button onClick={() => unavailable(`Mint ${item.name}`)}>Купить за SOL</button>
+              <button disabled={Boolean(busy)} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name}: NFT-машина выпущена.`)}>Купить за SOL</button>
             </article>)}
           </div>
         </section>
 
-        {notice && <div className="taxi-notice" role="status"><span>{notice}</span><button onClick={() => setNotice('')}>×</button></div>}
+        {notice && <div className="taxi-notice" role="status"><span>{notice}{lastSignature && <> · <a href={explorerTransaction(lastSignature)} target="_blank" rel="noreferrer">Explorer</a></>}</span><button onClick={() => setNotice('')}>×</button></div>}
       </main>
     </div>
   );
 }
-

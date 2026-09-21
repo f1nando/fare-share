@@ -5,6 +5,19 @@ import {
   getUtf8Encoder,
 } from '@solana/kit';
 import { getWallets } from '@wallet-standard/app';
+import {
+  base64Bytes,
+  buildClaimInstructions,
+  buildMintMachine,
+  buildRepairInstruction,
+  chooseEventPage,
+  decodeConfiguration,
+  decodeEventQueue,
+  decodeMachine,
+  decodeRewardPool,
+  deriveTaxiAddresses,
+  sendWalletInstructions,
+} from './anchorClient.js';
 
 const env = import.meta.env ?? {};
 
@@ -12,29 +25,160 @@ export const PROGRAM_ID = address(
   env.VITE_TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY',
 );
 export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+export const SOLANA_CHAIN = RPC_URL.includes('devnet') ? 'solana:devnet' : 'solana:mainnet';
 
+const DAS_URL = env.VITE_SOLANA_DAS_URL || RPC_URL;
 const rpc = createSolanaRpc(RPC_URL);
 const utf8 = getUtf8Encoder();
+const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
+const MAX_DURABILITY = 5 * 24 * 60 * 60;
 
 export async function protocolAddresses() {
-  const [[config], [pool], [queue]] = await Promise.all([
+  const [[config], [pool], [queue], [traineePool], [traineeQueue], [feeVault]] = await Promise.all([
     getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('config')] }),
     getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('pool'), utf8.encode('main')] }),
     getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('queue'), utf8.encode('main')] }),
+    getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('pool'), utf8.encode('trainee')] }),
+    getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('queue'), utf8.encode('trainee')] }),
+    getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('fees')] }),
   ]);
-  return { config, pool, queue };
+  return { config, pool, queue, traineePool, traineeQueue, feeVault };
 }
 
 export async function loadProtocolStatus() {
   const addresses = await protocolAddresses();
-  const accounts = await rpc
-    .getMultipleAccounts(Object.values(addresses), { commitment: 'finalized', encoding: 'base64' })
-    .send();
+  const accounts = await rpc.getMultipleAccounts([addresses.config, addresses.pool, addresses.queue], {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  const deployed = accounts.value.every(Boolean);
+  if (!deployed) return { addresses, deployed: false, network: networkName() };
   return {
     addresses,
-    deployed: accounts.value.every(Boolean),
-    network: RPC_URL.includes('devnet') ? 'devnet' : 'custom RPC',
+    deployed,
+    network: networkName(),
+    config: decodeConfiguration(accountBytes(accounts.value[0])),
+    pool: decodeRewardPool(accountBytes(accounts.value[1])),
+    queue: decodeEventQueue(accountBytes(accounts.value[2])),
   };
+}
+
+export async function loadOwnedMachines(owner, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  if (!status.deployed) return [];
+  const assets = await loadDASAssets(owner, status.config.collection);
+  if (!assets.length) return [];
+  const derived = await Promise.all(assets.map(item => deriveTaxiAddresses(PROGRAM_ID, address(item.id))));
+  const response = await rpc.getMultipleAccounts(derived.map(item => item.machine), {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  const protocolNow = status.config.pausedAt !== 0n
+    ? Number(status.config.pausedAt - status.config.totalPausedSeconds)
+    : Math.floor(Date.now() / 1000) - Number(status.config.totalPausedSeconds);
+  return assets.flatMap((asset, index) => {
+    const account = response.value[index];
+    if (!account) return [];
+    const machine = decodeMachine(accountBytes(account));
+    const pending = machine.rewardActive
+      ? machine.checkpoints.map((checkpoint, rewardIndex) => (
+        (status.pool.accumulators[rewardIndex] - checkpoint) * BigInt(machine.weight) / ACCUMULATOR_SCALE
+      ))
+      : [0n, 0n, 0n, 0n, 0n];
+    const rewards = machine.claimable.map((value, rewardIndex) => value + pending[rewardIndex]);
+    const secondsLeft = Math.max(0, Number(machine.activeUntil) - protocolNow);
+    return [{
+      asset: address(asset.id),
+      machineAddress: derived[index].machine,
+      name: asset.content?.metadata?.name || className(machine.weight),
+      image: asset.content?.links?.image || '',
+      weight: machine.weight,
+      durability: Math.round(secondsLeft * 100 / MAX_DURABILITY),
+      rewards,
+      fareBase: machine.fareBase,
+      closed: machine.closed,
+    }];
+  });
+}
+
+export async function mintMachine(connection, classIndex, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  if (!status.deployed) throw new Error('Программа ещё не развёрнута в выбранной сети.');
+  if (!status.config.saleStarted) throw new Error('Продажа машин ещё не открыта.');
+  const pageIndex = chooseEventPage(status.queue, 2);
+  const owner = address(connection.account.address);
+  const built = await buildMintMachine({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: status.addresses.config,
+    config: status.config,
+    queue: status.addresses.queue,
+    classIndex,
+    pageIndex,
+  });
+  const signature = await sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [built.instruction],
+    additionalSigners: [built.assetSigner],
+  });
+  return { signature, asset: built.assetSigner.address };
+}
+
+export async function claimMachine(connection, machine, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const owner = address(connection.account.address);
+  const mints = [status.config.fareMint, ...status.config.stockMints];
+  const mintAccounts = await rpc.getMultipleAccounts(mints, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (mintAccounts.value.some(value => !value)) throw new Error('Один из reward mint недоступен.');
+  const instructions = await buildClaimInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: status.addresses.config,
+    pool: status.addresses.pool,
+    machine: machine.machineAddress,
+    asset: machine.asset,
+    mints,
+    tokenPrograms: mintAccounts.value.map(value => address(value.owner)),
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions,
+  });
+}
+
+export async function repairMachine(connection, machine, knownStatus) {
+  const status = await refreshStatus(knownStatus);
+  const pageIndex = chooseEventPage(status.queue, 2);
+  const mintAccount = await rpc.getAccountInfo(status.config.fareMint, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  const instruction = await buildRepairInstruction({
+    programAddress: PROGRAM_ID,
+    owner: address(connection.account.address),
+    configAddress: status.addresses.config,
+    config: status.config,
+    pool: status.addresses.pool,
+    queue: status.addresses.queue,
+    machine: machine.machineAddress,
+    asset: machine.asset,
+    fareTokenProgram: address(mintAccount.value.owner),
+    pageIndex,
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [instruction],
+  });
 }
 
 export async function connectWallet() {
@@ -52,4 +196,54 @@ export async function connectWallet() {
 export function shortAddress(value) {
   const text = String(value || '');
   return text.length > 10 ? `${text.slice(0, 4)}…${text.slice(-4)}` : text;
+}
+
+export function explorerTransaction(signature) {
+  const cluster = SOLANA_CHAIN === 'solana:devnet' ? '?cluster=devnet' : '';
+  return `https://explorer.solana.com/tx/${signature}${cluster}`;
+}
+
+async function refreshStatus(status) {
+  if (!status?.deployed) return loadProtocolStatus();
+  const queueAccount = await rpc.getAccountInfo(status.addresses.queue, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!queueAccount.value) throw new Error('Очередь программы недоступна.');
+  return { ...status, queue: decodeEventQueue(accountBytes(queueAccount.value)) };
+}
+
+async function loadDASAssets(owner, collection) {
+  try {
+    const response = await fetch(DAS_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'fare-machines',
+        method: 'getAssetsByOwner',
+        params: { ownerAddress: String(owner), page: 1, limit: 1000 },
+      }),
+    });
+    const body = await response.json();
+    if (body.error) return [];
+    return (body.result?.items || []).filter(item => (
+      item.grouping?.some(group => group.group_key === 'collection' && group.group_value === String(collection))
+    ));
+  } catch {
+    return [];
+  }
+}
+
+function accountBytes(account) {
+  const encoded = Array.isArray(account.data) ? account.data[0] : account.data;
+  return base64Bytes(encoded);
+}
+
+function networkName() {
+  return SOLANA_CHAIN === 'solana:devnet' ? 'devnet' : 'mainnet';
+}
+
+function className(weight) {
+  return ({ 1: 'Эконом', 3: 'Комфорт', 10: 'Бизнес', 30: 'Легенда' })[weight] || 'Машина';
 }

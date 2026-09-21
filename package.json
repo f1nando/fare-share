@@ -10,6 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@solana-program/token": "^0.17.0",
     "@solana/kit": "^8.3.0",
     "@wallet-standard/app": "^1.1.1",
     "react": "^19.1.0",
