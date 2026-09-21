@@ -155,11 +155,16 @@ export function TaxiDashboard() {
               <div className="car-icon" aria-hidden="true">●</div>
               <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Вес {car.weight}</span></div>
               <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Прочность {car.durability}%</small></div>
-              <div className="reward"><strong>{car.rewards ? `${car.rewards[0]} raw FARE` : car.reward}</strong><small>{car.rewards ? `+ ${car.rewards.slice(1).reduce((sum, value) => sum + value, 0n)} raw stock` : `+ ${car.stocks} в акциях`}</small></div>
+              <div className="reward">
+                <strong>{car.rewardDisplay ? `${car.rewardDisplay.fare} FARE` : car.reward}</strong>
+                <small>{car.rewardDisplay
+                  ? car.rewardDisplay.stocks.map(stock => `${stock.amount}${stock.rawFallback ? ' raw' : ''} ${stock.symbol}`).join(' · ')
+                  : `+ ${car.stocks} в акциях`}</small>
+              </div>
               <div className="row-actions">
                 <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Награды отправлены в кошелёк.')}>Забрать</button>
                 <button disabled={Boolean(busy)} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Машина восстановлена на 5 дней.')}>
-                  {car.repairCost === undefined ? 'Починить' : `Починить · ${car.repairCost} FARE raw`}
+                  {car.repairCost === undefined ? 'Починить' : `Починить · ${car.repairCostDisplay} FARE`}
                 </button>
               </div>
             </article>)}

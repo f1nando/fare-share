@@ -36,6 +36,8 @@ const rpc = createSolanaRpc(RPC_URL);
 const utf8 = getUtf8Encoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
+const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
+const XSTOCKS_API_URL = 'https://api.xstocks.fi/api/v2/public/assets';
 
 export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   const boundedRemaining = Math.max(0, Math.min(MAX_DURABILITY, Number(secondsLeft)));
@@ -43,6 +45,22 @@ export function calculateRepairQuote(fareBase, pendingFare, secondsLeft) {
   const effectiveBase = BigInt(fareBase) + BigInt(pendingFare);
   const fullRepairCost = effectiveBase * 25n / 100n;
   return fullRepairCost * missingSeconds / BigInt(MAX_DURABILITY);
+}
+
+export function selectActiveMultiplier(value, nowSeconds = Math.floor(Date.now() / 1000)) {
+  const current = Number(value?.currentMultiplier);
+  const pending = Number(value?.newMultiplier);
+  const activatesAt = Number(value?.activationDateTime);
+  if (Number.isFinite(pending) && pending > 0 && Number.isFinite(activatesAt) && activatesAt <= nowSeconds) {
+    return pending;
+  }
+  return Number.isFinite(current) && current > 0 ? current : 1;
+}
+
+export function formatTokenAmount(rawAmount, decimals, multiplier = 1) {
+  const amount = Number(rawAmount) / (10 ** Number(decimals)) * Number(multiplier);
+  if (!Number.isFinite(amount)) return `${rawAmount} raw`;
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 6 }).format(amount);
 }
 
 export async function protocolAddresses() {
@@ -164,10 +182,17 @@ export async function loadOwnedMachines(owner, knownStatus) {
   const assets = await loadDASAssets(owner, status.config.collection);
   if (!assets.length) return [];
   const derived = await Promise.all(assets.map(item => deriveTaxiAddresses(PROGRAM_ID, address(item.id))));
-  const response = await rpc.getMultipleAccounts(derived.map(item => item.machine), {
-    commitment: 'finalized',
-    encoding: 'base64',
-  }).send();
+  const rewardMints = [status.config.fareMint, ...status.config.stockMints];
+  const [response, mintResponse, stockMultipliers] = await Promise.all([
+    rpc.getMultipleAccounts(derived.map(item => item.machine), {
+      commitment: 'finalized',
+      encoding: 'base64',
+    }).send(),
+    rpc.getMultipleAccounts(rewardMints, { commitment: 'finalized', encoding: 'base64' }).send(),
+    loadStockMultipliers(),
+  ]);
+  if (mintResponse.value.some(value => !value)) throw new Error('Один из reward mint недоступен.');
+  const rewardDecimals = mintResponse.value.map(value => mintDecimals(accountBytes(value)));
   const protocolNow = status.config.pausedAt !== 0n
     ? Number(status.config.pausedAt - status.config.totalPausedSeconds)
     : Math.floor(Date.now() / 1000) - Number(status.config.totalPausedSeconds);
@@ -183,6 +208,18 @@ export async function loadOwnedMachines(owner, knownStatus) {
     const rewards = machine.claimable.map((value, rewardIndex) => value + pending[rewardIndex]);
     const secondsLeft = Math.max(0, Number(machine.activeUntil) - protocolNow);
     const repairCost = calculateRepairQuote(machine.fareBase, pending[0], secondsLeft);
+    const rewardDisplay = {
+      fare: formatTokenAmount(rewards[0], rewardDecimals[0]),
+      stocks: STOCK_SYMBOLS.map((symbol, rewardIndex) => ({
+        symbol,
+        amount: formatTokenAmount(
+          rewards[rewardIndex + 1],
+          rewardDecimals[rewardIndex + 1],
+          stockMultipliers?.[rewardIndex] ?? 1,
+        ),
+        rawFallback: stockMultipliers === null,
+      })),
+    };
     return [{
       asset: address(asset.id),
       machineAddress: derived[index].machine,
@@ -191,12 +228,26 @@ export async function loadOwnedMachines(owner, knownStatus) {
       weight: machine.weight,
       durability: Math.round(secondsLeft * 100 / MAX_DURABILITY),
       rewards,
+      rewardDisplay,
       fareBase: machine.fareBase,
       repairCost,
+      repairCostDisplay: formatTokenAmount(repairCost, rewardDecimals[0]),
       calculatedUntil: status.pool.effectiveCalculatedUntil,
       closed: machine.closed,
     }];
   });
+}
+
+async function loadStockMultipliers() {
+  try {
+    return await Promise.all(STOCK_SYMBOLS.map(async symbol => {
+      const response = await fetch(`${XSTOCKS_API_URL}/${symbol}/multiplier?network=Solana`);
+      if (!response.ok) throw new Error(`xStocks multiplier ${symbol}: HTTP ${response.status}`);
+      return selectActiveMultiplier(await response.json());
+    }));
+  } catch {
+    return null;
+  }
 }
 
 export async function mintMachine(connection, classIndex, knownStatus) {
@@ -346,6 +397,11 @@ async function loadDASAssets(owner, collection) {
 function accountBytes(account) {
   const encoded = Array.isArray(account.data) ? account.data[0] : account.data;
   return base64Bytes(encoded);
+}
+
+function mintDecimals(bytes) {
+  if (bytes.length < 45) throw new Error('Повреждённый reward mint.');
+  return bytes[44];
 }
 
 function networkName() {

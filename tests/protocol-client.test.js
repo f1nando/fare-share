@@ -15,7 +15,9 @@ import {
 import {
   PROGRAM_ID,
   calculateRepairQuote,
+  formatTokenAmount,
   protocolAddresses,
+  selectActiveMultiplier,
   shortAddress,
 } from '../src/protocol/solana.js';
 import {
@@ -52,6 +54,13 @@ test('repair quote mirrors the on-chain 25% five-day formula', () => {
   assert.equal(calculateRepairQuote(20_000_000n, 0n, 4 * 24 * 60 * 60), 1_000_000n);
   assert.equal(calculateRepairQuote(18_000_000n, 2_000_000n, 0), 5_000_000n);
   assert.equal(calculateRepairQuote(20_000_000n, 0n, 5 * 24 * 60 * 60), 0n);
+});
+
+test('stock display activates the scheduled xStocks multiplier without changing raw accounting', () => {
+  const update = { currentMultiplier: 1.01, newMultiplier: 1.02, activationDateTime: 200 };
+  assert.equal(selectActiveMultiplier(update, 199), 1.01);
+  assert.equal(selectActiveMultiplier(update, 200), 1.02);
+  assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
 });
 
 test('trainee activation puts Ed25519 verification immediately before the program instruction', async () => {
