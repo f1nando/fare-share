@@ -7,6 +7,8 @@ import { bodyPartPose } from './vehicleBody.js';
 import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
 import { hornAnimation } from './hornAnimation.js';
 import { HornEffects } from './hornEffects.js';
+import { populateLane } from './trafficPopulation.js';
+import { trafficSnapshot } from './benchmarkScenario.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -254,26 +256,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         for (const direction of [-1, 1]) {
           const key = `${axis}:${line}:${direction}`;
           let lane = lanes.get(key);
-          if (!lane) {
-            const random = seededRandom(line * 7 + axis, direction * 991);
-            lane = { axis, line, direction, cars: [] };
-            const spacing = settings.density > 0 ? TRAFFIC_SPACING * 100 / settings.density : Infinity;
-            const count = Math.floor((radius * 2 + 1) * BLOCK / spacing);
-            for (let track = 0; track < 2; track++) {
-              for (let i = 0; i < count; i++) {
-                const taxi = random() < settings.taxiShare / 100;
-                const cruise = taxi ? 13 + random() * 2 : 3.4 + random() * 4.2;
-                const acceleration = taxi ? 24 + random() * 5 : 2.2 + random() * 4;
-                lane.cars.push({ axis, line, direction,
-                  position: centerPosition - radius * BLOCK + i * spacing + track * spacing / 2 + random() * 1.5,
-                  taxi, color: palette.cars[Math.floor(random() * palette.cars.length)],
-                  track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise, acceleration,
-                  baseCruise: cruise, baseAcceleration: acceleration,
-                  changing: false, merge: 1, cooldown: random(), steer: 0,
-                });
-              }
-            }
-          }
+          if (!lane) lane = populateLane(axis, line, direction, settings, radius, centerPosition, benchmark?.seed ?? 0);
           next.set(key, lane);
         }
       }
@@ -358,7 +341,8 @@ export function createCity(container, initialSettings, benchmark = null) {
         simulationMs: prepareStart - simulationStart, prepareMs: renderStart - prepareStart,
         renderSubmitMs: end - renderStart, visibleCars,
         totalCars: [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
-        blocks: (radius * 2 + 1) ** 2, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls });
+        blocks: (radius * 2 + 1) ** 2, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls,
+        geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures });
     }
   }
 
@@ -401,5 +385,5 @@ export function createCity(container, initialSettings, benchmark = null) {
     renderer.dispose();
     renderer.domElement.remove();
   }
-  return { updateSettings, dispose };
+  return { updateSettings, dispose, snapshot: () => trafficSnapshot(lanes) };
 }
