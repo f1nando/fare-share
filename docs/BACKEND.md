@@ -9,6 +9,14 @@ Backend не является источником истины для дене�
 3. Убедиться, что публичный ключ backend signer совпадает с `Configuration.backend_signer` в Solana.
 4. Запустить `npm run dev:server`.
 
+Все backend/CLI-команды автоматически читают существующий `.env` из корня проекта. Перед инициализацией или запуском production выполните локальную проверку, которая не обращается к сети и не выводит значения секретов:
+
+```sh
+npm run protocol:preflight
+```
+
+Она проверяет обязательные адреса, разные server keypair, официальный порядок четырёх xStocks mint, ненулевые цены, постоянные metadata URI и совпадение frontend/program configuration. Ошибки нужно исправить до `protocol:initialize`.
+
 Проверка доступности: `GET /api/health`.
 
 ## Первичная инициализация протокола
@@ -58,7 +66,7 @@ Frontend отправляет `wallet`, `campaignId`, найденное сло�
 
 ```sh
 npm run server:typecheck
-node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts tests/backend-admin.test.ts
+node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts tests/backend-admin.test.ts tests/backend-preflight.test.ts
 ```
 
 ## Permissionless worker
