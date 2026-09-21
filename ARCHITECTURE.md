@@ -15,6 +15,7 @@
 - NFT: Solana NFT asset; предварительный кандидат — Metaplex Core.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
+- Stock swaps: Jupiter. Backend получает котировку и собирает короткоживущий маршрут; программа разрешает вызов только настроенного Jupiter program ID и проверяет входной SOL, выходной xStocks mint, `minOut`, deadline и nonce.
 - Локальные проверки: Rust unit tests, Anchor tests, LiteSVM или `solana-test-validator`.
 - Окружения: local validator → devnet → mainnet-beta только по отдельному разрешению.
 
@@ -52,7 +53,7 @@
 
 ## Главные открытые зависимости
 
-В первую очередь нужно решить SOL-1—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: механизм торговой комиссии, провайдера и mint токенизированных акций, corporate actions, swap venue, NFT-стандарт, embedded wallet/fee sponsorship, формат `$FARE`, batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
+В первую очередь нужно решить оставшиеся пункты SOL-5—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: NFT-стандарт, embedded wallet/fee sponsorship, batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
 
 ## Технические основания
 
