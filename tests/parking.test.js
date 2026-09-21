@@ -181,6 +181,10 @@ test('more lots cover all four frontages while preserving diagonals, rings and w
       assert.ok(roadOpen(lot.axis,lot.line,lot.segment));assert.ok(!roadworkAt(lot.axis,lot.line,lot.segment,block));
       assert.equal(lot.track,boulevardRoad(lot.axis,lot.line)?3:1);
       assert.deepEqual(parkingLotForLane(lot,lot.segment,block),lot);
+      const entry=parkingPosition(lot,lot.entry),exit=parkingPosition(lot,lot.exit);
+      const nextJunction=(lot.segment+(lot.direction===1?1:0))*block;
+      assert.ok((entry-exit)*lot.direction>0,'traffic meets the exit before the entry');
+      assert.ok(Math.abs(nextJunction-entry)<Math.abs(nextJunction-exit),'entry is nearer the next traffic light');
     }
     assert.ok(after>before*1.6&&after<before*2.5,JSON.stringify({block,before,after}));assert.equal(rotations.size,4);
     // These established approaches must retain their original endpoints.
@@ -197,14 +201,27 @@ test('all rotated lots, including avenues and rebased scenery, match their actua
     assert.equal(sites.size,8);
     for(const lot of sites.values()) {
       const car=carAt(lot),lanes=network([car]),parts=[],dx=127,dz=-91;
+      const neighbour=carAt(lot);
+      seedParking(network([neighbour]).values().next().value,block);
+      Object.assign(neighbour.parking,{slot:1,wait:Infinity,
+        pose:{...parkingPoint(lot,lot.slots[1],lot.bay),angle:Math.PI-lot.rotation*Math.PI/2}});
+      lanes.values().next().value.cars.push(neighbour);
       populateParking(boulevardSceneryBatch({add:(...a)=>parts.push(a)},lot.x,lot.z,lot.left+dx,lot.z*block+dz,block),
         lot.x,lot.z,lot.left+dx,lot.z*block+dz,block);
       let previous=null;
       for(let i=0;i<1600&&!car.parkingExits;i++) {
         updateNetwork(lanes,1/30,lot.axis===0?2:13,{blockSize:block,roadLayout:true});
+        clearBodies([car,neighbour],block,{lot:lot.key,i});
         const p=presentation(car,carCoordinates(car,block));
-        if(previous)assert.ok(Math.hypot(p.x-previous.x,p.z-previous.z)<.5,'continuous route and lane handoff');
-        previous={...p};
+        if(previous) {
+          assert.ok(Math.hypot(p.x-previous.x,p.z-previous.z)<.5,'continuous route and lane handoff');
+          assert.ok(Math.abs(Math.atan2(Math.sin(p.angle-previous.angle),Math.cos(p.angle-previous.angle)))<.8,'no heading snap at the reversed aisle or lane handoff');
+          if(car.parking?.phase==='aisle'&&previous.phase==='aisle') {
+            const along=lot.axis===0?p.x-previous.x:p.z-previous.z;
+            assert.ok(along*lot.direction<=1e-8,'internal aisle runs back towards the upstream exit');
+          }
+        }
+        previous={...p,phase:car.parking?.phase};
         if(!car.parking)continue;
         for(const[k,x,y,z,w,h,d]of parts)if(y+h/2>.15)
           assert.ok(!overlaps(p,{x:x-dx,z:z-dz,angle:0},w/2,d/2),JSON.stringify({block,lot:lot.key,rotation:lot.rotation,track:lot.track,i,phase:car.parking.phase,k,p,x:x-dx,z:z-dz,w,d}));

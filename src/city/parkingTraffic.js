@@ -1,4 +1,4 @@
-import { parkingLotForLane, parkingPoint, parkingPosition, parkingLocalPosition } from './parkingLayout.js';
+import { PARKING_GATE_INSET, parkingLotForLane, parkingPoint, parkingPosition, parkingLocalPosition } from './parkingLayout.js';
 import { TRACKS, occupiesTrack } from './world.js';
 import { vehicleGap } from './vehicleTypes.js';
 
@@ -28,16 +28,16 @@ function poseAt(route) {
 }
 function setRoute(state,phase,route) { state.phase=phase;state.route=route; }
 function enterRoute(car,lot,slot) {
-  const a=point(parkingLocalPosition(lot,car.position),lot.street),b=point(lot.entry,lot.aisle),c=point(lot.slots[slot]+2.2,lot.aisle),d=point(lot.slots[slot],lot.bay);
-  return lotPath(lot,[[a,point(a.x-1.3,a.z),point(b.x+1.3,b.z),b],line(b,c),[c,point(d.x,lot.aisle),point(d.x,d.z+1.6),d]]);
+  const a=point(parkingLocalPosition(lot,car.position),lot.street),b=point(lot.entry,lot.aisle),c=point(lot.slots[slot]-2.2,lot.aisle),d=point(lot.slots[slot],lot.bay);
+  return lotPath(lot,[[a,point(a.x-2,a.z),point(b.x-2,b.z),b],line(b,c),[c,point(d.x,lot.aisle),point(d.x,d.z+1.6),d]]);
 }
 function reverseRoute(lot,slot) {
-  const a=point(lot.slots[slot],lot.bay),b=point(a.x+2.2,lot.aisle);
-  return lotPath(lot,[[a,point(a.x,a.z+2),point(b.x-1.8,b.z),b]],true);
+  const a=point(lot.slots[slot],lot.bay),b=point(a.x-2.2,lot.aisle);
+  return lotPath(lot,[[a,point(a.x,a.z+2),point(b.x+1.8,b.z),b]],true);
 }
 function mergeRoute(lot) {
   const a=point(lot.exit,lot.aisle),b=point(lot.exit-1.8,lot.street);
-  return lotPath(lot,[[a,point(a.x-1.4,a.z),point(b.x+1.4,b.z),b]]);
+  return lotPath(lot,[[a,point(a.x+2,a.z),point(b.x+2,b.z),b]]);
 }
 function stateFor(lot,slot,wait) {
   return {lot,slot,phase:'parked',wait,route:null,roadOccupancy:false,
@@ -137,7 +137,8 @@ export function updateParking(lanes,delta,block) {
     }
     for(const car of lane.cars) {
       if(car.parking||car.taxi||car.kind&&car.kind!=='car'||car.turn||car.changing||car.overtake)continue;
-      const segment=Math.floor(car.position/block),start=segment*block+(lane.direction===-1?block-6.7:6.7);
+      const segment=Math.floor(car.position/block),entryInset=PARKING_GATE_INSET+1.8;
+      const start=segment*block+(lane.direction===-1?entryInset:block-entryInset);
       const distance=(start-car.position)*lane.direction;
       if(distance<-.25||distance>Math.max(.7,car.speed*delta+.15))continue;
       const lot=parkingLotForLane(lane,segment,block);if(!lot)continue;
