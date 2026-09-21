@@ -73,4 +73,3 @@ mod tests {
         assert_eq!(machine_reward(increment, 0, 1).unwrap(), 33);
     }
 }
-

@@ -90,4 +90,18 @@ pub enum TaxiError {
     InvalidRescueAmount,
     #[msg("The Metaplex Core asset still exists and has not been burned")]
     AssetNotBurned,
+    #[msg("Trainee duration must be between one hour and seven days")]
+    InvalidTraineeDuration,
+    #[msg("Trainee voucher has expired")]
+    VoucherExpired,
+    #[msg("Trainee voucher timestamps are invalid")]
+    InvalidTraineeTimes,
+    #[msg("Trainee voucher signature is missing or invalid")]
+    InvalidVoucherSignature,
+    #[msg("Trainee bucket does not match the expected minute")]
+    InvalidTraineeBucket,
+    #[msg("Trainee bucket has already been processed")]
+    TraineeBucketProcessed,
+    #[msg("Trainee rewards have not been calculated up to the required time")]
+    TraineeRewardsNotCalculated,
 }

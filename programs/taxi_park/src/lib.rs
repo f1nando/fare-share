@@ -1,16 +1,23 @@
 #![allow(unexpected_cfgs)]
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked};
+use anchor_lang::solana_program::sysvar::instructions::{
+    load_current_index_checked, load_instruction_at_checked,
+};
+use anchor_spl::token_interface::{
+    self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked,
+};
 use mpl_core::accounts::{BaseAssetV1, BaseCollectionV1};
 use mpl_core::types::{DataState, UpdateAuthority};
 
 pub mod error;
 pub mod math;
 pub mod state;
+pub mod voucher;
 
 pub use error::*;
 pub use state::*;
+pub use voucher::*;
 
 declare_id!("7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY");
 
@@ -26,11 +33,14 @@ pub mod taxi_park {
         config.backend_signer = args.backend_signer;
         config.team_account = args.team_account;
         config.jupiter_program = args.jupiter_program;
+        config.deployment_id = args.deployment_id;
         config.collection = args.collection;
         config.fare_mint = args.fare_mint;
         config.stock_mints = args.stock_mints;
         require!(
-            args.metadata_uris.iter().all(|uri| !uri.is_empty() && uri.len() <= MAX_METADATA_URI_LEN),
+            args.metadata_uris
+                .iter()
+                .all(|uri| !uri.is_empty() && uri.len() <= MAX_METADATA_URI_LEN),
             TaxiError::InvalidMetadataUri
         );
         let [economy_uri, comfort_uri, business_uri, legend_uri] = args.metadata_uris;
@@ -48,16 +58,28 @@ pub mod taxi_park {
         pool.calculated_until = now;
         pool.bump = ctx.bumps.pool;
 
+        let trainee_pool = &mut ctx.accounts.trainee_pool;
+        trainee_pool.calculated_until = now;
+        trainee_pool.bump = ctx.bumps.trainee_pool;
+
         let queue = &mut ctx.accounts.queue;
         queue.next_event_number = 1;
         queue.bump = ctx.bumps.queue;
+        ctx.accounts.trainee_queue.next_event_number = 1;
+        ctx.accounts.trainee_queue.bump = ctx.bumps.trainee_queue;
         ctx.accounts.fee_vault.bump = ctx.bumps.fee_vault;
         Ok(())
     }
 
     pub fn set_mint_prices(ctx: Context<AdminState>, prices: [u64; CLASS_COUNT]) -> Result<()> {
-        require!(!ctx.accounts.config.sale_started, TaxiError::SaleAlreadyStarted);
-        require!(prices.iter().all(|price| *price > 0), TaxiError::InvalidPrice);
+        require!(
+            !ctx.accounts.config.sale_started,
+            TaxiError::SaleAlreadyStarted
+        );
+        require!(
+            prices.iter().all(|price| *price > 0),
+            TaxiError::InvalidPrice
+        );
         ctx.accounts.config.mint_prices = prices;
         Ok(())
     }
@@ -65,7 +87,10 @@ pub mod taxi_park {
     pub fn start_sale(ctx: Context<AdminState>) -> Result<()> {
         let config = &mut ctx.accounts.config;
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
-        require!(config.mint_prices.iter().all(|price| *price > 0), TaxiError::InvalidPrice);
+        require!(
+            config.mint_prices.iter().all(|price| *price > 0),
+            TaxiError::InvalidPrice
+        );
         config.sale_started = true;
         Ok(())
     }
@@ -81,7 +106,9 @@ pub mod taxi_park {
         let now = Clock::get()?.unix_timestamp;
         let config = &mut ctx.accounts.config;
         require!(config.is_paused(), TaxiError::NotPaused);
-        let paused = now.checked_sub(config.paused_at).ok_or(TaxiError::MathOverflow)?;
+        let paused = now
+            .checked_sub(config.paused_at)
+            .ok_or(TaxiError::MathOverflow)?;
         config.total_paused_seconds = config
             .total_paused_seconds
             .checked_add(paused)
@@ -98,27 +125,40 @@ pub mod taxi_park {
 
     pub fn accept_admin(ctx: Context<AcceptAdmin>) -> Result<()> {
         let config = &mut ctx.accounts.config;
-        require_keys_eq!(config.pending_admin, ctx.accounts.pending_admin.key(), TaxiError::Unauthorized);
+        require_keys_eq!(
+            config.pending_admin,
+            ctx.accounts.pending_admin.key(),
+            TaxiError::Unauthorized
+        );
         config.admin = config.pending_admin;
         config.pending_admin = Pubkey::default();
         Ok(())
     }
 
     pub fn set_team_account(ctx: Context<AdminState>, team_account: Pubkey) -> Result<()> {
-        require!(team_account != Pubkey::default(), TaxiError::InvalidTeamAccount);
+        require!(
+            team_account != Pubkey::default(),
+            TaxiError::InvalidTeamAccount
+        );
         ctx.accounts.config.team_account = team_account;
         Ok(())
     }
 
     pub fn set_backend_signer(ctx: Context<AdminState>, backend_signer: Pubkey) -> Result<()> {
-        require!(backend_signer != Pubkey::default(), TaxiError::InvalidBackendSigner);
+        require!(
+            backend_signer != Pubkey::default(),
+            TaxiError::InvalidBackendSigner
+        );
         ctx.accounts.config.backend_signer = backend_signer;
         Ok(())
     }
 
     pub fn set_jupiter_program(ctx: Context<AdminState>, jupiter_program: Pubkey) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
-        require!(jupiter_program != Pubkey::default(), TaxiError::InvalidJupiterProgram);
+        require!(
+            jupiter_program != Pubkey::default(),
+            TaxiError::InvalidJupiterProgram
+        );
         ctx.accounts.config.jupiter_program = jupiter_program;
         Ok(())
     }
@@ -127,21 +167,46 @@ pub mod taxi_park {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
         let vault_info = ctx.accounts.fee_vault.to_account_info();
         let rent_floor = Rent::get()?.minimum_balance(vault_info.data_len());
-        let available = vault_info.lamports().checked_sub(rent_floor).ok_or(TaxiError::VaultBalanceMismatch)?;
-        require!(amount > 0 && amount <= available, TaxiError::InvalidRescueAmount);
-        let recipient_after = ctx.accounts.recipient.lamports().checked_add(amount).ok_or(TaxiError::MathOverflow)?;
-        let vault_after = vault_info.lamports().checked_sub(amount).ok_or(TaxiError::MathOverflow)?;
+        let available = vault_info
+            .lamports()
+            .checked_sub(rent_floor)
+            .ok_or(TaxiError::VaultBalanceMismatch)?;
+        require!(
+            amount > 0 && amount <= available,
+            TaxiError::InvalidRescueAmount
+        );
+        let recipient_after = ctx
+            .accounts
+            .recipient
+            .lamports()
+            .checked_add(amount)
+            .ok_or(TaxiError::MathOverflow)?;
+        let vault_after = vault_info
+            .lamports()
+            .checked_sub(amount)
+            .ok_or(TaxiError::MathOverflow)?;
         **vault_info.try_borrow_mut_lamports()? = vault_after;
         **ctx.accounts.recipient.try_borrow_mut_lamports()? = recipient_after;
         ctx.accounts.fee_vault.consume_reserves(amount)?;
-        emit!(AssetRescued { mint: Pubkey::default(), recipient: ctx.accounts.recipient.key(), amount });
+        emit!(AssetRescued {
+            mint: Pubkey::default(),
+            recipient: ctx.accounts.recipient.key(),
+            amount
+        });
         Ok(())
     }
 
     pub fn rescue_token(ctx: Context<RescueToken>, amount: u64) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
-        require!(amount > 0 && amount <= ctx.accounts.vault.amount, TaxiError::InvalidRescueAmount);
-        require_keys_eq!(ctx.accounts.destination.mint, ctx.accounts.mint.key(), TaxiError::InvalidTokenAccount);
+        require!(
+            amount > 0 && amount <= ctx.accounts.vault.amount,
+            TaxiError::InvalidRescueAmount
+        );
+        require_keys_eq!(
+            ctx.accounts.destination.mint,
+            ctx.accounts.mint.key(),
+            TaxiError::InvalidTokenAccount
+        );
         let bump = [ctx.accounts.config.bump];
         let seeds: &[&[u8]] = &[b"config", &bump];
         let transfer = TransferChecked {
@@ -151,11 +216,19 @@ pub mod taxi_park {
             authority: ctx.accounts.config.to_account_info(),
         };
         token_interface::transfer_checked(
-            CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), transfer, &[seeds]),
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer,
+                &[seeds],
+            ),
             amount,
             ctx.accounts.mint.decimals,
         )?;
-        emit!(AssetRescued { mint: ctx.accounts.mint.key(), recipient: ctx.accounts.destination.key(), amount });
+        emit!(AssetRescued {
+            mint: ctx.accounts.mint.key(),
+            recipient: ctx.accounts.destination.key(),
+            amount
+        });
         Ok(())
     }
 
@@ -163,22 +236,35 @@ pub mod taxi_park {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         let index = usize::from(asset_index);
         require!(index < ASSET_COUNT, TaxiError::InvalidRewardAsset);
-        require_keys_eq!(ctx.accounts.config.asset_mint(index)?, ctx.accounts.mint.key(), TaxiError::InvalidRewardMint);
+        require_keys_eq!(
+            ctx.accounts.config.asset_mint(index)?,
+            ctx.accounts.mint.key(),
+            TaxiError::InvalidRewardMint
+        );
 
         let accounted = ctx.accounts.pool.accounted_tokens(index)?;
         let actual = ctx.accounts.vault.amount;
-        let received = actual.checked_sub(accounted).ok_or(TaxiError::VaultBalanceMismatch)?;
+        let received = actual
+            .checked_sub(accounted)
+            .ok_or(TaxiError::VaultBalanceMismatch)?;
         require!(received > 0, TaxiError::NothingToSync);
         ctx.accounts.pool.next_pool[index] = ctx.accounts.pool.next_pool[index]
             .checked_add(received)
             .ok_or(TaxiError::MathOverflow)?;
-        emit!(RewardAssetSynced { asset_index, amount: received });
+        emit!(RewardAssetSynced {
+            asset_index,
+            amount: received
+        });
         Ok(())
     }
 
     pub fn collect_fees(ctx: Context<CollectFees>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        require_keys_eq!(ctx.accounts.config.team_account, ctx.accounts.team_account.key(), TaxiError::InvalidTeamAccount);
+        require_keys_eq!(
+            ctx.accounts.config.team_account,
+            ctx.accounts.team_account.key(),
+            TaxiError::InvalidTeamAccount
+        );
 
         let vault_info = ctx.accounts.fee_vault.to_account_info();
         let rent_floor = Rent::get()?.minimum_balance(vault_info.data_len());
@@ -198,15 +284,23 @@ pub mod taxi_park {
             .and_then(|value| value.checked_add(stock_amount.checked_mul(STOCK_COUNT as u64)?))
             .ok_or(TaxiError::MathOverflow)?;
         fare_amount = fare_amount
-            .checked_add(available.checked_sub(assigned).ok_or(TaxiError::MathOverflow)?)
+            .checked_add(
+                available
+                    .checked_sub(assigned)
+                    .ok_or(TaxiError::MathOverflow)?,
+            )
             .ok_or(TaxiError::MathOverflow)?;
 
-        ctx.accounts.fee_vault.fare_sol_reserve = ctx.accounts.fee_vault
+        ctx.accounts.fee_vault.fare_sol_reserve = ctx
+            .accounts
+            .fee_vault
             .fare_sol_reserve
             .checked_add(fare_amount)
             .ok_or(TaxiError::MathOverflow)?;
         for reserve in &mut ctx.accounts.fee_vault.stock_sol_reserves {
-            *reserve = reserve.checked_add(stock_amount).ok_or(TaxiError::MathOverflow)?;
+            *reserve = reserve
+                .checked_add(stock_amount)
+                .ok_or(TaxiError::MathOverflow)?;
         }
 
         if team_amount > 0 {
@@ -214,7 +308,8 @@ pub mod taxi_park {
                 .lamports()
                 .checked_sub(team_amount)
                 .ok_or(TaxiError::MathOverflow)?;
-            let team_after = ctx.accounts
+            let team_after = ctx
+                .accounts
                 .team_account
                 .lamports()
                 .checked_add(team_amount)
@@ -223,15 +318,26 @@ pub mod taxi_park {
             **ctx.accounts.team_account.try_borrow_mut_lamports()? = team_after;
         }
 
-        emit!(FeesCollected { total: available, fare_reserve: fare_amount, stock_reserve_each: stock_amount, team_amount });
+        emit!(FeesCollected {
+            total: available,
+            fare_reserve: fare_amount,
+            stock_reserve_each: stock_amount,
+            team_amount
+        });
         Ok(())
     }
 
     pub fn mint_machine(ctx: Context<MintMachine>, class: u8, page_index: u8) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
-        require!(usize::from(page_index) < MAX_QUEUE_PAGES, TaxiError::InvalidQueuePage);
-        require!(ctx.accounts.event_page.events.len() + 2 <= EVENTS_PER_PAGE, TaxiError::EventPageCapacity);
+        require!(
+            usize::from(page_index) < MAX_QUEUE_PAGES,
+            TaxiError::InvalidQueuePage
+        );
+        require!(
+            ctx.accounts.event_page.events.len() + 2 <= EVENTS_PER_PAGE,
+            TaxiError::EventPageCapacity
+        );
 
         let class_index = usize::from(class);
         let (weight, cap) = class_terms(class)?;
@@ -242,7 +348,10 @@ pub mod taxi_park {
         let name = format!("FARE {} #{:04}", class_name(class)?, serial);
         let uri = ctx.accounts.config.metadata_uri(class_index)?.to_owned();
 
-        let payment = anchor_lang::system_program::Transfer { from: ctx.accounts.owner.to_account_info(), to: ctx.accounts.team_account.to_account_info() };
+        let payment = anchor_lang::system_program::Transfer {
+            from: ctx.accounts.owner.to_account_info(),
+            to: ctx.accounts.team_account.to_account_info(),
+        };
         anchor_lang::system_program::transfer(
             CpiContext::new(ctx.accounts.system_program.to_account_info(), payment),
             price,
@@ -270,7 +379,10 @@ pub mod taxi_park {
         }
         .invoke_signed(&[config_seeds])?;
 
-        let now = ctx.accounts.config.protocol_time(Clock::get()?.unix_timestamp)?;
+        let now = ctx
+            .accounts
+            .config
+            .protocol_time(Clock::get()?.unix_timestamp)?;
         ctx.accounts.config.minted_by_class[class_index] = serial;
         initialize_machine_and_events(
             &mut ctx.accounts.machine,
@@ -299,13 +411,29 @@ pub mod taxi_park {
     pub fn repair(ctx: Context<RepairMachine>, page_index: u8) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
-        require!(usize::from(page_index) < MAX_QUEUE_PAGES, TaxiError::InvalidQueuePage);
-        require!(ctx.accounts.event_page.events.len() + 2 <= EVENTS_PER_PAGE, TaxiError::EventPageCapacity);
+        require!(
+            usize::from(page_index) < MAX_QUEUE_PAGES,
+            TaxiError::InvalidQueuePage
+        );
+        require!(
+            ctx.accounts.event_page.events.len() + 2 <= EVENTS_PER_PAGE,
+            TaxiError::EventPageCapacity
+        );
 
-        let now = ctx.accounts.config.protocol_time(Clock::get()?.unix_timestamp)?;
+        let now = ctx
+            .accounts
+            .config
+            .protocol_time(Clock::get()?.unix_timestamp)?;
         ctx.accounts.machine.settle(&ctx.accounts.pool, true)?;
-        let remaining = ctx.accounts.machine.active_until.saturating_sub(now).clamp(0, MAX_DURABILITY_SECONDS);
-        let missing = MAX_DURABILITY_SECONDS.checked_sub(remaining).ok_or(TaxiError::MathOverflow)?;
+        let remaining = ctx
+            .accounts
+            .machine
+            .active_until
+            .saturating_sub(now)
+            .clamp(0, MAX_DURABILITY_SECONDS);
+        let missing = MAX_DURABILITY_SECONDS
+            .checked_sub(remaining)
+            .ok_or(TaxiError::MathOverflow)?;
         let cost = math::repair_cost(ctx.accounts.machine.fare_base, missing)?;
 
         if cost > 0 {
@@ -315,14 +443,24 @@ pub mod taxi_park {
                 authority: ctx.accounts.owner.to_account_info(),
             };
             token_interface::burn_checked(
-                CpiContext::new(ctx.accounts.fare_token_program.to_account_info(), burn_accounts),
+                CpiContext::new(
+                    ctx.accounts.fare_token_program.to_account_info(),
+                    burn_accounts,
+                ),
                 cost,
                 ctx.accounts.fare_mint.decimals,
             )?;
         }
 
-        let generation = ctx.accounts.machine.scheduled_generation.checked_add(1).ok_or(TaxiError::MathOverflow)?;
-        let active_until = now.checked_add(MAX_DURABILITY_SECONDS).ok_or(TaxiError::MathOverflow)?;
+        let generation = ctx
+            .accounts
+            .machine
+            .scheduled_generation
+            .checked_add(1)
+            .ok_or(TaxiError::MathOverflow)?;
+        let active_until = now
+            .checked_add(MAX_DURABILITY_SECONDS)
+            .ok_or(TaxiError::MathOverflow)?;
         ctx.accounts.machine.fare_base = 0;
         ctx.accounts.machine.scheduled_generation = generation;
         ctx.accounts.machine.active_until = active_until;
@@ -335,8 +473,20 @@ pub mod taxi_park {
         require!(page.index == page_index, TaxiError::InvalidQueuePage);
         let activate_number = ctx.accounts.queue.take_event_number()?;
         let expire_number = ctx.accounts.queue.take_event_number()?;
-        page.push(MachineEvent::new(now, activate_number, ctx.accounts.machine.asset, EventKind::Activate, generation))?;
-        page.push(MachineEvent::new(active_until, expire_number, ctx.accounts.machine.asset, EventKind::Expire, generation))?;
+        page.push(MachineEvent::new(
+            now,
+            activate_number,
+            ctx.accounts.machine.asset,
+            EventKind::Activate,
+            generation,
+        ))?;
+        page.push(MachineEvent::new(
+            active_until,
+            expire_number,
+            ctx.accounts.machine.asset,
+            EventKind::Expire,
+            generation,
+        ))?;
         ctx.accounts.queue.update_page(page)?;
 
         emit!(MachineRepaired {
@@ -350,11 +500,20 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn cleanup_burned_machine(ctx: Context<CleanupBurnedMachine>, page_index: u8) -> Result<()> {
+    pub fn cleanup_burned_machine(
+        ctx: Context<CleanupBurnedMachine>,
+        page_index: u8,
+    ) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
-        require!(usize::from(page_index) < MAX_QUEUE_PAGES, TaxiError::InvalidQueuePage);
-        require!(ctx.accounts.event_page.events.len() < EVENTS_PER_PAGE, TaxiError::EventPageCapacity);
+        require!(
+            usize::from(page_index) < MAX_QUEUE_PAGES,
+            TaxiError::InvalidQueuePage
+        );
+        require!(
+            ctx.accounts.event_page.events.len() < EVENTS_PER_PAGE,
+            TaxiError::EventPageCapacity
+        );
 
         let asset_info = ctx.accounts.asset.to_account_info();
         require!(
@@ -362,7 +521,10 @@ pub mod taxi_park {
             TaxiError::AssetNotBurned
         );
 
-        let now = ctx.accounts.config.protocol_time(Clock::get()?.unix_timestamp)?;
+        let now = ctx
+            .accounts
+            .config
+            .protocol_time(Clock::get()?.unix_timestamp)?;
         ctx.accounts.machine.closed = true;
         ctx.accounts.machine.active_until = now;
 
@@ -390,10 +552,328 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn activate_trainee(
+        ctx: Context<ActivateTrainee>,
+        args: ActivateTraineeArgs,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(
+            usize::from(args.page_index) < MAX_QUEUE_PAGES,
+            TaxiError::InvalidQueuePage
+        );
+        require!(
+            (TRAINEE_MIN_DURATION_MINUTES..=TRAINEE_MAX_DURATION_MINUTES)
+                .contains(&args.duration_minutes),
+            TaxiError::InvalidTraineeDuration
+        );
+
+        let clock = Clock::get()?;
+        require!(
+            clock.unix_timestamp <= args.expires_at,
+            TaxiError::VoucherExpired
+        );
+        let now = ctx.accounts.config.protocol_time(clock.unix_timestamp)?;
+        let active_from = now
+            .checked_div(60)
+            .and_then(|minute| minute.checked_add(1))
+            .and_then(|minute| minute.checked_mul(60))
+            .ok_or(TaxiError::MathOverflow)?;
+        let duration_seconds = i64::from(args.duration_minutes)
+            .checked_mul(60)
+            .ok_or(TaxiError::MathOverflow)?;
+        let active_until = active_from
+            .checked_add(duration_seconds)
+            .ok_or(TaxiError::MathOverflow)?;
+        require!(
+            args.active_from == active_from && args.active_until == active_until,
+            TaxiError::InvalidTraineeTimes
+        );
+
+        let instructions_info = ctx.accounts.instructions.to_account_info();
+        let current_index = usize::from(load_current_index_checked(&instructions_info)?);
+        require!(current_index > 0, TaxiError::InvalidVoucherSignature);
+        let signature_ix = load_instruction_at_checked(current_index - 1, &instructions_info)?;
+        let expected_message = voucher::message(
+            ctx.program_id,
+            &ctx.accounts.config.deployment_id,
+            &ctx.accounts.owner.key(),
+            &args,
+        );
+        voucher::verify_ed25519_instruction(
+            &signature_ix,
+            &ctx.accounts.config.backend_signer,
+            &expected_message,
+        )?;
+
+        let start_is_new = ctx.accounts.start_bucket.timestamp == 0;
+        let end_is_new = ctx.accounts.end_bucket.timestamp == 0;
+        let new_events = usize::from(start_is_new) + usize::from(end_is_new);
+        require!(
+            ctx.accounts.event_page.events.len() + new_events <= EVENTS_PER_PAGE,
+            TaxiError::EventPageCapacity
+        );
+        if ctx.accounts.event_page.events.is_empty() {
+            ctx.accounts.event_page.index = args.page_index;
+            ctx.accounts.event_page.bump = ctx.bumps.event_page;
+        }
+        require!(
+            ctx.accounts.event_page.index == args.page_index,
+            TaxiError::InvalidQueuePage
+        );
+
+        initialize_trainee_bucket(
+            &mut ctx.accounts.start_bucket,
+            active_from,
+            ctx.bumps.start_bucket,
+        )?;
+        initialize_trainee_bucket(
+            &mut ctx.accounts.end_bucket,
+            active_until,
+            ctx.bumps.end_bucket,
+        )?;
+        require!(
+            !ctx.accounts.start_bucket.processed,
+            TaxiError::TraineeBucketProcessed
+        );
+        require!(
+            !ctx.accounts.end_bucket.processed,
+            TaxiError::TraineeBucketProcessed
+        );
+        ctx.accounts.start_bucket.weight_delta = ctx
+            .accounts
+            .start_bucket
+            .weight_delta
+            .checked_add(i64::from(TRAINEE_WEIGHT))
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.end_bucket.weight_delta = ctx
+            .accounts
+            .end_bucket
+            .weight_delta
+            .checked_sub(i64::from(TRAINEE_WEIGHT))
+            .ok_or(TaxiError::MathOverflow)?;
+
+        if start_is_new {
+            push_trainee_bucket_event(
+                &mut ctx.accounts.trainee_queue,
+                &mut ctx.accounts.event_page,
+                ctx.accounts.start_bucket.key(),
+                active_from,
+            )?;
+        }
+        if end_is_new {
+            push_trainee_bucket_event(
+                &mut ctx.accounts.trainee_queue,
+                &mut ctx.accounts.event_page,
+                ctx.accounts.end_bucket.key(),
+                active_until,
+            )?;
+        }
+        ctx.accounts
+            .trainee_queue
+            .update_page(&ctx.accounts.event_page)?;
+
+        let trainee = &mut ctx.accounts.trainee;
+        trainee.owner = ctx.accounts.owner.key();
+        trainee.campaign_id = args.campaign_id;
+        trainee.nonce = args.nonce;
+        trainee.active_from = active_from;
+        trainee.active_until = active_until;
+        trainee.bump = ctx.bumps.trainee;
+
+        emit!(TraineeActivated {
+            owner: trainee.owner,
+            campaign_id: trainee.campaign_id,
+            active_from,
+            active_until,
+        });
+        Ok(())
+    }
+
+    pub fn sync_trainee_fare(ctx: Context<SyncTraineeFare>) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        let accounted = ctx.accounts.trainee_pool.accounted_tokens(0)?;
+        let received = ctx
+            .accounts
+            .vault
+            .amount
+            .checked_sub(accounted)
+            .ok_or(TaxiError::VaultBalanceMismatch)?;
+        require!(received > 0, TaxiError::NothingToSync);
+        ctx.accounts.trainee_pool.next_pool[0] = ctx.accounts.trainee_pool.next_pool[0]
+            .checked_add(received)
+            .ok_or(TaxiError::MathOverflow)?;
+        emit!(TraineeFareSynced { amount: received });
+        Ok(())
+    }
+
+    pub fn calculate_trainee_rewards<'info>(
+        ctx: Context<'_, '_, 'info, 'info, CalculateTraineeRewards<'info>>,
+        limit: u8,
+    ) -> Result<()> {
+        require!(
+            limit > 0 && limit <= MAX_BATCH_EVENTS,
+            TaxiError::InvalidBatchLimit
+        );
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+
+        let pool = &mut ctx.accounts.trainee_pool;
+        let queue = &mut ctx.accounts.trainee_queue;
+        if !pool.series_active {
+            let now = ctx
+                .accounts
+                .config
+                .protocol_time(Clock::get()?.unix_timestamp)?;
+            pool.start_series(now, queue.next_event_number.saturating_sub(1))?;
+        }
+
+        let mut processed = 0_u8;
+        while processed < limit {
+            let Some(page_index) = queue.min_page_index(pool.series_event_cutoff, pool.series_end)
+            else {
+                break;
+            };
+            let page_key = Pubkey::find_program_address(
+                &[b"trainee-event-page".as_ref(), &[page_index]],
+                ctx.program_id,
+            )
+            .0;
+            let page_info = ctx
+                .remaining_accounts
+                .iter()
+                .find(|account| account.key() == page_key)
+                .ok_or(TaxiError::MissingEventPage)?;
+            require!(page_info.is_writable, TaxiError::EventPageNotWritable);
+            let mut page = Account::<EventPage>::try_from(page_info)?;
+            require!(page.index == page_index, TaxiError::InvalidQueuePage);
+            let next = page.peek().copied().ok_or(TaxiError::QueueEmpty)?;
+            let cursor = queue.pages[usize::from(page_index)];
+            require!(
+                cursor.min_timestamp == next.timestamp
+                    && cursor.min_event_number == next.event_number,
+                TaxiError::QueueCursorMismatch
+            );
+
+            let boundary = next.timestamp.max(pool.series_cursor).min(pool.series_end);
+            pool.distribute_until(boundary)?;
+            let event = page.pop()?;
+            queue.update_page(&page)?;
+            page.exit(ctx.program_id)?;
+
+            let bucket_info = ctx
+                .remaining_accounts
+                .iter()
+                .find(|account| account.key() == event.machine)
+                .ok_or(TaxiError::InvalidTraineeBucket)?;
+            require!(bucket_info.is_writable, TaxiError::InvalidTraineeBucket);
+            let mut bucket = Account::<TraineeBucket>::try_from(bucket_info)?;
+            require!(
+                bucket.timestamp == event.timestamp,
+                TaxiError::InvalidTraineeBucket
+            );
+            require!(!bucket.processed, TaxiError::TraineeBucketProcessed);
+            bucket.accumulator = pool.accumulators[0];
+            if bucket.weight_delta >= 0 {
+                pool.total_active_weight = pool
+                    .total_active_weight
+                    .checked_add(bucket.weight_delta as u64)
+                    .ok_or(TaxiError::MathOverflow)?;
+            } else {
+                pool.total_active_weight = pool
+                    .total_active_weight
+                    .checked_sub(bucket.weight_delta.unsigned_abs())
+                    .ok_or(TaxiError::InvalidActiveWeight)?;
+            }
+            bucket.processed = true;
+            bucket.exit(ctx.program_id)?;
+            processed = processed.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        }
+
+        if queue
+            .min_page_index(pool.series_event_cutoff, pool.series_end)
+            .is_none()
+        {
+            pool.finish_series()?;
+        }
+        emit!(TraineeRewardsAdvanced {
+            calculated_until: pool.calculated_until,
+            series_cursor: pool.series_cursor,
+            processed_events: processed,
+            series_active: pool.series_active,
+        });
+        Ok(())
+    }
+
+    pub fn claim_trainee(ctx: Context<ClaimTrainee>) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(
+            ctx.accounts.start_bucket.processed,
+            TaxiError::TraineeRewardsNotCalculated
+        );
+        let effective_until = if ctx.accounts.trainee_pool.series_active {
+            ctx.accounts.trainee_pool.series_cursor
+        } else {
+            ctx.accounts.trainee_pool.calculated_until
+        };
+        require!(
+            effective_until >= ctx.accounts.trainee.active_from,
+            TaxiError::TraineeRewardsNotCalculated
+        );
+
+        let target = if effective_until >= ctx.accounts.trainee.active_until {
+            require!(
+                ctx.accounts.end_bucket.processed,
+                TaxiError::TraineeRewardsNotCalculated
+            );
+            ctx.accounts.end_bucket.accumulator
+        } else {
+            ctx.accounts.trainee_pool.accumulators[0]
+        };
+        let checkpoint = if ctx.accounts.trainee.checkpoint_initialized {
+            ctx.accounts.trainee.checkpoint
+        } else {
+            ctx.accounts.start_bucket.accumulator
+        };
+        let amount = math::machine_reward(target, checkpoint, TRAINEE_WEIGHT)?;
+
+        if amount > 0 {
+            let bump = [ctx.accounts.config.bump];
+            let seeds: &[&[u8]] = &[b"config", &bump];
+            let transfer = TransferChecked {
+                from: ctx.accounts.vault.to_account_info(),
+                mint: ctx.accounts.fare_mint.to_account_info(),
+                to: ctx.accounts.destination.to_account_info(),
+                authority: ctx.accounts.config.to_account_info(),
+            };
+            token_interface::transfer_checked(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    transfer,
+                    &[seeds],
+                ),
+                amount,
+                ctx.accounts.fare_mint.decimals,
+            )?;
+        }
+        ctx.accounts.trainee_pool.obligations[0] = ctx.accounts.trainee_pool.obligations[0]
+            .checked_sub(amount)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.trainee.checkpoint = target;
+        ctx.accounts.trainee.checkpoint_initialized = true;
+        emit!(TraineeRewardsClaimed {
+            owner: ctx.accounts.owner.key(),
+            campaign_id: ctx.accounts.trainee.campaign_id,
+            amount,
+        });
+        Ok(())
+    }
+
     pub fn claim<'info>(ctx: Context<'_, '_, 'info, 'info, Claim<'info>>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
-        require!(ctx.remaining_accounts.len() == ASSET_COUNT * 4, TaxiError::InvalidClaimAccounts);
+        require!(
+            ctx.remaining_accounts.len() == ASSET_COUNT * 4,
+            TaxiError::InvalidClaimAccounts
+        );
 
         ctx.accounts.machine.settle(&ctx.accounts.pool, true)?;
         let amounts = ctx.accounts.machine.claimable;
@@ -407,21 +887,41 @@ pub mod taxi_park {
             let vault_info = &ctx.remaining_accounts[offset + 1];
             let destination_info = &ctx.remaining_accounts[offset + 2];
             let token_program_info = &ctx.remaining_accounts[offset + 3];
-            require_keys_eq!(ctx.accounts.config.asset_mint(index)?, mint_info.key(), TaxiError::InvalidRewardMint);
+            require_keys_eq!(
+                ctx.accounts.config.asset_mint(index)?,
+                mint_info.key(),
+                TaxiError::InvalidRewardMint
+            );
             require!(
                 token_program_info.key() == anchor_spl::token::ID
                     || token_program_info.key() == anchor_spl::token_2022::ID,
                 TaxiError::InvalidTokenProgram
             );
-            require_keys_eq!(*mint_info.owner, token_program_info.key(), TaxiError::InvalidTokenProgram);
+            require_keys_eq!(
+                *mint_info.owner,
+                token_program_info.key(),
+                TaxiError::InvalidTokenProgram
+            );
 
             let mint = InterfaceAccount::<Mint>::try_from(mint_info)?;
             let vault = InterfaceAccount::<TokenAccount>::try_from(vault_info)?;
             let destination = InterfaceAccount::<TokenAccount>::try_from(destination_info)?;
             require_keys_eq!(vault.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
-            require_keys_eq!(vault.owner, ctx.accounts.config.key(), TaxiError::InvalidTokenAccount);
-            require_keys_eq!(destination.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
-            require_keys_eq!(destination.owner, ctx.accounts.owner.key(), TaxiError::InvalidTokenAccount);
+            require_keys_eq!(
+                vault.owner,
+                ctx.accounts.config.key(),
+                TaxiError::InvalidTokenAccount
+            );
+            require_keys_eq!(
+                destination.mint,
+                mint_info.key(),
+                TaxiError::InvalidTokenAccount
+            );
+            require_keys_eq!(
+                destination.owner,
+                ctx.accounts.owner.key(),
+                TaxiError::InvalidTokenAccount
+            );
 
             if amount > 0 {
                 let transfer = TransferChecked {
@@ -431,7 +931,11 @@ pub mod taxi_park {
                     authority: config_info.clone(),
                 };
                 token_interface::transfer_checked(
-                    CpiContext::new_with_signer(token_program_info.clone(), transfer, &[signer_seeds]),
+                    CpiContext::new_with_signer(
+                        token_program_info.clone(),
+                        transfer,
+                        &[signer_seeds],
+                    ),
                     amount,
                     mint.decimals,
                 )?;
@@ -444,7 +948,11 @@ pub mod taxi_park {
                 .ok_or(TaxiError::MathOverflow)?;
             ctx.accounts.machine.claimable[index] = 0;
         }
-        emit!(RewardsClaimed { asset: ctx.accounts.machine.asset, owner: ctx.accounts.owner.key(), amounts });
+        emit!(RewardsClaimed {
+            asset: ctx.accounts.machine.asset,
+            owner: ctx.accounts.owner.key(),
+            amounts
+        });
         Ok(())
     }
 
@@ -452,23 +960,33 @@ pub mod taxi_park {
         ctx: Context<'_, '_, 'info, 'info, CalculateRewards<'info>>,
         limit: u8,
     ) -> Result<()> {
-        require!(limit > 0 && limit <= MAX_BATCH_EVENTS, TaxiError::InvalidBatchLimit);
+        require!(
+            limit > 0 && limit <= MAX_BATCH_EVENTS,
+            TaxiError::InvalidBatchLimit
+        );
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
 
         let pool = &mut ctx.accounts.pool;
         let queue = &mut ctx.accounts.queue;
         if !pool.series_active {
-            let now = ctx.accounts.config.protocol_time(Clock::get()?.unix_timestamp)?;
+            let now = ctx
+                .accounts
+                .config
+                .protocol_time(Clock::get()?.unix_timestamp)?;
             pool.start_series(now, queue.next_event_number.saturating_sub(1))?;
         }
 
         let mut processed = 0_u8;
         while processed < limit {
-            let Some(page_index) = queue.min_page_index(pool.series_event_cutoff, pool.series_end) else { break };
+            let Some(page_index) = queue.min_page_index(pool.series_event_cutoff, pool.series_end)
+            else {
+                break;
+            };
             let page_key = Pubkey::find_program_address(
                 &[b"event-page".as_ref(), &[page_index]],
                 ctx.program_id,
-            ).0;
+            )
+            .0;
             let page_info = ctx
                 .remaining_accounts
                 .iter()
@@ -480,7 +998,8 @@ pub mod taxi_park {
             let next = page.peek().copied().ok_or(TaxiError::QueueEmpty)?;
             let cursor = queue.pages[usize::from(page_index)];
             require!(
-                cursor.min_timestamp == next.timestamp && cursor.min_event_number == next.event_number,
+                cursor.min_timestamp == next.timestamp
+                    && cursor.min_event_number == next.event_number,
                 TaxiError::QueueCursorMismatch
             );
 
@@ -489,16 +1008,18 @@ pub mod taxi_park {
             let event = page.pop()?;
             queue.update_page(&page)?;
             page.exit(ctx.program_id)?;
-            let machine_key = Pubkey::find_program_address(
-                &[b"machine", event.machine.as_ref()],
-                ctx.program_id,
-            ).0;
+            let machine_key =
+                Pubkey::find_program_address(&[b"machine", event.machine.as_ref()], ctx.program_id)
+                    .0;
             let machine_info = ctx
                 .remaining_accounts
                 .iter()
                 .find(|account| account.key() == machine_key)
                 .ok_or(TaxiError::MissingMachineAccount)?;
-            require!(machine_info.is_writable, TaxiError::MachineAccountNotWritable);
+            require!(
+                machine_info.is_writable,
+                TaxiError::MachineAccountNotWritable
+            );
             let mut machine = Account::<Machine>::try_from(machine_info)?;
             machine.apply_event(pool, &event)?;
             machine.exit(ctx.program_id)?;
@@ -520,7 +1041,6 @@ pub mod taxi_park {
         });
         Ok(())
     }
-
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -528,6 +1048,7 @@ pub struct InitializeArgs {
     pub backend_signer: Pubkey,
     pub team_account: Pubkey,
     pub jupiter_program: Pubkey,
+    pub deployment_id: [u8; 32],
     pub collection: Pubkey,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
@@ -543,8 +1064,12 @@ pub struct Initialize<'info> {
     pub config: Account<'info, Configuration>,
     #[account(init, payer = admin, space = 8 + RewardPool::INIT_SPACE, seeds = [b"pool", b"main"], bump)]
     pub pool: Account<'info, RewardPool>,
+    #[account(init, payer = admin, space = 8 + RewardPool::INIT_SPACE, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump)]
+    pub trainee_pool: Account<'info, RewardPool>,
     #[account(init, payer = admin, space = 8 + EventQueue::INIT_SPACE, seeds = [b"queue".as_ref(), b"main".as_ref()], bump)]
     pub queue: Account<'info, EventQueue>,
+    #[account(init, payer = admin, space = 8 + EventQueue::INIT_SPACE, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump)]
+    pub trainee_queue: Account<'info, EventQueue>,
     #[account(init, payer = admin, space = 8 + FeeVault::INIT_SPACE, seeds = [b"fees"], bump)]
     pub fee_vault: Account<'info, FeeVault>,
     pub system_program: Program<'info, System>,
@@ -747,6 +1272,124 @@ pub struct CleanupBurnedMachine<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(args: ActivateTraineeArgs)]
+pub struct ActivateTrainee<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump = trainee_queue.bump)]
+    pub trainee_queue: Account<'info, EventQueue>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8 + EventPage::INIT_SPACE,
+        seeds = [b"trainee-event-page".as_ref(), &[args.page_index]],
+        bump
+    )]
+    pub event_page: Account<'info, EventPage>,
+    #[account(
+        init,
+        payer = owner,
+        space = 8 + Trainee::INIT_SPACE,
+        seeds = [b"trainee", owner.key().as_ref(), &args.campaign_id.to_le_bytes()],
+        bump
+    )]
+    pub trainee: Account<'info, Trainee>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8 + TraineeBucket::INIT_SPACE,
+        seeds = [b"trainee-bucket".as_ref(), &args.active_from.to_le_bytes()],
+        bump
+    )]
+    pub start_bucket: Account<'info, TraineeBucket>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = 8 + TraineeBucket::INIT_SPACE,
+        seeds = [b"trainee-bucket".as_ref(), &args.active_until.to_le_bytes()],
+        bump
+    )]
+    pub end_bucket: Account<'info, TraineeBucket>,
+    /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding ed25519 verification.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SyncTraineeFare<'info> {
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
+    pub trainee_pool: Account<'info, RewardPool>,
+    pub fare_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        token::mint = fare_mint,
+        token::authority = config,
+        token::token_program = token_program
+    )]
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct CalculateTraineeRewards<'info> {
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
+    pub trainee_pool: Account<'info, RewardPool>,
+    #[account(mut, seeds = [b"queue".as_ref(), b"trainee".as_ref()], bump = trainee_queue.bump)]
+    pub trainee_queue: Account<'info, EventQueue>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimTrainee<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
+    pub trainee_pool: Account<'info, RewardPool>,
+    #[account(
+        mut,
+        seeds = [b"trainee", owner.key().as_ref(), &trainee.campaign_id.to_le_bytes()],
+        bump = trainee.bump,
+        has_one = owner @ TaxiError::Unauthorized
+    )]
+    pub trainee: Account<'info, Trainee>,
+    #[account(
+        seeds = [b"trainee-bucket".as_ref(), &trainee.active_from.to_le_bytes()],
+        bump = start_bucket.bump
+    )]
+    pub start_bucket: Account<'info, TraineeBucket>,
+    #[account(
+        seeds = [b"trainee-bucket".as_ref(), &trainee.active_until.to_le_bytes()],
+        bump = end_bucket.bump
+    )]
+    pub end_bucket: Account<'info, TraineeBucket>,
+    pub fare_mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = fare_mint,
+        token::authority = config,
+        token::token_program = token_program
+    )]
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = fare_mint,
+        token::authority = owner,
+        token::token_program = token_program
+    )]
+    pub destination: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
 pub struct Claim<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -780,6 +1423,38 @@ fn class_name(class: u8) -> Result<&'static str> {
     }
 }
 
+fn initialize_trainee_bucket(
+    bucket: &mut Account<TraineeBucket>,
+    timestamp: i64,
+    bump: u8,
+) -> Result<()> {
+    if bucket.timestamp == 0 {
+        bucket.timestamp = timestamp;
+        bucket.bump = bump;
+    }
+    require!(
+        bucket.timestamp == timestamp,
+        TaxiError::InvalidTraineeBucket
+    );
+    Ok(())
+}
+
+fn push_trainee_bucket_event(
+    queue: &mut Account<EventQueue>,
+    page: &mut Account<EventPage>,
+    bucket: Pubkey,
+    timestamp: i64,
+) -> Result<()> {
+    let event_number = queue.take_event_number()?;
+    page.push(MachineEvent::new(
+        timestamp,
+        event_number,
+        bucket,
+        EventKind::Activate,
+        0,
+    ))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn initialize_machine_and_events(
     machine: &mut Account<Machine>,
@@ -792,8 +1467,14 @@ fn initialize_machine_and_events(
     machine_bump: u8,
     page_bump: u8,
 ) -> Result<()> {
-    require!(usize::from(page_index) < MAX_QUEUE_PAGES, TaxiError::InvalidQueuePage);
-    require!(page.events.len() + 2 <= EVENTS_PER_PAGE, TaxiError::EventPageCapacity);
+    require!(
+        usize::from(page_index) < MAX_QUEUE_PAGES,
+        TaxiError::InvalidQueuePage
+    );
+    require!(
+        page.events.len() + 2 <= EVENTS_PER_PAGE,
+        TaxiError::EventPageCapacity
+    );
     if page.events.is_empty() {
         page.index = page_index;
         page.bump = page_bump;
@@ -802,13 +1483,21 @@ fn initialize_machine_and_events(
 
     machine.asset = asset;
     machine.weight = weight;
-    machine.active_until = now.checked_add(MAX_DURABILITY_SECONDS).ok_or(TaxiError::MathOverflow)?;
+    machine.active_until = now
+        .checked_add(MAX_DURABILITY_SECONDS)
+        .ok_or(TaxiError::MathOverflow)?;
     machine.scheduled_generation = 1;
     machine.bump = machine_bump;
 
     let activate_number = queue.take_event_number()?;
     let expire_number = queue.take_event_number()?;
-    page.push(MachineEvent::new(now, activate_number, asset, EventKind::Activate, 1))?;
+    page.push(MachineEvent::new(
+        now,
+        activate_number,
+        asset,
+        EventKind::Activate,
+        1,
+    ))?;
     page.push(MachineEvent::new(
         machine.active_until,
         expire_number,
@@ -867,6 +1556,34 @@ pub struct MachineBurnQueued {
     pub asset: Pubkey,
     pub detected_by: Pubkey,
     pub timestamp: i64,
+}
+
+#[event]
+pub struct TraineeActivated {
+    pub owner: Pubkey,
+    pub campaign_id: u64,
+    pub active_from: i64,
+    pub active_until: i64,
+}
+
+#[event]
+pub struct TraineeFareSynced {
+    pub amount: u64,
+}
+
+#[event]
+pub struct TraineeRewardsAdvanced {
+    pub calculated_until: i64,
+    pub series_cursor: i64,
+    pub processed_events: u8,
+    pub series_active: bool,
+}
+
+#[event]
+pub struct TraineeRewardsClaimed {
+    pub owner: Pubkey,
+    pub campaign_id: u64,
+    pub amount: u64,
 }
 
 #[event]
