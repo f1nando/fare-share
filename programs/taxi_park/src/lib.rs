@@ -748,10 +748,37 @@ pub mod taxi_park {
         require!(missing > 0, TaxiError::NothingToRepair);
         let cost = math::repair_cost(ctx.accounts.machine.fare_base, missing)?;
 
+        require_keys_eq!(
+            *ctx.accounts.fare_mint.to_account_info().owner,
+            ctx.accounts.fare_token_program.key(),
+            TaxiError::InvalidTokenProgram
+        );
+
         if cost > 0 {
+            let owner_fare_info = ctx.accounts.owner_fare_account.to_account_info();
+            require_keys_eq!(
+                *owner_fare_info.owner,
+                ctx.accounts.fare_token_program.key(),
+                TaxiError::InvalidTokenProgram
+            );
+            {
+                let data = owner_fare_info.try_borrow_data()?;
+                let mut data_slice: &[u8] = &data;
+                let owner_fare_account = TokenAccount::try_deserialize(&mut data_slice)?;
+                require_keys_eq!(
+                    owner_fare_account.mint,
+                    ctx.accounts.fare_mint.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                require_keys_eq!(
+                    owner_fare_account.owner,
+                    ctx.accounts.owner.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+            }
             let burn_accounts = BurnChecked {
                 mint: ctx.accounts.fare_mint.to_account_info(),
-                from: ctx.accounts.owner_fare_account.to_account_info(),
+                from: owner_fare_info,
                 authority: ctx.accounts.owner.to_account_info(),
             };
             token_interface::burn_checked(
@@ -1681,13 +1708,9 @@ pub struct RepairMachine<'info> {
     pub asset: Account<'info, BaseAssetV1>,
     #[account(mut, address = config.fare_mint @ TaxiError::InvalidRewardMint)]
     pub fare_mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        mut,
-        token::mint = fare_mint,
-        token::authority = owner,
-        token::token_program = fare_token_program
-    )]
-    pub owner_fare_account: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: May be an uninitialized ATA for a zero-cost repair; validated before any burn.
+    #[account(mut)]
+    pub owner_fare_account: UncheckedAccount<'info>,
     pub fare_token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

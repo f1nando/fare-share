@@ -323,7 +323,7 @@ export async function buildClaimInstructions({
   ];
 }
 
-export async function buildRepairInstruction({
+export async function buildRepairInstructions({
   programAddress,
   owner,
   configAddress,
@@ -333,6 +333,7 @@ export async function buildRepairInstruction({
   machine,
   asset,
   fareTokenProgram,
+  repairCost,
   pageIndex,
 }) {
   const eventPage = await deriveEventPage(programAddress, pageIndex);
@@ -341,7 +342,8 @@ export async function buildRepairInstruction({
     mint: config.fareMint,
     tokenProgram: fareTokenProgram,
   });
-  return {
+  const payer = createNoopSigner(address(owner));
+  const repair = {
     programAddress,
     accounts: [
       meta(owner, AccountRole.WRITABLE_SIGNER),
@@ -358,6 +360,17 @@ export async function buildRepairInstruction({
     ],
     data: concatBytes(TAXI_DISCRIMINATORS.repair, Uint8Array.of(pageIndex)),
   };
+  if (BigInt(repairCost) === 0n) return [repair];
+  return [
+    getCreateAssociatedTokenIdempotentInstruction({
+      payer,
+      ata: ownerFareAccount,
+      owner,
+      mint: config.fareMint,
+      tokenProgram: fareTokenProgram,
+    }),
+    repair,
+  ];
 }
 
 export async function buildActivateTraineeInstructions({

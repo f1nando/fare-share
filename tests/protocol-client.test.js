@@ -28,6 +28,7 @@ import {
 import {
   buildActivateTraineeInstructions,
   buildClaimInstructions,
+  buildRepairInstructions,
   chooseEventPage,
   TAXI_DISCRIMINATORS,
   waitForFinalizedSignature,
@@ -200,6 +201,25 @@ test('claim creates destination token accounts only for non-zero rewards', async
     const destination = claim.accounts[7 + index * 4];
     assert.equal(destination.address, vault.address, `zero reward ${index} should reuse its vault placeholder`);
   }
+});
+
+test('free repair does not create a FARE token account while paid repair can create it', async () => {
+  const signers = await Promise.all(Array.from({ length: 7 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, pool, queue, machine, asset, fareMint] = signers.map(signer => signer.address);
+  const input = {
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress,
+    config: { fareMint },
+    pool,
+    queue,
+    machine,
+    asset,
+    fareTokenProgram: TOKEN_PROGRAM,
+    pageIndex: 0,
+  };
+  assert.equal((await buildRepairInstructions({ ...input, repairCost: 0n })).length, 1);
+  assert.equal((await buildRepairInstructions({ ...input, repairCost: 1n })).length, 2);
 });
 
 test('wallet transaction waits until Solana reports finalized', async () => {

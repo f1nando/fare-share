@@ -11,7 +11,7 @@ import {
   buildClaimInstructions,
   buildClaimTraineeInstructions,
   buildMintMachine,
-  buildRepairInstruction,
+  buildRepairInstructions,
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
@@ -361,7 +361,7 @@ export async function repairMachine(connection, machine, knownStatus) {
     encoding: 'base64',
   }).send();
   if (!mintAccount.value) throw new Error('FARE mint недоступен.');
-  const instruction = await buildRepairInstruction({
+  const instructions = await buildRepairInstructions({
     programAddress: PROGRAM_ID,
     owner: address(connection.account.address),
     configAddress: status.addresses.config,
@@ -371,6 +371,7 @@ export async function repairMachine(connection, machine, knownStatus) {
     machine: machine.machineAddress,
     asset: machine.asset,
     fareTokenProgram: address(mintAccount.value.owner),
+    repairCost: machine.repairCost,
     pageIndex,
   });
   return sendWalletInstructions({
@@ -378,7 +379,7 @@ export async function repairMachine(connection, machine, knownStatus) {
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
-    instructions: [instruction],
+    instructions,
   });
 }
 
