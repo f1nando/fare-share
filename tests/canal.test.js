@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canalColumn, canalDimensions, CANAL_BRIDGE_HALF, populateCanal } from '../src/city/canal.js';
-import { parkAt, roadOpen } from '../src/city/roadLayout.js';
+import { parkAt, roadOpen, canalBridge } from '../src/city/roadLayout.js';
 import { PAVED_ROAD, TRACKS, trackOffset, vehiclePose, MAX_MERGE_ANGLE } from '../src/city/world.js';
 import { carCoordinates } from '../src/city/trafficNetwork.js';
 import { populateBlock } from '../src/city/createCity.js';
@@ -12,9 +12,26 @@ test('canal columns have uninterrupted bank roads and bridges, never overlapping
     if (!canalColumn(x)) continue;
     for (let z = -30; z <= 30; z++) {
       assert.equal(parkAt(x, z), null);
-      assert.ok(roadOpen(0, z, x));
+      assert.equal(roadOpen(0, z, x), canalBridge(z));
+      assert.equal(canalBridge(z), z % 2 === 0);
       assert.ok(roadOpen(1, x, z));
       assert.ok(roadOpen(1, x + 1, z));
+    }
+  }
+});
+
+test('alternate crossings join the water, pavement and walls without an intermediate bridge', () => {
+  for (const block of [24, 40, 48]) for (const segment of [-4, 0, 6]) {
+    const first = [], second = [];
+    populateCanal({ add: (...p) => first.push(p) }, 0, 0, block, segment);
+    populateCanal({ add: (...p) => second.push(p) }, 0, block, block, segment + 1);
+    assert.equal(first.filter(p => p[2] === 0.004).length, 1);
+    assert.equal(second.filter(p => p[2] === 0.004).length, 0);
+    for (const a of first.filter(p => [0.001, 0.1, 0.25, 0.38].includes(p[2]) && p[6] > block / 2)) {
+      const b = second.find(p => p[0] === a[0] && p[1] === a[1] && p[2] === a[2]);
+      assert.ok(b);
+      assert.ok(Math.abs(a[3] + a[6] / 2 - block) < 1e-8);
+      assert.ok(Math.abs(b[3] - b[6] / 2 - block) < 1e-8);
     }
   }
 });

@@ -1,6 +1,7 @@
 import { vehiclePose } from './world.js';
 import { turnPose } from './trafficNetwork.js';
 import { hornAnimation } from './hornAnimation.js';
+import { GROUND_VERTICAL_SCALE } from './activeWorld.js';
 
 export function presentation(car, coordinates, target = {}) {
   const pose = car.turn ? turnPose(car.turn) : vehiclePose(coordinates.x, coordinates.z, car.axis, car.direction, car.steer);
@@ -27,6 +28,6 @@ export function interpolatePresentation(current, previous, alpha) {
 
 export function visiblePosition(coordinates, originX, originZ, focus, camera, margin = 0) {
   const dx = coordinates.x - originX - focus.x, dz = coordinates.z - originZ - focus.z;
-  return Math.abs(dx * 0.882 - dz * 0.471) <= camera.right + 5 + margin &&
-    Math.abs(dx * 0.42 + dz * 0.786) <= camera.top + 7 + margin;
+  return Math.abs(dx) <= camera.right + 5 + margin &&
+    Math.abs(dz * GROUND_VERTICAL_SCALE) <= camera.top + 7 + margin;
 }

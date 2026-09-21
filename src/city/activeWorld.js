@@ -1,6 +1,9 @@
 import { CAR_GAP, STOP_LINE, resetSignal } from './world.js';
 
-export const CAMERA_OFFSET = Object.freeze({ x: 24, y: 100, z: 45 });
+// Keep the tilt, but align the canal's Z axis with the vertical screen axis.
+export const CAMERA_OFFSET = Object.freeze({ x: 0, y: 100, z: 51 });
+const cameraLength = Math.hypot(CAMERA_OFFSET.y, CAMERA_OFFSET.z);
+export const GROUND_VERTICAL_SCALE = CAMERA_OFFSET.y / cameraLength;
 
 export function groundExtents(width, height, offset = CAMERA_OFFSET) {
   const horizontal = Math.hypot(offset.x, offset.z);

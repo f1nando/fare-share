@@ -76,7 +76,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   if (northBoulevard) populateMedian(batch, 0, x, z, blockSize);
   if (westBoulevard) populateMedian(batch, 1, x, z, blockSize);
   if (canal) {
-    populateCanal(batch, x, z, blockSize);
+    populateCanal(batch, x, z, blockSize, gz);
     return;
   }
   if (parkLot) {

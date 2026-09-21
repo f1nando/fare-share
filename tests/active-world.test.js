@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { activeWorldSize, groundExtents, CAMERA_OFFSET, originShift, resizeLanePopulation, releaseOutsideLanes } from '../src/city/activeWorld.js';
 import { scenarioSettings, scenarioTraffic, trafficSnapshot } from '../src/city/benchmarkScenario.js';
+import { visiblePosition } from '../src/city/vehiclePresentation.js';
 
 test('projected ground bounds cover real camera corner rays at all supported framings', () => {
   for (const [width, height] of [[393, 651], [393, 852], [852, 393], [1365, 570], [2560, 1080]]) {
@@ -14,8 +15,13 @@ test('projected ground bounds cover real camera corner rays at all supported fra
       const camera = new THREE.OrthographicCamera(-viewWidth / 2, viewWidth / 2, viewHeight / 2, -viewHeight / 2, 1, 400);
       camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
       const ray = new THREE.Raycaster(), point = new THREE.Vector3(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const canalTop = new THREE.Vector3(0, 0, -area.z * blockSize).project(camera);
+      const canalBottom = new THREE.Vector3(0, 0, area.z * blockSize).project(camera);
+      assert.ok(Math.abs(canalTop.x - canalBottom.x) < 1e-8, 'canal runs vertically on screen');
+      assert.ok(canalTop.y > 1 && canalBottom.y < -1, 'canal extends past both screen edges');
       for (const x of [-1, 1]) for (const y of [-1, 1]) {
         ray.setFromCamera(new THREE.Vector2(x, y), camera); ray.ray.intersectPlane(plane, point);
+        assert.ok(visiblePosition(point, 0, 0, { x: 0, z: 0 }, camera), 'cars on screen edges stay visible');
         assert.ok(Math.abs(point.x) <= extents.x + 1e-8 && Math.abs(point.z) <= extents.z + 1e-8);
         for (const axis of ['x', 'z']) assert.ok(area[axis] * blockSize >= extents[axis] + area.buffer + blockSize / 2);
       }
