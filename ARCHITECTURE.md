@@ -12,7 +12,7 @@
 - `$FARE`: стандартный SPL-совместимый mint, создаваемый pump.fun, без собственных Token-2022 extensions и административных mint/freeze-возможностей проекта.
 - Stock assets: только официальные xStocks mint на Solana; смешивание нескольких эмитентов не используется.
 - Региональные ограничения xStocks показываются как явный запрет в frontend и условиях использования. Технические геоблокировки, KYC и on-chain denylist не используются; достаточность подхода требует юридической проверки до запуска.
-- NFT: Solana NFT asset; предварительный кандидат — Metaplex Core.
+- NFT: Metaplex Core Assets в официальной коллекции проекта. Phantom и основные Solana NFT-интерфейсы показывают их как обычные коллекционные NFT.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
 - Stock swaps: Jupiter. Backend получает котировку и собирает короткоживущий маршрут; программа разрешает вызов только настроенного Jupiter program ID и проверяет входной SOL, выходной xStocks mint, `minOut`, deadline и nonce.
@@ -23,7 +23,7 @@
 
 - Configuration PDA: admin, pending admin, backend signer, pause state, `protocolTime`, разрешённые внешние program IDs и mint pubkeys.
 - Main pool PDA и SPL vaults: текущая серия, следующий пул, фиксированные raw-обязательства уже рассчитанных выплат, доход на единицу веса и остатки округления по mint.
-- Machine PDA на каждый NFT asset: вес, версия, `activeUntil`, checkpoints, `fareBase` и `claimable` по поддерживаемым mint.
+- Machine PDA на каждый Metaplex Core Asset: вес, версия, `activeUntil`, checkpoints, `fareBase` и `claimable` по поддерживаемым mint. Core Asset хранит владение и публичные NFT-метаданные; изменяемое состояние машины хранится только в Machine PDA.
 - Event queue PDA: min-heap событий `MINT`, `REPAIR`, `EXPIRE`, упорядоченных по `timestamp + eventNumber`.
 - Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и записи `wallet + campaignId`.
 - Program-controlled SPL token accounts: `$FARE`, stock reserves и рассчитанные активы до пользовательского `claim`.
@@ -53,7 +53,7 @@
 
 ## Главные открытые зависимости
 
-В первую очередь нужно решить оставшиеся пункты SOL-5—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: NFT-стандарт, embedded wallet/fee sponsorship, batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
+В первую очередь нужно решить оставшиеся пункты SOL-6—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: embedded wallet/fee sponsorship, batch limit, атомарность fee processing, transfer NFT во время pause и оплату создания Solana accounts.
 
 ## Технические основания
 
@@ -62,7 +62,7 @@
 - [Token-2022 Scaled UI Amount](https://solana.com/docs/tokens/extensions/scaled-ui-amount) — raw amount не меняется, multiplier влияет только на отображение.
 - [Solana frontend client](https://solana.com/docs/frontend/client) — актуальный стек `@solana/kit` и React.
 - [Anchor](https://www.anchor-lang.com/docs) — framework для Solana programs на Rust.
-- [Metaplex Core Asset](https://developers.metaplex.com/core/what-is-an-asset) — предварительный NFT-кандидат с одним asset account.
+- [Metaplex Core Asset](https://developers.metaplex.com/core/what-is-an-asset) — выбранный NFT-стандарт с одним asset account и системой plugins.
 - [xStocks](https://xstocks.com/products) — предварительный кандидат токенизированных акций на Solana; конкретные продукты, mint-адреса, ликвидность и региональные ограничения ещё нужно подтвердить.
 - [pump.fun Fees](https://pump.fun/docs/fees) — Creator Fee и общая торговая комиссия зависят от стадии запуска, paired asset и диапазона market cap и могут изменяться площадкой.
 - [pump.fun Supported Pair Assets](https://pump.fun/docs/custom-pairs) — Creator Fees выплачиваются в paired asset, а не в `$FARE` автоматически.
