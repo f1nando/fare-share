@@ -33,6 +33,21 @@ export function summarize(values) {
     median: percentile(0.5), p95: percentile(0.95), p99: percentile(0.99), max: round(sorted.at(-1)) };
 }
 
+export function assessFrameCadence(rows) {
+  let run = 0, longestLimitedRun = 0, limitedMs = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    // A long low-work tail can be hidden by thousands of fast frames in the
+    // overall mean. Retain the samples, but don't call that a reliable FPS test.
+    const limited = row.rafMs >= 500 && row.cpuMs < 50 && (rows[i - 1]?.cpuMs ?? 0) < 50;
+    run = limited ? run + 1 : 0;
+    longestLimitedRun = Math.max(longestLimitedRun, run);
+    if (limited) limitedMs += row.rafMs;
+  }
+  return { valid: rows.length >= 60 && summarize(rows.map(row => row.rafMs)).mean <= 250 && longestLimitedRun < 3,
+    longestLimitedRun, limitedMs };
+}
+
 export function trafficSnapshot(lanes) {
   let hash = 2166136261, cars = 0, taxis = 0, turns = 0, launches = 0;
   const mix = value => { const text = String(value); for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619); };

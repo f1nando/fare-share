@@ -1,6 +1,6 @@
 import { createCity } from './createCity.js';
 import { loadSettings } from './settings.js';
-import { SCENARIOS, scenarioSettings, summarize } from './benchmarkScenario.js';
+import { SCENARIOS, scenarioSettings, summarize, assessFrameCadence } from './benchmarkScenario.js';
 
 // GPU work is asynchronous. Never use render() duration as GPU time, or force
 // gl.finish(): that would change the workload being measured.
@@ -142,13 +142,14 @@ export function startBenchmark(root) {
           }, 250);
         }); } finally { clearInterval(timer); gpu.dispose(); city?.dispose(); city = null; }
         if (cancelled) break;
-        const valid = rows.length >= 60 && summarize(rows.map(row => row.rafMs)).mean <= 250;
+        const cadence = assessFrameCadence(rows), valid = cadence.valid;
         if (!rows.length) throw new Error('Нет кадров для измерения');
         const metrics = {};
         for (const key of ['rafMs', 'cpuMs', 'simulationMs', 'prepareMs', 'renderSubmitMs', 'totalCars', 'visibleCars', 'triangles', 'calls', 'blocks', 'geometries', 'textures']) {
           metrics[key] = summarize(rows.map(row => row[key]));
         }
-        const result = { name: variant.name, valid, warning: valid ? null : 'Слишком редкие кадры; возможное ограничение браузера. FPS недостоверен.',
+        const result = { name: variant.name, valid, cadence,
+          warning: valid ? null : 'В прогоне есть слишком редкие кадры или серия длинных интервалов при малой работе CPU. Проверьте условия браузера; общий FPS непоказателен.',
           options: variant, simulationHz: variant.fixedStep === false ? 'frame' : variant.simulationHz ?? 30,
           pixelRatio: variant.pixelRatio ?? pixelRatio, initial, final, samples: rows,
           frames: rows.length, ...metrics, gpuMs: summarize(gpu.values),

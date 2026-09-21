@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scenarioSettings, scenarioTraffic, summarize, trafficSnapshot } from '../src/city/benchmarkScenario.js';
+import { scenarioSettings, scenarioTraffic, summarize, trafficSnapshot, assessFrameCadence } from '../src/city/benchmarkScenario.js';
 import { updateNetwork } from '../src/city/trafficNetwork.js';
+
+test('a brief throttled tail cannot hide in a fast benchmark mean', () => {
+  const fast = Array.from({ length: 6000 }, () => ({ rafMs: 7, cpuMs: 4 }));
+  const limited = Array.from({ length: 28 }, () => ({ rafMs: 1000, cpuMs: 15 }));
+  assert.equal(assessFrameCadence(fast).valid, true);
+  assert.equal(assessFrameCadence([...fast, ...limited]).valid, false);
+  assert.equal(assessFrameCadence([...fast, ...limited]).longestLimitedRun, 28);
+  assert.equal(assessFrameCadence([...fast, limited[0], ...fast]).valid, true);
+  assert.equal(assessFrameCadence([{ rafMs: 1000, cpuMs: 900 }, { rafMs: 1000, cpuMs: 900 }]).limitedMs, 0);
+  assert.equal(assessFrameCadence([]).valid, false);
+});
 
 test('statistics retain tails and handle unavailable GPU samples', () => {
   assert.equal(summarize([]), null);
