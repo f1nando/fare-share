@@ -26,6 +26,7 @@ import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
+import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -198,6 +199,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   benchmark?.onRenderer?.(renderer);
 
   const geometries = {
+    roundaboutCurb: roundaboutCornerGeometry(),
+    roundaboutWalk: roundaboutCornerGeometry(0.21),
     island: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
     cone: new THREE.ConeGeometry(0.5, 1, 4),
     box: new THREE.BoxGeometry(1, 1, 1),

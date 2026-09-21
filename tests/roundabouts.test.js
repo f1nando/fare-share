@@ -7,7 +7,8 @@ import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
 import { STOP_LINE, TRACKS, vehiclePose } from '../src/city/world.js';
 import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
-import { ROUNDABOUT_STOP, ROUNDABOUT_CLEARANCE } from '../src/city/roundaboutDimensions.js';
+import { ROUNDABOUT_STOP, ROUNDABOUT_CLEARANCE, roundaboutCornerEdge, roundaboutRoadInset } from '../src/city/roundaboutDimensions.js';
+import { roundaboutCornerGeometry } from '../src/city/roundaboutGeometry.js';
 import { roadHeight } from '../src/city/vehicleSurface.js';
 import { populateBlock } from '../src/city/createCity.js';
 
@@ -29,12 +30,31 @@ function vehicle(axis, direction, track, taxi = false, distance = ROUNDABOUT_STO
 }
 const pose = car => { const p = carCoordinates(car,40); return car.turn ? p : vehiclePose(p.x,p.z,car.axis,car.direction,car.steer); };
 
+test('curved curb inserts meet the straight pavement and match the wheel surface', () => {
+  const edge=roundaboutCornerEdge();
+  assert.deepEqual(edge[0],{x:3.85,z:ROUNDABOUT_CLEARANCE});
+  assert.deepEqual(edge.at(-1),{x:ROUNDABOUT_CLEARANCE,z:3.85});
+  assert.ok(Math.abs(edge[12].x-edge[12].z)<1e-9);
+  assert.ok(roundaboutRoadInset(5,5,3.85)<0,'diagonal driving space stays open');
+  assert.ok(roundaboutRoadInset(8,8,3.85)>0,'former square corner becomes pavement');
+  for(const inset of [0,.21]) {
+    const geometry=roundaboutCornerGeometry(inset),positions=geometry.attributes.position;
+    for(let i=0;i<positions.count;i++) {
+      const x=positions.getX(i),z=positions.getZ(i);
+      // Polygon normals approximate the smooth offset to less than 0.001 unit.
+      assert.ok(roundaboutRoadInset(x,z,3.85)>=inset-1e-3,'curb does not intrude into asphalt');
+      assert.ok(x<=ROUNDABOUT_CLEARANCE+1e-5&&z<=ROUNDABOUT_CLEARANCE+1e-5);
+    }
+    geometry.dispose();
+  }
+});
+
 test('expanded junction corners contain no pavement slabs, buildings or trees', () => {
   for (const block of [24,40,48]) for (const [cx,cz] of [[3,1],[-3,-5]]) {
     if (!roundaboutAt(cx,cz)) continue;
     for (let gx=cx-2;gx<=cx;gx++) for (let gz=cz-2;gz<=cz;gz++) {
       populateBlock({add(kind,x,y,z,w,h,d,color,rotation=0) {
-        if (kind==='paint'||kind==='island') return;
+        if (['paint','island','roundaboutCurb','roundaboutWalk'].includes(kind)) return;
         const scale=kind==='crown'?1:.5;
         const hw=(Math.abs(Math.cos(rotation))*w+Math.abs(Math.sin(rotation))*d)*scale;
         const hd=(Math.abs(Math.sin(rotation))*w+Math.abs(Math.cos(rotation))*d)*scale;

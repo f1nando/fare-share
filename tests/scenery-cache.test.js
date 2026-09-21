@@ -7,7 +7,7 @@ import { populateBlock } from '../src/city/createCity.js';
 
 test('cached scenery retains identical transforms and colors across origins and block sizes', () => {
   const geometry = new THREE.BoxGeometry(), geometries = Object.fromEntries(
-    ['box', 'round', 'paint', 'paving', 'building', 'crown', 'cone', 'island'].map(kind => [kind, geometry]));
+    ['box', 'round', 'paint', 'paving', 'building', 'crown', 'cone', 'island', 'roundaboutCurb', 'roundaboutWalk'].map(kind => [kind, geometry]));
   const cache = new SceneryCache(populateBlock), area = { x: 1, z: 1 };
   for (const blockSize of [24, 40, 48]) for (const [worldX, worldZ] of [[-3, -2], [0, 0], [1, 1], [8, 5]]) {
     const original = new Batches(new THREE.Scene(), geometries), cached = new Batches(new THREE.Scene(), geometries);

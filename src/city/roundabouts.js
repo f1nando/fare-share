@@ -5,7 +5,8 @@ export { RING_RADIUS, ISLAND_RADIUS } from './roundaboutDimensions.js';
 const TAU = Math.PI * 2;
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI / 2 : -Math.PI / 2;
 
-// Open the corners of adjoining lots. Flat slabs are split into a few boxes;
+// Open the corners of adjoining lots. Curved curb inserts fill this cutout;
+// the surrounding flat slabs are split into a few boxes, while
 // trees and buildings that would occupy the widened junction are omitted.
 // The expanded range also covers a two-block park owned by this tile.
 export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
@@ -43,6 +44,11 @@ export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
 
 export function populateRoundabout(batch, gx, gz, x, z) {
   if (!roundaboutAt(gx, gz)) return;
+  for (let quadrant = 0; quadrant < 4; quadrant++) {
+    const rotation = quadrant * Math.PI / 2;
+    batch.add('roundaboutCurb',x,0.1,z,1,0.3,1,'#bdbdbd',rotation);
+    batch.add('roundaboutWalk',x,0.25,z,1,0.34,1,'#dedede',rotation);
+  }
   batch.add('island', x, 0.12, z, ISLAND_RADIUS * 2, 0.24, ISLAND_RADIUS * 2, '#bdbdbd');
   batch.add('island', x, 0.26, z, ISLAND_RADIUS * 2 - 0.35, 0.08, ISLAND_RADIUS * 2 - 0.35, '#929292');
   // Short tangential dashes make the direction around the island readable.

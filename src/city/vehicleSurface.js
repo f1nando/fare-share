@@ -1,5 +1,5 @@
 import { roundaboutAt } from './roadLayout.js';
-import { ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
+import { roundaboutRoadInset } from './roundaboutDimensions.js';
 
 export const WHEEL_SIDES = [-0.43, 0.43];
 export const WHEEL_AXLES = [-0.69, 0.69];
@@ -24,7 +24,7 @@ export function roadHeight(x, z, blockSize, roadHalf) {
   const distance = value => Math.abs(value - Math.round(value / blockSize) * blockSize);
   let inset = Math.min(distance(x), distance(z)) - roadHalf;
   const gx = Math.round(x / blockSize), gz = Math.round(z / blockSize);
-  if (roundaboutAt(gx, gz)) inset = Math.min(inset, Math.max(Math.abs(x - gx * blockSize), Math.abs(z - gz * blockSize)) - ROUNDABOUT_CLEARANCE);
+  if (roundaboutAt(gx, gz)) inset = roundaboutRoadInset(x - gx * blockSize, z - gz * blockSize, roadHalf);
   return 0.25 * smooth(inset / 0.1) + 0.17 * smooth((inset - 0.21) / 0.1);
 }
 
