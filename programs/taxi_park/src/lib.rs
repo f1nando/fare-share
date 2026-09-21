@@ -32,6 +32,7 @@ pub mod taxi_park {
 
     pub fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
+        validate_initial_addresses(&args)?;
         require!(
             !args.collection_name.is_empty()
                 && args.collection_name.len() <= MAX_COLLECTION_NAME_LEN
@@ -1769,6 +1770,33 @@ fn require_route_accounts(
     Ok(())
 }
 
+fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
+    require!(
+        args.backend_signer != Pubkey::default(),
+        TaxiError::InvalidBackendSigner
+    );
+    require!(
+        args.team_account != Pubkey::default(),
+        TaxiError::InvalidTeamAccount
+    );
+    require!(
+        args.jupiter_program != Pubkey::default(),
+        TaxiError::InvalidJupiterProgram
+    );
+    require!(args.fare_mint != Pubkey::default(), TaxiError::InvalidRewardMint);
+    for (index, mint) in args.stock_mints.iter().enumerate() {
+        require!(
+            *mint != Pubkey::default() && *mint != args.fare_mint,
+            TaxiError::InvalidRewardMint
+        );
+        require!(
+            args.stock_mints[..index].iter().all(|previous| previous != mint),
+            TaxiError::InvalidRewardMint
+        );
+    }
+    Ok(())
+}
+
 fn total_accounted_reward_tokens(
     pool: &RewardPool,
     trainee_pool: &RewardPool,
@@ -1801,6 +1829,24 @@ mod accounting_tests {
         };
         assert_eq!(total_accounted_reward_tokens(&main, &trainee, 0).unwrap(), 52);
         assert_eq!(total_accounted_reward_tokens(&main, &trainee, 1).unwrap(), 60);
+    }
+
+    #[test]
+    fn initialize_rejects_duplicate_reward_mints() {
+        let repeated = Pubkey::new_unique();
+        let args = InitializeArgs {
+            backend_signer: Pubkey::new_unique(),
+            team_account: Pubkey::new_unique(),
+            jupiter_program: Pubkey::new_unique(),
+            deployment_id: [1; 32],
+            collection_name: "Taxi".to_owned(),
+            collection_uri: "uri".to_owned(),
+            fare_mint: Pubkey::new_unique(),
+            stock_mints: [repeated, repeated, Pubkey::new_unique(), Pubkey::new_unique()],
+            mint_prices: [1; CLASS_COUNT],
+            metadata_uris: ["a".to_owned(), "b".to_owned(), "c".to_owned(), "d".to_owned()],
+        };
+        assert!(validate_initial_addresses(&args).is_err());
     }
 }
 
