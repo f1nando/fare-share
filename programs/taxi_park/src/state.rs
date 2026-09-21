@@ -20,6 +20,7 @@ pub struct Configuration {
     pub pending_admin: Pubkey,
     pub backend_signer: Pubkey,
     pub team_account: Pubkey,
+    pub jupiter_program: Pubkey,
     pub collection: Pubkey,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
@@ -83,6 +84,22 @@ impl FeeVault {
         self.stock_sol_reserves.iter().try_fold(self.fare_sol_reserve, |total, value| {
             total.checked_add(*value).ok_or_else(|| error!(TaxiError::MathOverflow))
         })
+    }
+
+    pub fn consume_reserves(&mut self, mut amount: u64) -> Result<()> {
+        let fare = self.fare_sol_reserve.min(amount);
+        self.fare_sol_reserve = self.fare_sol_reserve.checked_sub(fare).ok_or(TaxiError::MathOverflow)?;
+        amount = amount.checked_sub(fare).ok_or(TaxiError::MathOverflow)?;
+        for reserve in &mut self.stock_sol_reserves {
+            if amount == 0 {
+                break;
+            }
+            let taken = (*reserve).min(amount);
+            *reserve = reserve.checked_sub(taken).ok_or(TaxiError::MathOverflow)?;
+            amount = amount.checked_sub(taken).ok_or(TaxiError::MathOverflow)?;
+        }
+        require!(amount == 0, TaxiError::VaultBalanceMismatch);
+        Ok(())
     }
 }
 
@@ -467,5 +484,14 @@ mod tests {
         assert!(EventQueue::INIT_SPACE + 8 <= 10_240);
         assert!(EventPage::INIT_SPACE + 8 <= 10_240);
         assert_eq!(MAX_QUEUE_PAGES * EVENTS_PER_PAGE, 4096);
+    }
+
+    #[test]
+    fn rescue_consumes_recorded_sol_reserves_in_a_stable_order() {
+        let mut vault = FeeVault { fare_sol_reserve: 70, stock_sol_reserves: [5, 5, 5, 5], bump: 0 };
+        vault.consume_reserves(76).unwrap();
+        assert_eq!(vault.fare_sol_reserve, 0);
+        assert_eq!(vault.stock_sol_reserves, [0, 4, 5, 5]);
+        assert_eq!(vault.total_reserved().unwrap(), 14);
     }
 }

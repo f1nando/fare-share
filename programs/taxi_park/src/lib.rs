@@ -25,6 +25,7 @@ pub mod taxi_park {
         config.pending_admin = Pubkey::default();
         config.backend_signer = args.backend_signer;
         config.team_account = args.team_account;
+        config.jupiter_program = args.jupiter_program;
         config.collection = args.collection;
         config.fare_mint = args.fare_mint;
         config.stock_mints = args.stock_mints;
@@ -100,6 +101,61 @@ pub mod taxi_park {
         require_keys_eq!(config.pending_admin, ctx.accounts.pending_admin.key(), TaxiError::Unauthorized);
         config.admin = config.pending_admin;
         config.pending_admin = Pubkey::default();
+        Ok(())
+    }
+
+    pub fn set_team_account(ctx: Context<AdminState>, team_account: Pubkey) -> Result<()> {
+        require!(team_account != Pubkey::default(), TaxiError::InvalidTeamAccount);
+        ctx.accounts.config.team_account = team_account;
+        Ok(())
+    }
+
+    pub fn set_backend_signer(ctx: Context<AdminState>, backend_signer: Pubkey) -> Result<()> {
+        require!(backend_signer != Pubkey::default(), TaxiError::InvalidBackendSigner);
+        ctx.accounts.config.backend_signer = backend_signer;
+        Ok(())
+    }
+
+    pub fn set_jupiter_program(ctx: Context<AdminState>, jupiter_program: Pubkey) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(jupiter_program != Pubkey::default(), TaxiError::InvalidJupiterProgram);
+        ctx.accounts.config.jupiter_program = jupiter_program;
+        Ok(())
+    }
+
+    pub fn rescue_sol(ctx: Context<RescueSol>, amount: u64) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        let vault_info = ctx.accounts.fee_vault.to_account_info();
+        let rent_floor = Rent::get()?.minimum_balance(vault_info.data_len());
+        let available = vault_info.lamports().checked_sub(rent_floor).ok_or(TaxiError::VaultBalanceMismatch)?;
+        require!(amount > 0 && amount <= available, TaxiError::InvalidRescueAmount);
+        let recipient_after = ctx.accounts.recipient.lamports().checked_add(amount).ok_or(TaxiError::MathOverflow)?;
+        let vault_after = vault_info.lamports().checked_sub(amount).ok_or(TaxiError::MathOverflow)?;
+        **vault_info.try_borrow_mut_lamports()? = vault_after;
+        **ctx.accounts.recipient.try_borrow_mut_lamports()? = recipient_after;
+        ctx.accounts.fee_vault.consume_reserves(amount)?;
+        emit!(AssetRescued { mint: Pubkey::default(), recipient: ctx.accounts.recipient.key(), amount });
+        Ok(())
+    }
+
+    pub fn rescue_token(ctx: Context<RescueToken>, amount: u64) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(amount > 0 && amount <= ctx.accounts.vault.amount, TaxiError::InvalidRescueAmount);
+        require_keys_eq!(ctx.accounts.destination.mint, ctx.accounts.mint.key(), TaxiError::InvalidTokenAccount);
+        let bump = [ctx.accounts.config.bump];
+        let seeds: &[&[u8]] = &[b"config", &bump];
+        let transfer = TransferChecked {
+            from: ctx.accounts.vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.destination.to_account_info(),
+            authority: ctx.accounts.config.to_account_info(),
+        };
+        token_interface::transfer_checked(
+            CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), transfer, &[seeds]),
+            amount,
+            ctx.accounts.mint.decimals,
+        )?;
+        emit!(AssetRescued { mint: ctx.accounts.mint.key(), recipient: ctx.accounts.destination.key(), amount });
         Ok(())
     }
 
@@ -431,6 +487,7 @@ pub mod taxi_park {
 pub struct InitializeArgs {
     pub backend_signer: Pubkey,
     pub team_account: Pubkey,
+    pub jupiter_program: Pubkey,
     pub collection: Pubkey,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
@@ -465,6 +522,36 @@ pub struct AcceptAdmin<'info> {
     pub pending_admin: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Configuration>,
+}
+
+#[derive(Accounts)]
+pub struct RescueSol<'info> {
+    pub admin: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Account<'info, Configuration>,
+    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
+    pub fee_vault: Account<'info, FeeVault>,
+    /// CHECK: Admin deliberately chooses the emergency recipient.
+    #[account(mut)]
+    pub recipient: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RescueToken<'info> {
+    pub admin: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Account<'info, Configuration>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    #[account(
+        mut,
+        token::mint = mint,
+        token::authority = config,
+        token::token_program = token_program
+    )]
+    pub vault: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut, token::mint = mint, token::token_program = token_program)]
+    pub destination: InterfaceAccount<'info, TokenAccount>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -716,4 +803,12 @@ pub struct RewardsClaimed {
     pub asset: Pubkey,
     pub owner: Pubkey,
     pub amounts: [u64; ASSET_COUNT],
+}
+
+#[event]
+pub struct AssetRescued {
+    /// Pubkey::default() denotes native SOL.
+    pub mint: Pubkey,
+    pub recipient: Pubkey,
+    pub amount: u64,
 }

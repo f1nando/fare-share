@@ -82,4 +82,10 @@ pub enum TaxiError {
     InvalidTokenProgram,
     #[msg("Token account mint or authority is invalid")]
     InvalidTokenAccount,
+    #[msg("Backend signer cannot be the zero address")]
+    InvalidBackendSigner,
+    #[msg("Jupiter program cannot be the zero address")]
+    InvalidJupiterProgram,
+    #[msg("Rescue amount is zero or exceeds the vault balance")]
+    InvalidRescueAmount,
 }
