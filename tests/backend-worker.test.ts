@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { address, type Address } from '@solana/kit';
+import { AccountRole, address, getAddressEncoder, type Address } from '@solana/kit';
 import {
+  decodeMachineCleanupState,
   expiryIsPrunable,
   queueHasReadyEvent,
   selectEventBatch,
+  selectWritableQueuePage,
   type EventPageState,
 } from '../server/programState.js';
+import { buildCleanupBurnedMachineInstruction } from '../server/worker.js';
 
 const targetA = address('11111111111111111111111111111111');
 const targetB = address('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
@@ -72,4 +76,49 @@ test('worker prunes only expiry events made obsolete by a repair', () => {
   assert.equal(expiryIsPrunable(event(repairTime - 1n, 2n), machine), false);
   assert.equal(expiryIsPrunable({ ...event(repairTime + 1n, 3n), kind: 0 }, machine), false);
   assert.equal(expiryIsPrunable(event(repairTime - 1n, 4n), { ...machine, rewardGeneration: 2 }), true);
+});
+
+test('worker decodes open and closed machines for burn scans', () => {
+  const bytes = new Uint8Array(189);
+  bytes.set(createHash('sha256').update('account:Machine').digest().subarray(0, 8));
+  bytes.set(getAddressEncoder().encode(targetB), 8);
+  assert.equal(decodeMachineCleanupState(bytes).asset, targetB);
+  assert.equal(decodeMachineCleanupState(bytes).closed, false);
+  bytes[59] = 1;
+  assert.equal(decodeMachineCleanupState(bytes).closed, true);
+});
+
+test('worker chooses a queue page with room for a burn event', () => {
+  const queue = {
+    nextEventNumber: 1n,
+    pages: Array.from({ length: 80 }, () => ({ count: 128, minTimestamp: 0n, minEventNumber: 0n })),
+  };
+  queue.pages[17].count = 127;
+  assert.equal(selectWritableQueuePage(queue), 17);
+  queue.pages[17].count = 128;
+  assert.throws(() => selectWritableQueuePage(queue), /no free page/);
+});
+
+test('burn cleanup instruction has the exact Anchor account order', () => {
+  const instruction = buildCleanupBurnedMachineInstruction({
+    programId: targetB,
+    caller: targetA,
+    config: targetB,
+    queue: targetA,
+    eventPage: targetB,
+    machine: targetA,
+    asset: targetB,
+    pageIndex: 7,
+  });
+  assert.deepEqual(instruction.accounts?.map(account => account.role), [
+    AccountRole.WRITABLE_SIGNER,
+    AccountRole.READONLY,
+    AccountRole.WRITABLE,
+    AccountRole.WRITABLE,
+    AccountRole.WRITABLE,
+    AccountRole.READONLY,
+    AccountRole.READONLY,
+  ]);
+  assert.equal(instruction.data?.length, 9);
+  assert.equal(instruction.data?.[8], 7);
 });

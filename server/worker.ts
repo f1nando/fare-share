@@ -23,11 +23,14 @@ import {
 import {
   decodeEventPageState,
   decodeEventQueueState,
+  decodeMachineCleanupState,
   decodeMachineRewardState,
   decodeRewardPoolState,
   expiryIsPrunable,
+  MACHINE_ACCOUNT_SIZE,
   queueHasReadyEvent,
   selectEventBatch,
+  selectWritableQueuePage,
   type EventPageState,
 } from './programState.js';
 import { parseBackendSigner, parseSecretBytes, type BackendSigner } from './signing.js';
@@ -44,6 +47,9 @@ const addressEncoder = getAddressEncoder();
 const WSOL_MINT = address('So11111111111111111111111111111111111111112');
 const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
+const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
+
+let lastBurnScanAt = 0;
 
 type QueueKind = 'main' | 'trainee';
 
@@ -80,9 +86,90 @@ export async function runWorkerCycle() {
     console.log('JUPITER_API_KEY is not configured; accumulated swap reserves were left untouched.');
   }
 
+  if (Date.now() - lastBurnScanAt >= config.burnScanIntervalMs) {
+    await cleanupBurnedMachines(
+      config.solanaRpcUrl,
+      config.programId,
+      signer,
+      addresses,
+      config.burnCleanupLimit,
+    );
+    lastBurnScanAt = Date.now();
+  }
+
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'main');
   await pruneStaleMainEvents(config.solanaRpcUrl, config.programId, signer, addresses);
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'trainee');
+}
+
+async function cleanupBurnedMachines(
+  rpcUrl: string,
+  programId: Address,
+  signer: KeyPairSigner,
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>,
+  limit: number,
+) {
+  const machines = await listOpenMachines(rpcUrl, programId);
+  const assetAccounts = await getOptionalAccountsInChunks(rpcUrl, machines.map(machine => machine.asset));
+  const burned = machines.filter((_, index) => assetAccounts[index] === null).slice(0, limit);
+
+  for (const machine of burned) {
+    try {
+      const queue = decodeEventQueueState((await getAccount(rpcUrl, addresses.queue)).data);
+      const pageIndex = selectWritableQueuePage(queue);
+      const instruction = buildCleanupBurnedMachineInstruction({
+        programId,
+        caller: signer.address,
+        config: addresses.config,
+        queue: addresses.queue,
+        eventPage: await derivePage(programId, 'main', pageIndex),
+        machine: machine.address,
+        asset: machine.asset,
+        pageIndex,
+      });
+      const signature = await sendInstructions(rpcUrl, signer, [instruction]);
+      console.log(`cleanup_burned_machine ${machine.asset} finalized: ${signature}`);
+    } catch (error) {
+      console.warn(`cleanup_burned_machine ${machine.asset} lost a finalized-state race; retrying next scan`, error);
+    }
+  }
+}
+
+async function listOpenMachines(rpcUrl: string, programId: Address) {
+  const result = await rpcCall(rpcUrl, 'getProgramAccounts', [programId, {
+    commitment: 'finalized',
+    encoding: 'base64',
+    filters: [{ dataSize: MACHINE_ACCOUNT_SIZE }],
+  }]) as Array<{ pubkey: string; account: { data: [string, string] } }>;
+  return result.flatMap(item => {
+    const state = decodeMachineCleanupState(Uint8Array.from(Buffer.from(item.account.data[0], 'base64')));
+    return state.closed ? [] : [{ address: address(item.pubkey), asset: state.asset }];
+  });
+}
+
+export function buildCleanupBurnedMachineInstruction(input: {
+  programId: Address;
+  caller: Address;
+  config: Address;
+  queue: Address;
+  eventPage: Address;
+  machine: Address;
+  asset: Address;
+  pageIndex: number;
+}): Instruction {
+  return {
+    programAddress: input.programId,
+    accounts: [
+      meta(input.caller, AccountRole.WRITABLE_SIGNER),
+      meta(input.config, AccountRole.READONLY),
+      meta(input.queue, AccountRole.WRITABLE),
+      meta(input.eventPage, AccountRole.WRITABLE),
+      meta(input.machine, AccountRole.WRITABLE),
+      meta(input.asset, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: Buffer.concat([anchorDiscriminator('cleanup_burned_machine'), Buffer.from([input.pageIndex])]),
+  };
 }
 
 async function sweepPumpCreatorFees(
@@ -519,6 +606,22 @@ async function getAccountsInChunks(rpcUrl: string, accounts: Address[]) {
   const result: RpcAccount[] = [];
   for (let offset = 0; offset < accounts.length; offset += 100) {
     result.push(...await getAccounts(rpcUrl, accounts.slice(offset, offset + 100)));
+  }
+  return result;
+}
+
+async function getOptionalAccountsInChunks(rpcUrl: string, accounts: Address[]) {
+  const result: Array<RpcAccount | null> = [];
+  for (let offset = 0; offset < accounts.length; offset += 100) {
+    const chunk = accounts.slice(offset, offset + 100);
+    const response = await rpcCall(rpcUrl, 'getMultipleAccounts', [chunk, {
+      commitment: 'finalized', encoding: 'base64',
+    }]) as { value: Array<{ data: [string, string]; lamports: number; owner: string } | null> };
+    result.push(...response.value.map(value => value ? {
+      data: Uint8Array.from(Buffer.from(value.data[0], 'base64')),
+      lamports: BigInt(value.lamports),
+      owner: address(value.owner),
+    } : null));
   }
   return result;
 }

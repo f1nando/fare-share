@@ -1,8 +1,12 @@
+import { createHash } from 'node:crypto';
 import { address, getAddressDecoder, type Address } from '@solana/kit';
 
 const addressDecoder = getAddressDecoder();
+const machineDiscriminator = createHash('sha256').update('account:Machine').digest().subarray(0, 8);
 export const PAGE_COUNT = 80;
 export const MAX_PROGRAM_BATCH = 20;
+export const EVENTS_PER_PAGE = 128;
+export const MACHINE_ACCOUNT_SIZE = 189;
 
 export interface PageCursor { count: number; minTimestamp: bigint; minEventNumber: bigint }
 export interface EventQueueState { pages: PageCursor[]; nextEventNumber: bigint }
@@ -28,6 +32,7 @@ export interface MachineRewardState {
   rewardActive: boolean;
   closed: boolean;
 }
+export interface MachineCleanupState { asset: Address; closed: boolean }
 
 export function decodeRewardPoolState(bytes: Uint8Array): RewardPoolState {
   const reader = new Reader(bytes);
@@ -77,6 +82,24 @@ export function decodeMachineRewardState(bytes: Uint8Array): MachineRewardState 
   const rewardActive = reader.u8() !== 0;
   const closed = reader.u8() !== 0;
   return { activeUntil, scheduledGeneration, rewardGeneration, rewardActive, closed };
+}
+
+export function decodeMachineCleanupState(bytes: Uint8Array): MachineCleanupState {
+  if (bytes.length !== MACHINE_ACCOUNT_SIZE) throw new Error('Invalid Machine account size');
+  if (!Buffer.from(bytes.subarray(0, 8)).equals(machineDiscriminator)) {
+    throw new Error('Invalid Machine account discriminator');
+  }
+  const reader = new Reader(bytes);
+  const asset = reader.pubkey();
+  reader.skip(2 + 8 + 4 + 4 + 1);
+  const closed = reader.u8() !== 0;
+  return { asset, closed };
+}
+
+export function selectWritableQueuePage(queue: EventQueueState) {
+  const index = queue.pages.findIndex(page => page.count < EVENTS_PER_PAGE);
+  if (index < 0) throw new Error('Main event queue has no free page');
+  return index;
 }
 
 export function expiryIsPrunable(event: ProgramEvent, machine: MachineRewardState) {
