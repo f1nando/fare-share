@@ -1,5 +1,8 @@
+import { COLOR_SCHEMES } from './colorSchemes.js';
+
 export const SETTINGS_KEY = 'taxi-city.settings.v1';
 export const DEFAULT_SETTINGS = Object.freeze({
+  colorScheme: 'pale',
   density: 70,
   taxiShare: 7,
   trafficSpeed: 130,
@@ -40,6 +43,7 @@ export function normalizeSettings(value) {
     }
   }
   if (typeof value.paused === 'boolean') result.paused = value.paused;
+  if (Object.hasOwn(COLOR_SCHEMES, value.colorScheme)) result.colorScheme = value.colorScheme;
   return result;
 }
 

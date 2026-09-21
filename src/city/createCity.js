@@ -3,6 +3,7 @@ import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
+import { COLOR_SCHEMES, createBackgroundFade } from './colorSchemes.js';
 import { carCoordinates, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
 import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
@@ -108,13 +109,13 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
   };
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
-  part('car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
+  part(car.taxi ? 'taxiDetail' : 'car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
   part(car.taxi ? 'taxi' : 'car', 0, 0.99, -0.18, 0.81, 0.12, 0.72, color);
   for (const [a, axle] of WHEEL_AXLES.entries()) for (const [s, side] of WHEEL_SIDES.entries()) {
-    part('box', side, 0.22 + pose.wheels[a * 2 + s], axle, 0.18, 0.32, 0.34, '#303030', false);
+    part(car.taxi ? 'taxiDetail' : 'box', side, 0.22 + pose.wheels[a * 2 + s], axle, 0.18, 0.32, 0.34, '#303030', false);
   }
   if (car.taxi) {
-    part('box', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
+    part('taxiDetail', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
     if (headlightsOn(car)) {
       for (const side of [-1, 1]) {
         part('light', side * 0.29, 0.5, 1.14, 0.24, 0.2, 0.06, '#fffce2');
@@ -130,7 +131,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   let BLOCK = settings.blockSize;
   let rebuildTimer;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#dedede');
+  scene.background = new THREE.Color(COLOR_SCHEMES[settings.colorScheme].background);
+  const backgroundFade = createBackgroundFade(settings.colorScheme);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(benchmark?.pixelRatio ?? Math.min(window.devicePixelRatio, 1.6));
   renderer.shadowMap.enabled = benchmark?.shadows ?? true;
@@ -149,6 +151,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     building: new THREE.BoxGeometry(1, 1, 1),
     car: new THREE.BoxGeometry(1, 1, 1),
     taxi: new THREE.BoxGeometry(1, 1, 1),
+    taxiDetail: new THREE.BoxGeometry(1, 1, 1),
     light: new THREE.BoxGeometry(1, 1, 1),
     beam: new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([
       -0.14, 0, -0.5, 0.14, 0, -0.5, -0.5, 0, 0.5, 0.5, 0, 0.5,
@@ -159,6 +162,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const carsBatch = new Batches(scene, geometries, true);
   const hornEffects = new HornEffects(scene);
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
+  for (const material of [staticBatch.material, carsBatch.material, groundMaterial]) backgroundFade.apply(material);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -332,6 +336,8 @@ export function createCity(container, initialSettings, benchmark = null) {
     const regenerate = next.blockSize !== settings.blockSize || next.density !== settings.density || next.taxiShare !== settings.taxiShare;
     const zoomChanged = next.zoom !== settings.zoom || next.trafficSpeed !== settings.trafficSpeed || next.taxiSpeed !== settings.taxiSpeed;
     settings = next;
+    backgroundFade.setScheme(settings.colorScheme);
+    scene.background.set(COLOR_SCHEMES[settings.colorScheme].background);
     if (zoomChanged) resize();
     if (regenerate) {
       clearTimeout(rebuildTimer);

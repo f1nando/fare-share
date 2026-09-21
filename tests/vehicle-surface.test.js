@@ -84,7 +84,7 @@ test('actual shoulder overtakes hop in the network; tyres rise independently and
         climbed = true;
         const parts = [];
         addCar({ add(...args) { parts.push(args); } }, car, 0, 0, { x: 0, z: 0 }, { right: 100, top: 100 }, 40);
-        const tyres = parts.filter(p => p[0] === 'box' && p[4] === 0.18 && p[5] === 0.32);
+        const tyres = parts.filter(p => p[0] === 'taxiDetail' && p[4] === 0.18 && p[5] === 0.32);
         assert.equal(tyres.length, 4);
         assert.ok(Math.max(...tyres.map(p => p[2])) - Math.min(...tyres.map(p => p[2])) > 0.4);
       }

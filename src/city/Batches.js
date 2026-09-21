@@ -11,6 +11,7 @@ export class Batches {
     this.matrix = new THREE.Object3D();
     this.colors = new Map();
     this.material = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true });
+    this.taxiDetailMaterial = this.material.clone();
     this.taxiMaterial = new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true, toneMapped: false, emissive: '#ffbc00', emissiveIntensity: 0.12 });
     this.lightMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
     this.beamMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.48, depthWrite: false, toneMapped: false });
@@ -31,7 +32,7 @@ export class Batches {
       if (!count) { if (mesh) mesh.count = 0; continue; }
       if (!mesh || mesh.instanceMatrix.count < count) {
         if (mesh) { this.scene.remove(mesh); mesh.dispose(); }
-        const material = kind === 'taxi' ? this.taxiMaterial : kind === 'light' ? this.lightMaterial : kind === 'beam' ? this.beamMaterial : this.material;
+        const material = kind === 'taxi' ? this.taxiMaterial : kind === 'taxiDetail' ? this.taxiDetailMaterial : kind === 'light' ? this.lightMaterial : kind === 'beam' ? this.beamMaterial : this.material;
         mesh = new THREE.InstancedMesh(this.geometries[kind], material, Math.ceil(count * 1.3));
         mesh.userData.colors = [];
         mesh.castShadow = !['paint', 'paving', 'light', 'beam'].includes(kind);
@@ -83,6 +84,7 @@ export class Batches {
   dispose() {
     for (const mesh of this.meshes.values()) { this.scene.remove(mesh); mesh.dispose(); }
     this.material.dispose();
+    this.taxiDetailMaterial.dispose();
     this.taxiMaterial.dispose();
     this.lightMaterial.dispose();
     this.beamMaterial.dispose();

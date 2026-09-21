@@ -51,14 +51,14 @@ test('actual instanced car parts tilt together while tyres and headlight beams s
     const car = { taxi: true, axis, direction, line: 0, position: 0, offset: 0.82,
       steer: 0.1, pitch: -0.07, roll: 0.08, flashAge: 0 };
     addCar({ add(...args) { parts.push(args); } }, car, 0, 0, { x: 0, z: 0 }, { right: 100, top: 100 }, 40);
-    const tyres = parts.filter(part => part[0] === 'box' && part[4] === 0.18 && part[5] === 0.32);
+    const tyres = parts.filter(part => part[0] === 'taxiDetail' && part[4] === 0.18 && part[5] === 0.32);
     assert.equal(tyres.length, 4);
     for (const tyre of tyres) {
       assert.equal(tyre[2], 0.22);
       assert.equal(tyre[9], 0);
       assert.equal(tyre[10], 0);
     }
-    for (const body of parts.filter(part => part[0] === 'taxi' || part[0] === 'car')) {
+    for (const body of parts.filter(part => part[0] === 'taxi' || (part[0] === 'taxiDetail' && !tyres.includes(part)))) {
       assert.equal(body[9], car.pitch);
       assert.equal(body[10], car.roll);
     }
