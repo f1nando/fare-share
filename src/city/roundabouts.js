@@ -1,9 +1,10 @@
+import { streetHalf, boulevardRoad } from './roadProfile.js';
 import { vehicleType } from './vehicleTypes.js';
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 
-import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE, roundaboutCornerEdge } from './roundaboutDimensions.js';
+import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE, roundaboutCornerEdge, roundaboutCapEdge } from './roundaboutDimensions.js';
 import { approachAtRing } from './diagonalLayout.js';
-import { outsideApproach, polygonSlab } from './diagonalGeometry.js';
+import { outsideApproach, polygonSlab, clipPolygon } from './diagonalGeometry.js';
 export { RING_RADIUS, ISLAND_RADIUS } from './roundaboutDimensions.js';
 const TAU = Math.PI * 2;
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI / 2 : -Math.PI / 2;
@@ -52,13 +53,15 @@ export function populateRoundabout(batch, gx, gz, x, z, block = 40) {
   for (let quadrant = 0; quadrant < 4; quadrant++) {
     if(closed>=0&&(quadrant===(5-closed)%4||quadrant===(4-closed)%4))continue;
     const rotation = quadrant * Math.PI / 2;
-    if(approach){
+    if(approach || boulevardRoad(0,gz)||boulevardRoad(1,gx)){
       for(const [inset,y,h,color]of[[0,.1,.3,'#bdbdbd'],[.21,.25,.34,'#dedede']]){
         const edge=roundaboutCornerEdge(inset);
         const points=[...edge,{x:ROUNDABOUT_CLEARANCE,z:ROUNDABOUT_CLEARANCE}].map(p=>({
           x:gx*block+p.x*Math.cos(rotation)+p.z*Math.sin(rotation),
           z:gz*block-p.x*Math.sin(rotation)+p.z*Math.cos(rotation)}));
-        for(const poly of outsideApproach(points,approach,block,inset))
+        const sx=Math.sign(points[0].x-gx*block)||1,sz=Math.sign(points[0].z-gz*block)||1;
+        const clipped=clipPolygon(clipPolygon(points,p=>sx*(p.x-gx*block)-streetHalf(1,gx)-inset),p=>sz*(p.z-gz*block)-streetHalf(0,gz)-inset);
+        for(const poly of approach?outsideApproach(clipped,approach,block,inset):[clipped])
           polygonSlab(batch,poly,y,h,color,x-gx*block,z-gz*block);
       }
       continue;
@@ -68,8 +71,18 @@ export function populateRoundabout(batch, gx, gz, x, z, block = 40) {
   }
   if(closed>=0) {
     const rotation=(1-closed)*Math.PI/2;
-    batch.add('roundaboutCapCurb',x,0.1,z,1,.3,1,'#bdbdbd',rotation);
-    batch.add('roundaboutCapWalk',x,0.25,z,1,.34,1,'#dedede',rotation);
+    const axis=closed%2,half=streetHalf(1-axis,axis===0?gx:gz);
+    if(half>3.85){
+      for(const[inset,y,h,color]of[[0,.1,.3,'#bdbdbd'],[.21,.25,.34,'#dedede']]){
+        const reach=ROUNDABOUT_CLEARANCE;
+        const poly=[...roundaboutCapEdge(inset),{x:reach,z:reach},{x:-reach,z:reach}];
+        const clipped=clipPolygon(poly,p=>p.z-half-inset).map(p=>({x:p.x*Math.cos(rotation)+p.z*Math.sin(rotation),z:-p.x*Math.sin(rotation)+p.z*Math.cos(rotation)}));
+        polygonSlab(batch,clipped,y,h,color,x,z);
+      }
+    }else{
+      batch.add('roundaboutCapCurb',x,0.1,z,1,.3,1,'#bdbdbd',rotation);
+      batch.add('roundaboutCapWalk',x,0.25,z,1,.34,1,'#dedede',rotation);
+    }
   }
   batch.add('island', x, 0.12, z, ISLAND_RADIUS * 2, 0.24, ISLAND_RADIUS * 2, '#bdbdbd');
   batch.add('island', x, 0.26, z, ISLAND_RADIUS * 2 - 0.35, 0.08, ISLAND_RADIUS * 2 - 0.35, '#929292');

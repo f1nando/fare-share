@@ -48,7 +48,7 @@ export function seedParking(lane,block) {
   for(const gx of segments) {
     const gz=lane.line-1;if(!parkingAt(gx,gz,block))continue;
     const lot=parkingLayout(gx,gz,block);
-    const candidates=lane.cars.filter(c=>!c.taxi&&(!c.kind||c.kind==='car')&&c.track===1&&!c.parking&&Math.floor(c.position/block)===gx);
+    const candidates=lane.cars.filter(c=>!c.taxi&&(!c.kind||c.kind==='car')&&c.track===lot.track&&!c.parking&&Math.floor(c.position/block)===gx);
     for(let i=0;i<Math.min(2,candidates.length,lot.slots.length);i++) {
       const car=candidates[i],slot=i===0?0:lot.slots.length-1;
       car.position=lot.entry+1.8;car.speed=0;car.parking=stateFor(lot,slot,4+i*5);
@@ -59,7 +59,7 @@ export function seedParking(lane,block) {
 function exitClear(car,lane,route) {
   const end=route.points.at(-1).x,duration=route.length/4+.4;
   return lane.cars.every(other=>{
-    if(other===car||!occupiesTrack(other,1)&&!occupiesTrack(other,2))return true;
+    if(other===car||!occupiesTrack(other,car.parking.lot.track)&&!occupiesTrack(other,2))return true;
     const ahead=end-other.position;
     // Extra room also covers longer vehicles passing the driveway.
     if(ahead>=0)return ahead>CAR_GAP+2;
@@ -105,17 +105,18 @@ export function updateParking(lanes,delta,block) {
           } else if(state.phase==='aisle') {setRoute(state,'waiting',mergeRoute(lot));car.speed=0;}
           else if(state.phase==='merge') {
             car.parking=null;car.lastParkingLot=lot.key;car.parkingExits=(car.parkingExits??0)+1;
-            car.track=car.fromTrack=1;car.offset=TRACKS[1];car.steer=0;car.cooldown=2;
+            car.track=car.fromTrack=lot.track;car.offset=TRACKS[lot.track];car.steer=0;car.cooldown=2;
           }
         }
       }
     }
     for(const car of lane.cars) {
-      if(car.parking||car.taxi||car.kind&&car.kind!=='car'||car.turn||car.changing||car.overtake||car.track!==1)continue;
+      if(car.parking||car.taxi||car.kind&&car.kind!=='car'||car.turn||car.changing||car.overtake)continue;
       const gx=Math.floor(car.position/block),gz=lane.line-1;
       const start=gx*block+block-6.7,distance=car.position-start;
       if(distance<-.25||distance>Math.max(.7,car.speed*delta+.15)||!parkingAt(gx,gz,block))continue;
       const lot=parkingLayout(gx,gz,block);
+      if(car.track!==lot.track)continue;
       if(car.lastParkingLot===lot.key||busy.has(lot.key)||lane.cars.some(other=>other.overtake?.leader===car))continue;
       const used=occupied.get(lot.key)??new Set(),slot=lot.slots.findIndex((_,i)=>!used.has(i));
       if(slot<0)continue;

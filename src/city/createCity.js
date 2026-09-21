@@ -1,3 +1,5 @@
+import { streetHalf } from './roadProfile.js';
+import { boulevardSceneryBatch } from './boulevardGeometry.js';
 import * as THREE from 'three';
 import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -52,7 +54,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const random = seededRandom(gx, gz);
   const pick = (list) => list[Math.floor(random() * list.length)];
   const streetBatch=approachStreetBatch(batch,approachesNear(gx+.5,gz+.5,blockSize),blockSize,x-gx*blockSize,z-gz*blockSize);
-  const lotBatch = roundaboutSceneryBatch(batch, gx, gz, x, z, blockSize);
+  const lotBatch = roundaboutSceneryBatch(boulevardSceneryBatch(batch,gx,gz,x,z,blockSize), gx, gz, x, z, blockSize);
   const ring = roundaboutAt(gx, gz), eastRing = roundaboutAt(gx + 1, gz), southRing = roundaboutAt(gx, gz + 1);
   let layoutScale = 1;
   const put = (kind, dx, y, dz, w, h, d, color, rotation = 0) => {
@@ -80,8 +82,8 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   for (const side of [-1, 1]) {
     const start = ring ? roundaboutStopAt(gx,gz,blockSize) : STOP_LINE;
     const endX = blockSize - (eastRing ? roundaboutStopAt(gx+1,gz,blockSize) : STOP_LINE), endZ = blockSize - (southRing ? roundaboutStopAt(gx,gz+1,blockSize) : STOP_LINE);
-    if (northRoad) put('paint', (start + endX) / 2, 0.015, side * ROAD / 2, endX - start, 0.018, 0.06, '#8d8d8d');
-    if (westRoad) put('paint', side * ROAD / 2, 0.015, (start + endZ) / 2, 0.06, 0.018, endZ - start, '#8d8d8d');
+    if (northRoad) put('paint', (start + endX) / 2, 0.015, side * (streetHalf(0,gz)-.55), endX - start, 0.018, 0.06, '#8d8d8d');
+    if (westRoad) put('paint', side * (streetHalf(1,gx)-.55), 0.015, (start + endZ) / 2, 0.06, 0.018, endZ - start, '#8d8d8d');
   }
 
   // Road markings stop before the intersection. Every tile owns two crossings.
@@ -90,9 +92,15 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     if (northRoad && !northBoulevard && (!eastRing || p < blockSize - ROUNDABOUT_STOP - 1)) put('paint', p, 0.016, 0, 1.3, 0.018, 0.14, '#e9e9e9');
     if (westRoad && !westBoulevard && (!southRing || p < blockSize - ROUNDABOUT_STOP - 1)) put('paint', 0, 0.016, p, 0.14, 0.018, 1.3, '#e9e9e9');
   }
-  for (let p = -PAVED_ROAD / 2 + 0.65; p <= PAVED_ROAD / 2 - 0.65; p += 0.66) {
-    if (northRoad) put('paint', ring ? roundaboutStopAt(gx,gz,blockSize) : PAVED_ROAD / 2 + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
-    if (westRoad) put('paint', p, 0.02, ring ? roundaboutStopAt(gx,gz,blockSize) : PAVED_ROAD / 2 + 1, 0.34, 0.025, 1.28, '#f0f0f0');
+  for(const axis of[0,1])if(axis===0?northBoulevard:westBoulevard){
+    const start=ring?roundaboutStopAt(gx,gz,blockSize):Math.max(STOP_LINE,streetHalf(1-axis,axis===0?gx:gz)+1.5);
+    const end=blockSize-((axis===0?eastRing:southRing)?roundaboutStopAt(gx+(axis===0?1:0),gz+(axis===1?1:0),blockSize):7);
+    for(let p=start+1;p<end;p+=3.3)for(const side of[-1,1])for(const offset of[1.635,3.265])
+      put('paint',axis===0?p:side*offset,.018,axis===0?side*offset:p,axis===0?1.3:.1,.02,axis===0?.1:1.3,'#e9e9e9');
+  }
+  for (let p = -Math.max(streetHalf(0,gz),streetHalf(1,gx)) + 0.65; p <= Math.max(streetHalf(0,gz),streetHalf(1,gx)) - 0.65; p += 0.66) {
+    if (northRoad && Math.abs(p)<streetHalf(0,gz)-.5) put('paint', ring ? roundaboutStopAt(gx,gz,blockSize) : streetHalf(1,gx) + 1, 0.02, p, 1.28, 0.025, 0.34, '#f0f0f0');
+    if (westRoad && Math.abs(p)<streetHalf(1,gx)-.5) put('paint', p, 0.02, ring ? roundaboutStopAt(gx,gz,blockSize) : streetHalf(0,gz) + 1, 0.34, 0.025, 1.28, '#f0f0f0');
   }
 
   populateRoadworks(batch, gx, gz, x, z, blockSize);
@@ -112,7 +120,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
     return;
   }
   if (parking) {
-    populateParking(batch,gx,gz,x,z,blockSize);
+    populateParking(boulevardSceneryBatch(batch,gx,gz,x,z,blockSize),gx,gz,x,z,blockSize);
     return;
   }
 

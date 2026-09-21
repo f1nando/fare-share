@@ -48,7 +48,7 @@ test('narrow shoulder route straddles the sidewalk in either direction on either
 
 test('curb entry causes a finite hop, settles on the pavement, and drops back onto the road', () => {
   const car = { speed: 16 };
-  const update = (offset, delta = 0.02) => updateSurfaceMotion(car, { x: 20, z: offset, angle: Math.PI / 2 }, delta, 40, PAVED_ROAD / 2);
+  const update = (offset, delta = 0.02) => updateSurfaceMotion(car, { x: 20, z: 40+offset, angle: Math.PI / 2 }, delta, 40, PAVED_ROAD / 2);
   update(TRACKS[1]);
   let maxAir = 0;
   for (let i = 0; i < 30; i++) {
@@ -68,17 +68,17 @@ test('curb entry causes a finite hop, settles on the pavement, and drops back on
 
 test('actual shoulder overtakes hop in the network; tyres rise independently and recycling clears the pose', () => {
   for (const axis of [0, 1]) for (const direction of [-1, 1]) {
-    const make = (position, taxi) => ({ axis, line: 0, direction, position: position * direction,
+    const make = (position, taxi) => ({ axis, line: 1, direction, position: position * direction,
       taxi, track: 1, fromTrack: 1, offset: TRACKS[1], cruise: taxi ? 16 : 6,
       speed: 0, acceleration: taxi ? 25 : 4, cooldown: 0, merge: 1, changing: false, steer: 0 });
     const car = make(-STOP_LINE - CAR_GAP * 3, true);
     const cars = [car, ...[0, 1, 2].map(i => make(-STOP_LINE - CAR_GAP * i, false))];
-    const lanes = new Map([[`${axis}:0:${direction}`, { axis, line: 0, direction, cars }]]);
+    const lanes = new Map([[`${axis}:1:${direction}`, { axis, line: 1, direction, cars }]]);
     let hopped = false, climbed = false;
     for (let i = 0; i < 250; i++) {
       // Let a queue-launch taxi reach green instead of waiting forever at a
       // frozen red light; it must traverse the curb at driving speed as well.
-      updateNetwork(lanes, 0.02, 9 + i * 0.02, { blockSize: 40, weaving: 0 });
+      updateNetwork(lanes, 0.02, (axis===0?20:9) + i * 0.02, { blockSize: 40, weaving: 0 });
       hopped ||= car.rideHeight - car.surfaceSupport > 0.06;
       if (Math.max(...car.wheelHeights) > 0.4 && Math.min(...car.wheelHeights) === 0) {
         climbed = true;
@@ -89,7 +89,7 @@ test('actual shoulder overtakes hop in the network; tyres rise independently and
         assert.ok(Math.max(...tyres.map(p => p[2])) - Math.min(...tyres.map(p => p[2])) > 0.4);
       }
     }
-    assert.ok(hopped && climbed);
+    assert.ok(hopped && climbed,JSON.stringify({axis,direction,hopped,climbed,track:car.track,position:car.position,line:car.line,ride:car.rideHeight}));
     resetSignal(car);
     assert.equal(car.rideHeight, 0);
     assert.equal(car.roadRoll, 0);

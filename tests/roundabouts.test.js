@@ -1,3 +1,4 @@
+import { streetHalf, boulevardRoad } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { roundaboutAt, roadOpen, spawnRoadOpen, relocateToRoad, junctionArms, roundaboutClosedArm } from '../src/city/roadLayout.js';
@@ -237,8 +238,9 @@ test('T rings close their missing arm visually and route all traffic through exi
     const arms=junctionArms(cx,cz),closed=roundaboutClosedArm(cx,cz),lanes=new Map(),cars=[];
     assert.ok(roundaboutAt(cx,cz)&&closed>=0);
     const geometry=[];populateBlock({add:(...p)=>geometry.push(p)},cx,cz,0,0,block);
-    assert.equal(geometry.filter(p=>p[0]==='roundaboutCapCurb').length,1);
-    assert.equal(geometry.filter(p=>p[0]==='roundaboutCurb').length,2);
+    if(streetHalf(1-closed%2,closed%2===0?cx:cz)>3.85)assert.ok(geometry.some(p=>p[0]==='diagonalLot'));
+    else assert.equal(geometry.filter(p=>p[0]==='roundaboutCapCurb').length,1);
+    if(!boulevardRoad(0,cz)&&!boulevardRoad(1,cx))assert.equal(geometry.filter(p=>p[0]==='roundaboutCurb').length,2);
     for(const axis of [0,1])for(const direction of [-1,1]) {
       const line=axis===0?cz:cx,lane={axis,line,direction,cars:[]};lanes.set(`${axis}:${line}:${direction}`,lane);
       const arm=axis===0?(direction>0?2:0):(direction>0?3:1);

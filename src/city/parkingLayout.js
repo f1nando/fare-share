@@ -1,3 +1,4 @@
+import { boulevardRoad, THIRD_TRACK } from './roadProfile.js';
 import { parkAt, roadOpen, roadworkAt, roundaboutAt } from './roadLayout.js';
 import { canalColumn } from './bridgeProfile.js';
 
@@ -15,7 +16,7 @@ export function parkingLayout(x,z,block) {
   const entry=right-8.5,exit=left+8.5,first=exit+2.2,last=entry-2.2;
   const count=Math.min(10,Math.floor((last-first)/2.4)+1);
   return {key:`${x}:${z}`,x,z,block,left,right,bottom,entry,exit,aisle:bottom-6.6,bay:bottom-10.8,
-    street:bottom-2.45,slots:Array.from({length:count},(_,i)=>first+(last-first)*i/Math.max(1,count-1))};
+    track:boulevardRoad(0,z+1)?THIRD_TRACK:1,street:bottom-(boulevardRoad(0,z+1)?4.08:2.45),slots:Array.from({length:count},(_,i)=>first+(last-first)*i/Math.max(1,count-1))};
 }
 
 export function populateParking(batch,gx,gz,x,z,block) {

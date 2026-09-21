@@ -1,3 +1,4 @@
+import { streetHalf } from './roadProfile.js';
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 import { roundaboutRoadInset } from './roundaboutDimensions.js';
 import { DIAGONAL_HALF, diagonalRoadDistance } from './diagonalLayout.js';
@@ -23,9 +24,19 @@ export function settleOnFlatRoad(car) {
 // then a 0.42-high pavement inset by 0.21. Crossroads remain flat asphalt.
 export function roadHeight(x, z, blockSize, roadHalf) {
   const distance = value => Math.abs(value - Math.round(value / blockSize) * blockSize);
-  let inset = Math.min(distance(x), distance(z)) - roadHalf;
+  let inset = Math.min(distance(x)-streetHalf(1,Math.round(x/blockSize)),distance(z)-streetHalf(0,Math.round(z/blockSize)));
   const gx = Math.round(x / blockSize), gz = Math.round(z / blockSize);
-  if (roundaboutAt(gx, gz)) inset = roundaboutRoadInset(x - gx * blockSize, z - gz * blockSize, roadHalf, roundaboutClosedArm(gx,gz));
+  if (roundaboutAt(gx,gz)) {
+    const closed=roundaboutClosedArm(gx,gz),dx=x-gx*blockSize,dz=z-gz*blockSize;
+    const ringInset=roundaboutRoadInset(dx,dz,roadHalf,closed);
+    if(closed<0)inset=Math.min(inset,ringInset);
+    else {
+      const axis=closed%2,across=axis===0?dx:dz;
+      const openPerpendicular=Math.abs(across)-streetHalf(1-axis,axis===0?gx:gz);
+      const oppositeSide=(closed<2?1:-1)*across<0;
+      inset=Math.min(ringInset,openPerpendicular,oppositeSide?inset:Infinity);
+    }
+  }
   if (inset > 0) inset = Math.min(inset, diagonalRoadDistance(x, z, blockSize) - DIAGONAL_HALF);
   return 0.25 * smooth(inset / 0.1) + 0.17 * smooth((inset - 0.21) / 0.1);
 }

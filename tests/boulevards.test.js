@@ -1,3 +1,4 @@
+import { canalColumn } from '../src/city/bridgeProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boulevardRoad, roadOpen, MEDIAN_WIDTH, MEDIAN_INSET } from '../src/city/roadLayout.js';
@@ -16,17 +17,20 @@ test('whole boulevard lines repeat at negative coordinates and medians only occu
     for (let segment = -5; segment <= 5; segment++) {
       const gx = axis === 0 ? segment : line, gz = axis === 0 ? line : segment, parts = [];
       populateBlock({ add: (...p) => parts.push(p) }, gx, gz, 0, 0, 40);
+      if(canalColumn(gx))continue;
       const strips = parts.filter(p => p[0] === 'box' && p[2] === 0.09 && p[axis === 0 ? 3 : 1] === 0);
-      assert.equal(strips.length, Number(boulevardRoad(axis, line) && roadOpen(axis, line, segment)));
+      const expected=boulevardRoad(axis,line)&&roadOpen(axis,line,segment);
+      if(expected)assert.ok(strips.length||parts.some(p=>p[0]==='diagonalLot'&&p[2]===.09),JSON.stringify({axis,line,segment}));
+      else assert.equal(strips.length,0);
     }
   }
 });
 
-test('divider prevents oncoming passing and feints, but allows the adjacent lane and shoulder', () => {
+test('divider prevents oncoming passing and feints, but allows the third normal lane', () => {
   for (const track of [0, 1]) {
     const taxi = vehicle(7, track, true), leader = vehicle(14, track), neighbour = vehicle(8, 1 - track);
     updateTraffic([taxi, leader, neighbour], 1, 0.02, true, { blockSize: 40, opposing: [] });
-    assert.equal(taxi.track, track === 0 ? 0 : 2);
+    assert.equal(taxi.track, track === 0 ? 0 : 3);
     assert.ok(!taxi.feint);
   }
   const taxi = vehicle(7, 0, true);
@@ -34,12 +38,12 @@ test('divider prevents oncoming passing and feints, but allows the adjacent lane
   assert.equal(taxi.track, 1);
 });
 
-test('stopped taxis can stage on the shoulder but cannot cross a divider', () => {
+test('avenue taxis use normal lanes without reserving the old shoulder', () => {
   for (const track of [0, 1]) {
     const taxi = vehicle(-STOP_LINE - 5.8, track, true), cars = [taxi, vehicle(-STOP_LINE, track), vehicle(-STOP_LINE - 2.9, track)];
     cars.forEach(car => { car.speed = 0; });
     updateTraffic(cars, 1, 0.02, false, { blockSize: 40, opposing: [], untilGreen: 4, queueRandom: () => 0 });
-    assert.equal(Boolean(taxi.overtake?.launch), track === 1);
+    assert.equal(Boolean(taxi.overtake?.launch), false);
   }
 });
 

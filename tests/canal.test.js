@@ -1,3 +1,4 @@
+import { streetHalf } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canalColumn, canalDimensions, CANAL_BRIDGE_HALF, CANAL_WATER_LEVEL, populateCanal } from '../src/city/canal.js';
@@ -26,7 +27,7 @@ test('water meets tile boundaries, decks cover it at crossings, and banks fit ev
   for (let block = 24; block <= 48; block += 2) {
     const parts = []; populateCanal({ add: (...p) => parts.push(p) }, 0, 0, block);
     const water = parts.find(p => p[2] === CANAL_WATER_LEVEL - 0.01);
-    const decks = parts.filter(p => p[0] === 'box' && p[5] === 0.6 && p[6] === CANAL_BRIDGE_HALF * 2);
+    const decks = parts.filter(p => p[0] === 'box' && p[5] === 0.6 && p[6] === (streetHalf(0,0)+1.75) * 2);
     const { left, right } = canalDimensions(block);
     assert.equal(water[3] - water[6] / 2, 0);
     assert.equal(water[3] + water[6] / 2, block);
@@ -59,7 +60,7 @@ test('water continues across many blocks with a bridge at alternate cross street
       const parts = [];
       populateBlock({ add: (...p) => parts.push(p) }, 0, segment, 0, segment * block, block);
       const water = parts.find(p => p[2] === CANAL_WATER_LEVEL - 0.01);
-      const decks = parts.filter(p => p[0] === 'box' && p[5] === 0.6 && p[6] === CANAL_BRIDGE_HALF * 2);
+      const decks = parts.filter(p => p[0] === 'box' && p[5] === 0.6 && p[6] === (streetHalf(0,segment)+1.75) * 2);
       const start = water[3] - water[6] / 2;
       if (previousEnd !== undefined) assert.equal(start, previousEnd, 'water has no gap between blocks');
       previousEnd = water[3] + water[6] / 2;
@@ -94,7 +95,7 @@ test('bridge parapets, bank walls and trunks leave normal and borrowed tracks cl
   for (const block of [24, 40, 48]) {
     const parts = []; populateCanal({ add: (...p) => parts.push(p) }, 0, 0, block);
     const obstacles = parts.filter(p => p[0] === 'box' && p[2] > 0.3 && (p[4] < 0.5 || p[6] < 0.5));
-    for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const track of [-1, 0, 1, 2]) {
+    for (const axis of [0, 1]) for (const direction of [-1, 1]) for (const track of (axis===0?[-1,0,1,2,3]:[-1,0,1,2])) {
       for (let along = 8; along <= block - 8; along += 0.5) {
         const car = { axis, line: 0, direction, position: along, offset: trackOffset(track) };
         const coordinates = carCoordinates(car, block);

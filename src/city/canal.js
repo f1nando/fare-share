@@ -1,3 +1,4 @@
+import { streetHalf } from './roadProfile.js';
 import { PAVED_ROAD } from './world.js';
 import { canalBridge, bridgeHeight, BRIDGE_START, BRIDGE_HALF, BRIDGE_SEGMENTS } from './bridgeProfile.js';
 import { MEDIAN_WIDTH } from './roadLayout.js';
@@ -13,11 +14,11 @@ export function canalDimensions(block) {
 }
 
 export function populateCanal(batch, x, z, block, line = 0, divided = false) {
-  const { width, left, right } = canalDimensions(block), roadHalf = PAVED_ROAD / 2;
+  const { width, left, right } = canalDimensions(block), roadHalf = streetHalf(0,line),bridgeHalf=roadHalf+1.75;
   const north = canalBridge(line), south = canalBridge(line + 1);
-  const bankStart = north ? roadHalf : 0, bankEnd = block - (south ? roadHalf : 0);
+  const bankStart = north ? roadHalf : 0, bankEnd = block - (south ? streetHalf(0,line+1) : 0);
   const walkStart = bankStart + (north ? 0.21 : 0), walkEnd = bankEnd - (south ? 0.21 : 0);
-  const wallStart = north ? BRIDGE_HALF : 0, wallEnd = block - (south ? BRIDGE_HALF : 0);
+  const wallStart = north ? bridgeHalf : 0, wallEnd = block - (south ? streetHalf(0,line+1)+1.75 : 0);
   const put = (kind, px, y, pz, w, h, d, color, roll = 0) => batch.add(kind, x + px, y, z + pz, w, h, d, color, 0, 0, roll);
   put('paving', block / 2, CANAL_WATER_LEVEL - 0.01, block / 2, width, 0.02, block, '#777777');
   for (const [across, along] of [[0.42, 0.3], [0.58, 0.68]]) {
@@ -25,8 +26,8 @@ export function populateCanal(batch, x, z, block, line = 0, divided = false) {
       0.09, 0.003, block * 0.16, '#b3b3b3');
   }
   for (const side of [-1, 1]) {
-    const bankWidth = left - roadHalf;
-    const bankX = side < 0 ? roadHalf + bankWidth / 2 : right + bankWidth / 2;
+    const bankHalf=PAVED_ROAD/2,bankWidth = left - bankHalf;
+    const bankX = side < 0 ? bankHalf + bankWidth / 2 : right + bankWidth / 2;
     const edgeX = side < 0 ? left : right;
     put('box', edgeX + side * 0.12, CANAL_WATER_LEVEL / 2, block / 2, 0.24, -CANAL_WATER_LEVEL, block, '#858585');
     put('box', bankX, 0.1, (bankStart + bankEnd) / 2, bankWidth, 0.3, bankEnd - bankStart, '#bdbdbd');
@@ -51,10 +52,10 @@ export function populateCanal(batch, x, z, block, line = 0, divided = false) {
       put(kind, middleX - Math.sin(angle) * offsetY, middleY + Math.cos(angle) * offsetY,
         offsetZ, length, height, depth, color, angle);
     };
-    piece('box', -0.3, 0, 0.6, BRIDGE_HALF * 2, '#555555');
+    piece('box', -0.3, 0, 0.6, bridgeHalf * 2, '#555555');
     if (divided) piece('box', 0.09, 0, 0.18, MEDIAN_WIDTH, '#bdbdbd');
     for (const side of [-1, 1]) {
-      const curbZ = side * (roadHalf + 0.875), railZ = side * (BRIDGE_HALF - 0.12);
+      const curbZ = side * (roadHalf + 0.875), railZ = side * (bridgeHalf - 0.12);
       piece('box', 0.1, curbZ, 0.3, 1.75, '#bdbdbd');
       piece('paving', 0.25, curbZ + side * 0.105, 0.34, 1.54, '#dedede');
       piece('box', 1.05, railZ, 0.16, 0.2, '#888888');
@@ -63,6 +64,6 @@ export function populateCanal(batch, x, z, block, line = 0, divided = false) {
   for (let i = 0; i <= BRIDGE_SEGMENTS; i += 2) {
     const along = BRIDGE_START + span * i / BRIDGE_SEGMENTS;
     for (const side of [-1, 1]) put('box', along, bridgeHeight(along, block) + 0.7,
-      side * (BRIDGE_HALF - 0.12), 0.18, 0.7, 0.18, '#999999');
+      side * (bridgeHalf - 0.12), 0.18, 0.7, 0.18, '#999999');
   }
 }

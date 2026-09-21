@@ -1,6 +1,6 @@
 import { extraHalfLength } from './vehicleTypes.js';
 
-const tracks = [-1, 0, 1, 2];
+const tracks = [-1, 0, 1, 2, 3];
 const empty = Object.freeze({ gap: Infinity, leader: null });
 
 // Rebuilt once per street step from its already sorted cars. Each car's changes

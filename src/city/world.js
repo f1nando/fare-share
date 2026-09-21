@@ -1,3 +1,4 @@
+import { THIRD_TRACK } from './roadProfile.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { updateBodyMotion } from './vehicleBody.js';
 import { HORN_DURATION } from './hornAnimation.js';
@@ -9,7 +10,7 @@ export const BLOCK = 34;
 export const ROAD = 6.6;
 export const SHOULDER_WIDTH = 0.55;
 export const PAVED_ROAD = ROAD + SHOULDER_WIDTH * 2;
-export const TRACKS = [0.82, 2.45];
+export const TRACKS = [0.82, 2.45, undefined, 4.08];
 export const CAR_GAP = 2.9;
 export const TRAFFIC_SPACING = 10.5;
 export const TAXI_SHARE = 0.11;
@@ -213,7 +214,7 @@ export function advanceVehicle(position, distance, direction, green, blockSize =
 }
 
 export function occupiesTrack(car, track) {
-  if(car.parking)return car.parking.roadOccupancy && (track===1||track===2);
+  if(car.parking)return car.parking.roadOccupancy && (track===(car.parking.lot.track??1)||track===SHOULDER_TRACK);
   // Once its rear clears the entry, a circulating car no longer occupies its
   // old queue slot. Ring trajectories handle conflicts after this point.
   if (car.turn?.kind === 'diagonal' ? car.turn.sourceCleared : car.turn?.kind === 'roundabout' && car.turn.distance >= car.turn.entryLength) return false;
@@ -275,7 +276,7 @@ function canFeint(car, opposing, direction, blockSize) {
 }
 
 function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess, passTrack = ONCOMING_TRACK) {
-  if (car.dividedRoad && passTrack === ONCOMING_TRACK) return null;
+  if (car.dividedRoad) return null;
   if (!leader || leader.turn || leader.changing) return null;
   const returnTrack = passTrack === SHOULDER_TRACK ? 1 : 0;
   const passSpeed = car.cruise * 1.25;
@@ -319,7 +320,7 @@ function planOvertake(car, leader, cars, opposing, direction, blockSize, greenRe
 }
 
 function planQueueLaunch(car, cars, opposing, direction, blockSize, untilGreen, aggression, queueRandom) {
-  if (car.dividedRoad && car.track === 0) return null;
+  if (car.dividedRoad) return null;
   if (!car.taxi || car.changing || car.feint || car.overtake || car.turn || car.race || car.speed > 1 ||
       car.track < 0 || car.track > 1 || untilGreen < 2) return null;
   const center = Math.ceil((car.position * direction - STOP_LINE) / blockSize) * blockSize;
@@ -395,16 +396,22 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     let challenging = car.race?.follower === car && car.race.phase === 'challenge';
     const chaseTrack = following ? car.race.leader.track : challenging ? 1 - car.race.leader.track : null;
     const chaseMerge = (chaseTrack === 0 || chaseTrack === 1) && chaseTrack !== car.track;
-    const taxiPassing = car.taxi && (!green || car.signalWait === 0) && (following ? chaseMerge : passing || returning || challenging && chaseMerge);
+    const taxiPassing = car.track!==THIRD_TRACK && car.taxi && (!green || car.signalWait === 0) && (following ? chaseMerge : passing || returning || challenging && chaseMerge);
     const overtake = !car.roadEnd && !car.roundaboutApproach && !queueLaunch && !car.overtake && opposing && (green || crossingAccess) && car.taxi && (car.track === 0 || car.track === 1) &&
       (!following || car.race.leader.overtake?.returnTrack === car.track) &&
       !car.changing && !car.feint && car.cooldown === 0 && !(car.track === 1 && car.seekInner > 0) && gap < 28 && sourceClear
       ? planOvertake(car, leader, cars, opposing, direction, blockSize, greenRemaining, green, crossingAccess,
         car.track === 1 ? SHOULDER_TRACK : ONCOMING_TRACK) : null;
     const workMerge = workApproach && !car.changing && !car.feint && sourceClear && workDistance >= car.speed * MERGE_DURATION + WORK_MARGIN - 1e-6
-      ? canMerge(car, cars, 0, direction, opposing) ? 0 : car.taxi && canMerge(car, cars, SHOULDER_TRACK, direction, opposing) ? SHOULDER_TRACK : null
+      ? canMerge(car, cars, 0, direction, opposing) ? 0 : !car.dividedRoad && car.taxi && canMerge(car, cars, SHOULDER_TRACK, direction, opposing) ? SHOULDER_TRACK : null
       : null;
-    if (car.feint) {
+    const boulevardTarget=car.dividedRoad && !car.roundaboutApproach && !car.roadEnd && !car.turn && !car.changing && car.cooldown===0
+      ? car.track===THIRD_TRACK ? (gap<14&&ahead(1).gap>gap+4?1:null)
+        : car.track===1 && ahead(THIRD_TRACK).gap>Math.max(12,gap+3) ? THIRD_TRACK : null : null;
+    if (boulevardTarget!==null&&sourceClear&&canMerge(car,cars,boulevardTarget,direction,opposing)) {
+      if(car.race)finishRace(car.race);following=challenging=false;
+      startMerge(car,boulevardTarget);car.cooldown=3;
+    } else if (car.feint) {
       car.feint.age = Math.min(FEINT_DURATION, car.feint.age + delta);
     } else if (car.workBypass) {
       const exit = (direction > 0 ? car.workBypass.end : -car.workBypass.start);
@@ -451,7 +458,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
       car.feint = { age: 0 };
       car.feintCooldown = 5 / aggression;
       car.cooldown = FEINT_DURATION + 0.25;
-    } else if ((yielding || taxiPassing) && !car.changing && car.cooldown === 0 &&
+    } else if ((yielding || taxiPassing) && car.track!==THIRD_TRACK && !car.changing && car.cooldown === 0 &&
         sourceClear && canMerge(car, cars, 1 - car.track, direction, opposing)) {
       startMerge(car, 1 - car.track);
       if (car.taxi) car.burst = 1.4;
@@ -495,7 +502,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     if (Number.isFinite(workClearance)) speed = Math.min(speed, stoppingSpeed(workClearance, braking, delta));
     if(Number.isFinite(approachClearance))speed=Math.min(speed,stoppingSpeed(approachClearance,braking,delta));
     const oriented = car.position * direction;
-    const stopLine = (car.roundaboutApproach ? car.roundaboutStop ?? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(car);
+    const stopLine = (car.roundaboutApproach ? car.roundaboutStop ?? ROUNDABOUT_STOP : car.junctionStop ?? STOP_LINE) + extraHalfLength(car);
     const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - stopLine - oriented;
     if (speed > 0 && untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
       const mustWait = car.overtake?.launch && !green || (crossingAccess?.preview
