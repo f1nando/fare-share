@@ -3,7 +3,6 @@ import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, headlightsOn, resetSignal, seededRandom } from './world.js';
 import { normalizeSettings } from './settings.js';
-import { createPointerCamera } from './pointerCamera.js';
 import { COLOR_SCHEMES, createBackgroundFade } from './colorSchemes.js';
 import { carCoordinates, updateNetwork } from './trafficNetwork.js';
 import { bodyPartPose } from './vehicleBody.js';
@@ -210,7 +209,6 @@ export function createCity(container, initialSettings, benchmark = null) {
   const camera = new THREE.OrthographicCamera(-80, 80, 45, -45, 1, 400);
   const cameraOffset = new THREE.Vector3(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
   const focus = new THREE.Vector3(BLOCK / 2, 0, BLOCK / 2);
-  const viewFocus = new THREE.Vector3();
   let originX = 0, originZ = 0, worldX = 0, worldZ = 0;
   let area = { x: 6, z: 6, extents: { x: 80, z: 80 } };
   let lastCellX = NaN, lastCellZ = NaN;
@@ -221,7 +219,6 @@ export function createCity(container, initialSettings, benchmark = null) {
   let previousPoses = new WeakMap(), renderAlpha = 1;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let worker = null, workerFrame = null, workerFailure = null;
-  const pointerCamera = benchmark ? null : createPointerCamera(container, resize);
   const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
     focus: { x: originX + focus.x, z: originZ + focus.z }, lightTime: time,
     seed: benchmark?.seed ?? 0, simulationHz: benchmark?.simulationHz === 60 ? 60 : 30,
@@ -273,8 +270,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
-    const nextArea = activeWorldSize(viewWidth, viewHeight, { ...settings, blockSize: BLOCK },
-      pointerCamera?.active ? BLOCK / 2 : 0);
+    const nextArea = activeWorldSize(viewWidth, viewHeight, { ...settings, blockSize: BLOCK });
     if (benchmark?.radius !== undefined) nextArea.x = nextArea.z = benchmark.radius;
     if (area.x !== nextArea.x || area.z !== nextArea.z) lastCellX = NaN;
     area = nextArea;
@@ -314,11 +310,8 @@ export function createCity(container, initialSettings, benchmark = null) {
       renderer.shadowMap.needsUpdate = true;
       if (benchmark) rebuildMs = performance.now() - rebuildStart;
     }
-    viewFocus.copy(focus);
-    const pointerOffset = pointerCamera?.update(delta, BLOCK, moving);
-    if (pointerOffset) { viewFocus.x += pointerOffset.x; viewFocus.z += pointerOffset.z; }
-    camera.position.copy(viewFocus).add(cameraOffset);
-    camera.lookAt(viewFocus);
+    camera.position.copy(focus).add(cameraOffset);
+    camera.lookAt(focus);
 
     carsBatch.reset();
     hornEffects.reset();
@@ -340,7 +333,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       const simulate = step => {
         if (fixedSimulation) for (const lane of lanes.values()) for (const car of lane.cars) {
           const coordinates = carCoordinates(car, BLOCK);
-          if (visiblePosition(coordinates, originX, originZ, viewFocus, camera, 2)) {
+          if (visiblePosition(coordinates, originX, originZ, focus, camera, 2)) {
             previousPoses.set(car, presentation(car, coordinates, previousPoses.get(car)));
           } else previousPoses.delete(car);
         }
@@ -353,10 +346,10 @@ export function createCity(container, initialSettings, benchmark = null) {
       } else { simulate(delta); simulationSteps = delta > 0 ? 1 : 0; }
     }
     const prepareStart = benchmark ? performance.now() : 0;
-    let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, viewFocus, camera, hornEffects) : 0;
+    let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, focus, camera, hornEffects) : 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
-        if (addCar(carsBatch, car, originX, originZ, viewFocus, camera, BLOCK, hornEffects,
+        if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects,
           fixedSimulation ? previousPoses.get(car) : null, renderAlpha)) visibleCars++;
       }
     }
@@ -424,7 +417,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     disposed = true;
     clearTimeout(rebuildTimer);
     worker?.dispose();
-    pointerCamera?.dispose();
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);

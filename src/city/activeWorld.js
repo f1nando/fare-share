@@ -11,9 +11,8 @@ export function groundExtents(width, height, offset = CAMERA_OFFSET) {
   };
 }
 
-export function activeWorldSize(width, height, settings, cameraMargin = 0) {
+export function activeWorldSize(width, height, settings) {
   const extents = groundExtents(width, height), block = settings.blockSize;
-  extents.x += cameraMargin; extents.z += cameraMargin;
   const taxiSpeed = 15 * settings.taxiSpeed / 100 * 1.25;
   const trafficSpeed = 7.6 * settings.trafficSpeed / 100 * 1.65;
   const stopping = Math.max(taxiSpeed ** 2 / 26 + taxiSpeed * 0.15,
