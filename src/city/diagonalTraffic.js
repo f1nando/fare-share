@@ -90,7 +90,9 @@ export function prepareApproachCrossings(lanes,active,time,block){
   }
   for(const road of roads.values())for(const gate of road.crossings){
     const crossingCars=active.filter(c=>c.turn.kind==='diagonal'&&c.turn.roadId===road.key&&
-      !c.turn.ringActive&&Math.abs(approachProgress(c.turn)-gate.fraction*road.length)<crossingHalf(road,gate)+extraHalfLength(c));
+      // A car waiting exactly at the entry boundary owns no crossing yet.
+      // Projection roundoff must not turn that stopped queue into a claim.
+      !c.turn.ringActive&&Math.abs(approachProgress(c.turn)-gate.fraction*road.length)<crossingHalf(road,gate)+extraHalfLength(c)-.001);
     for(const d of [-1,1])for(const car of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
       if(car.turn||car.parking)continue;
       const along=gate.position*block+(gate.axis===0?road.dx/road.dz:road.dz/road.dx)*
