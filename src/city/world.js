@@ -463,7 +463,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     if (!car.changing && Number.isFinite(clearance)) speed = Math.min(speed, stoppingSpeed(clearance - CAR_GAP, braking, delta, frontSpeed));
     const oriented = car.position * direction;
     const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - STOP_LINE - oriented;
-    if (untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
+    if (speed > 0 && untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
       const mustWait = car.overtake?.launch && !green || (crossingAccess?.preview
         ? !crossingAccess.preview(car, untilStop + 0.01, green, crossingClearance, speed) : !green);
       if (mustWait) speed = Math.min(speed, stoppingSpeed(untilStop, braking, delta));
@@ -471,7 +471,10 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     // A reserved return slot is a following target, not an invisible bumper.
     // Only actual vehicle clearance can hard-limit this frame's travel.
     const travel = Math.min(speed * delta, Math.max(0, clearance - CAR_GAP));
-    const permitted = car.overtake?.launch && !green ? false : crossingAccess ? crossingAccess(car, travel, green, crossingClearance, speed) : green;
+    // Before the stop line, this step cannot enter the intersection. Keep live
+    // claims updated, but avoid scanning cross traffic for the rest of the queue.
+    const needsAccess = travel > untilStop || car.crossing !== undefined;
+    const permitted = car.overtake?.launch && !green ? false : crossingAccess && needsAccess ? crossingAccess(car, travel, green, crossingClearance, speed) : green;
     const next = advanceVehicle(car.position, travel, direction, permitted, blockSize);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;

@@ -31,25 +31,35 @@ export function turnPose(turn) {
   return { ...pose, angle: pose.angle + drift, drift, sin: Math.sin(pose.angle + drift), cos: Math.cos(pose.angle + drift) };
 }
 
-export function makeTurn(car, blockSize, side = car.track === 0 ? -1 : 1) {
+function turnTarget(car, blockSize, side) {
   const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize * car.direction;
   const crossLine = Math.round(center / blockSize);
   const axis = 1 - car.axis;
   const direction = car.direction * side * (car.axis === 0 ? 1 : -1);
   const track = side === 1 ? 1 : 0;
   const position = car.line * blockSize + direction * (STOP_LINE + 1);
+  return { axis, line: crossLine, direction, track, position, side, distance: 0,
+    junction: car.axis === 0 ? `${crossLine}:${car.line}` : `${car.line}:${crossLine}`,
+    centerX: car.axis === 0 ? center : car.line * blockSize,
+    centerZ: car.axis === 0 ? car.line * blockSize : center };
+}
+
+export function makeTurn(car, blockSize, side = car.track === 0 ? -1 : 1) {
+  return buildTurnPath(car, blockSize, turnTarget(car, blockSize, side));
+}
+
+function buildTurnPath(car, blockSize, turn) {
+  const { axis, direction, track, position } = turn;
+  const center = turn.line * blockSize;
   const a = carCoordinates(car, blockSize);
   const d = point(axis, position, center + (axis === 0 ? 1 : -1) * direction * TRACKS[track]);
   const incoming = point(car.axis, car.direction, 0), outgoing = point(axis, direction, 0);
   const corner = car.axis === 0 ? { x: d.x, z: a.z } : { x: a.x, z: d.z };
   const entryLength = Math.hypot(corner.x - a.x, corner.z - a.z);
   const exitLength = Math.hypot(d.x - corner.x, d.z - corner.z);
-  const turn = { axis, line: crossLine, direction, track, position, side, distance: 0,
-    junction: car.axis === 0 ? `${crossLine}:${car.line}` : `${car.line}:${crossLine}`,
-    centerX: car.axis === 0 ? center : car.line * blockSize,
-    centerZ: car.axis === 0 ? car.line * blockSize : center,
-    points: [a, { x: a.x + incoming.x * entryLength * 0.7, z: a.z + incoming.z * entryLength * 0.7 },
-      { x: d.x - outgoing.x * exitLength * 0.7, z: d.z - outgoing.z * exitLength * 0.7 }, d], samples: [0] };
+  turn.points = [a, { x: a.x + incoming.x * entryLength * 0.7, z: a.z + incoming.z * entryLength * 0.7 },
+    { x: d.x - outgoing.x * exitLength * 0.7, z: d.z - outgoing.z * exitLength * 0.7 }, d];
+  turn.samples = [0];
   let previous = a;
   for (let i = 1; i <= 64; i++) {
     const current = curve(turn, i / 64);
@@ -106,9 +116,12 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
     const entryDistance = center - STOP_LINE - car.position * car.direction;
     if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
-    const turn = makeTurn(car, blockSize, car.track <= 0 ? -1 : 1);
+    const turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1);
     if (roadLayout && !roadOpen(turn.axis, turn.line, Math.floor(turn.position / blockSize))) continue;
     if (!canTurn(car, turn, lanes, blockSize, locks)) continue;
+    // A blocked car can retry for hundreds of steps. Sample the curve only
+    // after its destination and crossing are clear, immediately before entry.
+    buildTurnPath(car, blockSize, turn);
     if (car.race) finishRace(car.race);
     car.turn = turn;
     turn.required = required;
