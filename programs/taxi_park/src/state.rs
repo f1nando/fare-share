@@ -11,6 +11,7 @@ pub const MAX_DURABILITY_SECONDS: i64 = 5 * 24 * 60 * 60;
 pub const MAX_QUEUE_PAGES: usize = 32;
 pub const EVENTS_PER_PAGE: usize = 128;
 pub const MAX_BATCH_EVENTS: u8 = 20;
+pub const MAX_METADATA_URI_LEN: usize = 200;
 
 #[account]
 #[derive(InitSpace)]
@@ -22,6 +23,14 @@ pub struct Configuration {
     pub collection: Pubkey,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
+    #[max_len(MAX_METADATA_URI_LEN)]
+    pub economy_uri: String,
+    #[max_len(MAX_METADATA_URI_LEN)]
+    pub comfort_uri: String,
+    #[max_len(MAX_METADATA_URI_LEN)]
+    pub business_uri: String,
+    #[max_len(MAX_METADATA_URI_LEN)]
+    pub legend_uri: String,
     pub mint_prices: [u64; CLASS_COUNT],
     pub minted_by_class: [u16; CLASS_COUNT],
     pub sale_started: bool,
@@ -47,6 +56,16 @@ impl Configuration {
             0 => Ok(self.fare_mint),
             1..=STOCK_COUNT => Ok(self.stock_mints[index - 1]),
             _ => err!(TaxiError::InvalidRewardAsset),
+        }
+    }
+
+    pub fn metadata_uri(&self, class: usize) -> Result<&str> {
+        match class {
+            0 => Ok(&self.economy_uri),
+            1 => Ok(&self.comfort_uri),
+            2 => Ok(&self.business_uri),
+            3 => Ok(&self.legend_uri),
+            _ => err!(TaxiError::InvalidClass),
         }
     }
 }

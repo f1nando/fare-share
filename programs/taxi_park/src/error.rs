@@ -62,4 +62,24 @@ pub enum TaxiError {
     InvalidRewardMint,
     #[msg("Token vault contains no new reward tokens")]
     NothingToSync,
+    #[msg("Metadata URI is empty or too long")]
+    InvalidMetadataUri,
+    #[msg("NFT does not belong to the configured collection")]
+    InvalidCollection,
+    #[msg("Signer is not the current NFT owner")]
+    InvalidAssetOwner,
+    #[msg("Machine is permanently closed")]
+    MachineClosed,
+    #[msg("Machine class supply is exhausted")]
+    ClassSoldOut,
+    #[msg("NFT sale has not started")]
+    SaleNotStarted,
+    #[msg("Event page needs two free slots")]
+    EventPageCapacity,
+    #[msg("Claim requires five mint/vault/destination/token-program groups")]
+    InvalidClaimAccounts,
+    #[msg("Unsupported or mismatched SPL Token Program")]
+    InvalidTokenProgram,
+    #[msg("Token account mint or authority is invalid")]
+    InvalidTokenAccount,
 }
