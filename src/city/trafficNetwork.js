@@ -252,8 +252,8 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       }
     }
   }
-  if(roadLayout)prepareApproachCrossings(lanes,activeTurns,time,blockSize);
   const crossingAccess = intersectionAccess(lanes, blockSize, time, locks, roadLayout);
+  if(roadLayout)prepareApproachCrossings(lanes,activeTurns,time,blockSize,crossingAccess,delta);
   // A turning car is still stored on its old street. Advertise its landing
   // position to the opposite stream before it transfers, so a taxi cannot
   // start a feint/overtake into the car that is about to appear there.

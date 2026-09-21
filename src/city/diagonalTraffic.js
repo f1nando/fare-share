@@ -1,6 +1,6 @@
 import { THIRD_TRACK, boulevardRoad, streetHalf, junctionStop, laneOffset } from './roadProfile.js';
 import { DIAGONAL_LANE, DIAGONAL_HALF, diagonalFromJunction, approachesNear } from './diagonalLayout.js';
-import { TRACKS, STOP_LINE, PAVED_ROAD, occupiesTrack, greenLight, stoppingSpeed } from './world.js';
+import { CAR_GAP, STOP_LINE, occupiesTrack, greenLight, stoppingSpeed } from './world.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { buildRoundaboutPath, roundaboutPose } from './roundabouts.js';
@@ -75,11 +75,30 @@ export function diagonalLandingClear(car,turn,lanes){
 export function approachProgress(turn){const p=roundaboutPose(turn),r=turn.road;return(p.x-r.a.x*turn.block)*r.dx+(p.z-r.a.z*turn.block)*r.dz;}
 const crossingHalf=(road,gate)=> (streetHalf(gate.axis,gate.line)+1.6)/(road.axis===0?Math.abs(road.dx):Math.abs(road.dz));
 const normalHalf=road=>DIAGONAL_HALF/(road.axis===0?Math.abs(road.dx):Math.abs(road.dz))+2;
+const crossingPosition=(road,gate,car,block)=>gate.position*block+(gate.axis===0?road.dx/road.dz:road.dz/road.dx)*
+  (gate.axis===0?car.direction*car.offset:-car.direction*car.offset);
+// At the narrow end of a wedge, the next grid stop line can still lie inside
+// the diagonal crossing. Reserve that junction before entering the crossing,
+// so a signal change cannot strand the rear of a bus across the diagonal.
+function linkedJunction(road,gate,car,block){
+  const along=crossingPosition(road,gate,car,block),d=car.direction;
+  const center=Math.ceil(along*d/block)*block*d;
+  const stop=junctionStop(gate.axis===0?center/block:gate.line,gate.axis===0?gate.line:center/block);
+  return (center-along)*d-stop<=normalHalf(road)+extraHalfLength(car)*2 ? center : null;
+}
+function crossingEntryDistance(road,gate,car,block){
+  const divided=boulevardRoad(gate.axis,gate.line);
+  const inner=laneOffset(gate.axis,gate.line,divided?0:-1),outer=laneOffset(gate.axis,gate.line,divided?THIRD_TRACK:2);
+  const slope=gate.axis===0?road.dx/road.dz:-road.dz/road.dx;
+  // One stop line across the carriageway: changing lanes while waiting must
+  // not slide the angled boundary behind the car and silently admit it.
+  return (gate.position*block-car.position)*car.direction+Math.min(slope*inner,slope*outer)-normalHalf(road)-extraHalfLength(car);
+}
 
-// Cross traffic and approach traffic share alternating signal phases. A claim
-// lasts only until the rear clears ONE intersection; the opposite lane remains
-// independent and following cars can enter the same corridor.
-export function prepareApproachCrossings(lanes,active,time,block){
+// Cross traffic and approach traffic share alternating signal phases. Claims
+// cover this crossing and an overlapping grid junction, never the whole road;
+// the opposite lane and following cars remain independent.
+export function prepareApproachCrossings(lanes,active,time,block,crossingAccess,delta=0){
   const roads=new Map();
   for(const car of active)if(car.turn.kind==='diagonal')roads.set(car.turn.roadId,car.turn.road);
   for(const lane of lanes.values())for(const car of lane.cars){
@@ -95,12 +114,27 @@ export function prepareApproachCrossings(lanes,active,time,block){
       !c.turn.ringActive&&Math.abs(approachProgress(c.turn)-gate.fraction*road.length)<crossingHalf(road,gate)+extraHalfLength(c)-.001);
     for(const d of [-1,1])for(const car of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
       if(car.turn||car.parking)continue;
-      const along=gate.position*block+(gate.axis===0?road.dx/road.dz:road.dz/road.dx)*
-        (gate.axis===0?d*car.offset:-d*car.offset);
-      const until=(along-car.position)*d-normalHalf(road)-extraHalfLength(car);
+      const along=crossingPosition(road,gate,car,block);
+      const until=crossingEntryDistance(road,gate,car,block);
       const landingBlocked=(lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]).some(other=>other!==car&&!other.turn&&occupiesTrack(other,car.track)&&
-        (other.position-car.position)*d>0&&(other.position-car.position)*d<until+normalHalf(road)*2+vehicleGap(car,other));
-      if(until>=-.001&&(!greenLight(time,gate.axis)||crossingCars.length||landingBlocked))car.approachClearance=Math.min(car.approachClearance,Math.max(0,until));
+        (other.position-car.position)*d>0&&(other.position-car.position)*d<(along-car.position)*d+normalHalf(road)+vehicleGap(car,other));
+      if(until<-.001)continue;
+      const center=linkedJunction(road,gate,car,block),reserved=center!==null&&car.crossing===center;
+      let blocked=!reserved&&(!greenLight(time,gate.axis)||crossingCars.length||landingBlocked);
+      if(!blocked&&!reserved&&center!==null&&crossingAccess){
+        let clearance=Infinity;
+        for(const other of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
+          if(other===car||!occupiesTrack(other,car.track))continue;
+          const ahead=(other.position-car.position)*d;
+          if(ahead>0)clearance=Math.min(clearance,ahead-vehicleGap(car,other)+CAR_GAP);
+        }
+        const travel=(center-car.position)*d-(car.junctionStop??STOP_LINE)+.01;
+        // Claim a short approach too: this frame's acceleration can carry a
+        // car over the boundary even when speed * delta falls just short.
+        const commit=until<=Math.max(1,(car.speed+(car.acceleration??4)*2*delta)*delta);
+        blocked=!crossingAccess(car,travel,true,clearance,car.speed,commit);
+      }
+      if(blocked)car.approachClearance=Math.min(car.approachClearance,Math.max(0,until));
     }
   }
 }
@@ -118,9 +152,9 @@ export function diagonalTravelLimit(car,active,lanes,time,block){
     let clear=greenLight(time,r.axis)&&limit>=until+crossingHalf(r,gate)*2+vehicleGap(car,car);
     for(const d of [-1,1])for(const other of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
       if(other.turn||other.parking)continue;
-      const along=gate.position*block+(gate.axis===0?r.dx/r.dz:r.dz/r.dx)*
-        (gate.axis===0?d*other.offset:-d*other.offset);
-      if(Math.abs(other.position-along)<normalHalf(r)+extraHalfLength(other)-.001)clear=false;
+      const along=crossingPosition(r,gate,other,block),center=linkedJunction(r,gate,other,block);
+      const reserved=center!==null&&other.crossing===center&&(along-other.position)*d>=-normalHalf(r)-extraHalfLength(other);
+      if(reserved||Math.abs(other.position-along)<normalHalf(r)+extraHalfLength(other)-.001)clear=false;
     }
     if(!clear)limit=Math.min(limit,Math.max(0,until));
   }
