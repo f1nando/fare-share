@@ -24,6 +24,7 @@ import { SceneryCache } from './sceneryCache.js';
 import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
 import { boatHullGeometry, addBoats } from './boats.js';
+import { AirTraffic } from './airTraffic.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
@@ -234,6 +235,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const scenery = new SceneryCache(populateBlock);
   const carsBatch = new Batches(scene, geometries, true);
   const hornEffects = new HornEffects(scene);
+  const airTraffic = new AirTraffic(scene);
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
   for (const material of [staticBatch.material, carsBatch.material, groundMaterial]) backgroundFade.apply(material);
   const ground = new THREE.Mesh(createCanalGround(BLOCK), groundMaterial);
@@ -408,6 +410,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       }
     }
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
+    airTraffic.update(boatTime, focus, camera);
     carsBatch.flush();
     // At most one incoming tile in a light frame. A slow frame never has to
     // finish the entire next strip; missing tiles still have a synchronous path.
@@ -480,7 +483,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
-    scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose();
+    scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
     Object.values(geometries).forEach(geometry => geometry.dispose());
     ground.geometry.dispose(); groundMaterial.dispose();
     sunlight.shadow.map?.dispose();
