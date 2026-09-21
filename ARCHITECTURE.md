@@ -24,7 +24,7 @@
 ## On-chain состояние
 
 - Configuration PDA: admin, pending admin, backend signer, pause state, `protocolTime`, разрешённые внешние program IDs и mint pubkeys.
-- Main pool PDA и SPL vaults: текущая серия, следующий пул, фиксированные raw-обязательства уже рассчитанных выплат, доход на единицу веса и остатки округления по mint.
+- Main pool PDA и SPL vaults: текущая серия, следующий пул, обязательства уже рассчитанных выплат, доход на единицу веса и остатки округления по mint. Способ фиксации xStocks-обязательств с учётом `ScaledUiAmount` уточняется в SOL-3a.
 - Machine PDA на каждый Metaplex Core Asset: вес, версия, `activeUntil`, checkpoints, `fareBase` и `claimable` по поддерживаемым mint. Core Asset хранит владение и публичные NFT-метаданные; изменяемое состояние машины хранится только в Machine PDA.
 - Event queue PDA: min-heap событий `MINT`, `REPAIR`, `EXPIRE`, упорядоченных по `timestamp + eventNumber`.
 - Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и записи `wallet + campaignId`.
@@ -48,8 +48,8 @@
 - `$FARE` запускается через pump.fun в canonical паре `FARE/SOL`. Собственных 4% временно нет; используется фактический переменный Creator Fee платформы, поступающий в SOL, без обещания постоянного процента.
 - Параметры `$FARE` принимает стандартный запуск pump.fun; до основного запуска обязательны тестовый mint и проверка прямого получения Creator Fees на PDA.
 - Split Creator Fee: 45% SOL покупают `$FARE` для основного парка, 5% — `$FARE` для стажёров, 20% — `$FARE` для burn, 20% напрямую покупают stock-токены, 10% переводятся команде в SOL.
-- Каждая из четырёх stock-позиций получает собственные 5% Creator Fee. Если xStock нельзя купить, SOL остаётся в отдельном резерве этой позиции и не перераспределяется.
-- Рассчитанное stock-начисление NFT фиксируется в raw units и не растёт до `claim`. Любой новый прирост stock-баланса program vault, включая rebasing/corporate action, сверх уже зарезервированных обязательств относится к новому пулу будущей выплаты. После `claim` токены находятся у пользователя, и последующие корпоративные события получает уже его кошелёк.
+- Stock-корзина состоит из `UBERx`, `TSLAx`, `GOOGLx` (Alphabet/Waymo) и `AMZNx` (Amazon/Zoox). Каждая позиция получает собственные 5% Creator Fee. Если xStock нельзя купить, SOL остаётся в отдельном резерве этой позиции и не перераспределяется.
+- Экономически рассчитанное stock-начисление NFT не должно расти до `claim`: выгода от нового corporate action относится к следующему пулу. После `claim` токены находятся у пользователя, и последующие изменения получает уже его кошелёк. Точный учёт через Token-2022 `ScaledUiAmount` открыт в SOL-3a.
 - Парк распределяет только фактически накопленный пул, без фиксированного APY.
 - Максимальная прочность обычной машины — 5 дней; `claim` её не меняет.
 - Полный ремонт стоит 25% рассчитанного `$FARE`-дохода машины после прошлого mint/ремонта и уменьшается пропорционально фактически потерянной прочности.
@@ -68,6 +68,7 @@
 - [Solana frontend client](https://solana.com/docs/frontend/client) — актуальный стек `@solana/kit` и React.
 - [Anchor](https://www.anchor-lang.com/docs) — framework для Solana programs на Rust.
 - [Metaplex Core Asset](https://developers.metaplex.com/core/what-is-an-asset) — выбранный NFT-стандарт с одним asset account и системой plugins.
-- [xStocks](https://xstocks.com/products) — предварительный кандидат токенизированных акций на Solana; конкретные продукты, mint-адреса, ликвидность и региональные ограничения ещё нужно подтвердить.
+- [xStocks](https://xstocks.com/products) — выбранный провайдер токенизированных акций; используются только четыре зафиксированных официальных Solana mint.
+- [xStocks Assets API](https://docs.xstocks.fi/apis/openapi/assets) — официальный источник deployments, mint-адресов, supply и multiplier для выбранных xStocks.
 - [pump.fun Fees](https://pump.fun/docs/fees) — Creator Fee и общая торговая комиссия зависят от стадии запуска, paired asset и диапазона market cap и могут изменяться площадкой.
 - [pump.fun Supported Pair Assets](https://pump.fun/docs/custom-pairs) — Creator Fees выплачиваются в paired asset, а не в `$FARE` автоматически.
