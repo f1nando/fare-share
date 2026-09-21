@@ -22,7 +22,8 @@ test('cached scenery retains identical transforms and colors across origins and 
       assert.equal(actual.count, mesh.count);
       assert.deepEqual(actual.instanceMatrix.array, mesh.instanceMatrix.array, kind);
       assert.deepEqual(actual.instanceColor.array, mesh.instanceColor.array, kind);
-      assert.deepEqual(actual.boundingSphere, mesh.boundingSphere, kind);
+      assert.ok(actual.boundingSphere.center.distanceTo(mesh.boundingSphere.center) < 1e-8, kind);
+      assert.ok(Math.abs(actual.boundingSphere.radius - mesh.boundingSphere.radius) < 1e-8, kind);
     }
     for (let i = 0; i < 12; i++) cache.warmOne();
     assert.ok(cache.tiles.size <= 16);

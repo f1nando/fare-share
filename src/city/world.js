@@ -2,6 +2,7 @@ import { updateBodyMotion } from './vehicleBody.js';
 import { HORN_DURATION } from './hornAnimation.js';
 import { LaneIndex } from './laneIndex.js';
 import { nextRoadwork, workEntryDistance, workMergeClear, WORK_MARGIN } from './roadworkRules.js';
+import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 
 export const BLOCK = 34;
 export const ROAD = 6.6;
@@ -199,10 +200,10 @@ export function greenTimeLeft(time, axis) {
   return greenLight(time, axis) ? (axis === 0 ? 8 : 19) - mod(time, 22) : 0;
 }
 
-export function advanceVehicle(position, distance, direction, green, blockSize = BLOCK) {
+export function advanceVehicle(position, distance, direction, green, blockSize = BLOCK, stopLine = STOP_LINE) {
   const oriented = position * direction;
   const untilJunction = blockSize - mod(oriented, blockSize);
-  const untilStop = untilJunction - STOP_LINE;
+  const untilStop = untilJunction - stopLine;
   if (!green && untilStop >= -0.001 && untilStop < distance) {
     return position + direction * Math.max(0, untilStop);
   }
@@ -485,7 +486,8 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     if (!car.changing && Number.isFinite(clearance)) speed = Math.min(speed, stoppingSpeed(clearance - CAR_GAP, braking, delta, frontSpeed));
     if (Number.isFinite(workClearance)) speed = Math.min(speed, stoppingSpeed(workClearance, braking, delta));
     const oriented = car.position * direction;
-    const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - STOP_LINE - oriented;
+    const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE;
+    const untilStop = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize - stopLine - oriented;
     if (speed > 0 && untilStop >= -0.001 && untilStop < car.speed * car.speed / (2 * braking) + car.speed * 0.15 + 1) {
       const mustWait = car.overtake?.launch && !green || (crossingAccess?.preview
         ? !crossingAccess.preview(car, untilStop + 0.01, green, crossingClearance, speed) : !green);
@@ -498,7 +500,7 @@ export function updateTraffic(cars, direction, delta, green, { blockSize = BLOCK
     // claims updated, but avoid scanning cross traffic for the rest of the queue.
     const needsAccess = travel > untilStop || car.crossing !== undefined;
     const permitted = car.overtake?.launch && !green ? false : crossingAccess && needsAccess ? crossingAccess(car, travel, green, crossingClearance, speed) : green;
-    const next = advanceVehicle(car.position, travel, direction, permitted, blockSize);
+    const next = advanceVehicle(car.position, travel, direction, permitted, blockSize, stopLine);
     car.speed = delta ? Math.abs(next - car.position) / delta : car.speed;
     car.position = next;
     if (car.changing) {

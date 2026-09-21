@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { districtPark, parkAt, roadOpen, spawnRoadOpen, relocateToRoad, CAMERA_DRIFT } from '../src/city/roadLayout.js';
+import { districtPark, parkAt, roadOpen, spawnRoadOpen, relocateToRoad, CAMERA_DRIFT, roundaboutAt } from '../src/city/roadLayout.js';
+import { ROUNDABOUT_CLEARANCE } from '../src/city/roundaboutDimensions.js';
 import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
-import { STOP_LINE, trackOffset } from '../src/city/world.js';
+import { STOP_LINE, PAVED_ROAD, trackOffset } from '../src/city/world.js';
 import { populateBlock } from '../src/city/createCity.js';
 
 const parks = [];
@@ -27,15 +28,19 @@ test('isolated merged parks create T junctions in both axes, including negative 
   }
 });
 
-test('both constituent blocks share one park slab and have no internal road markings', () => {
+test('both constituent blocks share continuous park paving with only roundabout corners removed', () => {
   for (const axis of [0, 1]) for (const block of [24, 40, 48]) {
     const park = parks.find(p => p.axis === axis), parts = [];
     const batch = { add: (...args) => parts.push(args) };
     for (let i = 0; i < 2; i++) populateBlock(batch, park.x + (axis === 0 ? i : 0), park.z + (axis === 1 ? i : 0),
       axis === 0 ? i * block : 0, axis === 1 ? i * block : 0, block);
-    const bases = parts.filter(p => p[0] === 'round' && p[2] === 0.1);
-    assert.equal(bases.length, 1);
-    assert.ok(bases[0][axis === 0 ? 4 : 6] > block);
+    const bases = parts.filter(p => ['round','box'].includes(p[0]) && p[2] === 0.1);
+    const width = axis === 0 ? 2 : 1, depth = axis === 1 ? 2 : 1;
+    let cuts = 0;
+    for (const dx of [0,width]) for (const dz of [0,depth]) if (roundaboutAt(park.x+dx,park.z+dz)) cuts++;
+    const area = (width*block-PAVED_ROAD)*(depth*block-PAVED_ROAD)-cuts*(ROUNDABOUT_CLEARANCE-PAVED_ROAD/2)**2;
+    assert.ok(Math.abs(bases.reduce((sum,p)=>sum+p[4]*p[6],0)-area)<1e-7);
+    assert.ok(bases.some(p=>p[axis === 0 ? 4 : 6] > block));
     assert.equal(parts.filter(p => p[0] === 'paint' && (axis === 0 ? p[1] === block : p[3] === block)).length, 0);
   }
 });

@@ -7,6 +7,9 @@ import { updateNetwork, carCoordinates } from '../src/city/trafficNetwork.js';
 import { STOP_LINE, TRACKS, vehiclePose } from '../src/city/world.js';
 import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
+import { ROUNDABOUT_STOP, ROUNDABOUT_CLEARANCE } from '../src/city/roundaboutDimensions.js';
+import { roadHeight } from '../src/city/vehicleSurface.js';
+import { populateBlock } from '../src/city/createCity.js';
 
 const center = { x: 120, z: 40 };
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI/2 : -Math.PI/2;
@@ -18,13 +21,29 @@ function fixture() {
   }
   return lanes;
 }
-function vehicle(axis, direction, track, taxi = false, distance = STOP_LINE + 0.8) {
+function vehicle(axis, direction, track, taxi = false, distance = ROUNDABOUT_STOP + 0.8) {
   return { axis, direction, line: axis === 0 ? 1 : 3, track, fromTrack: track, offset: TRACKS[track],
     position: (axis === 0 ? center.x : center.z) - direction * distance,
     taxi, speed: taxi ? 4 : 3, cruise: taxi ? 14 : 7, baseCruise: taxi ? 14 : 7, acceleration: taxi ? 25 : 4,
     changing:false, merge:1, cooldown:5, steer:0, turnCooldown:100, flashCooldown:Infinity };
 }
 const pose = car => { const p = carCoordinates(car,40); return car.turn ? p : vehiclePose(p.x,p.z,car.axis,car.direction,car.steer); };
+
+test('expanded junction corners contain no pavement slabs, buildings or trees', () => {
+  for (const block of [24,40,48]) for (const [cx,cz] of [[3,1],[-3,-5]]) {
+    if (!roundaboutAt(cx,cz)) continue;
+    for (let gx=cx-2;gx<=cx;gx++) for (let gz=cz-2;gz<=cz;gz++) {
+      populateBlock({add(kind,x,y,z,w,h,d,color,rotation=0) {
+        if (kind==='paint'||kind==='island') return;
+        const scale=kind==='crown'?1:.5;
+        const hw=(Math.abs(Math.cos(rotation))*w+Math.abs(Math.sin(rotation))*d)*scale;
+        const hd=(Math.abs(Math.sin(rotation))*w+Math.abs(Math.cos(rotation))*d)*scale;
+        assert.ok(Math.abs(x-cx*block)-hw>=ROUNDABOUT_CLEARANCE-1e-7 || Math.abs(z-cz*block)-hd>=ROUNDABOUT_CLEARANCE-1e-7,
+          JSON.stringify({block,gx,gz,kind,x,z,w,d}));
+      }},gx,gz,gx*block,gz*block,block);
+    }
+  }
+});
 
 // Separating-axis test on actual car rectangles, including their corner swing.
 function overlaps(a,b) {
@@ -59,8 +78,8 @@ test('all entries, tracks and exits have continuous paths that clear the island 
     const car=vehicle(axis,direction,track), incoming=heading(axis,direction), outgoing=incoming+side*Math.PI/2;
     const targetAxis=side?1-axis:axis, targetDirection=side ? direction*side*(axis===0?1:-1):direction;
     const targetTrack=side<0?0:track;
-    const end={x:center.x+Math.cos(outgoing)*(STOP_LINE+1)-Math.sin(outgoing)*TRACKS[targetTrack],
-      z:center.z+Math.sin(outgoing)*(STOP_LINE+1)+Math.cos(outgoing)*TRACKS[targetTrack]};
+    const end={x:center.x+Math.cos(outgoing)*(ROUNDABOUT_STOP+1)-Math.sin(outgoing)*TRACKS[targetTrack],
+      z:center.z+Math.sin(outgoing)*(ROUNDABOUT_STOP+1)+Math.cos(outgoing)*TRACKS[targetTrack]};
     const turn=buildRoundaboutPath(car,{axis:targetAxis,direction:targetDirection,centerX:center.x,centerZ:center.z},carCoordinates(car,40),end);
     let previous=roundaboutPose(turn,0);
     for(let d=0;d<=turn.length;d+=.04) {
@@ -69,7 +88,7 @@ test('all entries, tracks and exits have continuous paths that clear the island 
       for(const end of [-1.125,1.125])for(const side of [-.46,.46]) {
         const x=p.x-center.x+side*Math.cos(p.angle)+end*Math.sin(p.angle),z=p.z-center.z-side*Math.sin(p.angle)+end*Math.cos(p.angle);
         assert.ok(Math.hypot(x,z)>ISLAND_RADIUS+.1,'body clears island');
-        assert.ok(Math.min(Math.abs(x),Math.abs(z))<3.85,'body stays on asphalt');
+        assert.equal(roadHeight(center.x+x,center.z+z,40,3.85),0,'body stays on expanded asphalt');
       }
       const difference=Math.atan2(Math.sin(p.angle-previous.angle),Math.cos(p.angle-previous.angle));
       assert.ok(Math.abs(difference)<.13,`heading jump ${difference}`); previous=p;
@@ -112,13 +131,13 @@ test(`moving simulation clears islands and circulating traffic (${profile.blockS
     for(const lane of simulation.lanes.values())for(const car of lane.cars) {
       completed=Math.max(completed,car.roundaboutsCompleted??0);
       const at=carCoordinates(car,block),p=car.turn?at:vehiclePose(at.x,at.z,car.axis,car.direction,car.steer),x=Math.round(p.x/block),z=Math.round(p.z/block);
-      if(!roundaboutAt(x,z)||Math.hypot(p.x-x*block,p.z-z*block)>7.8)continue;
+      if(!roundaboutAt(x,z)||Math.hypot(p.x-x*block,p.z-z*block)>ROUNDABOUT_STOP+2)continue;
       assert.ok(Math.hypot(p.x-x*block,p.z-z*block)>ISLAND_RADIUS+.65,`island at step ${step}`);
       nearby.push({car,p});
     }
     for(let i=0;i<nearby.length;i++)for(let j=i+1;j<nearby.length;j++) {
       if(!nearby[i].car.turn&&!nearby[j].car.turn)continue;
-      assert.ok(!overlaps(nearby[i].p,nearby[j].p),`traffic overlap at ${step}: ${JSON.stringify([nearby[i],nearby[j]],(k,v)=>['roadworks','race','overtake'].includes(k)?undefined:v)}`);
+      assert.ok(!overlaps(nearby[i].p,nearby[j].p),`traffic overlap at ${step}: ${JSON.stringify([nearby[i],nearby[j]].map(({car,p})=>({p,axis:car.axis,position:car.position,track:car.track,turn:car.turn?.kind})))}`);
     }
   }
   assert.ok(completed>0);

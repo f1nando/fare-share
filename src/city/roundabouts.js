@@ -1,10 +1,45 @@
 import { roundaboutAt } from './roadLayout.js';
 
-// Leave room for the swinging body corners beside queues at the stop lines.
-export const RING_RADIUS = 3.5;
-export const ISLAND_RADIUS = 2.05;
+import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
+export { RING_RADIUS, ISLAND_RADIUS } from './roundaboutDimensions.js';
 const TAU = Math.PI * 2;
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+
+// Open the corners of adjoining lots. Flat slabs are split into a few boxes;
+// trees and buildings that would occupy the widened junction are omitted.
+// The expanded range also covers a two-block park owned by this tile.
+export function roundaboutSceneryBatch(batch, gx, gz, x, z, block) {
+  const cuts = [];
+  for (let dx = 0; dx <= 2; dx++) for (let dz = 0; dz <= 2; dz++) if (roundaboutAt(gx + dx, gz + dz)) {
+    cuts.push({ left: x + dx * block - ROUNDABOUT_CLEARANCE, right: x + dx * block + ROUNDABOUT_CLEARANCE,
+      top: z + dz * block - ROUNDABOUT_CLEARANCE, bottom: z + dz * block + ROUNDABOUT_CLEARANCE });
+  }
+  if (!cuts.length) return batch;
+  return { add(kind, px, y, pz, w, h, d, color, rotation = 0, pitch = 0, roll = 0) {
+    const flat = h < 0.65 && rotation === 0 && !pitch && !roll;
+    const scale = kind === 'crown' ? 1 : 0.5;
+    const halfX = (Math.abs(Math.cos(rotation)) * w + Math.abs(Math.sin(rotation)) * d) * scale;
+    const halfZ = (Math.abs(Math.sin(rotation)) * w + Math.abs(Math.cos(rotation)) * d) * scale;
+    let pieces = [{ left: px - halfX, right: px + halfX, top: pz - halfZ, bottom: pz + halfZ }], changed = false;
+    for (const cut of cuts) {
+      const next = [];
+      for (const p of pieces) {
+        if (p.right <= cut.left || p.left >= cut.right || p.bottom <= cut.top || p.top >= cut.bottom) { next.push(p); continue; }
+        if (!flat) return;
+        changed = true;
+        const left = Math.max(p.left, cut.left), right = Math.min(p.right, cut.right);
+        if (p.left < left) next.push({ ...p, right: left });
+        if (p.right > right) next.push({ ...p, left: right });
+        if (p.top < cut.top) next.push({ left, right, top: p.top, bottom: cut.top });
+        if (p.bottom > cut.bottom) next.push({ left, right, top: cut.bottom, bottom: p.bottom });
+      }
+      pieces = next;
+    }
+    if (!changed) batch.add(kind, px, y, pz, w, h, d, color, rotation, pitch, roll);
+    else for (const p of pieces) batch.add('box', (p.left + p.right) / 2, y, (p.top + p.bottom) / 2,
+      p.right - p.left, h, p.bottom - p.top, color);
+  } };
+}
 
 export function populateRoundabout(batch, gx, gz, x, z) {
   if (!roundaboutAt(gx, gz)) return;
@@ -14,7 +49,7 @@ export function populateRoundabout(batch, gx, gz, x, z) {
   for (let i = 0; i < 12; i++) {
     const a = i * TAU / 12;
     batch.add('paint', x + Math.cos(a) * (ISLAND_RADIUS + 0.4), 0.016, z + Math.sin(a) * (ISLAND_RADIUS + 0.4),
-      0.12, 0.018, 0.45, '#e9e9e9', -a);
+      0.12, 0.018, 0.9, '#e9e9e9', -a);
   }
 }
 
@@ -32,13 +67,13 @@ export function buildRoundaboutPath(car, turn, start, end) {
   const sweep = ((entry - exit) % TAU + TAU) % TAU;
   const onRing = angle => ({ x: turn.centerX + RING_RADIUS * Math.cos(angle), z: turn.centerZ + RING_RADIUS * Math.sin(angle) });
   const a = onRing(entry), b = onRing(exit), points = [start];
-  const before = { x: start.x + Math.cos(incoming) * 1.4, z: start.z + Math.sin(incoming) * 1.4 };
-  const join = { x: a.x - Math.sin(entry), z: a.z + Math.cos(entry) };
+  const before = { x: start.x + Math.cos(incoming) * 2.8, z: start.z + Math.sin(incoming) * 2.8 };
+  const join = { x: a.x - Math.sin(entry) * 2, z: a.z + Math.cos(entry) * 2 };
   for (let i = 1; i <= 16; i++) points.push(cubic(start, before, join, a, i / 16));
   const count = Math.ceil(sweep / (Math.PI / 48));
   for (let i = 1; i <= count; i++) points.push(onRing(entry - sweep * i / count));
-  const leave = { x: b.x + Math.sin(exit), z: b.z - Math.cos(exit) };
-  const after = { x: end.x - Math.cos(outgoing) * 1.4, z: end.z - Math.sin(outgoing) * 1.4 };
+  const leave = { x: b.x + Math.sin(exit) * 2, z: b.z - Math.cos(exit) * 2 };
+  const after = { x: end.x - Math.cos(outgoing) * 2.8, z: end.z - Math.sin(outgoing) * 2.8 };
   for (let i = 1; i <= 16; i++) points.push(cubic(b, leave, after, end, i / 16));
   const samples = [0];
   for (let i = 1; i < points.length; i++) samples.push(samples[i - 1] + Math.hypot(points[i].x - points[i-1].x, points[i].z - points[i-1].z));

@@ -4,6 +4,7 @@ import { updateBodyMotion } from './vehicleBody.js';
 import { updateSurfaceMotion, settleOnFlatRoad, WHEEL_SIDES } from './vehicleSurface.js';
 import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt, roundaboutAt } from './roadLayout.js';
 import { buildRoundaboutPath, roundaboutPose, roundaboutMotion, roundaboutGap } from './roundabouts.js';
+import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -33,13 +34,13 @@ export function turnPose(turn) {
   return { ...pose, angle: pose.angle + drift, drift, sin: Math.sin(pose.angle + drift), cos: Math.cos(pose.angle + drift) };
 }
 
-function turnTarget(car, blockSize, side) {
-  const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize * car.direction;
+function turnTarget(car, blockSize, side, stopLine = STOP_LINE) {
+  const center = Math.ceil((car.position * car.direction - stopLine) / blockSize) * blockSize * car.direction;
   const crossLine = Math.round(center / blockSize);
   const axis = 1 - car.axis;
   const direction = car.direction * side * (car.axis === 0 ? 1 : -1);
   const track = side === 1 ? 1 : 0;
-  const position = car.line * blockSize + direction * (STOP_LINE + 1);
+  const position = car.line * blockSize + direction * (stopLine + 1);
   return { axis, line: crossLine, direction, track, position, side, distance: 0,
     junction: car.axis === 0 ? `${crossLine}:${car.line}` : `${car.line}:${crossLine}`,
     centerX: car.axis === 0 ? center : car.line * blockSize,
@@ -87,7 +88,7 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
         continue;
       }
       if (other.overtake?.leader === car) return false;
-      if (Math.abs(other.position - center) < STOP_LINE - 0.001 ||
+      if (Math.abs(other.position - center) < (roundabout ? ROUNDABOUT_STOP : STOP_LINE) - 0.001 ||
           other.crossing === center && (center - other.position) * direction >= -STOP_LINE) return false;
       // Reserve the destination track, including lane changes and cars
       // borrowing this road from the opposite direction.
@@ -133,16 +134,17 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     } else if (required) {
       if (!car.taxi && !greenLight(time, car.axis)) continue;
     } else if (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
-    const entryDistance = center - STOP_LINE - car.position * car.direction;
+    const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE;
+    const entryDistance = center - stopLine - car.position * car.direction;
     if (entryDistance < -0.001 || entryDistance > Math.max(1, car.speed * delta + 0.1)) continue;
-    let turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1);
+    let turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1, stopLine);
     if (car.roundaboutApproach) {
       // Stable choice across retries: most cars continue straight, taxis turn more.
       const choice = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 1000) + cross * 7 + car.line * 11) % 10;
       const side = choice < (car.taxi ? 3 : 1) ? -1 : choice < (car.taxi ? 6 : 2) ? 1 : 0;
-      if (side) turn = turnTarget(car, blockSize, side);
+      if (side) turn = turnTarget(car, blockSize, side, stopLine);
       else Object.assign(turn, { axis: car.axis, line: car.line, direction: car.direction,
-        track: car.track === 1 ? 1 : 0, position: center * car.direction + car.direction * (STOP_LINE + 1), side: 0 });
+        track: car.track === 1 ? 1 : 0, position: center * car.direction + car.direction * (stopLine + 1), side: 0 });
     }
     // Enter the open lane directly instead of landing in front of a work site.
     const work = roadLayout && roadworkAt(turn.axis, turn.line, Math.floor(turn.position / blockSize), blockSize);

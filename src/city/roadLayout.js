@@ -1,4 +1,5 @@
 import { canalColumn, canalBridge } from './bridgeProfile.js';
+import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 
 // One isolated two-block park per district. No global cache grows as the camera
 // travels; negative coordinates follow the same deterministic layout.
@@ -41,6 +42,7 @@ export function roadworkAt(axis, line, segment, block) {
   const dx = Math.floor(x / 4), dz = Math.floor(z / 4), code = districtCode(dx + 41, dz - 53);
   if (x !== dx * 4 + 1 + (code & 1) || z !== dz * 4 + 1 + ((code >>> 1) & 1) || axis !== ((code >>> 2) & 1)) return null;
   if (!roadOpen(axis, line, segment) || (axis === 0 ? canalColumn(segment) : canalColumn(line) || canalColumn(line - 1))) return null;
+  if (block < 32 && [segment, segment + 1].some(cross => roundaboutAt(axis === 0 ? cross : line, axis === 0 ? line : cross))) return null;
   const length = Math.min(6, block * 0.16), center = (segment + 0.5) * block;
   return { axis, line, segment, direction: (code & 8) ? 1 : -1, start: center - length / 2, end: center + length / 2 };
 }
@@ -76,7 +78,7 @@ export function straightRoadOpen(car, blockSize, stopLine) {
 export function spawnRoadOpen(car, blockSize, stopLine) {
   const cross = Math.round(car.position / blockSize);
   if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
-      Math.abs(car.position - cross * blockSize) < stopLine + 1.1) return false;
+      Math.abs(car.position - cross * blockSize) < ROUNDABOUT_STOP + 1.1) return false;
   if (!roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) ||
     !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize))) return false;
   if (car.track !== 1) return true;
@@ -93,8 +95,8 @@ export function relocateToRoad(car, blockSize, stopLine) {
   for (let i = 0; i < 3 && !spawnRoadOpen(car, blockSize, stopLine); i++) {
     const cross = Math.round(car.position / blockSize);
     if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
-        Math.abs(car.position - cross * blockSize) < stopLine + 1.1) {
-      car.position = cross * blockSize + car.direction * (stopLine + 1.2);
+        Math.abs(car.position - cross * blockSize) < ROUNDABOUT_STOP + 1.1) {
+      car.position = cross * blockSize + car.direction * (ROUNDABOUT_STOP + 1.2);
       continue;
     }
     let segment = Math.floor(car.position / blockSize);

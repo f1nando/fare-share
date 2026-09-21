@@ -1,3 +1,6 @@
+import { roundaboutAt } from './roadLayout.js';
+import { ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
+
 export const WHEEL_SIDES = [-0.43, 0.43];
 export const WHEEL_AXLES = [-0.69, 0.69];
 const clamp01 = value => Math.max(0, Math.min(1, value));
@@ -19,7 +22,9 @@ export function settleOnFlatRoad(car) {
 // then a 0.42-high pavement inset by 0.21. Crossroads remain flat asphalt.
 export function roadHeight(x, z, blockSize, roadHalf) {
   const distance = value => Math.abs(value - Math.round(value / blockSize) * blockSize);
-  const inset = Math.min(distance(x), distance(z)) - roadHalf;
+  let inset = Math.min(distance(x), distance(z)) - roadHalf;
+  const gx = Math.round(x / blockSize), gz = Math.round(z / blockSize);
+  if (roundaboutAt(gx, gz)) inset = Math.min(inset, Math.max(Math.abs(x - gx * blockSize), Math.abs(z - gz * blockSize)) - ROUNDABOUT_CLEARANCE);
   return 0.25 * smooth(inset / 0.1) + 0.17 * smooth((inset - 0.21) / 0.1);
 }
 
