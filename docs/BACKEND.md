@@ -23,6 +23,23 @@ npm run protocol:initialize
 
 До выполнения нужны реальные `FARE_MINT`, четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Заглушки из `.env.example` использовать нельзя.
 
+## Ручное управление через SSH
+
+Административных HTTP endpoints и web-панели нет. Оператор запускает отдельную CLI с ключом из `ADMIN_KEYPAIR_SECRET_KEY`:
+
+```sh
+npm run protocol:admin -- set-mint-prices 1000000000,2000000000,3000000000,4000000000
+npm run protocol:admin -- start-sale
+npm run protocol:admin -- pause
+npm run protocol:admin -- unpause
+npm run protocol:admin -- set-team <pubkey>
+npm run protocol:admin -- set-backend-signer <pubkey>
+npm run protocol:admin -- set-jupiter <program-id>
+npm run protocol:admin -- propose-admin <new-admin-pubkey>
+```
+
+Новый admin завершает двухшаговую передачу своей копией `.env` через `npm run protocol:admin -- accept-admin`. Аварийные команды `rescue-sol <recipient> <lamports>` и `rescue-token <mint> <recipient-wallet> <raw-amount>` работают только после отдельной транзакции `pause`. Token rescue сам идемпотентно создаёт ATA получателя, если его ещё нет.
+
 ## Кампания стажёра
 
 ```sh
@@ -39,7 +56,7 @@ Frontend отправляет `wallet`, `campaignId`, найденное сло�
 
 ```sh
 npm run server:typecheck
-node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts
+node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts tests/backend-admin.test.ts
 ```
 
 ## Permissionless worker

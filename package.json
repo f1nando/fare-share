@@ -11,6 +11,7 @@
     "campaign:create": "tsx scripts/create-trainee-campaign.ts",
     "worker": "tsx scripts/run-worker.ts",
     "protocol:initialize": "tsx scripts/initialize-protocol.ts",
+    "protocol:admin": "tsx scripts/admin.ts",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test"
