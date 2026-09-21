@@ -1,3 +1,4 @@
+import { vehicleType } from './vehicleTypes.js';
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 
 import { RING_RADIUS, ISLAND_RADIUS, ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
@@ -92,7 +93,7 @@ export function buildRoundaboutPath(car, turn, start, end) {
   for (let i = 1; i < points.length; i++) samples.push(samples[i - 1] + Math.hypot(points[i].x - points[i-1].x, points[i].z - points[i-1].z));
   const angles = points.map((p, i) => i === 0 ? Math.PI / 2 - incoming : i === points.length - 1 ? Math.PI / 2 - outgoing :
     Math.atan2(points[i+1].x-points[i-1].x, points[i+1].z-points[i-1].z));
-  Object.assign(turn, { kind: 'roundabout', path: points, angles, samples, entryLength: samples[16], length: samples.at(-1), distance: 0, elapsed: 0,
+  Object.assign(turn, { vehicleLength: vehicleType(car).length, kind: 'roundabout', path: points, angles, samples, entryLength: samples[16], length: samples.at(-1), distance: 0, elapsed: 0,
     startSpeed: car.speed, acceleration: car.acceleration ?? (car.taxi ? 25 : 4),
     limit: Math.max(car.speed, Math.min(car.cruise, car.taxi ? 10 : 7)), incoming, outgoing });
   return turn;
@@ -122,8 +123,8 @@ export function roundaboutPose(turn, distance = turn.distance) {
   return { x: a.x + (b.x-a.x)*t, z: a.z + (b.z-a.z)*t, angle, sin: Math.sin(angle), cos: Math.cos(angle), drift: 0 };
 }
 
-function bodyGap(a,b) {
-  const dx=b.x-a.x,dz=b.z-a.z,halfWidth=.8,halfLength=1.47;
+function bodyGap(a,b, lengthA = 2.25, lengthB = 2.25) {
+  const dx=b.x-a.x,dz=b.z-a.z,halfWidth=.8,halfLength=Math.max(lengthA,lengthB)/2+.345;
   if(dx*dx+dz*dz>4*(halfWidth*halfWidth+halfLength*halfLength))return true;
   const axes=[[a.cos,-a.sin],[a.sin,a.cos],[b.cos,-b.sin],[b.sin,b.cos]];
   for(const [x,z] of axes) {
@@ -156,7 +157,7 @@ export function roundaboutGap(turn, circulating) {
       const a = predictedPose(turn, incoming.distance), b = predictedPose(other, existing.distance);
       // Oriented bodies distinguish adjacent lanes from a crossing conflict.
       // The margin covers movement between samples, even for fast taxi entries.
-      if (!bodyGap(a,b)) return false;
+      if (!bodyGap(a,b,turn.vehicleLength,other.vehicleLength)) return false;
       if (incoming.distance >= turn.length && existing.distance >= other.length) break;
     }
   }

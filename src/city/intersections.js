@@ -1,3 +1,4 @@
+import { extraHalfLength } from './vehicleTypes.js';
 import { CAR_GAP, STOP_LINE, occupiesTrack, greenLight } from './world.js';
 import { straightRoadOpen, roundaboutAt } from './roadLayout.js';
 
@@ -28,7 +29,7 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     if (occupiesTrack(car, 0) && lanes.get(`${car.axis}:${car.line}:${-car.direction}`)?.cars.some(other =>
       other.overtake?.passTrack === -1 && other.overtake.launch?.center === nextCenter)) return false;
     if (car.crossing !== undefined) {
-      if (oriented <= car.crossing * car.direction + STOP_LINE) return true;
+      if (oriented <= car.crossing * car.direction + STOP_LINE + extraHalfLength(car)) return true;
       if (commit) car.crossing = undefined;
     }
     const center = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize;
@@ -45,7 +46,7 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     const crossingPosition = center * car.direction;
     const crossLine = Math.round(crossingPosition / blockSize);
     const crossCenter = car.line * blockSize;
-    const distance = STOP_LINE * 2 + 0.3;
+    const distance = STOP_LINE * 2 + 0.3 + extraHalfLength(car);
     const acceleration = car.acceleration ?? 25;
     const clearTime = arrivalTime(distance, speed, acceleration, car.cruise);
 
@@ -53,8 +54,8 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
       const crossLane = lanes.get(`${1 - car.axis}:${crossLine}:${direction}`);
       for (const other of crossLane?.cars ?? []) {
         const toCenter = (crossCenter - other.position) * direction;
-        const inside = Math.abs(toCenter) < STOP_LINE - 0.001;
-        const reserved = other.crossing === crossCenter && toCenter >= -STOP_LINE;
+        const inside = Math.abs(toCenter) < STOP_LINE + extraHalfLength(other) - 0.001;
+        const reserved = other.crossing === crossCenter && toCenter >= -STOP_LINE - extraHalfLength(other);
         if (inside || reserved) return false;
         if (!green && toCenter >= STOP_LINE && (other.taxi || greenLight(time, 1 - car.axis))) {
           // A stopped queue does not instantly travel at maximum speed. Account

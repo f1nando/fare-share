@@ -2,8 +2,10 @@ import { carCoordinates } from './trafficNetwork.js';
 import { headlightsOn } from './world.js';
 import { presentation } from './vehiclePresentation.js';
 
+import { VEHICLE_KINDS } from './vehicleTypes.js';
+
 // Transfer only drawing data, never the simulation's cyclic car/reservation graph.
-export const CAR_STRIDE = 17;
+export const CAR_STRIDE = 18;
 
 export function packTraffic(lanes, identities) {
   let count = 0, taxis = 0, turns = 0, launches = 0;
@@ -22,6 +24,7 @@ export function packTraffic(lanes, identities) {
     data[offset + 11] = Number(car.taxi); data[offset + 12] = colors.get(car.color);
     data[offset + 13] = Number(headlightsOn(car)); data[offset + 14] = car.hornAge ?? -1;
     data[offset + 15] = car.signalIndex ?? 0; data[offset + 16] = car.rideHeight ?? 0;
+    data[offset + 17] = Math.max(0, VEHICLE_KINDS.indexOf(car.kind));
     offset += CAR_STRIDE;
     taxis += Number(car.taxi); turns += car.turnsCompleted ?? 0; launches += car.launchesCompleted ?? 0;
   }
@@ -38,6 +41,7 @@ export function readPose(data, offset, target = {}) {
 
 export function readAppearance(data, offset, target = {}) {
   target.taxi = Boolean(data[offset + 11]); target.color = data[offset + 12];
+  target.kind = VEHICLE_KINDS[data[offset + 17]] ?? 'car';
   target.headlights = Boolean(data[offset + 13]);
   target.hornAge = data[offset + 14] < 0 ? undefined : data[offset + 14];
   target.signalIndex = data[offset + 15]; target.rideHeight = data[offset + 16];

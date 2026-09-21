@@ -5,6 +5,7 @@ import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, headlights
 import { normalizeSettings } from './settings.js';
 import { COLOR_SCHEMES, createBackgroundFade } from './colorSchemes.js';
 import { carCoordinates, updateNetwork } from './trafficNetwork.js';
+import { drawTrafficVehicle } from './vehicleModels.js';
 import { bodyPartPose } from './vehicleBody.js';
 import { WHEEL_SIDES, WHEEL_AXLES } from './vehicleSurface.js';
 import { SimulationClock } from './simulationClock.js';
@@ -141,6 +142,7 @@ function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, bl
     batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0),
       pose.z - local.x * pose.sin + local.z * pose.cos, w, h, d, color, pose.angle, sprung ? pitch : 0, sprung ? roll : 0);
   };
+  if (drawTrafficVehicle(part, car, pose)) return true;
   const color = car.taxi ? '#ffca00' : car.color;
   part(car.taxi ? 'taxi' : 'car', 0, 0.42, 0, 0.92, 0.48, 2.25, color);
   part(car.taxi ? 'taxiDetail' : 'car', 0, 0.78, -0.12, 0.8, 0.4, 1.15, '#333333');
@@ -213,6 +215,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     round: benchmark?.simpleCurbs ? new THREE.BoxGeometry(1, 1, 1) : new RoundedBoxGeometry(1, 1, 1, 1, 0.075),
     building: new THREE.BoxGeometry(1, 1, 1),
     car: new THREE.BoxGeometry(1, 1, 1),
+    wheel: new THREE.CylinderGeometry(0.5, 0.5, 1, 10).rotateZ(Math.PI / 2),
     taxi: new THREE.BoxGeometry(1, 1, 1),
     taxiDetail: new THREE.BoxGeometry(1, 1, 1),
     light: new THREE.BoxGeometry(1, 1, 1),

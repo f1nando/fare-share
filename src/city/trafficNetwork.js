@@ -1,3 +1,4 @@
+import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
 import { updateBodyMotion } from './vehicleBody.js';
@@ -93,12 +94,12 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
         continue;
       }
       if (other.overtake?.leader === car) return false;
-      if (Math.abs(other.position - center) < (roundabout ? ROUNDABOUT_STOP : STOP_LINE) - 0.001 ||
+      if (Math.abs(other.position - center) < (roundabout ? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(other) - 0.001 ||
           other.crossing === center && (center - other.position) * direction >= -STOP_LINE) return false;
       // Reserve the destination track, including lane changes and cars
       // borrowing this road from the opposite direction.
       const inLandingTrack = direction === turn.direction ? occupiesTrack(other, turn.track) : turn.track === 0 && occupiesTrack(other, -1);
-      if (axis === turn.axis && inLandingTrack && Math.abs(other.position - turn.position) < CAR_GAP + 1) return false;
+      if (axis === turn.axis && inLandingTrack && Math.abs(other.position - turn.position) < vehicleGap(car, other) + 1) return false;
       if(roundabout && axis===turn.axis && inLandingTrack) {
         const ahead=(other.position-turn.position)*turn.direction;
         if(ahead>=0) exitSpace=Math.min(exitSpace,ahead);
@@ -143,7 +144,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     } else if (required) {
       if (!car.taxi && !greenLight(time, car.axis)) continue;
     } else if (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
-    const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE;
+    const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE + extraHalfLength(car);
     const entryDistance = center - stopLine - car.position * car.direction;
     const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
       blockSize - ROUNDABOUT_STOP - STOP_LINE - 1.2) : Math.max(1, car.speed * delta + 0.1);
@@ -204,7 +205,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     const turn = car.turn, key = laneKey(turn.axis, turn.line, turn.direction);
     if (!landings.has(key)) landings.set(key, []);
     landings.get(key).push({ axis: turn.axis, line: turn.line, direction: turn.direction, position: turn.position,
-      track: turn.track, taxi: car.taxi, speed: car.cruise * 1.25, cruise: car.cruise, acceleration: car.acceleration });
+      track: turn.track, taxi: car.taxi, kind: car.kind, speed: car.cruise * 1.25, cruise: car.cruise, acceleration: car.acceleration });
   }
   for (const lane of lanes.values()) updateTraffic(lane.cars, lane.direction, delta, greenLight(time, lane.axis), {
     blockSize, weaving, crossingAccess,

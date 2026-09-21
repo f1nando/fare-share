@@ -1,3 +1,5 @@
+import { extraHalfLength } from './vehicleTypes.js';
+
 const tracks = [-1, 0, 1, 2];
 const empty = Object.freeze({ gap: Infinity, leader: null });
 
@@ -31,7 +33,7 @@ export class LaneIndex {
     // Match the original first-in-array choice when cars have tied positions.
     while (index > 0 && row[index - 1].position === row[index].position) index--;
     const leader = row[index];
-    return { gap: (leader.position - car.position) * this.direction, leader };
+    return { gap: (leader.position - car.position) * this.direction - extraHalfLength(car) - extraHalfLength(leader), leader };
   }
 
   reservation(car) { return this.owners.get(car)?.overtake; }
