@@ -13,6 +13,8 @@ import { HornEffects } from './hornEffects.js';
 import { populateLane } from './trafficPopulation.js';
 import { trafficSnapshot } from './benchmarkScenario.js';
 import { CAMERA_OFFSET, activeWorldSize, originShift, resizeLanePopulation, releaseOutsideLanes } from './activeWorld.js';
+import { TrafficWorkerClient } from './TrafficWorkerClient.js';
+import { CAR_STRIDE, readPose, readAppearance, frameSnapshot } from './trafficFrames.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -98,6 +100,10 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
   if (!visiblePosition(coordinates, originX, originZ, focus, camera)) return;
   const pose = interpolatePresentation(presentation(car, coordinates), previousPose, alpha);
+  return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects);
+}
+
+function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects) {
   pose.x -= originX; pose.z -= originZ;
   pose.sin = Math.sin(pose.angle); pose.cos = Math.cos(pose.angle);
   const { pitch, roll, lift } = pose;
@@ -116,7 +122,7 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
   }
   if (car.taxi) {
     part('taxiDetail', 0, 1.13, -0.18, 0.42, 0.19, 0.24, '#292929');
-    if (headlightsOn(car)) {
+    if (car.headlights ?? headlightsOn(car)) {
       for (const side of [-1, 1]) {
         part('light', side * 0.29, 0.5, 1.14, 0.24, 0.2, 0.06, '#fffce2');
         part('beam', side * 0.31, 0.035, 2.5, 0.62, 1, 2.6, '#fffce2', false);
@@ -124,6 +130,28 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
     }
   }
   return true;
+}
+
+export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, hornEffects) {
+  if (!frame) return 0;
+  const { lower, upper, alpha } = frame, pose = {}, previousPose = {}, car = {};
+  let visible = 0;
+  for (let offset = 0; offset < upper.data.length; offset += CAR_STRIDE) {
+    pose.x = upper.data[offset + 1]; pose.z = upper.data[offset + 2];
+    if (!visiblePosition(pose, originX, originZ, focus, camera, 2)) continue;
+    readPose(upper.data, offset, pose);
+    const before = lower.index.get(upper.data[offset]);
+    if (before !== undefined) interpolatePresentation(pose, readPose(lower.data, before, previousPose), alpha);
+    if (!visiblePosition(pose, originX, originZ, focus, camera)) continue;
+    const source = before !== undefined && alpha < 1 ? lower : upper;
+    readAppearance(source.data, source === lower ? before ?? offset : offset, car);
+    if (car.hornAge !== undefined && upper.data[offset + 14] >= 0 && car.signalIndex === upper.data[offset + 15]) {
+      car.hornAge += (upper.data[offset + 14] - car.hornAge) * alpha;
+    }
+    if (before !== undefined) car.rideHeight = lower.data[before + 16] + (upper.data[offset + 16] - lower.data[before + 16]) * alpha;
+    drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects); visible++;
+  }
+  return visible;
 }
 
 export function createCity(container, initialSettings, benchmark = null) {
@@ -190,6 +218,16 @@ export function createCity(container, initialSettings, benchmark = null) {
   const fixedSimulation = benchmark?.fixedStep !== false;
   let previousPoses = new WeakMap(), renderAlpha = 1;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let worker = null, workerFrame = null, workerFailure = null;
+  const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
+    focus: { x: originX + focus.x, z: originZ + focus.z }, lightTime: time,
+    seed: benchmark?.seed ?? 0, simulationHz: benchmark?.simulationHz === 60 ? 60 : 30,
+    simulate: benchmark?.simulate !== false });
+  const workerFailed = message => {
+    workerFailure = message; worker = null; workerFrame = null;
+    lanes.clear(); lastCellX = NaN; previous = 0;
+    simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
+  };
 
   function rebuild() {
     const layoutSettings = { ...settings, blockSize: BLOCK };
@@ -198,6 +236,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       for (let z = -area.z; z <= area.z; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK, BLOCK);
     }
     staticBatch.flush();
+    if (worker) return;
     const next = new Map();
     for (let axis = 0; axis < 2; axis++) {
       const centerLine = axis === 0 ? worldZ : worldX;
@@ -235,6 +274,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     if (benchmark?.radius !== undefined) nextArea.x = nextArea.z = benchmark.radius;
     if (area.x !== nextArea.x || area.z !== nextArea.z) lastCellX = NaN;
     area = nextArea;
+    worker?.configure(workerConfig());
   }
 
   function frame(timestamp) {
@@ -245,11 +285,19 @@ export function createCity(container, initialSettings, benchmark = null) {
     const delta = previous ? Math.min((timestamp - previous) / 1000, 0.06) : 0;
     previous = timestamp;
     const moving = !document.hidden && (benchmark || !reducedMotion.matches) && !settings.paused;
-    if (moving) {
+    const bufferStart = benchmark ? performance.now() : 0;
+    if (worker) {
+      workerFrame = worker.advance(rafMs / 1000, moving);
+      if (workerFrame) {
+        focus.x = workerFrame.focusX - originX; focus.z = workerFrame.focusZ - originZ;
+        time = workerFrame.lightTime;
+      }
+    } else if (moving) {
       // Positive camera displacement projects down and right on the ground.
       focus.x += delta * 0.92 * settings.cameraSpeed / 100;
       focus.z += delta * 0.36 * settings.cameraSpeed / 100;
     }
+    const bufferCpuMs = benchmark && worker ? performance.now() - bufferStart : 0;
     const shiftX = originShift(focus.x, BLOCK), shiftZ = originShift(focus.z, BLOCK);
     if (shiftX || shiftZ) {
       worldX += shiftX; worldZ += shiftZ;
@@ -280,7 +328,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     const simulationStart = benchmark ? performance.now() : 0;
     let simulationSteps = 0;
-    if (moving && benchmark?.simulate !== false) {
+    if (!worker && moving && benchmark?.simulate !== false) {
       const clockMultiplier = Math.min(1, settings.trafficSpeed / 100, settings.taxiSpeed / 100);
       const simulate = step => {
         if (fixedSimulation) for (const lane of lanes.values()) for (const car of lane.cars) {
@@ -298,7 +346,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       } else { simulate(delta); simulationSteps = delta > 0 ? 1 : 0; }
     }
     const prepareStart = benchmark ? performance.now() : 0;
-    let visibleCars = 0;
+    let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, focus, camera, hornEffects) : 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
         if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects,
@@ -312,10 +360,14 @@ export function createCity(container, initialSettings, benchmark = null) {
     if (benchmark) {
       const end = performance.now();
       benchmark.afterRender?.();
+      const workerMetrics = worker?.takeMetrics();
       benchmark.onFrame?.({ rafMs, cpuMs: end - start, rebuildMs,
-        simulationMs: prepareStart - simulationStart, simulationSteps, prepareMs: renderStart - prepareStart,
+        simulationMs: prepareStart - simulationStart + bufferCpuMs, simulationSteps: workerMetrics?.workerSteps ?? simulationSteps,
+        workerSimulationMs: 0, workerPackMs: 0, workerReceiveMs: 0, bufferMs: 0, bufferUnderruns: 0, playbackRate: 1,
+        workerStatus: workerFailure ? 'fallback' : 'disabled', workerFailure, ...workerMetrics,
+        prepareMs: renderStart - prepareStart,
         renderSubmitMs: end - renderStart, visibleCars,
-        totalCars: [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
+        totalCars: worker ? workerFrame?.upper.cars ?? 0 : [...lanes.values()].reduce((sum, lane) => sum + lane.cars.length, 0),
         blocks: (area.x * 2 + 1) * (area.z * 2 + 1), radiusX: area.x, radiusZ: area.z,
         triangles: renderer.info.render.triangles, calls: renderer.info.render.calls,
         geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures });
@@ -325,6 +377,10 @@ export function createCity(container, initialSettings, benchmark = null) {
   const observer = new ResizeObserver(resize);
   observer.observe(container);
   resize();
+  if (fixedSimulation && benchmark?.worker !== false && typeof Worker !== 'undefined') {
+    try { worker = new TrafficWorkerClient(workerConfig(), workerFailed); }
+    catch (error) { workerFailed(error.message); }
+  }
   renderer.setAnimationLoop(frame);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
@@ -339,6 +395,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     backgroundFade.setScheme(settings.colorScheme);
     scene.background.set(COLOR_SCHEMES[settings.colorScheme].background);
     if (zoomChanged) resize();
+    worker?.configure(workerConfig());
     if (regenerate) {
       clearTimeout(rebuildTimer);
       rebuildTimer = setTimeout(() => {
@@ -350,6 +407,8 @@ export function createCity(container, initialSettings, benchmark = null) {
         previousPoses = new WeakMap(); simulationClock.reset(); renderAlpha = 1;
         lastCellX = NaN;
         resize();
+        workerFrame = null;
+        worker?.restart(workerConfig());
       }, 180);
     }
   }
@@ -357,6 +416,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   function dispose() {
     disposed = true;
     clearTimeout(rebuildTimer);
+    worker?.dispose();
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
@@ -367,5 +427,5 @@ export function createCity(container, initialSettings, benchmark = null) {
     renderer.dispose();
     renderer.domElement.remove();
   }
-  return { updateSettings, dispose, snapshot: () => trafficSnapshot(lanes) };
+  return { updateSettings, dispose, snapshot: () => worker ? frameSnapshot(workerFrame?.lower) : trafficSnapshot(lanes) };
 }

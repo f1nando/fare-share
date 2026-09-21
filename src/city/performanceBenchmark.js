@@ -49,6 +49,7 @@ const cases = [
   { name: '7 × 7 + простые бордюры', radius: 3, simpleCurbs: true },
   { name: 'Расчёт на каждом кадре', fixedStep: false },
   { name: 'Симуляция 60 Гц', simulationHz: 60 },
+  { name: 'Без Worker (30 Гц)', worker: false },
 ];
 
 export function startBenchmark(root) {
@@ -77,7 +78,7 @@ export function startBenchmark(root) {
     <button id="perf-export" disabled>Скачать JSON</button>
     <p id="perf-status">Готов к запуску</p><p id="perf-device"></p>
     <div style="overflow:auto"><table><thead><tr><th>Вариант</th><th>FPS</th><th>Кадр p95, мс</th>
-    <th>CPU, мс</th><th>Трафик</th><th>Модели</th><th>Render CPU</th><th>GPU, мс</th><th>Машин всего / видно</th><th>Треугольников</th></tr></thead><tbody></tbody></table></div>
+    <th>CPU, мс</th><th>Трафик</th><th>Worker CPU, мс/с</th><th>Буфер, мс</th><th>Исчерпания</th><th>Модели</th><th>Render CPU</th><th>GPU, мс</th><th>Машин всего / видно</th><th>Треугольников</th></tr></thead><tbody></tbody></table></div>
     <details><summary>Данные замера</summary><pre id="perf-json"></pre></details></section>`;
   const container = root.querySelector('.perf-scene'), button = root.querySelector('button');
   const scenarioSelect = root.querySelector('#perf-scenario'), caseSelect = root.querySelector('#perf-case'), durationSelect = root.querySelector('#perf-duration');
@@ -145,10 +146,13 @@ export function startBenchmark(root) {
         const cadence = assessFrameCadence(rows), valid = cadence.valid;
         if (!rows.length) throw new Error('Нет кадров для измерения');
         const metrics = {};
-        for (const key of ['rafMs', 'cpuMs', 'simulationMs', 'prepareMs', 'renderSubmitMs', 'totalCars', 'visibleCars', 'triangles', 'calls', 'blocks', 'geometries', 'textures']) {
+        for (const key of ['rafMs', 'cpuMs', 'simulationMs', 'workerSimulationMs', 'workerPackMs', 'workerReceiveMs', 'bufferMs', 'playbackRate', 'prepareMs', 'renderSubmitMs', 'totalCars', 'visibleCars', 'triangles', 'calls', 'blocks', 'geometries', 'textures']) {
           metrics[key] = summarize(rows.map(row => row[key]));
         }
         const result = { name: variant.name, valid, cadence,
+          workerStatus: rows.at(-1).workerStatus, workerFailure: rows.at(-1).workerFailure,
+          bufferUnderruns: rows.at(-1).bufferUnderruns - rows[0].bufferUnderruns,
+          workerCpuMsPerSecond: rows.reduce((sum, row) => sum + row.workerSimulationMs + row.workerPackMs, 0) / (rows.reduce((sum, row) => sum + row.rafMs, 0) / 1000),
           warning: valid ? null : 'В прогоне есть слишком редкие кадры или серия длинных интервалов при малой работе CPU. Проверьте условия браузера; общий FPS непоказателен.',
           options: variant, simulationHz: variant.fixedStep === false ? 'frame' : variant.simulationHz ?? 30,
           pixelRatio: variant.pixelRatio ?? pixelRatio, initial, final, samples: rows,
@@ -164,7 +168,8 @@ export function startBenchmark(root) {
         results.cases.push(result);
         const tr = document.createElement('tr');
         for (const value of [variant.name, valid ? (1000 / metrics.rafMs.mean).toFixed(1) : 'недостоверно', metrics.rafMs.p95,
-          metrics.cpuMs.mean, metrics.simulationMs.mean, metrics.prepareMs.mean, metrics.renderSubmitMs.mean,
+          metrics.cpuMs.mean, metrics.simulationMs.mean, result.workerCpuMsPerSecond.toFixed(1),
+          metrics.bufferMs.mean, result.bufferUnderruns, metrics.prepareMs.mean, metrics.renderSubmitMs.mean,
           result.gpuMs?.mean ?? 'н/д', `${Math.round(metrics.totalCars.mean)} / ${Math.round(metrics.visibleCars.mean)}`,
           Math.round(metrics.triangles.mean).toLocaleString('ru')]) {
           const td = document.createElement('td'); td.textContent = value; tr.append(td);

@@ -47,7 +47,7 @@ test('horn lifts the rendered body and all four tyres while ground beams stay fl
     { add(...args) { effects.push(args); } });
   const hop = hornAnimation(taxi.hornAge).bounce;
   assert.ok(Math.abs(parts[0][2] - (0.42 + 0.21 + hop)) < 1e-8);
-  const tyres = parts.filter(p => p[0] === 'box' && p[4] === 0.18 && p[5] === 0.32);
+  const tyres = parts.filter(p => p[0] === 'taxiDetail' && p[4] === 0.18 && p[5] === 0.32);
   assert.equal(tyres.length, 4);
   tyres.forEach((tyre, i) => assert.ok(Math.abs(tyre[2] - (0.22 + taxi.wheelHeights[i] + hop)) < 1e-8));
   parts.filter(p => p[0] === 'beam').forEach(beam => assert.equal(beam[2], 0.035));
