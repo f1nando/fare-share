@@ -13,6 +13,17 @@ export interface PreflightResult {
   warnings: string[];
 }
 
+export function validateProgramIdSources(programId: string, anchorToml: string, rustSource: string): string[] {
+  const errors: string[] = [];
+  const anchorId = anchorToml.match(/taxi_park\s*=\s*"([1-9A-HJ-NP-Za-km-z]+)"/)?.[1];
+  const rustId = rustSource.match(/declare_id!\("([1-9A-HJ-NP-Za-km-z]+)"\)/)?.[1];
+  if (!anchorId) errors.push('Anchor.toml: не найден programs.*.taxi_park');
+  else if (anchorId !== programId) errors.push('Anchor.toml: taxi_park не совпадает с TAXI_PROGRAM_ID');
+  if (!rustId) errors.push('programs/taxi_park/src/lib.rs: не найден declare_id!');
+  else if (rustId !== programId) errors.push('declare_id!: адрес не совпадает с TAXI_PROGRAM_ID');
+  return errors;
+}
+
 export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Promise<PreflightResult> {
   const errors: string[] = [];
   const warnings: string[] = [];

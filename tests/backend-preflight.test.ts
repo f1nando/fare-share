@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OFFICIAL_XSTOCK_MINTS, validateDeploymentEnvironment } from '../server/preflight.js';
+import { OFFICIAL_XSTOCK_MINTS, validateDeploymentEnvironment, validateProgramIdSources } from '../server/preflight.js';
 
 const secret = (seed: string, publicKey: string) => JSON.stringify([...Buffer.from(seed, 'hex'), ...Buffer.from(publicKey, 'hex')]);
 const SECRETS = [
@@ -64,4 +64,19 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
   env.WORKER_KEYPAIR_SECRET_KEY = JSON.stringify(Array.from({ length: 64 }, (_, index) => index));
   const result = await validateDeploymentEnvironment(env);
   assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: приватная и публичная части keypair не совпадают/);
+});
+
+test('deployment preflight detects program id drift between Rust, Anchor and environment', () => {
+  const expected = '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY';
+  assert.deepEqual(validateProgramIdSources(
+    expected,
+    `[programs.localnet]\ntaxi_park = "${expected}"`,
+    `declare_id!("${expected}");`,
+  ), []);
+  const errors = validateProgramIdSources(
+    '11111111111111111111111111111111',
+    `[programs.localnet]\ntaxi_park = "${expected}"`,
+    `declare_id!("${expected}");`,
+  );
+  assert.equal(errors.length, 2);
 });

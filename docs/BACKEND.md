@@ -16,7 +16,7 @@ Backend не является источником истины для дене�
 npm run protocol:preflight
 ```
 
-Она проверяет обязательные адреса, разные server keypair, официальный порядок четырёх xStocks mint, ненулевые цены, постоянные metadata URI и совпадение frontend/program configuration. Ошибки нужно исправить до `protocol:initialize`.
+Она проверяет обязательные адреса, разные server keypair, официальный порядок четырёх xStocks mint, ненулевые цены, постоянные metadata URI, а также совпадение `TAXI_PROGRAM_ID` во frontend, `Anchor.toml` и Rust `declare_id!`. Ошибки нужно исправить до публикации программы и `protocol:initialize`.
 
 Проверка доступности: `GET /api/health`.
 
