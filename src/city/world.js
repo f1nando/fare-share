@@ -216,7 +216,7 @@ export function occupiesTrack(car, track) {
   if(car.parking)return car.parking.roadOccupancy && (track===1||track===2);
   // Once its rear clears the entry, a circulating car no longer occupies its
   // old queue slot. Ring trajectories handle conflicts after this point.
-  if (car.turn?.kind === 'roundabout' && car.turn.distance >= car.turn.entryLength) return false;
+  if ((car.turn?.kind === 'roundabout' || car.turn?.kind === 'diagonal') && car.turn.distance >= car.turn.entryLength) return false;
   return car.track === track || (car.changing && car.fromTrack === track) || (track === ONCOMING_TRACK && !!car.feint);
 }
 

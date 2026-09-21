@@ -1,5 +1,6 @@
 import { roundaboutAt, roundaboutClosedArm } from './roadLayout.js';
 import { roundaboutRoadInset } from './roundaboutDimensions.js';
+import { DIAGONAL_HALF, diagonalRoadDistance } from './diagonalLayout.js';
 
 export const WHEEL_SIDES = [-0.43, 0.43];
 export const WHEEL_AXLES = [-0.69, 0.69];
@@ -23,6 +24,7 @@ export function settleOnFlatRoad(car) {
 export function roadHeight(x, z, blockSize, roadHalf) {
   const distance = value => Math.abs(value - Math.round(value / blockSize) * blockSize);
   let inset = Math.min(distance(x), distance(z)) - roadHalf;
+  if (inset > 0) inset = Math.min(inset, diagonalRoadDistance(x, z, blockSize) - DIAGONAL_HALF);
   const gx = Math.round(x / blockSize), gz = Math.round(z / blockSize);
   if (roundaboutAt(gx, gz)) inset = roundaboutRoadInset(x - gx * blockSize, z - gz * blockSize, roadHalf, roundaboutClosedArm(gx,gz));
   return 0.25 * smooth(inset / 0.1) + 0.17 * smooth((inset - 0.21) / 0.1);

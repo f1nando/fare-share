@@ -7,6 +7,7 @@ import { roadOpen, straightRoadOpen, boulevardRoad, laneRoadworks, roadworkAt, r
 import { buildRoundaboutPath, roundaboutPose, roundaboutMotion, roundaboutGap } from './roundabouts.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
 import { updateParking } from './parkingTraffic.js';
+import { diagonalTarget, buildDiagonalPath, diagonalLandingClear } from './diagonalTraffic.js';
 
 const laneKey = (axis, line, direction) => `${axis}:${line}:${direction}`;
 const point = (axis, along, across) => axis === 0 ? { x: along, z: across } : { x: across, z: along };
@@ -26,7 +27,7 @@ function curve(turn, t) {
 // Arc-length sampling keeps speed constant around the curve. A small temporary
 // yaw beyond the path tangent gives a drift, with no heading snap at either end.
 export function turnPose(turn) {
-  if (turn.kind === 'roundabout') return roundaboutPose(turn);
+  if (turn.kind === 'roundabout' || turn.kind === 'diagonal') return roundaboutPose(turn);
   const distance = Math.min(turn.length, turn.distance);
   let index = 1;
   while (index < turn.samples.length - 1 && turn.samples[index] < distance) index++;
@@ -118,6 +119,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
   if(roadLayout)updateParking(lanes,delta,blockSize);
   const locks = new Map();
   const activeTurns = [], circulating = [];
+  const occupiedDiagonals = new Set();
   for (const lane of lanes.values()) {
     const works = roadLayout ? laneRoadworks(lane, blockSize) : undefined;
     for (const car of lane.cars) car.roadworks = works;
@@ -128,7 +130,12 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       car.turn = null; car.steer = 0; // Destination fell outside the camera window.
     }
     if (car.turn) {
-      locks.set(car.turn.junction, car); activeTurns.push(car);
+      if (car.turn.kind !== 'diagonal' || car.turn.distance < car.turn.entryLength) locks.set(car.turn.junction, car);
+      activeTurns.push(car);
+      if (car.turn.kind === 'diagonal') {
+        locks.set(car.turn.exitJunction, car);
+        occupiedDiagonals.add(car.turn.roadId);
+      }
       if (car.turn.kind === 'roundabout') circulating.push(car.turn);
     }
   }
@@ -143,11 +150,12 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     // into a side street instead of blocking turns for the whole race.
     const required = car.roadEnd;
     if (car.turn || car.changing || car.feint) continue;
+    const ordinaryDiagonal = roadLayout && !car.taxi && car.track === 1 && car.turnCooldown === 0 && greenLight(time, car.axis);
     if (car.roundaboutApproach) {
       // Both normal traffic and taxis use the circle, regardless of the lights.
     } else if (required) {
       if (!car.taxi && !greenLight(time, car.axis)) continue;
-    } else if (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1) continue;
+    } else if (!ordinaryDiagonal && (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1)) continue;
     const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE + extraHalfLength(car);
     const entryDistance = center - stopLine - car.position * car.direction;
     const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
@@ -161,7 +169,13 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       return occupiesTrack(other,car.track)&&ahead>0&&ahead<entryDistance+CAR_GAP ||
         other.offset>car.offset+.5&&Math.abs(ahead)<entryDistance+CAR_GAP+2;
     })) continue;
-    let turn = turnTarget(car, blockSize, car.track <= 0 ? -1 : 1, stopLine);
+    const chooseDiagonal = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 100) + cross * 7 + car.line * 11) % 5 < (car.taxi ? 3 : 2);
+    const diagonal = roadLayout && !required && !car.roundaboutApproach && chooseDiagonal && !car.overtake
+      ? diagonalTarget(car, cross, blockSize) : null;
+    if (ordinaryDiagonal && !diagonal && !required && !car.roundaboutApproach) continue;
+    let turn = diagonal ?? turnTarget(car, blockSize, car.track <= 0 ? -1 : 1, stopLine);
+    if (diagonal && (occupiedDiagonals.has(turn.roadId) || !canTurn(car, { ...turn,
+      junction: turn.exitJunction, centerX: turn.exitX, centerZ: turn.exitZ }, lanes, blockSize, locks))) continue;
     if (car.roundaboutApproach) {
       // Stable choice across retries: most cars continue straight, taxis turn more.
       const choice = Math.abs(Math.round((car.baseCruise ?? car.cruise) * 1000) + cross * 7 + car.line * 11) % 10;
@@ -188,6 +202,10 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       buildRoundaboutPath(car, turn, carCoordinates(car, blockSize), end);
       if (!roundaboutGap(turn, circulating)) continue;
       circulating.push(turn);
+    } else if (diagonal) {
+      buildDiagonalPath(car, turn, carCoordinates(car, blockSize), blockSize);
+      occupiedDiagonals.add(turn.roadId);
+      locks.set(turn.exitJunction, car);
     } else buildTurnPath(car, blockSize, turn);
     if (car.race) finishRace(car.race);
     car.turn = turn;
@@ -228,7 +246,10 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       car.steer = -0.18 * Math.sin(Math.PI * turn.distance / turn.length);
     } else {
       car.speed = Math.min(car.cruise * 1.1, car.speed + car.acceleration * delta);
-      turn.distance = Math.min(turn.length, turn.distance + car.speed * delta);
+      let limit = turn.length;
+      if (turn.kind === 'diagonal' && turn.distance <= turn.exitStart && !diagonalLandingClear(car, turn, lanes)) limit = turn.exitStart;
+      turn.distance = Math.min(limit, turn.distance + car.speed * delta);
+      if (limit < turn.length && turn.distance === limit) car.speed = 0;
       car.steer = turn.side * 0.2 * Math.sin(Math.PI * turn.distance / turn.length);
     }
     updateBodyMotion(car, delta, previousSpeed);
@@ -242,6 +263,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
       turn: null, turnCooldown: 4 / taxiAggression(weaving), cooldown: 0.5, crossing: undefined, burst: 1.2 });
     car.turnsCompleted = (car.turnsCompleted ?? 0) + 1;
     if (turn.kind === 'roundabout') car.roundaboutsCompleted = (car.roundaboutsCompleted ?? 0) + 1;
+    if (turn.kind === 'diagonal') car.diagonalsCompleted = (car.diagonalsCompleted ?? 0) + 1;
     if (turn.required) car.requiredTurnsCompleted = (car.requiredTurnsCompleted ?? 0) + 1;
   }
   for (const lane of lanes.values()) for (const car of lane.cars) {
