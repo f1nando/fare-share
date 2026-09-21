@@ -97,15 +97,15 @@ test('client ignores old epochs, requests a bounded batch and terminates on fail
   receive({ type: 'frame', frame: emptyFrame(0) }); assert.equal(client.buffer.frames.length, 0);
 });
 
-test('half-second reserve covers a 300 ms Worker delivery stall at both simulation rates', () => {
+test('one-second reserve covers a 650 ms Worker delivery stall at both simulation rates', () => {
   for(const hz of [30,60]) {
     const buffer=new TrafficBuffer(1/hz);
     for(let i=0;i<buffer.capacity;i++)buffer.push(emptyFrame(i/hz));
-    for(let i=0;i<18;i++)buffer.advance(1/60,true);
+    for(let i=0;i<39;i++)buffer.advance(1/60,true);
     assert.equal(buffer.underruns,0);
     assert.ok(buffer.rate>=.99,'playback keeps its speed during the short stall');
-    assert.ok(Math.abs(buffer.time-.3)<.005,'camera and traffic keep moving');
-    assert.ok(buffer.reserveMs>=190,'reserve remains available after the stall');
+    assert.ok(Math.abs(buffer.time-.65)<.005,'camera and traffic keep moving');
+    assert.ok(buffer.reserveMs>=340,'reserve remains available after the stall');
   }
 });
 

@@ -3,7 +3,8 @@ import { CAR_STRIDE } from './trafficFrames.js';
 export class TrafficBuffer {
   constructor(step = 1 / 30) {
     this.step = step;
-    this.capacity = Math.ceil(0.5 / step) + 1;
+    this.capacity = Math.ceil(1 / step) + 1;
+    // Start promptly, then keep filling the larger reserve during playback.
     this.preload = 0.3;
     this.reset();
   }

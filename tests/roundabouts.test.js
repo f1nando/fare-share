@@ -11,6 +11,7 @@ import { ROUNDABOUT_STOP, ROUNDABOUT_CLEARANCE, roundaboutCornerEdge, roundabout
 import { roundaboutCornerGeometry } from '../src/city/roundaboutGeometry.js';
 import { roadHeight } from '../src/city/vehicleSurface.js';
 import { populateBlock } from '../src/city/createCity.js';
+import { VEHICLE_KINDS, vehicleType } from '../src/city/vehicleTypes.js';
 
 const center = { x: 120, z: 40 };
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI/2 : -Math.PI/2;
@@ -78,10 +79,10 @@ test('closed-arm curb meshes match the surface and face upwards', () => {
 });
 
 // Separating-axis test on actual car rectangles, including their corner swing.
-function overlaps(a,b) {
-  const corners = p => [-.46,.46].flatMap(side => [-1.125,1.125].map(end => ({
+function overlaps(a,b, typeA = vehicleType(), typeB = vehicleType()) {
+  const corners = (p, type) => [-type.width/2,type.width/2].flatMap(side => [-type.length/2,type.length/2].map(end => ({
     x:p.x+side*Math.cos(p.angle)+end*Math.sin(p.angle), z:p.z-side*Math.sin(p.angle)+end*Math.cos(p.angle) })));
-  const ac=corners(a),bc=corners(b);
+  const ac=corners(a,typeA),bc=corners(b,typeB);
   for(const p of [a,b])for(const angle of [p.angle,p.angle+Math.PI/2]) {
     const project = c=>c.x*Math.cos(angle)-c.z*Math.sin(angle), av=ac.map(project),bv=bc.map(project);
     if(Math.max(...av)<=Math.min(...bv) || Math.max(...bv)<=Math.min(...av))return false;
@@ -187,6 +188,34 @@ test('dense queues share moving exits and clear without source-slot ghosts', () 
   assert.ok(at15>=24,`${at15}/40 clear in 15 seconds`);
   assert.equal(departed,40,'all queues drain within 30 seconds');
   assert.ok(maxActive>=6,'several cars share the ring');
+});
+
+test('mixed vehicle queues enter an empty ring and all leave without body collisions', () => {
+  const lanes = new Map(), cars = [];
+  for (const axis of [0,1]) for (const direction of [-1,1]) {
+    const line = axis ? 3 : 7, lane = { axis, line, direction, cars: [] };
+    lanes.set(`${axis}:${line}:${direction}`, lane);
+    for (const track of [0,1]) for (let i = 0; i < 4; i++) {
+      const car = vehicle(axis,direction,track);
+      Object.assign(car, { kind: VEHICLE_KINDS[(i + track) % 4], line,
+        position: (axis ? 280 : 120) - direction * (12 + i * 4.6), speed: 0, cooldown: 100 });
+      lane.cars.push(car); cars.push(car);
+    }
+  }
+  let departed = 0;
+  for (let step = 0; step < 1800 && departed < cars.length; step++) {
+    updateNetwork(lanes,1/30,step/30,{blockSize:40,roadLayout:true});
+    const live = [...lanes.values()].flatMap(lane => lane.cars), poses = live.map(pose);
+    for (let a = 0; a < live.length; a++) for (let b = a + 1; b < live.length; b++) {
+      assert.ok(!overlaps(poses[a],poses[b],vehicleType(live[a]),vehicleType(live[b])),
+        `mixed body collision at ${step}: ${live[a].kind}/${live[b].kind}`);
+    }
+    for (const lane of lanes.values()) lane.cars = lane.cars.filter(car => {
+      if (car.roundaboutsCompleted && Math.abs(car.position - (car.axis ? 280 : 120)) > 16) { departed++; return false; }
+      return true;
+    });
+  }
+  assert.equal(departed,cars.length,'every mixed-traffic approach must drain within 60 seconds');
 });
 
 test('a stopped exit queue cannot be hit by following circulating cars', () => {

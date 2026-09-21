@@ -156,7 +156,9 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     } else if (required) {
       if (!car.taxi && !greenLight(time, car.axis)) continue;
     } else if (!ordinaryDiagonal && (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1)) continue;
-    const stopLine = car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE + extraHalfLength(car);
+    // Large vehicles must wait outside the same body envelope canTurn checks.
+    // Otherwise a bus at the yield line blocks every approach to an empty ring.
+    const stopLine = (car.roundaboutApproach ? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(car);
     const entryDistance = center - stopLine - car.position * car.direction;
     const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
       blockSize - ROUNDABOUT_STOP - STOP_LINE - 1.2) : Math.max(1, car.speed * delta + 0.1);

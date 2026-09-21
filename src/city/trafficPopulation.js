@@ -22,7 +22,22 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
       taxi, kind, color: colors[Math.floor(random() * colors.length)],
       track, fromTrack: track, offset: TRACKS[track], cruise, speed: cruise, acceleration,
       baseCruise: cruise, baseAcceleration: acceleration,
-      changing: false, merge: 1, cooldown: random(), steer: 0 });
+      changing: false, merge: 1, cooldown: random(), steer: 0,
+      // Keep one object layout through parking, turns and taxi manoeuvres.
+      // Adding these fields lazily produces many shapes in the hot physics loops.
+      roadworks: undefined, turnCooldown: undefined, roadEnd: undefined, dividedRoad: undefined,
+      roundaboutApproach: undefined, raceCooldown: undefined, flashCooldown: undefined,
+      signalWait: undefined, yieldDelay: undefined, yieldRemaining: undefined,
+      launchAttempt: undefined, launchChosen: undefined, burst: undefined, seekInner: undefined,
+      feintCooldown: undefined, roadRoll: undefined, surfaceSupport: undefined, rideVelocity: undefined,
+      rideHeight: undefined, roadPitch: undefined, wheelHeights: undefined, mergeSpeed: undefined,
+      crossing: undefined, signalIndex: undefined, signalMode: undefined, flashAge: undefined,
+      hornAge: undefined, pitchVelocity: undefined, pitch: undefined, rollVelocity: undefined,
+      roll: undefined, overtake: undefined, parking: undefined, lastParkingLot: undefined,
+      workBypass: undefined, turn: undefined, feint: undefined, turnsStarted: undefined,
+      turnsCompleted: undefined, workAvoidances: undefined, race: undefined, raceResult: undefined,
+      roundaboutsCompleted: undefined, diagonalsCompleted: undefined, requiredTurnsCompleted: undefined, launchesPrepared: undefined,
+      launchesStarted: undefined, launchesCompleted: undefined, parksCompleted: undefined, parkingExits: undefined });
   }
   const lane={ axis, line, direction, cars: roadLayout ? cars.filter(car => spawnRoadOpen(car, settings.blockSize, STOP_LINE)) : cars, radius };
   if(roadLayout)seedParking(lane,settings.blockSize);
