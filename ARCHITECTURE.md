@@ -18,6 +18,7 @@
 - NFT sale открывается вручную административной инструкцией `start_sale` после проверки точных цен, метаданных и frontend. Автоматического on-chain расписания нет.
 - Региональные ограничения xStocks показываются как явный запрет в frontend и условиях использования. Технические геоблокировки, KYC и on-chain denylist не используются; достаточность подхода требует юридической проверки до запуска.
 - NFT: Metaplex Core Assets в официальной коллекции проекта. Phantom и основные Solana NFT-интерфейсы показывают их как обычные коллекционные NFT.
+- NFT metadata готовятся до продажи и показываются сразу: reveal отсутствует. `ImmutableMetadata` на Core Collection навсегда блокирует изменение имени и URI всех машин; изображения и JSON размещаются в постоянном внешнем хранилище.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard. В первой версии подключаем Phantom; собственный embedded/passkey wallet и хранение пользовательских ключей отсутствуют.
 - Network fees: пользователь самостоятельно платит SOL за mint, `claim`, ремонт и активацию/claim стажёра. Backend платит только за служебные транзакции, которые отправляет сам; fee sponsorship и компенсации отсутствуют.
 - Account creation: команда финансирует первоначальные configuration/pool/vault/collection accounts. После запуска fee payer каждой транзакции оплачивает rent-exempt deposit всех новых accounts, которые создаёт эта транзакция: пользовательские Core Asset, Machine/Trainee PDA, event-queue pages и недостающие token accounts либо служебные accounts backend.
