@@ -210,6 +210,11 @@ export function TaxiDashboard() {
           </div>
         </section>
 
+        <p className="jurisdiction-notice">
+          Пользователям из юрисдикций, в которых использование xStocks запрещено, нельзя пользоваться stock-функциями проекта.
+          Подключая кошелёк, пользователь самостоятельно подтверждает, что вправе пользоваться продуктом в своей стране.
+        </p>
+
         {notice && <div className="taxi-notice" role="status"><span>{notice}{lastSignature && <> · <a href={explorerTransaction(lastSignature)} target="_blank" rel="noreferrer">Explorer</a></>}</span><button onClick={() => setNotice('')}>×</button></div>}
       </main>
     </div>
