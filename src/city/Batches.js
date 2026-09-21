@@ -24,6 +24,13 @@ export class Batches {
     const item = group.values[index] ?? (group.values[index] = new Array(10));
     item[0] = x; item[1] = y; item[2] = z; item[3] = sx; item[4] = sy;
     item[5] = sz; item[6] = color; item[7] = rotation; item[8] = pitch; item[9] = roll;
+    item[10] = null;
+  }
+  addPrepared(kind, record, matrix, offsetX, offsetZ) {
+    this.add(kind, record[0] + offsetX, record[1], record[2] + offsetZ,
+      record[3], record[4], record[5], record[6], record[7], record[8], record[9]);
+    const group = this.items.get(kind);
+    group.values[group.count - 1][10] = matrix;
   }
   flush() {
     for (const [kind, group] of this.items) {
@@ -49,11 +56,17 @@ export class Batches {
       let firstColor = count, lastColor = -1;
       for (let index = 0; index < count; index++) {
         const [x, y, z, sx, sy, sz, color, rotation, pitch, roll] = items[index];
-        this.matrix.position.set(x, y, z);
-        this.matrix.scale.set(sx, sy, sz);
-        this.matrix.rotation.set(pitch, rotation, roll, 'YXZ');
-        this.matrix.updateMatrix();
-        mesh.setMatrixAt(index, this.matrix.matrix);
+        if (items[index][10]) {
+          const offset = index * 16, values = mesh.instanceMatrix.array;
+          values.set(items[index][10], offset);
+          values[offset + 12] = x; values[offset + 14] = z;
+        } else {
+          this.matrix.position.set(x, y, z);
+          this.matrix.scale.set(sx, sy, sz);
+          this.matrix.rotation.set(pitch, rotation, roll, 'YXZ');
+          this.matrix.updateMatrix();
+          mesh.setMatrixAt(index, this.matrix.matrix);
+        }
         if (mesh.userData.colors[index] !== color) {
           if (!this.colors.has(color)) this.colors.set(color, new THREE.Color(color));
           mesh.setColorAt(index, this.colors.get(color));

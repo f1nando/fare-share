@@ -7,7 +7,8 @@ export class LaneIndex {
   constructor(cars, direction, occupiesTrack) {
     this.cars = cars; this.direction = direction; this.occupies = occupiesTrack;
     this.rows = tracks.map(() => []);
-    this.rank = new Map(cars.map((car, index) => [car, index]));
+    this.rank = new Map();
+    for (let i = 0; i < cars.length; i++) this.rank.set(cars[i], i);
     this.owners = new Map();
     for (const car of cars) {
       for (let i = 0; i < tracks.length; i++) if (occupiesTrack(car, tracks[i])) this.rows[i].push(car);
@@ -39,8 +40,18 @@ export class LaneIndex {
     const position = car.position * this.direction, rank = this.rank.get(car);
     for (let i = 0; i < tracks.length; i++) {
       const row = this.rows[i], oldIndex = row.indexOf(car);
+      const occupied = this.occupies(car, tracks[i]);
+      if (oldIndex === -1 && !occupied) continue;
+      if (oldIndex !== -1 && occupied) {
+        const before = row[oldIndex - 1], after = row[oldIndex + 1];
+        const orderedBefore = !before || before.position * this.direction > position ||
+          before.position * this.direction === position && this.rank.get(before) < rank;
+        const orderedAfter = !after || after.position * this.direction < position ||
+          after.position * this.direction === position && this.rank.get(after) > rank;
+        if (orderedBefore && orderedAfter) continue;
+      }
       if (oldIndex !== -1) row.splice(oldIndex, 1);
-      if (!this.occupies(car, tracks[i])) continue;
+      if (!occupied) continue;
       let low = 0, high = row.length;
       while (low < high) {
         const middle = (low + high) >>> 1, other = row[middle], otherPosition = other.position * this.direction;

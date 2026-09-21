@@ -19,6 +19,7 @@ import { parkAt, roadOpen, boulevardRoad, relocateToRoad, spawnRoadOpen, CAMERA_
 import { populateMedian } from './boulevards.js';
 import { populatePark } from './parkGeometry.js';
 import { districtKind, populateDistrict } from './districts.js';
+import { SceneryCache } from './sceneryCache.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -191,6 +192,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     crown: new THREE.DodecahedronGeometry(1, 0),
   };
   const staticBatch = new Batches(scene, geometries);
+  const scenery = new SceneryCache(populateBlock);
   const carsBatch = new Batches(scene, geometries, true);
   const hornEffects = new HornEffects(scene);
   const groundMaterial = new THREE.MeshStandardMaterial({ color: '#555555', roughness: 1 });
@@ -236,8 +238,9 @@ export function createCity(container, initialSettings, benchmark = null) {
   function rebuild() {
     const layoutSettings = { ...settings, blockSize: BLOCK };
     staticBatch.reset();
+    scenery.configure(worldX, worldZ, area, BLOCK);
     for (let x = -area.x; x <= area.x; x++) {
-      for (let z = -area.z; z <= area.z; z++) populateBlock(staticBatch, worldX + x, worldZ + z, x * BLOCK, z * BLOCK, BLOCK);
+      for (let z = -area.z; z <= area.z; z++) scenery.draw(staticBatch, worldX + x, worldZ + z, worldX, worldZ);
     }
     staticBatch.flush();
     if (worker) return;
@@ -284,7 +287,7 @@ export function createCity(container, initialSettings, benchmark = null) {
 
   function frame(timestamp) {
     if (disposed) return;
-    const start = benchmark ? performance.now() : 0;
+    const start = performance.now();
     const rafMs = previous ? timestamp - previous : 0;
     let rebuildMs = 0;
     const delta = previous ? Math.min((timestamp - previous) / 1000, 0.06) : 0;
@@ -359,6 +362,9 @@ export function createCity(container, initialSettings, benchmark = null) {
       }
     }
     carsBatch.flush();
+    // At most one incoming tile in a light frame. A slow frame never has to
+    // finish the entire next strip; missing tiles still have a synchronous path.
+    if (moving && performance.now() - start < 4) scenery.warmOne();
     const renderStart = benchmark ? performance.now() : 0;
     benchmark?.beforeRender?.();
     renderer.render(scene, camera);
@@ -382,6 +388,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   const observer = new ResizeObserver(resize);
   observer.observe(container);
   resize();
+  camera.position.copy(focus).add(cameraOffset); camera.lookAt(focus);
+  hornEffects.prepare(renderer, camera);
   if (fixedSimulation && benchmark?.worker !== false && typeof Worker !== 'undefined') {
     try { worker = new TrafficWorkerClient(workerConfig(), workerFailed); }
     catch (error) { workerFailed(error.message); }
@@ -425,7 +433,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
     renderer.setAnimationLoop(null);
-    staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose();
+    scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose();
     Object.values(geometries).forEach(geometry => geometry.dispose());
     ground.geometry.dispose(); groundMaterial.dispose();
     sunlight.shadow.map?.dispose();
