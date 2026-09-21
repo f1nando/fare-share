@@ -10,6 +10,7 @@ import {
   loadOwnedTrainees,
   loadProtocolStatus,
   mintMachine,
+  networkName,
   repairMachine,
   formatSolAmount,
   shortAddress,
@@ -29,7 +30,7 @@ const DEMO_CARS = [
 
 export function TaxiDashboard() {
   const [wallet, setWallet] = useState(null);
-  const [status, setStatus] = useState({ loading: true, deployed: false, network: 'devnet' });
+  const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState(DEMO_CARS);
   const [trainees, setTrainees] = useState([]);
   const [campaignId, setCampaignId] = useState('');
@@ -46,7 +47,7 @@ export function TaxiDashboard() {
         setStatus({ ...next, loading: false });
         if (next.deployed) setCars([]);
       })
-      .catch(() => active && setStatus({ loading: false, deployed: false, network: 'devnet' }));
+      .catch(() => active && setStatus({ loading: false, deployed: false, network: networkName() }));
     return () => { active = false; };
   }, []);
 
@@ -125,7 +126,7 @@ export function TaxiDashboard() {
         </a>
         <div className="header-actions">
           <span className={`network-pill ${status.deployed ? 'online' : ''}`}>
-            <i /> {status.loading ? 'проверка сети' : status.deployed ? status.network : 'demo · devnet'}
+            <i /> {status.loading ? 'проверка сети' : status.deployed ? status.network : `demo · ${status.network}`}
           </span>
           <button className="wallet-button" onClick={handleConnect}>
             {wallet ? shortAddress(wallet.account.address) : 'Подключить Phantom'}

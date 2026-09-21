@@ -22,6 +22,7 @@ import {
   formatSolAmount,
   loadDASAssets,
   loadMultipleAccounts,
+  networkName,
   protocolAddresses,
   resolveSolanaChain,
   selectActiveMultiplier,
@@ -78,6 +79,10 @@ test('wallet chain is explicit for private RPC URLs', () => {
   assert.equal(resolveSolanaChain('solana:devnet', 'https://private-rpc.example'), 'solana:devnet');
   assert.equal(resolveSolanaChain('solana:mainnet', 'https://api.devnet.solana.com'), 'solana:mainnet');
   assert.throws(() => resolveSolanaChain('devnet', 'https://rpc.example'), /VITE_SOLANA_CHAIN/);
+});
+
+test('network label follows the explicitly configured wallet chain', () => {
+  assert.equal(networkName(), 'devnet');
 });
 
 test('repair quote charges 25% of earned FARE for any non-zero wear', () => {

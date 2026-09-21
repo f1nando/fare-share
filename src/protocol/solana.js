@@ -505,7 +505,7 @@ function mintDecimals(bytes) {
   return bytes[44];
 }
 
-function networkName() {
+export function networkName() {
   return SOLANA_CHAIN === 'solana:devnet' ? 'devnet' : 'mainnet';
 }
 
