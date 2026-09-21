@@ -11,6 +11,7 @@ import {
   loadProtocolStatus,
   mintMachine,
   repairMachine,
+  formatSolAmount,
   shortAddress,
 } from './protocol/solana.js';
 
@@ -201,12 +202,23 @@ export function TaxiDashboard() {
         <section className="panel mint-panel" aria-labelledby="mint-title">
           <div className="section-title"><div><p className="eyebrow">1425 машин</p><h2 id="mint-title">Выбрать класс</h2></div></div>
           <div className="class-grid">
-            {CLASSES.map((item, classIndex) => <article className={`class-card ${item.tone}`} key={item.name}>
-              <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
-              <div className="taxi-silhouette" aria-hidden="true">▰</div>
-              <dl><div><dt>Цена</dt><dd>{item.price}</dd></div><div><dt>Тираж</dt><dd>{item.count}</dd></div></dl>
-              <button disabled={Boolean(busy)} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name}: NFT-машина выпущена.`)}>Купить за SOL</button>
-            </article>)}
+            {CLASSES.map((item, classIndex) => {
+              const solPrice = status.deployed ? formatSolAmount(status.config.mintPrices[classIndex]) : null;
+              const remaining = status.deployed
+                ? item.count - Number(status.config.mintedByClass[classIndex])
+                : item.count;
+              return <article className={`class-card ${item.tone}`} key={item.name}>
+                <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
+                <div className="taxi-silhouette" aria-hidden="true">▰</div>
+                <dl>
+                  <div><dt>Цена</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
+                  <div><dt>Осталось</dt><dd>{remaining} / {item.count}</dd></div>
+                </dl>
+                <button disabled={Boolean(busy) || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name}: NFT-машина выпущена.`)}>
+                  {remaining === 0 ? 'Распродано' : solPrice ? `Купить · ${solPrice} SOL` : 'Купить за SOL'}
+                </button>
+              </article>;
+            })}
           </div>
         </section>
 

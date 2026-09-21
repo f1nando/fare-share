@@ -63,6 +63,13 @@ export function formatTokenAmount(rawAmount, decimals, multiplier = 1) {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 6 }).format(amount);
 }
 
+export function formatSolAmount(lamports) {
+  const value = BigInt(lamports);
+  const whole = value / 1_000_000_000n;
+  const fraction = (value % 1_000_000_000n).toString().padStart(9, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
 export async function protocolAddresses() {
   const [[config], [pool], [queue], [traineePool], [traineeQueue], [feeVault]] = await Promise.all([
     getProgramDerivedAddress({ programAddress: PROGRAM_ID, seeds: [utf8.encode('config')] }),

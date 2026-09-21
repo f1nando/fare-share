@@ -16,6 +16,7 @@ import {
   PROGRAM_ID,
   calculateRepairQuote,
   formatTokenAmount,
+  formatSolAmount,
   loadDASAssets,
   loadMultipleAccounts,
   protocolAddresses,
@@ -63,6 +64,11 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   assert.equal(selectActiveMultiplier(update, 199), 1.01);
   assert.equal(selectActiveMultiplier(update, 200), 1.02);
   assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
+});
+
+test('mint prices are displayed from exact on-chain lamports', () => {
+  assert.equal(formatSolAmount(49_000_000n), '0.049');
+  assert.equal(formatSolAmount(1_000_000_001n), '1.000000001');
 });
 
 test('DAS garage loads every page when a wallet owns more than one thousand assets', async () => {
