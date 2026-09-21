@@ -1,3 +1,4 @@
+import { THIRD_TRACK, boulevardRoad, streetHalf, junctionStop } from './roadProfile.js';
 import { DIAGONAL_LANE, DIAGONAL_HALF, diagonalFromJunction, approachesNear } from './diagonalLayout.js';
 import { TRACKS, STOP_LINE, PAVED_ROAD, occupiesTrack, greenLight, stoppingSpeed } from './world.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
@@ -12,14 +13,14 @@ const onRoad=(road,d,flow,block)=>({x:road.a.x*block+road.dx*d-road.dz*DIAGONAL_
 export function diagonalTarget(car,cross,block){
   const x=car.axis===0?cross:car.line,z=car.axis===0?car.line:cross;
   const road=diagonalFromJunction(x,z,block);
-  if(!road||extraHalfLength(car)>.5||car.track!==1)return null;
+  if(!road||extraHalfLength(car)>.5||car.track!==(boulevardRoad(car.axis,car.line)?THIRD_TRACK:1))return null;
   const outbound=x===road.b.x&&z===road.b.z;
   if(!outbound&&(car.axis!==road.axis||car.direction!==road.direction))return null;
   // Avoid a full U-turn from the immediately neighbouring parallel entry.
   if(outbound&&car.axis===road.axis&&car.direction===road.direction)return null;
   const flow=outbound?-1:1,axis=road.axis,direction=road.direction*flow,end=outbound?road.a:road.b;
   return {kind:'diagonal',road,flow,phase:outbound?'ringOut':'roadIn',axis,line:axis===0?end.z:end.x,direction,track:1,
-    position:(axis===0?end.x:end.z)*block+direction*((outbound?STOP_LINE:ROUNDABOUT_STOP)+1),side:0,
+    position:(axis===0?end.x:end.z)*block+direction*((outbound?junctionStop(end.x,end.z):ROUNDABOUT_STOP)+1),side:0,
     junction:`${x}:${z}`,exitJunction:`${end.x}:${end.z}`,roadId:road.key,
     centerX:x*block,centerZ:z*block,exitX:end.x*block,exitZ:end.z*block,sourceCleared:false};
 }
@@ -72,7 +73,7 @@ export function diagonalLandingClear(car,turn,lanes){
     Math.abs(other.position-turn.position)>=vehicleGap(car,other)+1);
 }
 export function approachProgress(turn){const p=roundaboutPose(turn),r=turn.road;return(p.x-r.a.x*turn.block)*r.dx+(p.z-r.a.z*turn.block)*r.dz;}
-const crossingHalf=(road)=> (PAVED_ROAD/2+1.6)/(road.axis===0?Math.abs(road.dx):Math.abs(road.dz));
+const crossingHalf=(road,gate)=> (streetHalf(gate.axis,gate.line)+1.6)/(road.axis===0?Math.abs(road.dx):Math.abs(road.dz));
 const normalHalf=road=>DIAGONAL_HALF/(road.axis===0?Math.abs(road.dx):Math.abs(road.dz))+2;
 
 // Cross traffic and approach traffic share alternating signal phases. A claim
@@ -89,7 +90,7 @@ export function prepareApproachCrossings(lanes,active,time,block){
   }
   for(const road of roads.values())for(const gate of road.crossings){
     const crossingCars=active.filter(c=>c.turn.kind==='diagonal'&&c.turn.roadId===road.key&&
-      !c.turn.ringActive&&Math.abs(approachProgress(c.turn)-gate.fraction*road.length)<crossingHalf(road)+extraHalfLength(c));
+      !c.turn.ringActive&&Math.abs(approachProgress(c.turn)-gate.fraction*road.length)<crossingHalf(road,gate)+extraHalfLength(c));
     for(const d of [-1,1])for(const car of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
       if(car.turn||car.parking)continue;
       const along=gate.position*block+(gate.axis===0?road.dx/road.dz:road.dz/road.dx)*
@@ -110,9 +111,9 @@ export function diagonalTravelLimit(car,active,lanes,time,block){
     if(ahead>0)limit=Math.min(limit,Math.max(0,ahead-vehicleGap(car,other)));
   }
   for(const gate of r.crossings){
-    const until=(gate.fraction*r.length-progress)*t.flow-crossingHalf(r)-extraHalfLength(car);
+    const until=(gate.fraction*r.length-progress)*t.flow-crossingHalf(r,gate)-extraHalfLength(car);
     if(until<-.01)continue;
-    let clear=greenLight(time,r.axis)&&limit>=until+crossingHalf(r)*2+vehicleGap(car,car);
+    let clear=greenLight(time,r.axis)&&limit>=until+crossingHalf(r,gate)*2+vehicleGap(car,car);
     for(const d of [-1,1])for(const other of lanes.get(`${gate.axis}:${gate.line}:${d}`)?.cars??[]){
       if(other.turn||other.parking)continue;
       const along=gate.position*block+(gate.axis===0?r.dx/r.dz:r.dz/r.dx)*

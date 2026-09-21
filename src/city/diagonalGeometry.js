@@ -1,4 +1,5 @@
-import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { streetHalf } from './roadProfile.js';
+import { BufferGeometry, Float32BufferAttribute, ShapeUtils, Vector2 } from 'three';
 import { PAVED_ROAD } from './world.js';
 import { DIAGONAL_HALF } from './diagonalLayout.js';
 import { ROUNDABOUT_CLEARANCE } from './roundaboutDimensions.js';
@@ -27,8 +28,8 @@ export function outsideApproach(poly,road,block,inset=0){
 }
 // Arbitrary convex polygons use the same instanced right-triangle prism.
 export function polygonSlab(batch,poly,y,h,color,offsetX=0,offsetZ=0){
-  for(let i=1;i<poly.length-1;i++){
-    let [a,b,c]=[poly[0],poly[i],poly[i+1]];
+  for(const indices of ShapeUtils.triangulateShape(poly.map(p=>new Vector2(p.x,p.z)),[])){
+    let [a,b,c]=indices.map(i=>poly[i]);
     const length=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
     if(length(a,c)>length(a,b))[b,c]=[c,b];
     if(length(b,c)>length(a,b))[a,c]=[c,a];
@@ -45,8 +46,8 @@ export function polygonSlab(batch,poly,y,h,color,offsetX=0,offsetZ=0){
 }
 // Tile corners adjoining a ring are supplied separately by curved inserts.
 export function approachLots(road,gx,gz,block,inset=0){
-  const margin=PAVED_ROAD/2+inset,left=gx*block+margin,right=(gx+1)*block-margin;
-  const top=gz*block+margin,bottom=(gz+1)*block-margin;
+  const left=gx*block+streetHalf(1,gx)+inset,right=(gx+1)*block-streetHalf(1,gx+1)-inset;
+  const top=gz*block+streetHalf(0,gz)+inset,bottom=(gz+1)*block-streetHalf(0,gz+1)-inset;
   let polys=outsideApproach([{x:left,z:top},{x:right,z:top},{x:right,z:bottom},{x:left,z:bottom}],road,block,inset);
   const cx=road.b.x*block,cz=road.b.z*block,r=ROUNDABOUT_CLEARANCE;
   if(road.b.x>=gx&&road.b.x<=gx+1&&road.b.z>=gz&&road.b.z<=gz+1){

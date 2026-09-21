@@ -1,3 +1,4 @@
+import { boulevardRoad, THIRD_TRACK, junctionStop } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { approachAtRing, diagonalAt, diagonalFromJunction, diagonalRoadDistance, DIAGONAL_HALF } from '../src/city/diagonalLayout.js';
@@ -16,8 +17,9 @@ const sites=block=>{const a=[];for(let x=-9;x<=9;x+=6)for(let z=-5;z<=7;z+=6){co
 function carAt(r,out,block,taxi=false,axis=out?1-r.axis:r.axis,d=out?1:r.direction){
   const p=out?r.b:r.a,line=axis===0?p.z:p.x,cross=axis===0?p.x:p.z;
   let cruise=taxi?13:6;while(Math.abs(Math.round(cruise*100)+cross*7+line*11)%5>=4)cruise+=.01;
-  return {axis,line,direction:d,position:cross*block-d*(out?ROUNDABOUT_STOP:STOP_LINE),track:1,
-    fromTrack:1,offset:TRACKS[1],taxi,speed:3,cruise,baseCruise:cruise,acceleration:taxi?24:4,
+  const track=boulevardRoad(axis,line)?THIRD_TRACK:1;
+  return {axis,line,direction:d,position:cross*block-d*(out?ROUNDABOUT_STOP:junctionStop(p.x,p.z)),track,
+    fromTrack:track,offset:TRACKS[track],taxi,speed:3,cruise,baseCruise:cruise,acceleration:taxi?24:4,
     cooldown:10,turnCooldown:0,changing:false,merge:1,steer:0,flashCooldown:Infinity};
 }
 function lanesAt(r){const m=new Map();for(const axis of[0,1])for(let line=Math.min(r.a.x,r.a.z,r.b.x,r.b.z)-2;line<=Math.max(r.a.x,r.a.z,r.b.x,r.b.z)+2;line++)
@@ -56,7 +58,7 @@ test('successive polygon lots change width and every building clears the diagona
       for(const[k,x,y,z,w,h,d]of parts)if(k==='building')for(const sx of[-.5,.5])for(const sz of[-.5,.5])
         assert.ok(diagonalRoadDistance(x+sx*w,z+sz*d,block)>DIAGONAL_HALF+.2);
     }
-    assert.ok(Math.abs(Math.max(...areas[0])-Math.max(...areas[1]))>block);
+    assert.ok(Math.max(...areas.flat())-Math.min(...areas.flat())>block);
   }
 });
 test('ordinary cars and taxis complete both directions, including two intermediate crossings',()=>{

@@ -1,3 +1,5 @@
+import { boulevardRoad } from './roadProfile.js';
+export { boulevardRoad } from './roadProfile.js';
 import { approachAtRing } from './diagonalLayout.js';
 import { canalColumn, canalBridge } from './bridgeProfile.js';
 import { ROUNDABOUT_STOP } from './roundaboutDimensions.js';
@@ -81,9 +83,6 @@ export function laneRoadworks(lane, block) {
 
 // Whole street lines stay divided: a taxi never meets a new median halfway
 // through an oncoming overtake. Crossings and missing park roads remain open.
-export function boulevardRoad(axis, line) {
-  return ((line - axis * 3) % 6 + 6) % 6 === 0;
-}
 
 export const MEDIAN_WIDTH = 0.34;
 export const MEDIAN_INSET = 7.5;

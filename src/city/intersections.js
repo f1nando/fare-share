@@ -16,9 +16,10 @@ function arrivalTime(distance, speed, acceleration, cruise) {
 // to the perpendicular stream immediately.
 export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map(), roadLayout = false) {
   const access = (car, travel, green, clearance, speed, commit = true) => {
-    if (roadLayout && !straightRoadOpen(car, blockSize, STOP_LINE)) return false;
+    const stopLine=car.junctionStop??STOP_LINE;
+    if (roadLayout && !straightRoadOpen(car, blockSize, stopLine)) return false;
     const oriented = car.position * car.direction;
-    const nextCenter = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize * car.direction;
+    const nextCenter = Math.ceil((oriented - stopLine) / blockSize) * blockSize * car.direction;
     // A roundabout is entered exclusively through its curved path planner.
     if (roadLayout && roundaboutAt(car.axis === 0 ? Math.round(nextCenter / blockSize) : car.line,
       car.axis === 0 ? car.line : Math.round(nextCenter / blockSize))) return false;
@@ -29,11 +30,11 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     if (occupiesTrack(car, 0) && lanes.get(`${car.axis}:${car.line}:${-car.direction}`)?.cars.some(other =>
       other.overtake?.passTrack === -1 && other.overtake.launch?.center === nextCenter)) return false;
     if (car.crossing !== undefined) {
-      if (oriented <= car.crossing * car.direction + STOP_LINE + extraHalfLength(car)) return true;
+      if (oriented <= car.crossing * car.direction + stopLine + extraHalfLength(car)) return true;
       if (commit) car.crossing = undefined;
     }
-    const center = Math.ceil((oriented - STOP_LINE) / blockSize) * blockSize;
-    const untilEntry = center - STOP_LINE - oriented;
+    const center = Math.ceil((oriented - stopLine) / blockSize) * blockSize;
+    const untilEntry = center - stopLine - oriented;
     // Also register cars created inside a crossing when the camera reveals it.
     if (untilEntry < -0.001) {
       if (commit) car.crossing = center * car.direction;
@@ -41,12 +42,12 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
     }
     if (travel <= untilEntry) return green;
     if (!green && (!car.taxi || car.changing)) return false;
-    if (clearance < untilEntry + STOP_LINE * 2 + CAR_GAP) return false;
+    if (clearance < untilEntry + stopLine * 2 + CAR_GAP) return false;
 
     const crossingPosition = center * car.direction;
     const crossLine = Math.round(crossingPosition / blockSize);
     const crossCenter = car.line * blockSize;
-    const distance = STOP_LINE * 2 + 0.3 + extraHalfLength(car);
+    const distance = stopLine * 2 + 0.3 + extraHalfLength(car);
     const acceleration = car.acceleration ?? 25;
     const clearTime = arrivalTime(distance, speed, acceleration, car.cruise);
 
@@ -54,13 +55,13 @@ export function intersectionAccess(lanes, blockSize, time, turnLocks = new Map()
       const crossLane = lanes.get(`${1 - car.axis}:${crossLine}:${direction}`);
       for (const other of crossLane?.cars ?? []) {
         const toCenter = (crossCenter - other.position) * direction;
-        const inside = Math.abs(toCenter) < STOP_LINE + extraHalfLength(other) - 0.001;
-        const reserved = other.crossing === crossCenter && toCenter >= -STOP_LINE - extraHalfLength(other);
+        const inside = Math.abs(toCenter) < stopLine + extraHalfLength(other) - 0.001;
+        const reserved = other.crossing === crossCenter && toCenter >= -stopLine - extraHalfLength(other);
         if (inside || reserved) return false;
-        if (!green && toCenter >= STOP_LINE && (other.taxi || greenLight(time, 1 - car.axis))) {
+        if (!green && toCenter >= stopLine && (other.taxi || greenLight(time, 1 - car.axis))) {
           // A stopped queue does not instantly travel at maximum speed. Account
           // for its run-up when deciding whether the taxi fits into this gap.
-          const earliestArrival = arrivalTime(toCenter - STOP_LINE, other.speed,
+          const earliestArrival = arrivalTime(toCenter - stopLine, other.speed,
             (other.acceleration ?? 4) * (other.taxi ? 1.8 : 2),
             Math.max(other.speed, other.cruise * (other.taxi ? 1.25 : other.yieldRemaining > 0 ? 1.65 : 1)));
           if (earliestArrival < clearTime + 0.15) return false;

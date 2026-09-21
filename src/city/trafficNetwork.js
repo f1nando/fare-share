@@ -1,3 +1,4 @@
+import { THIRD_TRACK, junctionStop, streetHalf } from './roadProfile.js';
 import { vehicleGap, extraHalfLength } from './vehicleTypes.js';
 import { CAR_GAP, STOP_LINE, PAVED_ROAD, TRACKS, mod, vehiclePose, occupiesTrack, taxiAggression, finishRace, greenLight, greenTimeLeft, updateTraffic } from './world.js';
 import { intersectionAccess } from './intersections.js';
@@ -97,7 +98,7 @@ function canTurn(car, turn, lanes, blockSize, locks, roundabout = false) {
         continue;
       }
       if (other.overtake?.leader === car) return false;
-      if (Math.abs(other.position - center) < (roundabout ? ROUNDABOUT_STOP : STOP_LINE) + extraHalfLength(other) - 0.001 ||
+      if (Math.abs(other.position - center) < (roundabout ? ROUNDABOUT_STOP : junctionStop(Math.round(turn.centerX/blockSize),Math.round(turn.centerZ/blockSize))) + extraHalfLength(other) - 0.001 ||
           other.crossing === center && (center - other.position) * direction >= -STOP_LINE) return false;
       // Reserve the destination track, including lane changes and cars
       // borrowing this road from the opposite direction.
@@ -145,21 +146,22 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     car.dividedRoad = roadLayout && boulevardRoad(car.axis, car.line);
     const center = Math.ceil((car.position * car.direction - STOP_LINE) / blockSize) * blockSize;
     const cross = Math.round(center * car.direction / blockSize);
+    car.junctionStop=roadLayout?junctionStop(car.axis===0?cross:car.line,car.axis===0?car.line:cross):STOP_LINE;
     car.roundaboutApproach = roadLayout && roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross);
     car.roundaboutStop=car.roundaboutApproach?Math.min(roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize),Math.max(ROUNDABOUT_STOP,center-car.position*car.direction-extraHalfLength(car))):undefined;
     // Let a pair finish its initial chase, then allow either taxi to break away
     // into a side street instead of blocking turns for the whole race.
     const required = car.roadEnd;
     if (car.turn || car.changing || car.feint) continue;
-    const ordinaryDiagonal = roadLayout && !car.taxi && car.track === 1 && car.turnCooldown === 0 && greenLight(time, car.axis);
+    const ordinaryDiagonal = roadLayout && !car.taxi && car.track === (car.dividedRoad?THIRD_TRACK:1) && car.turnCooldown === 0 && greenLight(time, car.axis);
     if (car.roundaboutApproach) {
       // Both normal traffic and taxis use the circle, regardless of the lights.
     } else if (required) {
       if (!car.taxi && !greenLight(time, car.axis)) continue;
-    } else if (!ordinaryDiagonal && (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track > 1)) continue;
+    } else if (!ordinaryDiagonal && (!car.taxi || car.turnCooldown > 0 || car.overtake || car.race?.age < 4 || car.track < 0 || car.track === 2)) continue;
     // Large vehicles must wait outside the same body envelope canTurn checks.
     // Otherwise a bus at the yield line blocks every approach to an empty ring.
-    const stopLine = (car.roundaboutApproach ? car.roundaboutStop : STOP_LINE) + extraHalfLength(car);
+    const stopLine = (car.roundaboutApproach ? car.roundaboutStop : car.junctionStop) + extraHalfLength(car);
     const entryDistance = center - stopLine - car.position * car.direction;
     const entryLookahead = car.roundaboutApproach ? Math.min(Math.max(1, car.speed * 0.6 + 1),
       blockSize - ROUNDABOUT_STOP - STOP_LINE - 1.2) : Math.max(1, car.speed * delta + 0.1);
@@ -186,7 +188,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
         const exitLine=ROUNDABOUT_STOP+extraHalfLength(car);
         const result = turnTarget(car,blockSize,side || 1,exitLine,center*car.direction);
         if (!side) Object.assign(result, { axis:car.axis,line:car.line,direction:car.direction,
-          track:car.track===1?1:0,position:center*car.direction+car.direction*(exitLine+1),side:0 });
+          track:car.track===0?0:1,position:center*car.direction+car.direction*(exitLine+1),side:0 });
         return result;
       };
       turn = [preferred,0,-1,1].map(target).find(candidate => roadOpen(candidate.axis,candidate.line,Math.floor(candidate.position/blockSize)) &&
@@ -305,7 +307,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     // Straight, settled cars fit wholly inside a continuous asphalt strip.
     // Avoid allocating coordinates and computing wheel poses for this case.
     if(car.parking){settleOnFlatRoad(car);continue;}
-    if (!car.turn && !car.steer && Math.abs(car.offset) + WHEEL_SIDES[1] < PAVED_ROAD / 2 && settleOnFlatRoad(car)) continue;
+    if (!car.turn && !car.steer && Math.abs(car.offset) + WHEEL_SIDES[1] < streetHalf(car.axis,car.line) && settleOnFlatRoad(car)) continue;
     const position = carCoordinates(car, blockSize);
     const pose = car.turn ? position : vehiclePose(position.x, position.z, car.axis, car.direction, car.steer);
     updateSurfaceMotion(car, pose, delta, blockSize, PAVED_ROAD / 2);
