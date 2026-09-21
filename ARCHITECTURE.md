@@ -9,7 +9,7 @@
 ## Минимальный стек
 
 - On-chain: Rust + Anchor, Solana programs и PDA accounts.
-- Fungible assets: SPL Token или Token-2022; точный формат `$FARE` пока открыт.
+- `$FARE`: стандартный SPL-совместимый mint, создаваемый pump.fun, без собственных Token-2022 extensions и административных mint/freeze-возможностей проекта.
 - NFT: Solana NFT asset; предварительный кандидат — Metaplex Core.
 - Frontend: React + Vite + TypeScript, `@solana/kit`, React bindings и Wallet Standard.
 - Backend/indexer: Node.js + TypeScript + MongoDB.
@@ -38,6 +38,7 @@
 ## Неизменные экономические правила
 
 - `$FARE` запускается через pump.fun в canonical паре `FARE/SOL`. Собственных 4% временно нет; используется фактический переменный Creator Fee платформы, поступающий в SOL, без обещания постоянного процента.
+- Параметры `$FARE` принимает стандартный запуск pump.fun; до основного запуска обязательны тестовый mint и проверка прямого получения Creator Fees на PDA.
 - Split Creator Fee: 45% SOL покупают `$FARE` для основного парка, 5% — `$FARE` для стажёров, 20% — `$FARE` для burn, 20% напрямую покупают stock-токены, 10% переводятся команде в SOL.
 - Парк распределяет только фактически накопленный пул, без фиксированного APY.
 - Максимальная прочность обычной машины — 5 дней; `claim` её не меняет.
