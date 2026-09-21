@@ -1,19 +1,20 @@
 import { roundaboutAt } from './roadLayout.js';
 
-export const RING_RADIUS = 2.65;
-export const ISLAND_RADIUS = 1.1;
+// Leave room for the swinging body corners beside queues at the stop lines.
+export const RING_RADIUS = 3.5;
+export const ISLAND_RADIUS = 2.05;
 const TAU = Math.PI * 2;
 const heading = (axis, direction) => axis === 0 ? direction > 0 ? 0 : Math.PI : direction > 0 ? Math.PI / 2 : -Math.PI / 2;
 
 export function populateRoundabout(batch, gx, gz, x, z) {
   if (!roundaboutAt(gx, gz)) return;
   batch.add('island', x, 0.12, z, ISLAND_RADIUS * 2, 0.24, ISLAND_RADIUS * 2, '#bdbdbd');
-  batch.add('island', x, 0.26, z, 1.85, 0.08, 1.85, '#929292');
+  batch.add('island', x, 0.26, z, ISLAND_RADIUS * 2 - 0.35, 0.08, ISLAND_RADIUS * 2 - 0.35, '#929292');
   // Short tangential dashes make the direction around the island readable.
   for (let i = 0; i < 12; i++) {
     const a = i * TAU / 12;
-    batch.add('paint', x + Math.cos(a) * 1.5, 0.016, z + Math.sin(a) * 1.5,
-      0.12, 0.018, 0.32, '#e9e9e9', -a);
+    batch.add('paint', x + Math.cos(a) * (ISLAND_RADIUS + 0.4), 0.016, z + Math.sin(a) * (ISLAND_RADIUS + 0.4),
+      0.12, 0.018, 0.45, '#e9e9e9', -a);
   }
 }
 
