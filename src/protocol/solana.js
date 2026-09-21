@@ -183,11 +183,8 @@ export async function loadOwnedMachines(owner, knownStatus) {
   if (!assets.length) return [];
   const derived = await Promise.all(assets.map(item => deriveTaxiAddresses(PROGRAM_ID, address(item.id))));
   const rewardMints = [status.config.fareMint, ...status.config.stockMints];
-  const [response, mintResponse, stockMultipliers] = await Promise.all([
-    rpc.getMultipleAccounts(derived.map(item => item.machine), {
-      commitment: 'finalized',
-      encoding: 'base64',
-    }).send(),
+  const [machineAccounts, mintResponse, stockMultipliers] = await Promise.all([
+    loadMultipleAccounts(derived.map(item => item.machine)),
     rpc.getMultipleAccounts(rewardMints, { commitment: 'finalized', encoding: 'base64' }).send(),
     loadStockMultipliers(),
   ]);
@@ -197,7 +194,7 @@ export async function loadOwnedMachines(owner, knownStatus) {
     ? Number(status.config.pausedAt - status.config.totalPausedSeconds)
     : Math.floor(Date.now() / 1000) - Number(status.config.totalPausedSeconds);
   return assets.flatMap((asset, index) => {
-    const account = response.value[index];
+    const account = machineAccounts[index];
     if (!account) return [];
     const machine = decodeMachine(accountBytes(account));
     const pending = machine.rewardActive
@@ -236,6 +233,18 @@ export async function loadOwnedMachines(owner, knownStatus) {
       closed: machine.closed,
     }];
   });
+}
+
+export async function loadMultipleAccounts(accountAddresses, rpcClient = rpc) {
+  const values = [];
+  for (let start = 0; start < accountAddresses.length; start += 100) {
+    const response = await rpcClient.getMultipleAccounts(accountAddresses.slice(start, start + 100), {
+      commitment: 'finalized',
+      encoding: 'base64',
+    }).send();
+    values.push(...response.value);
+  }
+  return values;
 }
 
 async function loadStockMultipliers() {

@@ -17,6 +17,7 @@ import {
   calculateRepairQuote,
   formatTokenAmount,
   loadDASAssets,
+  loadMultipleAccounts,
   protocolAddresses,
   selectActiveMultiplier,
   shortAddress,
@@ -88,6 +89,21 @@ test('DAS garage loads every page when a wallet owns more than one thousand asse
   const assets = await loadDASAssets(owner, collection, fetchImplementation);
   assert.equal(assets.length, 1001);
   assert.deepEqual(calls, [1, 2]);
+});
+
+test('machine accounts are loaded in Solana RPC batches of at most one hundred', async () => {
+  const accountAddresses = Array.from({ length: 205 }, (_, index) => `account-${index}`);
+  const batches = [];
+  const rpcClient = {
+    getMultipleAccounts(batch) {
+      batches.push(batch);
+      return { send: async () => ({ value: batch.map(value => ({ value })) }) };
+    },
+  };
+
+  const accounts = await loadMultipleAccounts(accountAddresses, rpcClient);
+  assert.deepEqual(batches.map(batch => batch.length), [100, 100, 5]);
+  assert.deepEqual(accounts.map(account => account.value), accountAddresses);
 });
 
 test('trainee activation puts Ed25519 verification immediately before the program instruction', async () => {
