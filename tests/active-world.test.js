@@ -6,10 +6,10 @@ import { scenarioSettings, scenarioTraffic, trafficSnapshot } from '../src/city/
 
 test('projected ground bounds cover real camera corner rays at all supported framings', () => {
   for (const [width, height] of [[393, 651], [393, 852], [852, 393], [1365, 570], [2560, 1080]]) {
-    for (const zoom of [70, 150]) for (const blockSize of [24, 40, 48]) {
+    for (const zoom of [50, 200]) for (const blockSize of [24, 40, 64]) {
       const aspect = width / height, viewWidth = (aspect < 1 ? 76 * aspect : Math.min(144, 82 * aspect)) * 100 / zoom;
       const viewHeight = viewWidth / aspect;
-      const settings = { ...scenarioSettings(), zoom, blockSize, taxiSpeed: 180, trafficSpeed: 180 };
+      const settings = { ...scenarioSettings(), zoom, blockSize, taxiSpeed: 250, trafficSpeed: 250 };
       const area = activeWorldSize(viewWidth, viewHeight, settings), extents = groundExtents(viewWidth, viewHeight);
       const camera = new THREE.OrthographicCamera(-viewWidth / 2, viewWidth / 2, viewHeight / 2, -viewHeight / 2, 1, 400);
       camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();

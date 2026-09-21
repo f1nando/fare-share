@@ -7,7 +7,7 @@ function SlidersIcon() {
 }
 
 export function SettingsPanel({ settings, onChange }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
     <aside className={`settings ${open ? 'is-open' : ''}`} aria-label="Настройки города">
       <button className="settings-toggle" aria-expanded={open} aria-controls="city-settings" onClick={() => setOpen(!open)}>

@@ -2,7 +2,7 @@ import { COLOR_SCHEMES } from './colorSchemes.js';
 
 export const SETTINGS_KEY = 'taxi-city.settings.v1';
 export const DEFAULT_SETTINGS = Object.freeze({
-  colorScheme: 'pale',
+  colorScheme: 'classic',
   density: 70,
   taxiShare: 7,
   trafficSpeed: 130,
@@ -16,18 +16,18 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 export const SETTING_GROUPS = [
   { title: 'Поток', controls: [
-    { key: 'density', label: 'Количество машин', min: 0, max: 150, step: 5, unit: '%' },
-    { key: 'trafficSpeed', label: 'Скорость потока', min: 50, max: 180, step: 5, unit: '%' },
+    { key: 'density', label: 'Количество машин', min: 0, max: 200, step: 5, unit: '%' },
+    { key: 'trafficSpeed', label: 'Скорость потока', min: 10, max: 250, step: 5, unit: '%' },
   ] },
   { title: 'Такси', controls: [
-    { key: 'taxiShare', label: 'Доля такси', min: 0, max: 30, step: 1, unit: '%' },
-    { key: 'taxiSpeed', label: 'Скорость такси', min: 50, max: 180, step: 5, unit: '%' },
+    { key: 'taxiShare', label: 'Доля такси', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'taxiSpeed', label: 'Скорость такси', min: 10, max: 250, step: 5, unit: '%' },
     { key: 'weaving', label: 'Дополнительное лихачество', min: 0, max: 200, step: 10, unit: '%' },
   ] },
   { title: 'Город и камера', controls: [
-    { key: 'blockSize', label: 'Размер кварталов', min: 24, max: 48, step: 2, unit: '' },
-    { key: 'zoom', label: 'Приближение', min: 70, max: 150, step: 5, unit: '%' },
-    { key: 'cameraSpeed', label: 'Движение камеры', min: 0, max: 200, step: 10, unit: '%' },
+    { key: 'blockSize', label: 'Размер кварталов', min: 24, max: 64, step: 2, unit: '' },
+    { key: 'zoom', label: 'Приближение', min: 50, max: 200, step: 5, unit: '%' },
+    { key: 'cameraSpeed', label: 'Движение камеры', min: 0, max: 400, step: 10, unit: '%' },
   ] },
 ];
 
