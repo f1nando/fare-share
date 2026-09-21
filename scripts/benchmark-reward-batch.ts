@@ -44,7 +44,7 @@ interface Manifest {
   page: string;
   machines: string[];
   count: number;
-  kind: 'mint' | 'repair' | 'expire';
+  kind: 'mint' | 'repair' | 'expire' | 'stale';
 }
 
 async function prepareFixtures(output: string, kind: Manifest['kind'], count: number) {
@@ -67,7 +67,7 @@ async function prepareFixtures(output: string, kind: Manifest['kind'], count: nu
     timestamp: eventTime,
     eventNumber: BigInt(index + 1),
     asset,
-    kind: kind === 'expire' ? 1 : 0,
+    kind: kind === 'expire' || kind === 'stale' ? 1 : 0,
     generation: kind === 'repair' ? 2 : 1,
   }));
   const accountFiles: Manifest['accountFiles'] = [];
@@ -83,7 +83,7 @@ async function prepareFixtures(output: string, kind: Manifest['kind'], count: nu
       `machine-${index}`,
       machines[index][0],
       PROGRAM_ID,
-      encodeMachine(assets[index], kind, machines[index][1]),
+      encodeMachine(assets[index], kind, machines[index][1], eventTime),
     );
   }
   const manifest: Manifest = {
@@ -114,7 +114,22 @@ async function simulate(manifestPath: string) {
     accounts: [],
     data: concat(Uint8Array.of(2), u32(1_400_000)),
   };
-  const calculateInstruction: Instruction = {
+  const calculateInstruction: Instruction = manifest.kind === 'stale' ? {
+    programAddress: address(manifest.programId),
+    accounts: [
+      meta(signer.address, AccountRole.READONLY_SIGNER),
+      meta(address(manifest.config), AccountRole.READONLY),
+      meta(address(manifest.queue), AccountRole.WRITABLE),
+      meta(address(manifest.page), AccountRole.WRITABLE),
+      ...manifest.machines.map(machine => meta(address(machine), AccountRole.READONLY)),
+    ],
+    data: concat(
+      discriminator('prune_stale_events'),
+      Uint8Array.of(0),
+      u32(manifest.count),
+      ...Array.from({ length: manifest.count }, (_, index) => u64(BigInt(index + 1))),
+    ),
+  } : {
     programAddress: address(manifest.programId),
     accounts: [
       meta(signer.address, AccountRole.READONLY_SIGNER),
@@ -196,10 +211,10 @@ function encodePage(
   return writer.finish();
 }
 
-function encodeMachine(asset: Address, kind: Manifest['kind'], bump: number) {
+function encodeMachine(asset: Address, kind: Manifest['kind'], bump: number, eventTime: bigint) {
   const writer = new Writer('Machine', 189);
-  writer.pubkey(asset).u16(30).i64(0n);
-  writer.u32(kind === 'repair' ? 2 : 1).u32(kind === 'mint' ? 0 : 1);
+  writer.pubkey(asset).u16(30).i64(kind === 'stale' ? eventTime + 5n * 24n * 60n * 60n - 1n : 0n);
+  writer.u32(kind === 'repair' || kind === 'stale' ? 2 : 1).u32(kind === 'mint' ? 0 : 1);
   writer.u8(kind === 'mint' ? 0 : 1).u8(0);
   for (let index = 0; index < 5; index += 1) writer.u128(0n);
   for (let index = 0; index < 5; index += 1) writer.u64(0n);
@@ -240,8 +255,8 @@ function fakeAddress(seed: number) {
   return address(addressDecoder.decode(bytes));
 }
 function parseKind(value: string): Manifest['kind'] {
-  if (value === 'mint' || value === 'repair' || value === 'expire') return value;
-  throw new Error('kind must be mint, repair, or expire');
+  if (value === 'mint' || value === 'repair' || value === 'expire' || value === 'stale') return value;
+  throw new Error('kind must be mint, repair, expire, or stale');
 }
 function discriminator(name: string) {
   return Uint8Array.from(createHash('sha256').update(`global:${name}`).digest().subarray(0, 8));
@@ -251,6 +266,11 @@ function meta(value: Address, role: AccountRole) { return { address: value, role
 function u32(value: number) {
   const result = new Uint8Array(4);
   new DataView(result.buffer).setUint32(0, value, true);
+  return result;
+}
+function u64(value: bigint) {
+  const result = new Uint8Array(8);
+  new DataView(result.buffer).setBigUint64(0, value, true);
   return result;
 }
 function concat(...parts: readonly Uint8Array[]) {
@@ -283,7 +303,7 @@ class Writer {
 
 const [mode, target, kindArg = 'expire', countArg = '20'] = process.argv.slice(2);
 if (mode === 'prepare') {
-  if (!target) throw new Error('Usage: prepare <output-directory> <mint|repair|expire> <count>');
+  if (!target) throw new Error('Usage: prepare <output-directory> <mint|repair|expire|stale> <count>');
   const kind = parseKind(kindArg);
   const count = Number(countArg);
   if (!Number.isInteger(count) || count < 1 || count > 20) throw new Error('count must be 1..20');

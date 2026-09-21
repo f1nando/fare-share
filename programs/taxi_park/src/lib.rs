@@ -811,6 +811,54 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn prune_stale_events<'info>(
+        ctx: Context<'_, '_, 'info, 'info, PruneStaleEvents<'info>>,
+        page_index: u8,
+        event_numbers: Vec<u64>,
+    ) -> Result<()> {
+        require!(
+            !event_numbers.is_empty() && event_numbers.len() <= usize::from(MAX_BATCH_EVENTS),
+            TaxiError::InvalidBatchLimit
+        );
+        require!(
+            usize::from(page_index) < MAX_QUEUE_PAGES,
+            TaxiError::InvalidQueuePage
+        );
+        require!(
+            ctx.accounts.event_page.index == page_index,
+            TaxiError::InvalidQueuePage
+        );
+
+        for event_number in &event_numbers {
+            let event = ctx
+                .accounts
+                .event_page
+                .event(*event_number)
+                .ok_or(TaxiError::InvalidMachineEvent)?;
+            require!(
+                event.kind()? == EventKind::Expire,
+                TaxiError::InvalidMachineEvent
+            );
+            let machine_key =
+                Pubkey::find_program_address(&[b"machine", event.machine.as_ref()], ctx.program_id)
+                    .0;
+            let machine_info = ctx
+                .remaining_accounts
+                .iter()
+                .find(|account| account.key() == machine_key)
+                .ok_or(TaxiError::MissingMachineAccount)?;
+            let machine = Account::<Machine>::try_from(machine_info)?;
+            require!(machine.expiry_is_stale(&event)?, TaxiError::EventNotStale);
+            ctx.accounts.event_page.remove(*event_number)?;
+        }
+        ctx.accounts.queue.update_page(&ctx.accounts.event_page)?;
+        emit!(StaleEventsPruned {
+            page_index,
+            count: u8::try_from(event_numbers.len()).map_err(|_| TaxiError::MathOverflow)?,
+        });
+        Ok(())
+    }
+
     pub fn activate_trainee(
         ctx: Context<ActivateTrainee>,
         args: ActivateTraineeArgs,
@@ -1599,6 +1647,22 @@ pub struct CleanupBurnedMachine<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(page_index: u8)]
+pub struct PruneStaleEvents<'info> {
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
+    pub queue: Box<Account<'info, EventQueue>>,
+    #[account(
+        mut,
+        seeds = [b"event-page".as_ref(), &[page_index]],
+        bump = event_page.bump
+    )]
+    pub event_page: Box<Account<'info, EventPage>>,
+}
+
+#[derive(Accounts)]
 #[instruction(args: ActivateTraineeArgs)]
 pub struct ActivateTrainee<'info> {
     #[account(mut)]
@@ -2080,6 +2144,12 @@ pub struct MachineBurnQueued {
     pub asset: Pubkey,
     pub detected_by: Pubkey,
     pub timestamp: i64,
+}
+
+#[event]
+pub struct StaleEventsPruned {
+    pub page_index: u8,
+    pub count: u8,
 }
 
 #[event]

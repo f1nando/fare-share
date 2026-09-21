@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { address, type Address } from '@solana/kit';
-import { queueHasReadyEvent, selectEventBatch, type EventPageState } from '../server/programState.js';
+import {
+  expiryIsPrunable,
+  queueHasReadyEvent,
+  selectEventBatch,
+  type EventPageState,
+} from '../server/programState.js';
 
 const targetA = address('11111111111111111111111111111111');
 const targetB = address('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
@@ -52,4 +57,19 @@ test('future events are not processed before protocol time', () => {
   const pool = { totalActiveWeight: 1n, nextPool: [0n], seriesEnd: 0n, seriesEventCutoff: 0n, seriesActive: false };
   assert.equal(queueHasReadyEvent(queue, pool, 100n), false);
   assert.equal(queueHasReadyEvent(queue, pool, 101n), true);
+});
+
+test('worker prunes only expiry events made obsolete by a repair', () => {
+  const repairTime = 20n;
+  const machine = {
+    activeUntil: repairTime + 5n * 24n * 60n * 60n,
+    scheduledGeneration: 2,
+    rewardGeneration: 1,
+    rewardActive: true,
+    closed: false,
+  };
+  assert.equal(expiryIsPrunable(event(repairTime + 1n, 1n), machine), true);
+  assert.equal(expiryIsPrunable(event(repairTime - 1n, 2n), machine), false);
+  assert.equal(expiryIsPrunable({ ...event(repairTime + 1n, 3n), kind: 0 }, machine), false);
+  assert.equal(expiryIsPrunable(event(repairTime - 1n, 4n), { ...machine, rewardGeneration: 2 }), true);
 });

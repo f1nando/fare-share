@@ -23,7 +23,9 @@ import {
 import {
   decodeEventPageState,
   decodeEventQueueState,
+  decodeMachineRewardState,
   decodeRewardPoolState,
+  expiryIsPrunable,
   queueHasReadyEvent,
   selectEventBatch,
   type EventPageState,
@@ -73,6 +75,7 @@ export async function runWorkerCycle() {
   }
 
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'main');
+  await pruneStaleMainEvents(config.solanaRpcUrl, config.programId, signer, addresses);
   await drainRewards(config.solanaRpcUrl, config.programId, signer, addresses, 'trainee');
 }
 
@@ -276,6 +279,62 @@ async function drainRewards(
   throw new Error(`${kind} queue did not drain after 500 transactions`);
 }
 
+async function pruneStaleMainEvents(
+  rpcUrl: string,
+  programId: Address,
+  signer: KeyPairSigner,
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>,
+) {
+  const queue = decodeEventQueueState((await getAccount(rpcUrl, addresses.queue)).data);
+  const pageIndexes = queue.pages
+    .map((page, index) => ({ ...page, index }))
+    .filter(page => page.count > 0)
+    .sort((left, right) => right.count - left.count)
+    .map(page => page.index);
+  let transactionCount = 0;
+
+  for (const pageIndex of pageIndexes) {
+    if (transactionCount >= 10) break;
+    const pageAddress = await derivePage(programId, 'main', pageIndex);
+    const page = decodeEventPageState((await getAccount(rpcUrl, pageAddress)).data);
+    const expiryEvents = page.events.filter(event => event.kind === 1);
+    if (expiryEvents.length === 0) continue;
+
+    const targetAddresses = [...new Set(expiryEvents.map(event => String(event.target)))].map(address);
+    const machineAddresses = await Promise.all(targetAddresses.map(target => deriveMachine(programId, target)));
+    const machineAccounts = await getAccountsInChunks(rpcUrl, machineAddresses);
+    const machines = new Map(targetAddresses.map((target, index) => [
+      String(target),
+      { address: machineAddresses[index], state: decodeMachineRewardState(machineAccounts[index].data) },
+    ]));
+    const stale = expiryEvents
+      .filter(event => expiryIsPrunable(event, machines.get(String(event.target))!.state))
+      .slice(0, 20);
+    if (stale.length === 0) continue;
+
+    const staleMachines = [...new Set(stale.map(event => String(event.target)))]
+      .map(target => machines.get(target)!.address);
+    const instruction: Instruction = {
+      programAddress: programId,
+      accounts: [
+        meta(signer.address, AccountRole.READONLY_SIGNER),
+        meta(addresses.config, AccountRole.READONLY),
+        meta(addresses.queue, AccountRole.WRITABLE),
+        meta(pageAddress, AccountRole.WRITABLE),
+        ...staleMachines.map(machine => meta(machine, AccountRole.READONLY)),
+      ],
+      data: encodePruneStaleEvents(pageIndex, stale.map(event => event.eventNumber)),
+    };
+    try {
+      const signature = await sendInstructions(rpcUrl, signer, [instruction]);
+      transactionCount += 1;
+      console.log(`prune_stale_events page ${pageIndex} (${stale.length} events) finalized: ${signature}`);
+    } catch (error) {
+      console.warn(`prune_stale_events page ${pageIndex} lost a finalized-state race; retrying next cycle`, error);
+    }
+  }
+}
+
 async function hasCollectableFees(rpcUrl: string, feeVault: Address) {
   const account = await getAccount(rpcUrl, feeVault);
   const rent = BigInt(await rpcCall(rpcUrl, 'getMinimumBalanceForRentExemption', [account.data.length, { commitment: 'finalized' }]) as number);
@@ -354,6 +413,29 @@ async function getAccounts(rpcUrl: string, accounts: Address[]): Promise<RpcAcco
       owner: address(value.owner),
     };
   });
+}
+
+async function getAccountsInChunks(rpcUrl: string, accounts: Address[]) {
+  const result: RpcAccount[] = [];
+  for (let offset = 0; offset < accounts.length; offset += 100) {
+    result.push(...await getAccounts(rpcUrl, accounts.slice(offset, offset + 100)));
+  }
+  return result;
+}
+
+function encodePruneStaleEvents(pageIndex: number, eventNumbers: bigint[]) {
+  const count = Buffer.alloc(4);
+  count.writeUInt32LE(eventNumbers.length);
+  return Buffer.concat([
+    anchorDiscriminator('prune_stale_events'),
+    Buffer.from([pageIndex]),
+    count,
+    ...eventNumbers.map(eventNumber => {
+      const encoded = Buffer.alloc(8);
+      encoded.writeBigUInt64LE(eventNumber);
+      return encoded;
+    }),
+  ]);
 }
 
 function decodeFeeReserves(bytes: Uint8Array) {

@@ -36,6 +36,8 @@ pub enum TaxiError {
     InvalidActiveWeight,
     #[msg("Machine event does not match the machine")]
     InvalidMachineEvent,
+    #[msg("Machine expiry event is still required for reward accounting")]
+    EventNotStale,
     #[msg("Batch limit must be between 1 and 20")]
     InvalidBatchLimit,
     #[msg("Required machine PDA was not supplied")]

@@ -21,6 +21,13 @@ export interface ProgramEvent {
   generation: number;
 }
 export interface EventPageState { index: number; events: ProgramEvent[] }
+export interface MachineRewardState {
+  activeUntil: bigint;
+  scheduledGeneration: number;
+  rewardGeneration: number;
+  rewardActive: boolean;
+  closed: boolean;
+}
 
 export function decodeRewardPoolState(bytes: Uint8Array): RewardPoolState {
   const reader = new Reader(bytes);
@@ -59,6 +66,26 @@ export function decodeEventPageState(bytes: Uint8Array): EventPageState {
     generation: reader.u32(),
   }));
   return { index, events };
+}
+
+export function decodeMachineRewardState(bytes: Uint8Array): MachineRewardState {
+  const reader = new Reader(bytes);
+  reader.skip(32 + 2);
+  const activeUntil = reader.i64();
+  const scheduledGeneration = reader.u32();
+  const rewardGeneration = reader.u32();
+  const rewardActive = reader.u8() !== 0;
+  const closed = reader.u8() !== 0;
+  return { activeUntil, scheduledGeneration, rewardGeneration, rewardActive, closed };
+}
+
+export function expiryIsPrunable(event: ProgramEvent, machine: MachineRewardState) {
+  if (event.kind !== 1) return false;
+  if (event.generation < machine.rewardGeneration || (machine.closed && !machine.rewardActive)) {
+    return true;
+  }
+  const currentPeriodStarted = machine.activeUntil - 5n * 24n * 60n * 60n;
+  return event.generation < machine.scheduledGeneration && event.timestamp > currentPeriodStarted;
 }
 
 export function selectEventBatch(

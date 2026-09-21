@@ -278,6 +278,27 @@ pub struct TraineeBucket {
 }
 
 impl Machine {
+    pub fn expiry_is_stale(&self, event: &MachineEvent) -> Result<bool> {
+        require_keys_eq!(self.asset, event.machine, TaxiError::InvalidMachineEvent);
+        require!(
+            event.kind()? == EventKind::Expire,
+            TaxiError::InvalidMachineEvent
+        );
+
+        if event.generation < self.reward_generation || (self.closed && !self.reward_active) {
+            return Ok(true);
+        }
+
+        let current_period_started = self
+            .active_until
+            .checked_sub(MAX_DURABILITY_SECONDS)
+            .ok_or(TaxiError::MathOverflow)?;
+        Ok(
+            event.generation < self.scheduled_generation
+                && event.timestamp > current_period_started,
+        )
+    }
+
     pub fn settle(
         &mut self,
         pool: &RewardPool,
@@ -523,6 +544,51 @@ impl EventPage {
         }
         Ok(result)
     }
+
+    pub fn event(&self, event_number: u64) -> Option<MachineEvent> {
+        self.events
+            .iter()
+            .find(|event| event.event_number == event_number)
+            .copied()
+    }
+
+    pub fn remove(&mut self, event_number: u64) -> Result<MachineEvent> {
+        let mut index = self
+            .events
+            .iter()
+            .position(|event| event.event_number == event_number)
+            .ok_or(TaxiError::InvalidMachineEvent)?;
+        let removed = self.events.swap_remove(index);
+        if index >= self.events.len() {
+            return Ok(removed);
+        }
+
+        while index > 0 {
+            let parent = (index - 1) / 2;
+            if !self.events[index].before(&self.events[parent]) {
+                break;
+            }
+            self.events.swap(index, parent);
+            index = parent;
+        }
+        loop {
+            let left = index * 2 + 1;
+            let right = left + 1;
+            if left >= self.events.len() {
+                break;
+            }
+            let mut next = left;
+            if right < self.events.len() && self.events[right].before(&self.events[left]) {
+                next = right;
+            }
+            if !self.events[next].before(&self.events[index]) {
+                break;
+            }
+            self.events.swap(index, next);
+            index = next;
+        }
+        Ok(removed)
+    }
 }
 
 #[cfg(test)]
@@ -607,6 +673,42 @@ mod tests {
             .unwrap();
         assert!(machine.reward_active);
         assert_eq!(pool.total_active_weight, 1);
+    }
+
+    #[test]
+    fn stale_expiry_is_identified_without_dropping_an_unprocessed_boundary() {
+        let asset = Pubkey::new_unique();
+        let repair_time = 20;
+        let mut machine = Machine {
+            asset,
+            active_until: repair_time + MAX_DURABILITY_SECONDS,
+            scheduled_generation: 2,
+            reward_generation: 1,
+            reward_active: true,
+            ..Machine::default()
+        };
+        let future_old_expiry = MachineEvent::new(repair_time + 1, 1, asset, EventKind::Expire, 1);
+        let past_old_expiry = MachineEvent::new(repair_time - 1, 2, asset, EventKind::Expire, 1);
+        assert!(machine.expiry_is_stale(&future_old_expiry).unwrap());
+        assert!(!machine.expiry_is_stale(&past_old_expiry).unwrap());
+
+        machine.reward_generation = 2;
+        assert!(machine.expiry_is_stale(&past_old_expiry).unwrap());
+    }
+
+    #[test]
+    fn arbitrary_heap_removal_preserves_event_order() {
+        let mut page = EventPage::default();
+        for (timestamp, number) in [(7, 7), (3, 3), (9, 9), (1, 1), (5, 5)] {
+            page.push(event(timestamp, number)).unwrap();
+        }
+        assert_eq!(page.remove(3).unwrap().event_number, 3);
+        assert_eq!(
+            (0..4)
+                .map(|_| page.pop().unwrap().event_number)
+                .collect::<Vec<_>>(),
+            vec![1, 5, 7, 9]
+        );
     }
 
     #[test]
