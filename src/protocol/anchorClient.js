@@ -489,7 +489,41 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
   }
   const encoded = getTransactionEncoder().encode(transaction);
   const [result] = await feature.signAndSendTransaction({ transaction: encoded, account, chain });
-  return getBase58Decoder().decode(result.signature);
+  const signature = getBase58Decoder().decode(result.signature);
+  await waitForFinalizedSignature(rpc, signature);
+  return signature;
+}
+
+export async function waitForFinalizedSignature(
+  rpc,
+  signature,
+  { timeoutMs = 45_000, pollMs = 1_000, sleep = delay => new Promise(resolve => setTimeout(resolve, delay)) } = {},
+) {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    let result;
+    try {
+      result = await rpc.getSignatureStatuses([signature], { searchTransactionHistory: true }).send();
+    } catch {
+      if (Date.now() >= deadline) break;
+      await sleep(pollMs);
+      continue;
+    }
+    const status = result.value[0];
+    if (status?.err) {
+      throw transactionError(`Транзакция Solana не выполнена: ${JSON.stringify(status.err)}`, signature);
+    }
+    if (status?.confirmationStatus === 'finalized') return;
+    if (Date.now() >= deadline) break;
+    await sleep(pollMs);
+  } while (Date.now() <= deadline);
+  throw transactionError('Solana не подтвердила транзакцию за 45 секунд. Проверьте её в Explorer перед повтором.', signature);
+}
+
+function transactionError(message, signature) {
+  const error = new Error(message);
+  error.signature = signature;
+  return error;
 }
 
 function meta(value, role) {

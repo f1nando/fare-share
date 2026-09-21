@@ -28,6 +28,7 @@ import {
   buildClaimInstructions,
   chooseEventPage,
   TAXI_DISCRIMINATORS,
+  waitForFinalizedSignature,
 } from '../src/protocol/anchorClient.js';
 
 const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -185,4 +186,47 @@ test('claim creates destination token accounts only for non-zero rewards', async
     const destination = claim.accounts[7 + index * 4];
     assert.equal(destination.address, vault.address, `zero reward ${index} should reuse its vault placeholder`);
   }
+});
+
+test('wallet transaction waits until Solana reports finalized', async () => {
+  const states = [null, { confirmationStatus: 'confirmed', err: null }, { confirmationStatus: 'finalized', err: null }];
+  let calls = 0;
+  const rpc = {
+    getSignatureStatuses() {
+      const status = states[calls++];
+      return { send: async () => ({ value: [status] }) };
+    },
+  };
+  await waitForFinalizedSignature(rpc, 'signature', { timeoutMs: 1000, pollMs: 0, sleep: async () => {} });
+  assert.equal(calls, 3);
+});
+
+test('wallet transaction surfaces an on-chain failure before showing success', async () => {
+  const rpc = {
+    getSignatureStatuses() {
+      return { send: async () => ({ value: [{ confirmationStatus: 'finalized', err: { InstructionError: [0, 'Custom'] } }] }) };
+    },
+  };
+  const error = await waitForFinalizedSignature(
+    rpc,
+    'signature',
+    { timeoutMs: 1000, pollMs: 0, sleep: async () => {} },
+  ).catch(value => value);
+  assert.match(error.message, /Транзакция Solana не выполнена/);
+  assert.equal(error.signature, 'signature');
+});
+
+test('wallet transaction timeout keeps its signature for Explorer verification', async () => {
+  const rpc = {
+    getSignatureStatuses() {
+      return { send: async () => ({ value: [null] }) };
+    },
+  };
+  const error = await waitForFinalizedSignature(
+    rpc,
+    'pending-signature',
+    { timeoutMs: -1, pollMs: 0, sleep: async () => {} },
+  ).catch(value => value);
+  assert.match(error.message, /Explorer перед повтором/);
+  assert.equal(error.signature, 'pending-signature');
 });

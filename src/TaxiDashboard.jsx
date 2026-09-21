@@ -91,7 +91,7 @@ export function TaxiDashboard() {
       return;
     }
     setBusy(key);
-    setNotice('Подтвердите транзакцию в Phantom…');
+    setNotice('Подтвердите транзакцию в Phantom, затем дождитесь финального подтверждения Solana…');
     setLastSignature('');
     try {
       const result = await action();
@@ -107,6 +107,7 @@ export function TaxiDashboard() {
       setTrainees(nextTrainees);
       setNotice(success);
     } catch (error) {
+      if (error.signature) setLastSignature(error.signature);
       setNotice(error.message || 'Транзакция не выполнена.');
     } finally {
       setBusy('');
