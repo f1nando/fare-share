@@ -40,6 +40,7 @@
 - `activate_trainee(voucher)`: проверяет ed25519-ваучер backend и создаёт временную стажёрскую запись.
 - `claim_trainee(campaign_id)`: выплачивает одну стажёрскую машину.
 - Административные инструкции: `pause`, `unpause`, двухшаговая смена admin, замена явно разрешённых зависимостей и согласованный rescue.
+- Global pause замораживает `protocolTime` и блокирует инструкции Taxi, но не блокирует стандартный transfer Metaplex Core Asset. Collection Freeze Plugin не используется.
 
 ## Неизменные экономические правила
 
@@ -56,7 +57,7 @@
 
 ## Главные открытые зависимости
 
-В первую очередь нужно решить оставшиеся пункты SOL-10—SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: transfer NFT во время pause и оплату создания Solana accounts. Безопасность выбранного batch-лимита отдельно подтверждается benchmark перед mainnet.
+Следующим нужно решить SOL-11 в `docs/TECHNICAL-QUESTIONS.md`: кто оплачивает создание Solana accounts. Безопасность выбранного batch-лимита отдельно подтверждается benchmark перед mainnet.
 
 ## Технические основания
 
