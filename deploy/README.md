@@ -24,6 +24,8 @@ and settings render on desktop/mobile. FPS tool: `/?benchmark=1&duration=20`.
 Host: `bkserv`, URL: `https://taxi.demotest.live/`.
 Nginx source configuration: `deploy/taxi.demotest.live.nginx.conf`; the live copy is
 `/etc/nginx/sites-available/taxi.demotest.live` and is enabled by symlink.
+HTTPS uses the Let's Encrypt certificate at `/etc/letsencrypt/live/taxi.demotest.live/`;
+Certbot installed automatic renewal on `bkserv`.
 
 Upload each frontend build to a new `/var/www/taxi-park/releases/<release>/`
 directory and atomically point `/var/www/taxi-park/current` to it. Do not upload
