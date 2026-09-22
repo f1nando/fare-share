@@ -54,6 +54,7 @@
 - Event queue PDA: min-heap событий `MINT`, `REPAIR`, `EXPIRE`, упорядоченных по `timestamp + eventNumber`.
 - Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и записи `wallet + campaignId`.
 - Program-controlled SPL token accounts: один reward account конфигурации для `$FARE`, по одному для каждого stock mint и отдельный WSOL account. Один и тот же token account принимает результат Jupiter swap и хранит рассчитанные активы до пользовательского `claim`; логические main/trainee/stock-пулы разделяются бухгалтерскими счётчиками программы, а не лишними token accounts.
+- Прямой перевод `$FARE` или xStocks в reward account не меняет бухгалтерские пулы: sync-инструкций нет. Такой физический избыток доступен только административному `rescue_token` во время глобальной паузы.
 
 ## Публичные инструкции
 

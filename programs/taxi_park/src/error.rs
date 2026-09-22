@@ -62,8 +62,6 @@ pub enum TaxiError {
     InvalidRewardAsset,
     #[msg("Reward mint does not match configuration")]
     InvalidRewardMint,
-    #[msg("Token vault contains no new reward tokens")]
-    NothingToSync,
     #[msg("Metadata URI is empty or too long")]
     InvalidMetadataUri,
     #[msg("NFT does not belong to the configured collection")]

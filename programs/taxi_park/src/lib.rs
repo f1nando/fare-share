@@ -266,36 +266,6 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn sync_reward_asset(ctx: Context<SyncRewardAsset>, asset_index: u8) -> Result<()> {
-        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        let index = usize::from(asset_index);
-        require!(index < ASSET_COUNT, TaxiError::InvalidRewardAsset);
-        require_keys_eq!(
-            ctx.accounts.config.asset_mint(index)?,
-            ctx.accounts.mint.key(),
-            TaxiError::InvalidRewardMint
-        );
-
-        let accounted = total_accounted_reward_tokens(
-            &ctx.accounts.pool,
-            &ctx.accounts.trainee_pool,
-            index,
-        )?;
-        let actual = ctx.accounts.vault.amount;
-        let received = actual
-            .checked_sub(accounted)
-            .ok_or(TaxiError::VaultBalanceMismatch)?;
-        require!(received > 0, TaxiError::NothingToSync);
-        ctx.accounts.pool.next_pool[index] = ctx.accounts.pool.next_pool[index]
-            .checked_add(received)
-            .ok_or(TaxiError::MathOverflow)?;
-        emit!(RewardAssetSynced {
-            asset_index,
-            amount: received
-        });
-        Ok(())
-    }
-
     pub fn collect_fees(ctx: Context<CollectFees>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require_keys_eq!(
@@ -1076,27 +1046,6 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn sync_trainee_fare(ctx: Context<SyncTraineeFare>) -> Result<()> {
-        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        let accounted = total_accounted_reward_tokens(
-            &ctx.accounts.pool,
-            &ctx.accounts.trainee_pool,
-            0,
-        )?;
-        let received = ctx
-            .accounts
-            .vault
-            .amount
-            .checked_sub(accounted)
-            .ok_or(TaxiError::VaultBalanceMismatch)?;
-        require!(received > 0, TaxiError::NothingToSync);
-        ctx.accounts.trainee_pool.next_pool[0] = ctx.accounts.trainee_pool.next_pool[0]
-            .checked_add(received)
-            .ok_or(TaxiError::MathOverflow)?;
-        emit!(TraineeFareSynced { amount: received });
-        Ok(())
-    }
-
     pub fn calculate_trainee_rewards<'info>(
         ctx: Context<'_, '_, 'info, 'info, CalculateTraineeRewards<'info>>,
         limit: u8,
@@ -1539,25 +1488,6 @@ pub struct RescueToken<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SyncRewardAsset<'info> {
-    pub caller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Box<Account<'info, Configuration>>,
-    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Box<Account<'info, RewardPool>>,
-    #[account(seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
-    pub trainee_pool: Box<Account<'info, RewardPool>>,
-    pub mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        token::mint = mint,
-        token::authority = config,
-        token::token_program = token_program
-    )]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
-    pub token_program: Interface<'info, TokenInterface>,
-}
-
-#[derive(Accounts)]
 pub struct CalculateRewards<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
@@ -1824,25 +1754,6 @@ pub struct ActivateTrainee<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SyncTraineeFare<'info> {
-    pub caller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
-    pub config: Box<Account<'info, Configuration>>,
-    #[account(seeds = [b"pool", b"main"], bump = pool.bump)]
-    pub pool: Box<Account<'info, RewardPool>>,
-    #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
-    pub trainee_pool: Box<Account<'info, RewardPool>>,
-    pub fare_mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        token::mint = fare_mint,
-        token::authority = config,
-        token::token_program = token_program
-    )]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
-    pub token_program: Interface<'info, TokenInterface>,
-}
-
-#[derive(Accounts)]
 pub struct CalculateTraineeRewards<'info> {
     pub caller: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump)]
@@ -1971,39 +1882,9 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
     Ok(())
 }
 
-fn total_accounted_reward_tokens(
-    pool: &RewardPool,
-    trainee_pool: &RewardPool,
-    index: usize,
-) -> Result<u64> {
-    let main = pool.accounted_tokens(index)?;
-    if index == 0 {
-        main.checked_add(trainee_pool.accounted_tokens(0)?)
-            .ok_or_else(|| error!(TaxiError::MathOverflow))
-    } else {
-        Ok(main)
-    }
-}
-
 #[cfg(test)]
 mod accounting_tests {
     use super::*;
-
-    #[test]
-    fn fare_vault_accounting_includes_the_trainee_pool() {
-        let main = RewardPool {
-            obligations: [10, 20, 0, 0, 0],
-            next_pool: [30, 40, 0, 0, 0],
-            ..RewardPool::default()
-        };
-        let trainee = RewardPool {
-            obligations: [5, 0, 0, 0, 0],
-            next_pool: [7, 0, 0, 0, 0],
-            ..RewardPool::default()
-        };
-        assert_eq!(total_accounted_reward_tokens(&main, &trainee, 0).unwrap(), 52);
-        assert_eq!(total_accounted_reward_tokens(&main, &trainee, 1).unwrap(), 60);
-    }
 
     #[test]
     fn initialize_rejects_duplicate_reward_mints() {
@@ -2228,12 +2109,6 @@ pub struct StockSwapProcessed {
 }
 
 #[event]
-pub struct RewardAssetSynced {
-    pub asset_index: u8,
-    pub amount: u64,
-}
-
-#[event]
 pub struct MachineMinted {
     pub asset: Pubkey,
     pub owner: Pubkey,
@@ -2273,11 +2148,6 @@ pub struct TraineeActivated {
     pub campaign_id: u64,
     pub active_from: i64,
     pub active_until: i64,
-}
-
-#[event]
-pub struct TraineeFareSynced {
-    pub amount: u64,
 }
 
 #[event]

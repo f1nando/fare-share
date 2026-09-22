@@ -147,19 +147,6 @@ impl RewardPool {
         Ok(())
     }
 
-    pub fn accounted_tokens(&self, index: usize) -> Result<u64> {
-        require!(index < ASSET_COUNT, TaxiError::InvalidRewardAsset);
-        let active = if self.series_active {
-            self.series_remaining[index]
-        } else {
-            0
-        };
-        self.obligations[index]
-            .checked_add(self.next_pool[index])
-            .and_then(|value| value.checked_add(active))
-            .ok_or_else(|| error!(TaxiError::MathOverflow))
-    }
-
     pub fn start_series(&mut self, now: i64, event_cutoff: u64) -> Result<()> {
         require!(!self.series_active, TaxiError::SeriesAlreadyActive);
         require!(now >= self.calculated_until, TaxiError::InvalidSegment);
