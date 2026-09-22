@@ -53,7 +53,11 @@ try {
     finally {
         $hmac.Dispose()
     }
-    if (-not [Security.Cryptography.CryptographicOperations]::FixedTimeEquals($storedMac, $computedMac)) {
+    $macDifference = 0
+    for ($index = 0; $index -lt $storedMac.Length; $index++) {
+        $macDifference = $macDifference -bor ($storedMac[$index] -bxor $computedMac[$index])
+    }
+    if ($macDifference -ne 0) {
         throw "Wrong password or damaged backup."
     }
 
