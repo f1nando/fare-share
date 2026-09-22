@@ -2,6 +2,8 @@
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
+Постоянный публичный Program ID подготовлен: `9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
+
 ## 1. Сначала зафиксировать Program ID
 
 До создания `$FARE` нужен отдельный Solana program keypair, хранящийся вне репозитория и project workspace. Его публичный адрес должен совпадать одновременно в:

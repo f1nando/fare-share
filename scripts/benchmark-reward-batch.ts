@@ -23,7 +23,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 
-const PROGRAM_ID = address(process.env.TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
+const PROGRAM_ID = address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const COMPUTE_BUDGET_PROGRAM = address('ComputeBudget111111111111111111111111111111');
 const utf8 = getUtf8Encoder();

@@ -13,7 +13,7 @@ import {
 import { buildCleanupBurnedMachineInstruction } from '../server/worker.js';
 
 const targetA = address('11111111111111111111111111111111');
-const targetB = address('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
+const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 
 function event(timestamp: bigint, eventNumber: bigint, target: Address = targetA) {
   return { timestamp, eventNumber, target, kind: 1, generation: 1 };

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { AccountRole, address, type KeyPairSigner } from '@solana/kit';
 import { buildInitializeInstruction, protocolAddresses, type InitializeProtocolInput } from '../server/setup.js';
 
-const PROGRAM_ID = address('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
+const PROGRAM_ID = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const SYSTEM_ADDRESS = address('11111111111111111111111111111111');
 const SIGNER_SECRET = JSON.stringify([
   ...Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex'),

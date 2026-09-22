@@ -27,7 +27,7 @@ import {
 const env = import.meta.env ?? {};
 
 export const PROGRAM_ID = address(
-  env.VITE_TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY',
+  env.VITE_TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
 );
 export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 export const SOLANA_CHAIN = resolveSolanaChain(env.VITE_SOLANA_CHAIN, RPC_URL);

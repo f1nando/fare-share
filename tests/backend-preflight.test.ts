@@ -18,8 +18,8 @@ function validEnvironment(): NodeJS.ProcessEnv {
     VITE_SOLANA_DAS_URL: 'https://das.example.test',
     VITE_BACKEND_URL: 'https://api.example.test',
     ALLOWED_ORIGIN: 'https://example.test',
-    TAXI_PROGRAM_ID: '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY',
-    VITE_TAXI_PROGRAM_ID: '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY',
+    TAXI_PROGRAM_ID: '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
+    VITE_TAXI_PROGRAM_ID: '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
     TEAM_ACCOUNT: '11111111111111111111111111111111',
     JUPITER_PROGRAM_ID: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
     FARE_MINT: 'So11111111111111111111111111111111111111112',
@@ -67,7 +67,7 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
 });
 
 test('deployment preflight detects program id drift between Rust, Anchor and environment', () => {
-  const expected = '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY';
+  const expected = '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv';
   assert.deepEqual(validateProgramIdSources(
     expected,
     `[programs.localnet]\ntaxi_park = "${expected}"`,

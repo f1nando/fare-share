@@ -17,7 +17,7 @@ if (!/^[0-9a-fA-F]{64}$/.test(deploymentHex)) throw new Error('DEPLOYMENT_ID_HEX
 const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
 const result = await initializeProtocol({
   rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
-  programId: address(process.env.TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY'),
+  programId: address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv'),
   admin,
   backendSignerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
   teamAccount: address(required('TEAM_ACCOUNT')),

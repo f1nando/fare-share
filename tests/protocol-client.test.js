@@ -71,7 +71,7 @@ test('every wallet instruction uses the current Anchor discriminator', () => {
 });
 
 test('wallet addresses are shortened for the primitive UI', () => {
-  assert.equal(shortAddress('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY'), '7SpH…KwnY');
+  assert.equal(shortAddress('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv'), '9ZLA…6eVv');
   assert.equal(shortAddress('short'), 'short');
 });
 

@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-taxi_park = "7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY"
+taxi_park = "9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv"
 
 [provider]
 cluster = "Localnet"
@@ -14,4 +14,3 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "cargo test -p taxi-park"
-

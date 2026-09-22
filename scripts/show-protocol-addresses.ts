@@ -2,7 +2,7 @@ import { address } from '@solana/kit';
 import { derivePumpFeeAddresses } from '../server/pump.js';
 import { protocolAddresses } from '../server/setup.js';
 
-const programId = address(process.env.TAXI_PROGRAM_ID || '7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
+const programId = address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const addresses = await protocolAddresses(programId);
 const pump = await derivePumpFeeAddresses(addresses.feeVault);
 

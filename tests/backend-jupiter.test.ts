@@ -12,7 +12,7 @@ import {
 } from '../server/jupiter.js';
 import { parseBackendSigner } from '../server/signing.js';
 
-const PROGRAM = address('7SpHocA8dThiUTfkv9iv63bhJnzWysk2bFgKbT4WKwnY');
+const PROGRAM = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const CONFIG = address('11111111111111111111111111111111');
 const SOURCE = address('So11111111111111111111111111111111111111112');
 const DESTINATION = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
