@@ -46,7 +46,7 @@ if [[ "$program_bytes" != "$EXPECTED_PROGRAM_BYTES" ]]; then
   exit 1
 fi
 
-if solana program show "$EXPECTED_PROGRAM_ID" --url "$RPC_URL" >/dev/null 2>&1; then
+if solana program show "$EXPECTED_PROGRAM_ID" --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR" >/dev/null 2>&1; then
   echo "Program $EXPECTED_PROGRAM_ID already exists on mainnet; refusing an accidental upgrade." >&2
   exit 1
 fi
@@ -66,10 +66,10 @@ buffer_id="$(solana-keygen pubkey "$BUFFER_KEYPAIR")"
 deployment_complete=false
 report_recoverable_buffer() {
   status=$?
-  if [[ "$deployment_complete" != true ]] && solana program show "$buffer_id" --url "$RPC_URL" >/dev/null 2>&1; then
+  if [[ "$deployment_complete" != true ]] && solana program show "$buffer_id" --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR" >/dev/null 2>&1; then
     echo "Deployment did not finish, but the upload rent is recoverable from buffer $buffer_id." >&2
     echo "Resume with the same script or reclaim it with:" >&2
-    echo "solana program close --buffers $buffer_id --url $RPC_URL --authority $DEPLOYER_KEYPAIR --recipient $DEPLOYER_KEYPAIR" >&2
+    echo "solana program close $buffer_id --url $RPC_URL --keypair $DEPLOYER_KEYPAIR --authority $DEPLOYER_KEYPAIR --recipient $DEPLOYER_KEYPAIR" >&2
   fi
   exit "$status"
 }
@@ -88,6 +88,7 @@ solana program deploy "$PROGRAM_SO" \
 
 program_output="$(solana program show "$EXPECTED_PROGRAM_ID" \
   --url "$RPC_URL" \
+  --keypair "$DEPLOYER_KEYPAIR" \
   --commitment finalized)"
 echo "$program_output"
 if ! grep -Fq "Authority: $EXPECTED_DEPLOYER" <<<"$program_output"; then
@@ -95,9 +96,10 @@ if ! grep -Fq "Authority: $EXPECTED_DEPLOYER" <<<"$program_output"; then
   exit 1
 fi
 
-if solana program show "$buffer_id" --url "$RPC_URL" >/dev/null 2>&1; then
-  solana program close --buffers "$buffer_id" \
+if solana program show "$buffer_id" --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR" >/dev/null 2>&1; then
+  solana program close "$buffer_id" \
     --url "$RPC_URL" \
+    --keypair "$DEPLOYER_KEYPAIR" \
     --authority "$DEPLOYER_KEYPAIR" \
     --recipient "$DEPLOYER_KEYPAIR" \
     --commitment finalized
