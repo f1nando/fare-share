@@ -9,15 +9,19 @@ crate-type = ["cdylib", "lib"]
 name = "taxi_park"
 
 [features]
-default = []
+default = ["no-log-ix-name"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 anchor-lang = { version = "=0.32.1", features = ["init-if-needed"] }
-anchor-spl = { version = "=0.32.1", features = ["associated_token", "token", "token_2022"] }
-mpl-core = { version = "=0.12.1", default-features = false, features = ["anchor", "anchor-0-32"] }
 solana-sha256-hasher = "=2.3.0"
+
+[dev-dependencies]
+mpl-core = { version = "=0.12.1", default-features = false, features = ["anchor", "anchor-0-32"] }
+solana-program-pack = "=2.2.1"
+spl-token = { version = "=8.0.0", features = ["no-entrypoint"] }
+spl-token-2022 = { version = "=8.0.1", features = ["no-entrypoint"] }

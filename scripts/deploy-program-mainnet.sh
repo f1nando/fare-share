@@ -4,8 +4,8 @@ set -euo pipefail
 
 EXPECTED_PROGRAM_ID="9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv"
 EXPECTED_DEPLOYER="2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr"
-EXPECTED_PROGRAM_SHA256="2e414b2e7ff49d7cb5a6141d643d1508b1e192358bb5000cac005bee3d6f2609"
-MIN_BALANCE_LAMPORTS=7300000000
+EXPECTED_PROGRAM_SHA256="8fc76ca05a9e73bc5906adcc8919b2786d898354685c3450867c95285ba3ab7b"
+MIN_BALANCE_LAMPORTS=6500000000
 
 PROGRAM_SO="${PROGRAM_SO:-/mnt/d/codex-taxi-sbf/deploy/taxi_park.so}"
 PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivan/Documents/fare-taxi-park-keys/program-keypair.json}"
@@ -45,7 +45,7 @@ fi
 
 balance_lamports="$(solana balance "$EXPECTED_DEPLOYER" --url "$RPC_URL" --lamports | tr -cd '0-9')"
 if [[ -z "$balance_lamports" || "$balance_lamports" -lt "$MIN_BALANCE_LAMPORTS" ]]; then
-  echo "Deployer needs at least 7.3 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
+  echo "Deployer needs at least 6.5 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
   exit 1
 fi
 

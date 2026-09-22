@@ -11,7 +11,7 @@
 - worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
 - `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
 
-Для первой mainnet-публикации admin/deployer должен иметь примерно `8 SOL`: release-профиль `opt-level = "s"` уменьшает SBF примерно до 709 KB без нового stack warning в коде Taxi Park. При deploy одновременно финансируются временный upload buffer и upgradeable ProgramData. Неиспользованный rent временного buffer возвращается после успешного deploy; точная стоимость повторно проверяется непосредственно перед транзакцией.
+Для первой mainnet-публикации admin/deployer должен иметь примерно `6,5 SOL`: release-профиль `opt-level = "s"` и минимальные проверенные CPI к Metaplex/SPL уменьшают SBF до 623 176 байт без stack warning в коде Taxi Park. При deploy одновременно финансируются временный upload buffer и upgradeable ProgramData. Rent временного buffer возвращается после успешного deploy; в ProgramData остаётся примерно `3,167 SOL`. Пока upgrade authority сохранён, этот депозит можно вернуть, навсегда закрыв программу.
 
 ## 1. Сначала зафиксировать Program ID
 
@@ -54,19 +54,16 @@ solana program deploy -u devnet \
 7. Выполнить `protocol:initialize`.
 8. Проверить vault, collection, все mint и реальные минимальные денежные сценарии. Только после этого вручную вызвать `start-sale`.
 
-## 4. Сделать программу неизменяемой
+## 4. Сохранить upgrade authority и возможность вернуть rent
 
-После окончания проверочного периода и внешнего аудита:
+Upgrade authority после smoke-тестов **не отзывается**. Это позволяет оперативно
+исправить инцидент и, если проект когда-либо окончательно закрывается, закрыть
+программу штатной командой Solana и вернуть rent ProgramData получателю.
 
-```sh
-solana program set-upgrade-authority \
-  -u mainnet-beta \
-  --upgrade-authority <CURRENT_UPGRADE_AUTHORITY_KEYPAIR_PATH> \
-  --final \
-  <TAXI_PROGRAM_ID>
-```
-
-`--final` необратим: после него исправить код этого deployment нельзя. Сначала команда `solana program show -u mainnet-beta <TAXI_PROGRAM_ID>` должна подтвердить ожидаемую программу и текущую upgrade authority. Изменяемыми останутся только предусмотренные on-chain операции admin: pause, Rescue, team account, backend signer, Jupiter Program ID и двухэтапная передача admin. `$FARE` и xStocks mint не заменяются.
+`solana program set-upgrade-authority --final` запрещено выполнять без нового
+явного решения владельца: операция необратима и уничтожает возможность вернуть
+депозит программы. Само закрытие программы также необратимо и не является частью
+обычного deploy или обновления.
 
 ## 5. Что не входит в автоматический deploy
 
@@ -82,14 +79,13 @@ solana program set-upgrade-authority \
 # Публикация программы в mainnet
 
 Актуальный SBF-файл собран вне диска C по пути
-`D:\codex-taxi-sbf\deploy\taxi_park.so`; его размер — 708 632 байта. При текущей
+`D:\codex-taxi-sbf\deploy\taxi_park.so`; его размер — 623 176 байт. При текущей
 ставке аренды временный буфер, ProgramData и аккаунт программы одновременно
-требуют примерно 7,203 SOL. На deploy следует положить 8 SOL, чтобы остался
+требуют примерно 6,334 SOL. На deploy следует положить 6,5 SOL, чтобы остался
 запас на комиссии и повторные транзакции.
 
-Первый deploy сохраняет upgrade authority для согласованных mainnet smoke-тестов
-и дешёвой тестовой продажи. Полномочие отзывается только после их успешного
-завершения.
+Deploy сохраняет upgrade authority постоянно, чтобы обновление или окончательное
+закрытие программы с возвратом rent оставались возможны.
 
 Запуск из WSL:
 
@@ -99,6 +95,6 @@ bash scripts/deploy-program-mainnet.sh
 
 Скрипт откажется выполнять deploy, если ключ программы или плательщика не
 совпадает с зафиксированным адресом, хеш бинарника изменился, программа уже
-существует либо на кошельке меньше 7,3 SOL. Чтобы использовать приватный
+существует либо на кошельке меньше 6,5 SOL. Чтобы использовать приватный
 server-side Helius endpoint, задайте `SOLANA_RPC_URL`; иначе используется
 публичный mainnet endpoint.

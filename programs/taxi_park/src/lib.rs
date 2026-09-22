@@ -6,19 +6,13 @@ use anchor_lang::solana_program::{
     program::invoke_signed,
     sysvar::instructions::{load_current_index_checked, load_instruction_at_checked},
 };
-use anchor_spl::token::{
-    self as spl_token, CloseAccount, SyncNative, Token, TokenAccount as LegacyTokenAccount,
-};
-use anchor_spl::token_interface::{
-    self, BurnChecked, Mint, TokenAccount, TokenInterface, TransferChecked,
-};
-use mpl_core::accounts::{BaseAssetV1, BaseCollectionV1};
-use mpl_core::types::{DataState, ImmutableMetadata, Plugin, PluginAuthorityPair, UpdateAuthority};
-
 pub mod error;
 pub mod math;
+#[path = "core.rs"]
+pub mod metaplex_core;
 pub mod state;
 pub mod swap;
+pub mod token;
 pub mod voucher;
 
 pub use error::*;
@@ -84,24 +78,24 @@ pub mod taxi_park {
         ctx.accounts.trainee_queue.bump = ctx.bumps.trainee_queue;
         ctx.accounts.fee_vault.bump = ctx.bumps.fee_vault;
 
-        let config_info = config.to_account_info();
-        mpl_core::instructions::CreateCollectionV2Cpi {
-            collection: &ctx.accounts.collection.to_account_info(),
-            update_authority: Some(&config_info),
-            payer: &ctx.accounts.admin.to_account_info(),
-            system_program: &ctx.accounts.system_program.to_account_info(),
-            __program: &ctx.accounts.mpl_core_program.to_account_info(),
-            __args: mpl_core::instructions::CreateCollectionV2InstructionArgs {
-                name: args.collection_name,
-                uri: args.collection_uri,
-                plugins: Some(vec![PluginAuthorityPair {
-                    plugin: Plugin::ImmutableMetadata(ImmutableMetadata {}),
-                    authority: None,
-                }]),
-                external_plugin_adapters: None,
-            },
-        }
-        .invoke()?;
+        let instruction = metaplex_core::create_collection_v2(
+            ctx.accounts.collection.key(),
+            config.key(),
+            ctx.accounts.admin.key(),
+            ctx.accounts.system_program.key(),
+            &args.collection_name,
+            &args.collection_uri,
+        )?;
+        anchor_lang::solana_program::program::invoke(
+            &instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.collection.to_account_info(),
+                config.to_account_info(),
+                ctx.accounts.admin.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
         Ok(())
     }
 
@@ -232,31 +226,43 @@ pub mod taxi_park {
 
     pub fn rescue_token(ctx: Context<RescueToken>, amount: u64) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        token::assert_program(&ctx.accounts.token_program)?;
+        let mint = token::mint_view(&ctx.accounts.mint, &ctx.accounts.token_program.key())?;
+        let vault = token::account_view(&ctx.accounts.vault, &ctx.accounts.token_program.key())?;
+        let destination =
+            token::account_view(&ctx.accounts.destination, &ctx.accounts.token_program.key())?;
         require!(
-            amount > 0 && amount <= ctx.accounts.vault.amount,
+            amount > 0 && amount <= vault.amount,
             TaxiError::InvalidRescueAmount
         );
         require_keys_eq!(
-            ctx.accounts.destination.mint,
+            vault.mint,
+            ctx.accounts.mint.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            vault.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            destination.mint,
             ctx.accounts.mint.key(),
             TaxiError::InvalidTokenAccount
         );
         let bump = [ctx.accounts.config.bump];
         let seeds: &[&[u8]] = &[b"config", &bump];
-        let transfer = TransferChecked {
-            from: ctx.accounts.vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            to: ctx.accounts.destination.to_account_info(),
-            authority: ctx.accounts.config.to_account_info(),
-        };
-        token_interface::transfer_checked(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                transfer,
-                &[seeds],
-            ),
+        token::transfer_checked(
+            token::TransferCheckedAccounts {
+                program: &ctx.accounts.token_program,
+                source: &ctx.accounts.vault,
+                mint: &ctx.accounts.mint,
+                destination: &ctx.accounts.destination,
+                authority: &ctx.accounts.config.to_account_info(),
+            },
             amount,
-            ctx.accounts.mint.decimals,
+            mint.decimals,
+            &[seeds],
         )?;
         emit!(AssetRescued {
             mint: ctx.accounts.mint.key(),
@@ -337,24 +343,35 @@ pub mod taxi_park {
 
     pub fn absorb_pump_wsol_fees(ctx: Context<AbsorbPumpWsolFees>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        let amount = ctx.accounts.pump_wsol_vault.amount;
-        require!(amount > 0, TaxiError::NothingToCollect);
-        let rent_refund = Rent::get()?.minimum_balance(
-            ctx.accounts.pump_wsol_vault.to_account_info().data_len(),
+        token::assert_program(&ctx.accounts.token_program)?;
+        let pump_vault = token::account_view(
+            &ctx.accounts.pump_wsol_vault,
+            &ctx.accounts.token_program.key(),
+        )?;
+        require_keys_eq!(
+            pump_vault.mint,
+            token::NATIVE_MINT_ID,
+            TaxiError::InvalidRewardMint
         );
+        require_keys_eq!(
+            pump_vault.owner,
+            ctx.accounts.fee_vault.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        let amount = pump_vault.amount;
+        require!(amount > 0, TaxiError::NothingToCollect);
+        let rent_refund =
+            Rent::get()?.minimum_balance(ctx.accounts.pump_wsol_vault.to_account_info().data_len());
 
         let bump = [ctx.accounts.fee_vault.bump];
         let seeds: &[&[u8]] = &[b"fees", &bump];
-        let close = CloseAccount {
-            account: ctx.accounts.pump_wsol_vault.to_account_info(),
-            destination: ctx.accounts.fee_vault.to_account_info(),
-            authority: ctx.accounts.fee_vault.to_account_info(),
-        };
-        spl_token::close_account(CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            close,
+        token::close_account(
+            &ctx.accounts.token_program,
+            &ctx.accounts.pump_wsol_vault,
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.fee_vault.to_account_info(),
             &[seeds],
-        ))?;
+        )?;
 
         let fee_vault_after = ctx
             .accounts
@@ -429,31 +446,68 @@ pub mod taxi_park {
             &ctx.accounts.reward_vault.key(),
         )?;
 
+        token::assert_program(&ctx.accounts.token_program)?;
+        token::assert_program(&ctx.accounts.fare_token_program)?;
+        let fare_mint = token::mint_view(
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        let wsol =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?;
+        require_keys_eq!(
+            wsol.mint,
+            token::NATIVE_MINT_ID,
+            TaxiError::InvalidRewardMint
+        );
+        require_keys_eq!(
+            wsol.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        let output = token::account_view(
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        require_keys_eq!(
+            output.mint,
+            ctx.accounts.fare_mint.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            output.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
+
         fund_wsol(
             &ctx.accounts.fee_vault.to_account_info(),
             &ctx.accounts.wsol_vault.to_account_info(),
-            &ctx.accounts.token_program,
+            &ctx.accounts.token_program.to_account_info(),
             plan.amount_in,
         )?;
-        ctx.accounts.wsol_vault.reload()?;
-        let source_before = ctx.accounts.wsol_vault.amount;
-        let output_before = ctx.accounts.reward_vault.amount;
+        let source_before =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
+                .amount;
+        let output_before = output.amount;
         invoke_jupiter(
             &ctx.accounts.config,
             &ctx.accounts.jupiter_program,
             ctx.remaining_accounts,
             route_data,
         )?;
-        ctx.accounts.wsol_vault.reload()?;
-        ctx.accounts.reward_vault.reload()?;
+        let source_after =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
+                .amount;
+        let output_after = token::account_view(
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.fare_token_program.key(),
+        )?
+        .amount;
         let spent = source_before
-            .checked_sub(ctx.accounts.wsol_vault.amount)
+            .checked_sub(source_after)
             .ok_or(TaxiError::InvalidSwapInput)?;
         require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
-        let received = ctx
-            .accounts
-            .reward_vault
-            .amount
+        let received = output_after
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
@@ -462,19 +516,14 @@ pub mod taxi_park {
         if burn_amount > 0 {
             let bump = [ctx.accounts.config.bump];
             let seeds: &[&[u8]] = &[b"config", &bump];
-            let burn = BurnChecked {
-                mint: ctx.accounts.fare_mint.to_account_info(),
-                from: ctx.accounts.reward_vault.to_account_info(),
-                authority: ctx.accounts.config.to_account_info(),
-            };
-            token_interface::burn_checked(
-                CpiContext::new_with_signer(
-                    ctx.accounts.fare_token_program.to_account_info(),
-                    burn,
-                    &[seeds],
-                ),
+            token::burn_checked(
+                &ctx.accounts.fare_token_program,
+                &ctx.accounts.reward_vault,
+                &ctx.accounts.fare_mint,
+                &ctx.accounts.config.to_account_info(),
                 burn_amount,
-                ctx.accounts.fare_mint.decimals,
+                fare_mint.decimals,
+                &[seeds],
             )?;
         }
 
@@ -558,31 +607,68 @@ pub mod taxi_park {
             &ctx.accounts.reward_vault.key(),
         )?;
 
+        token::assert_program(&ctx.accounts.token_program)?;
+        token::assert_program(&ctx.accounts.stock_token_program)?;
+        token::mint_view(
+            &ctx.accounts.stock_mint,
+            &ctx.accounts.stock_token_program.key(),
+        )?;
+        let wsol =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?;
+        require_keys_eq!(
+            wsol.mint,
+            token::NATIVE_MINT_ID,
+            TaxiError::InvalidRewardMint
+        );
+        require_keys_eq!(
+            wsol.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        let output = token::account_view(
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.stock_token_program.key(),
+        )?;
+        require_keys_eq!(
+            output.mint,
+            ctx.accounts.stock_mint.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            output.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
+
         fund_wsol(
             &ctx.accounts.fee_vault.to_account_info(),
             &ctx.accounts.wsol_vault.to_account_info(),
-            &ctx.accounts.token_program,
+            &ctx.accounts.token_program.to_account_info(),
             plan.amount_in,
         )?;
-        ctx.accounts.wsol_vault.reload()?;
-        let source_before = ctx.accounts.wsol_vault.amount;
-        let output_before = ctx.accounts.reward_vault.amount;
+        let source_before =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
+                .amount;
+        let output_before = output.amount;
         invoke_jupiter(
             &ctx.accounts.config,
             &ctx.accounts.jupiter_program,
             ctx.remaining_accounts,
             route_data,
         )?;
-        ctx.accounts.wsol_vault.reload()?;
-        ctx.accounts.reward_vault.reload()?;
+        let source_after =
+            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
+                .amount;
+        let output_after = token::account_view(
+            &ctx.accounts.reward_vault,
+            &ctx.accounts.stock_token_program.key(),
+        )?
+        .amount;
         let spent = source_before
-            .checked_sub(ctx.accounts.wsol_vault.amount)
+            .checked_sub(source_after)
             .ok_or(TaxiError::InvalidSwapInput)?;
         require!(spent == plan.amount_in, TaxiError::InvalidSwapInput);
-        let received = ctx
-            .accounts
-            .reward_vault
-            .amount
+        let received = output_after
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
@@ -641,24 +727,29 @@ pub mod taxi_park {
         let config_info = ctx.accounts.config.to_account_info();
         let config_bump = [ctx.accounts.config.bump];
         let config_seeds: &[&[u8]] = &[b"config", &config_bump];
-        mpl_core::instructions::CreateV1Cpi {
-            asset: &ctx.accounts.asset.to_account_info(),
-            collection: Some(&ctx.accounts.collection.to_account_info()),
-            authority: Some(&config_info),
-            payer: &ctx.accounts.owner.to_account_info(),
-            owner: Some(&ctx.accounts.owner.to_account_info()),
-            update_authority: None,
-            system_program: &ctx.accounts.system_program.to_account_info(),
-            log_wrapper: None,
-            __program: &ctx.accounts.mpl_core_program,
-            __args: mpl_core::instructions::CreateV1InstructionArgs {
-                data_state: DataState::AccountState,
-                name,
-                uri,
-                plugins: None,
-            },
-        }
-        .invoke_signed(&[config_seeds])?;
+        metaplex_core::assert_collection(&ctx.accounts.collection, &ctx.accounts.config.key())?;
+        let instruction = metaplex_core::create_asset_v1(metaplex_core::CreateAsset {
+            asset: ctx.accounts.asset.key(),
+            collection: ctx.accounts.collection.key(),
+            authority: ctx.accounts.config.key(),
+            payer: ctx.accounts.owner.key(),
+            owner: ctx.accounts.owner.key(),
+            system_program: ctx.accounts.system_program.key(),
+            name: &name,
+            uri: &uri,
+        })?;
+        invoke_signed(
+            &instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.asset.to_account_info(),
+                ctx.accounts.collection.to_account_info(),
+                config_info,
+                ctx.accounts.owner.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[config_seeds],
+        )?;
 
         let now = ctx
             .accounts
@@ -692,6 +783,11 @@ pub mod taxi_park {
     pub fn repair(ctx: Context<RepairMachine>, page_index: u8) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+        )?;
         require!(
             usize::from(page_index) < MAX_QUEUE_PAGES,
             TaxiError::InvalidQueuePage
@@ -718,46 +814,34 @@ pub mod taxi_park {
         require!(missing > 0, TaxiError::NothingToRepair);
         let cost = math::repair_cost(ctx.accounts.machine.fare_base)?;
 
-        require_keys_eq!(
-            *ctx.accounts.fare_mint.to_account_info().owner,
-            ctx.accounts.fare_token_program.key(),
-            TaxiError::InvalidTokenProgram
-        );
+        token::assert_program(&ctx.accounts.fare_token_program)?;
+        let fare_mint = token::mint_view(
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
 
         if cost > 0 {
             let owner_fare_info = ctx.accounts.owner_fare_account.to_account_info();
+            let owner_fare =
+                token::account_view(&owner_fare_info, &ctx.accounts.fare_token_program.key())?;
             require_keys_eq!(
-                *owner_fare_info.owner,
-                ctx.accounts.fare_token_program.key(),
-                TaxiError::InvalidTokenProgram
+                owner_fare.mint,
+                ctx.accounts.fare_mint.key(),
+                TaxiError::InvalidTokenAccount
             );
-            {
-                let data = owner_fare_info.try_borrow_data()?;
-                let mut data_slice: &[u8] = &data;
-                let owner_fare_account = TokenAccount::try_deserialize(&mut data_slice)?;
-                require_keys_eq!(
-                    owner_fare_account.mint,
-                    ctx.accounts.fare_mint.key(),
-                    TaxiError::InvalidTokenAccount
-                );
-                require_keys_eq!(
-                    owner_fare_account.owner,
-                    ctx.accounts.owner.key(),
-                    TaxiError::InvalidTokenAccount
-                );
-            }
-            let burn_accounts = BurnChecked {
-                mint: ctx.accounts.fare_mint.to_account_info(),
-                from: owner_fare_info,
-                authority: ctx.accounts.owner.to_account_info(),
-            };
-            token_interface::burn_checked(
-                CpiContext::new(
-                    ctx.accounts.fare_token_program.to_account_info(),
-                    burn_accounts,
-                ),
+            require_keys_eq!(
+                owner_fare.owner,
+                ctx.accounts.owner.key(),
+                TaxiError::InvalidTokenAccount
+            );
+            token::burn_checked(
+                &ctx.accounts.fare_token_program,
+                &owner_fare_info,
+                &ctx.accounts.fare_mint,
+                &ctx.accounts.owner.to_account_info(),
                 cost,
-                ctx.accounts.fare_mint.decimals,
+                fare_mint.decimals,
+                &[],
             )?;
         }
 
@@ -1174,45 +1258,48 @@ pub mod taxi_park {
             ctx.accounts.start_bucket.accumulator
         };
         let amount = math::machine_reward(target, checkpoint, TRAINEE_WEIGHT)?;
+        token::assert_program(&ctx.accounts.token_program)?;
+        let fare_mint =
+            token::mint_view(&ctx.accounts.fare_mint, &ctx.accounts.token_program.key())?;
+        let vault = token::account_view(&ctx.accounts.vault, &ctx.accounts.token_program.key())?;
+        require_keys_eq!(
+            vault.mint,
+            ctx.accounts.fare_mint.key(),
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            vault.owner,
+            ctx.accounts.config.key(),
+            TaxiError::InvalidTokenAccount
+        );
 
         if amount > 0 {
             let destination_info = ctx.accounts.destination.to_account_info();
+            let destination =
+                token::account_view(&destination_info, &ctx.accounts.token_program.key())?;
             require_keys_eq!(
-                *destination_info.owner,
-                ctx.accounts.token_program.key(),
-                TaxiError::InvalidTokenProgram
+                destination.mint,
+                ctx.accounts.fare_mint.key(),
+                TaxiError::InvalidTokenAccount
             );
-            {
-                let data = destination_info.try_borrow_data()?;
-                let mut data_slice: &[u8] = &data;
-                let destination = TokenAccount::try_deserialize(&mut data_slice)?;
-                require_keys_eq!(
-                    destination.mint,
-                    ctx.accounts.fare_mint.key(),
-                    TaxiError::InvalidTokenAccount
-                );
-                require_keys_eq!(
-                    destination.owner,
-                    ctx.accounts.owner.key(),
-                    TaxiError::InvalidTokenAccount
-                );
-            }
+            require_keys_eq!(
+                destination.owner,
+                ctx.accounts.owner.key(),
+                TaxiError::InvalidTokenAccount
+            );
             let bump = [ctx.accounts.config.bump];
             let seeds: &[&[u8]] = &[b"config", &bump];
-            let transfer = TransferChecked {
-                from: ctx.accounts.vault.to_account_info(),
-                mint: ctx.accounts.fare_mint.to_account_info(),
-                to: ctx.accounts.destination.to_account_info(),
-                authority: ctx.accounts.config.to_account_info(),
-            };
-            token_interface::transfer_checked(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    transfer,
-                    &[seeds],
-                ),
+            token::transfer_checked(
+                token::TransferCheckedAccounts {
+                    program: &ctx.accounts.token_program,
+                    source: &ctx.accounts.vault,
+                    mint: &ctx.accounts.fare_mint,
+                    destination: &destination_info,
+                    authority: &ctx.accounts.config.to_account_info(),
+                },
                 amount,
-                ctx.accounts.fare_mint.decimals,
+                fare_mint.decimals,
+                &[seeds],
             )?;
         }
         ctx.accounts.trainee_pool.obligations[0] = ctx.accounts.trainee_pool.obligations[0]
@@ -1231,6 +1318,11 @@ pub mod taxi_park {
     pub fn claim<'info>(ctx: Context<'_, '_, 'info, 'info, Claim<'info>>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+        )?;
         require!(
             ctx.remaining_accounts.len() == ASSET_COUNT * 4,
             TaxiError::InvalidClaimAccounts
@@ -1253,19 +1345,9 @@ pub mod taxi_park {
                 mint_info.key(),
                 TaxiError::InvalidRewardMint
             );
-            require!(
-                token_program_info.key() == anchor_spl::token::ID
-                    || token_program_info.key() == anchor_spl::token_2022::ID,
-                TaxiError::InvalidTokenProgram
-            );
-            require_keys_eq!(
-                *mint_info.owner,
-                token_program_info.key(),
-                TaxiError::InvalidTokenProgram
-            );
-
-            let mint = InterfaceAccount::<Mint>::try_from(mint_info)?;
-            let vault = InterfaceAccount::<TokenAccount>::try_from(vault_info)?;
+            token::assert_program(token_program_info)?;
+            let mint = token::mint_view(mint_info, token_program_info.key)?;
+            let vault = token::account_view(vault_info, token_program_info.key)?;
             require_keys_eq!(vault.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
             require_keys_eq!(
                 vault.owner,
@@ -1274,7 +1356,7 @@ pub mod taxi_park {
             );
 
             if amount > 0 {
-                let destination = InterfaceAccount::<TokenAccount>::try_from(destination_info)?;
+                let destination = token::account_view(destination_info, token_program_info.key)?;
                 require_keys_eq!(
                     destination.mint,
                     mint_info.key(),
@@ -1285,20 +1367,17 @@ pub mod taxi_park {
                     ctx.accounts.owner.key(),
                     TaxiError::InvalidTokenAccount
                 );
-                let transfer = TransferChecked {
-                    from: vault_info.clone(),
-                    mint: mint_info.clone(),
-                    to: destination_info.clone(),
-                    authority: config_info.clone(),
-                };
-                token_interface::transfer_checked(
-                    CpiContext::new_with_signer(
-                        token_program_info.clone(),
-                        transfer,
-                        &[signer_seeds],
-                    ),
+                token::transfer_checked(
+                    token::TransferCheckedAccounts {
+                        program: token_program_info,
+                        source: vault_info,
+                        mint: mint_info,
+                        destination: destination_info,
+                        authority: &config_info,
+                    },
                     amount,
                     mint.decimals,
+                    &[signer_seeds],
                 )?;
             }
         }
@@ -1438,7 +1517,7 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub collection: Signer<'info>,
     /// CHECK: Fixed official Metaplex Core program.
-    #[account(address = mpl_core::ID)]
+    #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
@@ -1474,17 +1553,16 @@ pub struct RescueToken<'info> {
     pub admin: Signer<'info>,
     #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
     pub config: Box<Account<'info, Configuration>>,
-    pub mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        mut,
-        token::mint = mint,
-        token::authority = config,
-        token::token_program = token_program
-    )]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
-    #[account(mut, token::mint = mint, token::token_program = token_program)]
-    pub destination: InterfaceAccount<'info, TokenAccount>,
-    pub token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Mint owner and base data are validated in the handler.
+    pub mint: UncheckedAccount<'info>,
+    /// CHECK: Token program, mint and authority are validated in the handler.
+    #[account(mut)]
+    pub vault: UncheckedAccount<'info>,
+    /// CHECK: Token program and mint are validated in the handler.
+    #[account(mut)]
+    pub destination: UncheckedAccount<'info>,
+    /// CHECK: Must be the legacy or Token-2022 program.
+    pub token_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1518,13 +1596,12 @@ pub struct AbsorbPumpWsolFees<'info> {
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
     pub fee_vault: Account<'info, FeeVault>,
-    #[account(
-        mut,
-        constraint = pump_wsol_vault.mint == anchor_spl::token::spl_token::native_mint::ID @ TaxiError::InvalidRewardMint,
-        constraint = pump_wsol_vault.owner == fee_vault.key() @ TaxiError::InvalidTokenAccount
-    )]
-    pub pump_wsol_vault: Account<'info, LegacyTokenAccount>,
-    pub token_program: Program<'info, Token>,
+    /// CHECK: Legacy WSOL mint, authority and amount are validated in the handler.
+    #[account(mut)]
+    pub pump_wsol_vault: UncheckedAccount<'info>,
+    /// CHECK: Fixed legacy SPL Token program.
+    #[account(address = token::TOKEN_PROGRAM_ID)]
+    pub token_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1538,19 +1615,25 @@ pub struct ProcessFareSwap<'info> {
     pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"pool".as_ref(), b"trainee".as_ref()], bump = trainee_pool.bump)]
     pub trainee_pool: Box<Account<'info, RewardPool>>,
-    #[account(address = anchor_spl::token::spl_token::native_mint::ID)]
-    pub wsol_mint: Account<'info, anchor_spl::token::Mint>,
-    #[account(mut, token::mint = wsol_mint, token::authority = config)]
-    pub wsol_vault: Account<'info, LegacyTokenAccount>,
+    /// CHECK: Fixed native mint, parsed in the handler.
+    #[account(address = token::NATIVE_MINT_ID)]
+    pub wsol_mint: UncheckedAccount<'info>,
+    /// CHECK: Legacy WSOL mint and authority are validated in the handler.
     #[account(mut)]
-    pub fare_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut, token::mint = fare_mint, token::authority = config, token::token_program = fare_token_program)]
-    pub reward_vault: InterfaceAccount<'info, TokenAccount>,
+    pub wsol_vault: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Token program, FARE mint and authority are validated in the handler.
+    #[account(mut)]
+    pub reward_vault: UncheckedAccount<'info>,
     /// CHECK: Address is the currently configured Jupiter router program.
     #[account(address = config.jupiter_program @ TaxiError::InvalidJupiterProgram)]
     pub jupiter_program: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    pub fare_token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Fixed legacy SPL Token program.
+    #[account(address = token::TOKEN_PROGRAM_ID)]
+    pub token_program: UncheckedAccount<'info>,
+    /// CHECK: Must be the program that owns fare_mint.
+    pub fare_token_program: UncheckedAccount<'info>,
     /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding ed25519 verification.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
@@ -1565,18 +1648,25 @@ pub struct ProcessStockSwap<'info> {
     pub fee_vault: Account<'info, FeeVault>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
     pub pool: Box<Account<'info, RewardPool>>,
-    #[account(address = anchor_spl::token::spl_token::native_mint::ID)]
-    pub wsol_mint: Account<'info, anchor_spl::token::Mint>,
-    #[account(mut, token::mint = wsol_mint, token::authority = config)]
-    pub wsol_vault: Account<'info, LegacyTokenAccount>,
-    pub stock_mint: InterfaceAccount<'info, Mint>,
-    #[account(mut, token::mint = stock_mint, token::authority = config, token::token_program = stock_token_program)]
-    pub reward_vault: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Fixed native mint, parsed in the handler.
+    #[account(address = token::NATIVE_MINT_ID)]
+    pub wsol_mint: UncheckedAccount<'info>,
+    /// CHECK: Legacy WSOL mint and authority are validated in the handler.
+    #[account(mut)]
+    pub wsol_vault: UncheckedAccount<'info>,
+    /// CHECK: Mint owner and base data are validated in the handler.
+    pub stock_mint: UncheckedAccount<'info>,
+    /// CHECK: Token program, stock mint and authority are validated in the handler.
+    #[account(mut)]
+    pub reward_vault: UncheckedAccount<'info>,
     /// CHECK: Address is the currently configured Jupiter router program.
     #[account(address = config.jupiter_program @ TaxiError::InvalidJupiterProgram)]
     pub jupiter_program: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    pub stock_token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Fixed legacy SPL Token program.
+    #[account(address = token::TOKEN_PROGRAM_ID)]
+    pub token_program: UncheckedAccount<'info>,
+    /// CHECK: Must be the program that owns stock_mint.
+    pub stock_token_program: UncheckedAccount<'info>,
     /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding ed25519 verification.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
@@ -1615,17 +1705,14 @@ pub struct MintMachine<'info> {
         bump
     )]
     pub machine: Box<Account<'info, Machine>>,
-    #[account(
-        mut,
-        address = config.collection,
-        constraint = collection.update_authority == config.key() @ TaxiError::InvalidCollection
-    )]
-    pub collection: Account<'info, BaseCollectionV1>,
+    /// CHECK: Address, owner and update authority are validated by metaplex_core::assert_collection.
+    #[account(mut, address = config.collection)]
+    pub collection: UncheckedAccount<'info>,
     /// CHECK: Address is constrained by Configuration::has_one and only receives SOL.
     #[account(mut)]
     pub team_account: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
-    #[account(address = mpl_core::ID)]
+    #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
@@ -1651,18 +1738,17 @@ pub struct RepairMachine<'info> {
     pub event_page: Box<Account<'info, EventPage>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
     pub machine: Box<Account<'info, Machine>>,
-    #[account(
-        address = machine.asset,
-        constraint = asset.owner == owner.key() @ TaxiError::InvalidAssetOwner,
-        constraint = asset.update_authority == UpdateAuthority::Collection(config.collection) @ TaxiError::InvalidCollection
-    )]
-    pub asset: Account<'info, BaseAssetV1>,
+    /// CHECK: Core owner, asset owner and collection are validated by metaplex_core::assert_asset.
+    #[account(address = machine.asset)]
+    pub asset: UncheckedAccount<'info>,
+    /// CHECK: Address, token program and decimals are validated in the handler.
     #[account(mut, address = config.fare_mint @ TaxiError::InvalidRewardMint)]
-    pub fare_mint: InterfaceAccount<'info, Mint>,
+    pub fare_mint: UncheckedAccount<'info>,
     /// CHECK: May be an uninitialized ATA for a zero-cost repair; validated before any burn.
     #[account(mut)]
     pub owner_fare_account: UncheckedAccount<'info>,
-    pub fare_token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Must be the program that owns fare_mint.
+    pub fare_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1789,18 +1875,16 @@ pub struct ClaimTrainee<'info> {
         bump = end_bucket.bump
     )]
     pub end_bucket: Account<'info, TraineeBucket>,
-    pub fare_mint: InterfaceAccount<'info, Mint>,
-    #[account(
-        mut,
-        token::mint = fare_mint,
-        token::authority = config,
-        token::token_program = token_program
-    )]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Address, owner and decimals are validated in the handler.
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Token program, mint and authority are validated in the handler.
+    #[account(mut)]
+    pub vault: UncheckedAccount<'info>,
     /// CHECK: May reuse the vault for a zero claim; validated before a positive transfer.
     #[account(mut)]
     pub destination: UncheckedAccount<'info>,
-    pub token_program: Interface<'info, TokenInterface>,
+    /// CHECK: Must be the program that owns fare_mint.
+    pub token_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -1813,12 +1897,9 @@ pub struct Claim<'info> {
     pub pool: Box<Account<'info, RewardPool>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
     pub machine: Box<Account<'info, Machine>>,
-    #[account(
-        address = machine.asset,
-        constraint = asset.owner == owner.key() @ TaxiError::InvalidAssetOwner,
-        constraint = asset.update_authority == UpdateAuthority::Collection(config.collection) @ TaxiError::InvalidCollection
-    )]
-    pub asset: Account<'info, BaseAssetV1>,
+    /// CHECK: Core owner, asset owner and collection are validated by metaplex_core::assert_asset.
+    #[account(address = machine.asset)]
+    pub asset: UncheckedAccount<'info>,
 }
 
 fn verify_swap_plan_signature(
@@ -1868,14 +1949,19 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
         args.jupiter_program != Pubkey::default(),
         TaxiError::InvalidJupiterProgram
     );
-    require!(args.fare_mint != Pubkey::default(), TaxiError::InvalidRewardMint);
+    require!(
+        args.fare_mint != Pubkey::default(),
+        TaxiError::InvalidRewardMint
+    );
     for (index, mint) in args.stock_mints.iter().enumerate() {
         require!(
             *mint != Pubkey::default() && *mint != args.fare_mint,
             TaxiError::InvalidRewardMint
         );
         require!(
-            args.stock_mints[..index].iter().all(|previous| previous != mint),
+            args.stock_mints[..index]
+                .iter()
+                .all(|previous| previous != mint),
             TaxiError::InvalidRewardMint
         );
     }
@@ -1897,9 +1983,19 @@ mod accounting_tests {
             collection_name: "Taxi".to_owned(),
             collection_uri: "uri".to_owned(),
             fare_mint: Pubkey::new_unique(),
-            stock_mints: [repeated, repeated, Pubkey::new_unique(), Pubkey::new_unique()],
+            stock_mints: [
+                repeated,
+                repeated,
+                Pubkey::new_unique(),
+                Pubkey::new_unique(),
+            ],
             mint_prices: [1; CLASS_COUNT],
-            metadata_uris: ["a".to_owned(), "b".to_owned(), "c".to_owned(), "d".to_owned()],
+            metadata_uris: [
+                "a".to_owned(),
+                "b".to_owned(),
+                "c".to_owned(),
+                "d".to_owned(),
+            ],
         };
         assert!(validate_initial_addresses(&args).is_err());
     }
@@ -1908,7 +2004,7 @@ mod accounting_tests {
 fn fund_wsol<'info>(
     fee_vault: &AccountInfo<'info>,
     wsol_vault: &AccountInfo<'info>,
-    token_program: &Program<'info, Token>,
+    token_program: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
     let rent_floor = Rent::get()?.minimum_balance(fee_vault.data_len());
@@ -1927,12 +2023,7 @@ fn fund_wsol<'info>(
         .ok_or(TaxiError::MathOverflow)?;
     **fee_vault.try_borrow_mut_lamports()? = fee_after;
     **wsol_vault.try_borrow_mut_lamports()? = wsol_after;
-    spl_token::sync_native(CpiContext::new(
-        token_program.to_account_info(),
-        SyncNative {
-            account: wsol_vault.clone(),
-        },
-    ))?;
+    token::sync_native(token_program, wsol_vault)?;
     Ok(())
 }
 
