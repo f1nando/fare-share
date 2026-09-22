@@ -29,13 +29,7 @@ pub mod taxi_park {
     pub fn initialize(ctx: Context<Initialize>, args: InitializeArgs) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
         validate_initial_addresses(&args)?;
-        require!(
-            !args.collection_name.is_empty()
-                && args.collection_name.len() <= MAX_COLLECTION_NAME_LEN
-                && !args.collection_uri.is_empty()
-                && args.collection_uri.len() <= MAX_METADATA_URI_LEN,
-            TaxiError::InvalidMetadataUri
-        );
+        metaplex_core::assert_collection(&ctx.accounts.collection, &ctx.accounts.admin.key())?;
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
         config.pending_admin = Pubkey::default();
@@ -78,24 +72,6 @@ pub mod taxi_park {
         ctx.accounts.trainee_queue.bump = ctx.bumps.trainee_queue;
         ctx.accounts.fee_vault.bump = ctx.bumps.fee_vault;
 
-        let instruction = metaplex_core::create_collection_v2(
-            ctx.accounts.collection.key(),
-            config.key(),
-            ctx.accounts.admin.key(),
-            ctx.accounts.system_program.key(),
-            &args.collection_name,
-            &args.collection_uri,
-        )?;
-        anchor_lang::solana_program::program::invoke(
-            &instruction,
-            &[
-                ctx.accounts.mpl_core_program.to_account_info(),
-                ctx.accounts.collection.to_account_info(),
-                config.to_account_info(),
-                ctx.accounts.admin.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
         Ok(())
     }
 
@@ -710,45 +686,12 @@ pub mod taxi_park {
         let (weight, cap) = class_terms(class)?;
         let minted = ctx.accounts.config.minted_by_class[class_index];
         require!(minted < cap, TaxiError::ClassSoldOut);
-        let price = ctx.accounts.config.mint_prices[class_index];
         let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
-        let name = format!("FARE {} #{:04}", class_name(class)?, serial);
-        let uri = ctx.accounts.config.metadata_uri(class_index)?.to_owned();
-
-        let payment = anchor_lang::system_program::Transfer {
-            from: ctx.accounts.owner.to_account_info(),
-            to: ctx.accounts.team_account.to_account_info(),
-        };
-        anchor_lang::system_program::transfer(
-            CpiContext::new(ctx.accounts.system_program.to_account_info(), payment),
-            price,
-        )?;
-
-        let config_info = ctx.accounts.config.to_account_info();
-        let config_bump = [ctx.accounts.config.bump];
-        let config_seeds: &[&[u8]] = &[b"config", &config_bump];
-        metaplex_core::assert_collection(&ctx.accounts.collection, &ctx.accounts.config.key())?;
-        let instruction = metaplex_core::create_asset_v1(metaplex_core::CreateAsset {
-            asset: ctx.accounts.asset.key(),
-            collection: ctx.accounts.collection.key(),
-            authority: ctx.accounts.config.key(),
-            payer: ctx.accounts.owner.key(),
-            owner: ctx.accounts.owner.key(),
-            system_program: ctx.accounts.system_program.key(),
-            name: &name,
-            uri: &uri,
-        })?;
-        invoke_signed(
-            &instruction,
-            &[
-                ctx.accounts.mpl_core_program.to_account_info(),
-                ctx.accounts.asset.to_account_info(),
-                ctx.accounts.collection.to_account_info(),
-                config_info,
-                ctx.accounts.owner.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-            &[config_seeds],
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+            Some(ctx.accounts.config.metadata_uri(class_index)?),
         )?;
 
         let now = ctx
@@ -775,7 +718,7 @@ pub mod taxi_park {
             serial,
             weight,
             active_until: ctx.accounts.machine.active_until,
-            paid_lamports: price,
+            paid_lamports: 0,
         });
         Ok(())
     }
@@ -787,6 +730,7 @@ pub mod taxi_park {
             &ctx.accounts.asset,
             &ctx.accounts.owner.key(),
             &ctx.accounts.config.collection,
+            None,
         )?;
         require!(
             usize::from(page_index) < MAX_QUEUE_PAGES,
@@ -1322,6 +1266,7 @@ pub mod taxi_park {
             &ctx.accounts.asset,
             &ctx.accounts.owner.key(),
             &ctx.accounts.config.collection,
+            None,
         )?;
         require!(
             ctx.remaining_accounts.len() == ASSET_COUNT * 4,
@@ -1489,8 +1434,6 @@ pub struct InitializeArgs {
     pub team_account: Pubkey,
     pub jupiter_program: Pubkey,
     pub deployment_id: [u8; 32],
-    pub collection_name: String,
-    pub collection_uri: String,
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
@@ -1513,12 +1456,8 @@ pub struct Initialize<'info> {
     pub trainee_queue: Box<Account<'info, EventQueue>>,
     #[account(init, payer = admin, space = 8 + FeeVault::INIT_SPACE, seeds = [b"fees"], bump)]
     pub fee_vault: Account<'info, FeeVault>,
-    /// CHECK: New Metaplex Core collection created atomically by initialize.
-    #[account(mut)]
-    pub collection: Signer<'info>,
-    /// CHECK: Fixed official Metaplex Core program.
-    #[account(address = metaplex_core::MPL_CORE_ID)]
-    pub mpl_core_program: UncheckedAccount<'info>,
+    /// CHECK: Existing Core collection is validated against the admin authority.
+    pub collection: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1681,8 +1620,7 @@ pub struct MintMachine<'info> {
         mut,
         seeds = [b"config"],
         bump = config.bump,
-        has_one = collection @ TaxiError::InvalidCollection,
-        has_one = team_account @ TaxiError::InvalidTeamAccount
+        has_one = collection @ TaxiError::InvalidCollection
     )]
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
@@ -1695,8 +1633,7 @@ pub struct MintMachine<'info> {
         bump
     )]
     pub event_page: Box<Account<'info, EventPage>>,
-    #[account(mut)]
-    pub asset: Signer<'info>,
+    pub asset: UncheckedAccount<'info>,
     #[account(
         init,
         payer = owner,
@@ -1705,15 +1642,9 @@ pub struct MintMachine<'info> {
         bump
     )]
     pub machine: Box<Account<'info, Machine>>,
-    /// CHECK: Address, owner and update authority are validated by metaplex_core::assert_collection.
-    #[account(mut, address = config.collection)]
+    /// CHECK: Address is constrained by Configuration::has_one.
+    #[account(address = config.collection)]
     pub collection: UncheckedAccount<'info>,
-    /// CHECK: Address is constrained by Configuration::has_one and only receives SOL.
-    #[account(mut)]
-    pub team_account: UncheckedAccount<'info>,
-    /// CHECK: Fixed official Metaplex Core program.
-    #[account(address = metaplex_core::MPL_CORE_ID)]
-    pub mpl_core_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1980,8 +1911,6 @@ mod accounting_tests {
             team_account: Pubkey::new_unique(),
             jupiter_program: Pubkey::new_unique(),
             deployment_id: [1; 32],
-            collection_name: "Taxi".to_owned(),
-            collection_uri: "uri".to_owned(),
             fare_mint: Pubkey::new_unique(),
             stock_mints: [
                 repeated,
