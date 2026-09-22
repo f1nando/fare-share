@@ -186,7 +186,9 @@ export function decodeTraineeBucket(bytes) {
 
 export function decodeEventQueue(bytes, pageCount = 80) {
   const reader = new Reader(bytes);
-  const pages = Array.from({ length: pageCount }, (_, index) => ({
+  const storedPageCount = reader.u32();
+  if (storedPageCount !== pageCount) throw new Error('Invalid event queue page count.');
+  const pages = Array.from({ length: storedPageCount }, (_, index) => ({
     index,
     count: reader.u16(),
     minTimestamp: reader.i64(),

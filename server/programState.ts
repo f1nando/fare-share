@@ -51,7 +51,9 @@ export function decodeRewardPoolState(bytes: Uint8Array): RewardPoolState {
 
 export function decodeEventQueueState(bytes: Uint8Array): EventQueueState {
   const reader = new Reader(bytes);
-  const pages = Array.from({ length: PAGE_COUNT }, () => ({
+  const pageCount = reader.u32();
+  if (pageCount !== PAGE_COUNT) throw new Error('Invalid event queue page count');
+  const pages = Array.from({ length: pageCount }, () => ({
     count: reader.u16(),
     minTimestamp: reader.i64(),
     minEventNumber: reader.u64(),

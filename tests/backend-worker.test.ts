@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { AccountRole, address, getAddressEncoder, type Address } from '@solana/kit';
 import {
+  decodeEventQueueState,
   decodeMachineCleanupState,
   expiryIsPrunable,
   queueHasReadyEvent,
@@ -18,6 +19,19 @@ const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 function event(timestamp: bigint, eventNumber: bigint, target: Address = targetA) {
   return { timestamp, eventNumber, target, kind: 1, generation: 1 };
 }
+
+test('worker decodes the bounded queue vector layout', () => {
+  const bytes = new Uint8Array(1_461);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(8, 80, true);
+  view.setUint16(12, 3, true);
+  view.setBigInt64(14, 50n, true);
+  view.setBigUint64(22, 4n, true);
+  view.setBigUint64(12 + 80 * 18, 99n, true);
+  const queue = decodeEventQueueState(bytes);
+  assert.deepEqual(queue.pages[0], { count: 3, minTimestamp: 50n, minEventNumber: 4n });
+  assert.equal(queue.nextEventNumber, 99n);
+});
 
 test('worker selects exact chronological events across heap pages', () => {
   const queue = {

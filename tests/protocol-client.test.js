@@ -34,6 +34,7 @@ import {
   buildRepairInstructions,
   buildClaimTraineeInstructions,
   chooseEventPage,
+  decodeEventQueue,
   TAXI_DISCRIMINATORS,
   waitForFinalizedSignature,
 } from '../src/protocol/anchorClient.js';
@@ -54,6 +55,19 @@ test('mint routing chooses a page with room for both machine events', () => {
   const queue = { pages: [{ index: 0, count: 127 }, { index: 1, count: 126 }] };
   assert.equal(chooseEventPage(queue, 2), 1);
   assert.deepEqual([...TAXI_DISCRIMINATORS.mintMachine], [163, 170, 168, 54, 183, 79, 113, 45]);
+});
+
+test('event queue decoder reads the bounded on-chain vector layout', () => {
+  const bytes = new Uint8Array(1_461);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(8, 80, true);
+  view.setUint16(12, 7, true);
+  view.setBigInt64(14, 123n, true);
+  view.setBigUint64(22, 9n, true);
+  view.setBigUint64(12 + 80 * 18, 42n, true);
+  const queue = decodeEventQueue(bytes);
+  assert.deepEqual(queue.pages[0], { index: 0, count: 7, minTimestamp: 123n, minEventNumber: 9n });
+  assert.equal(queue.nextEventNumber, 42n);
 });
 
 test('every wallet instruction uses the current Anchor discriminator', () => {

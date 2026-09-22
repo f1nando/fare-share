@@ -72,8 +72,10 @@ pub mod taxi_park {
         trainee_pool.bump = ctx.bumps.trainee_pool;
 
         let queue = &mut ctx.accounts.queue;
+        queue.pages = vec![PageCursor::default(); MAX_QUEUE_PAGES];
         queue.next_event_number = 1;
         queue.bump = ctx.bumps.queue;
+        ctx.accounts.trainee_queue.pages = vec![PageCursor::default(); MAX_QUEUE_PAGES];
         ctx.accounts.trainee_queue.next_event_number = 1;
         ctx.accounts.trainee_queue.bump = ctx.bumps.trainee_queue;
         ctx.accounts.fee_vault.bump = ctx.bumps.fee_vault;

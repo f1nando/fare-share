@@ -191,7 +191,8 @@ function encodePool(kind: Manifest['kind'], bump: number, eventTime: bigint) {
 }
 
 function encodeQueue(events: Array<{ timestamp: bigint; eventNumber: bigint }>, bump: number) {
-  const writer = new Writer('EventQueue', 1_457);
+  const writer = new Writer('EventQueue', 1_461);
+  writer.u32(80);
   writer.u16(events.length).i64(events[0].timestamp).u64(events[0].eventNumber);
   for (let index = 1; index < 80; index += 1) writer.u16(0).i64(0n).u64(0n);
   writer.u64(BigInt(events.length + 1)).u8(bump);

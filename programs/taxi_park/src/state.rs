@@ -426,7 +426,8 @@ pub struct PageCursor {
 #[account]
 #[derive(InitSpace)]
 pub struct EventQueue {
-    pub pages: [PageCursor; MAX_QUEUE_PAGES],
+    #[max_len(MAX_QUEUE_PAGES)]
+    pub pages: Vec<PageCursor>,
     pub next_event_number: u64,
     pub bump: u8,
 }
@@ -434,7 +435,7 @@ pub struct EventQueue {
 impl Default for EventQueue {
     fn default() -> Self {
         Self {
-            pages: [PageCursor::default(); MAX_QUEUE_PAGES],
+            pages: vec![PageCursor::default(); MAX_QUEUE_PAGES],
             next_event_number: 0,
             bump: 0,
         }
