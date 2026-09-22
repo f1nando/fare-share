@@ -11,7 +11,7 @@
 - worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
 - `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
 
-Для первой mainnet-публикации admin/deployer должен иметь примерно `9 SOL`: при SBF около 797 KB одновременно финансируются временный upload buffer и upgradeable ProgramData. Неиспользованный rent временного buffer возвращается после успешного deploy; точная стоимость повторно проверяется непосредственно перед транзакцией.
+Для первой mainnet-публикации admin/deployer должен иметь примерно `8 SOL`: release-профиль `opt-level = "s"` уменьшает SBF примерно до 709 KB без нового stack warning в коде Taxi Park. При deploy одновременно финансируются временный upload buffer и upgradeable ProgramData. Неиспользованный rent временного buffer возвращается после успешного deploy; точная стоимость повторно проверяется непосредственно перед транзакцией.
 
 ## 1. Сначала зафиксировать Program ID
 
