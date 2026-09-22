@@ -4,6 +4,15 @@
 
 Постоянный публичный Program ID подготовлен: `9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
 
+Подготовленные публичные адреса:
+
+- admin/deployer: `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`;
+- backend signer: `5PbbDrUdCBfGtVXMKJLqnTieFBKLC5CbHxeaasNGjMZK`;
+- worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
+- `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
+
+Для первой mainnet-публикации admin/deployer должен иметь примерно `9 SOL`: при SBF около 797 KB одновременно финансируются временный upload buffer и upgradeable ProgramData. Неиспользованный rent временного buffer возвращается после успешного deploy; точная стоимость повторно проверяется непосредственно перед транзакцией.
+
 ## 1. Сначала зафиксировать Program ID
 
 До создания `$FARE` нужен отдельный Solana program keypair, хранящийся вне репозитория и project workspace. Его публичный адрес должен совпадать одновременно в:
