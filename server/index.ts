@@ -31,7 +31,7 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     const status = error instanceof VoucherError ? error.status : 500;
     if (status === 500) console.error(error);
-    json(response, status, { error: status === 500 ? 'Внутренняя ошибка сервера.' : String((error as Error).message) });
+    json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }
 });
 
@@ -45,11 +45,11 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
   for await (const chunk of request) {
     const buffer = Buffer.from(chunk);
     size += buffer.length;
-    if (size > 16_384) throw new VoucherError('Запрос слишком большой.', 413);
+    if (size > 16_384) throw new VoucherError('Request is too large.', 413);
     chunks.push(buffer);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
-  catch { throw new VoucherError('Неверный JSON.', 400); }
+  catch { throw new VoucherError('Invalid JSON.', 400); }
 }
 
 function setCors(response: ServerResponse) {

@@ -17,15 +17,15 @@ import {
 } from './protocol/solana.js';
 
 const CLASSES = [
-  { name: 'Эконом', count: 1000, weight: 1, price: '$49', tone: 'economy', image: '/nft/economy.png' },
-  { name: 'Комфорт', count: 300, weight: 3, price: '$129', tone: 'comfort', image: '/nft/comfort.png' },
-  { name: 'Бизнес', count: 100, weight: 10, price: '$399', tone: 'business', image: '/nft/business.png' },
-  { name: 'Легенда', count: 25, weight: 30, price: '$1099', tone: 'legend', image: '/nft/legend.png' },
+  { name: 'Economy', count: 1000, weight: 1, price: '$0.01 test price', tone: 'economy', image: '/nft/economy.png' },
+  { name: 'Comfort', count: 300, weight: 3, price: '$0.03 test price', tone: 'comfort', image: '/nft/comfort.png' },
+  { name: 'Business', count: 100, weight: 10, price: '$0.10 test price', tone: 'business', image: '/nft/business.png' },
+  { name: 'Legend', count: 25, weight: 30, price: '$0.30 test price', tone: 'legend', image: '/nft/legend.png' },
 ];
 
 const DEMO_CARS = [
-  { id: '#0042', name: 'Комфорт', weight: 3, durability: 64, reward: '3.37 FARE', stocks: '$0.81', image: '/nft/comfort.png' },
-  { id: '#0188', name: 'Эконом', weight: 1, durability: 18, reward: '0.94 FARE', stocks: '$0.23', image: '/nft/economy.png' },
+  { id: '#0042', name: 'Comfort', weight: 3, durability: 64, reward: '3.37 FARE', stocks: '$0.81', image: '/nft/comfort.png' },
+  { id: '#0188', name: 'Economy', weight: 1, durability: 18, reward: '0.94 FARE', stocks: '$0.23', image: '/nft/economy.png' },
 ];
 
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
@@ -79,7 +79,7 @@ export function TaxiDashboard() {
       ]);
       setCars(nextCars);
       setTrainees(nextTrainees);
-      setNotice(nextCars.length || nextTrainees.length ? 'Гараж обновлён.' : 'В этом кошельке пока нет машин.');
+      setNotice(nextCars.length || nextTrainees.length ? 'Garage refreshed.' : 'This wallet has no cars yet.');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -89,15 +89,15 @@ export function TaxiDashboard() {
 
   async function runAction(key, action, success) {
     if (!status.deployed) {
-      setNotice('Программа ещё не развёрнута в выбранной сети. Сейчас открыт демо-режим.');
+      setNotice('The program is not deployed on this network yet. Demo mode is active.');
       return;
     }
     if (!wallet) {
-      setNotice('Сначала подключите Phantom.');
+      setNotice('Connect Phantom first.');
       return;
     }
     setBusy(key);
-    setNotice('Подтвердите транзакцию в Phantom, затем дождитесь финального подтверждения Solana…');
+    setNotice('Approve the transaction in Phantom and wait for Solana finalization…');
     setLastSignature('');
     try {
       const result = await action();
@@ -114,7 +114,7 @@ export function TaxiDashboard() {
       setNotice(success);
     } catch (error) {
       if (error.signature) setLastSignature(error.signature);
-      setNotice(error.message || 'Транзакция не выполнена.');
+      setNotice(error.message || 'Transaction failed.');
     } finally {
       setBusy('');
     }
@@ -131,83 +131,83 @@ export function TaxiDashboard() {
         </a>
         <div className="header-actions">
           <span className={`network-pill ${status.deployed ? 'online' : ''}`}>
-            <i /> {status.loading ? 'проверка сети' : status.deployed ? status.network : `demo · ${status.network}`}
+            <i /> {status.loading ? 'checking network' : status.deployed ? status.network : `demo · ${status.network}`}
           </span>
           <button className="wallet-button" onClick={handleConnect}>
-            {wallet ? shortAddress(wallet.account.address) : 'Подключить Phantom'}
+            {wallet ? shortAddress(wallet.account.address) : 'Connect Phantom'}
           </button>
         </div>
       </header>
 
       <main className="taxi-content" id="top">
         <section className="hero-card">
-          <p className="eyebrow">Доход без обещанного APY</p>
-          <h1>Твой таксопарк платит<br /><span>FARE и акциями</span></h1>
-          <p className="hero-copy">Парк делит только реально заработанные комиссии. Нет торгового объёма — нет выплаты.</p>
+          <p className="eyebrow">Revenue without promised APY</p>
+          <h1>Your taxi fleet pays<br /><span>FARE and stocks</span></h1>
+          <p className="hero-copy">The fleet distributes only fees it actually earns. No trading volume means no rewards.</p>
           <div className="pool-strip">
-            <div><small>Касса сейчас</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
-            <div><small>Активный вес</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
-            <div><small>Доход рассчитан до</small><strong>{status.deployed ? formatProtocolTime(status.pool.effectiveCalculatedUntil) : '—'}</strong></div>
+            <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
+            <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
+            <div><small>Rewards calculated through</small><strong>{status.deployed ? formatProtocolTime(status.pool.effectiveCalculatedUntil) : '—'}</strong></div>
           </div>
         </section>
 
         <section className="panel" aria-labelledby="garage-title">
           <div className="section-title">
-            <div><p className="eyebrow">Мой гараж</p><h2 id="garage-title">Машины</h2></div>
+            <div><p className="eyebrow">My garage</p><h2 id="garage-title">Cars</h2></div>
             <button className="ghost-button" disabled={busy === 'refresh'} onClick={() => refreshGarage()}>
-              {busy === 'refresh' ? 'Обновляем…' : 'Обновить'}
+              {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
           <div className="car-list">
             {cars.map(car => <article className="car-row" key={car.asset || car.id}>
               <div className="car-icon"><img src={car.image || CLASS_IMAGE_BY_WEIGHT[car.weight]} alt="" /></div>
-              <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Вес {car.weight}</span></div>
-              <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Прочность {car.durability}%</small></div>
+              <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Weight {car.weight}</span></div>
+              <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Durability {car.durability}%</small></div>
               <div className="reward">
                 <strong>{car.rewardDisplay ? `${car.rewardDisplay.fare} FARE` : car.reward}</strong>
                 <small>{car.rewardDisplay
                   ? car.rewardDisplay.stocks.map(stock => `${stock.amount}${stock.rawFallback ? ' raw' : ''} ${stock.symbol}`).join(' · ')
-                  : `+ ${car.stocks} в акциях`}</small>
+                  : `+ ${car.stocks} in stocks`}</small>
               </div>
               <div className="row-actions">
-                <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Награды отправлены в кошелёк.')}>Забрать</button>
-                <button disabled={Boolean(busy) || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Машина восстановлена на 5 дней.')}>
-                  {car.missingSeconds === 0 ? 'Полная прочность' : car.repairCost === undefined ? 'Починить' : `Починить · ${car.repairCostDisplay} FARE`}
+                <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Rewards sent to your wallet.')}>Claim</button>
+                <button disabled={Boolean(busy) || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Car restored to 5 days of durability.')}>
+                  {car.missingSeconds === 0 ? 'Full durability' : car.repairCost === undefined ? 'Repair' : `Repair · ${car.repairCostDisplay} FARE`}
                 </button>
               </div>
             </article>)}
           </div>
-          <p className="demo-note">{status.deployed ? 'Данные читаются из finalized Solana accounts.' : 'Демо-данные исчезнут после подключения развернутой Solana-программы.'}</p>
+          <p className="demo-note">{status.deployed ? 'Data is read from finalized Solana accounts.' : 'Demo data will disappear when the deployed Solana program is connected.'}</p>
         </section>
 
         <section className="panel trainee-panel" aria-labelledby="trainee-title">
           <div className="section-title">
-            <div><p className="eyebrow">Бесплатный тест</p><h2 id="trainee-title">Стажёрская машина</h2></div>
+            <div><p className="eyebrow">Free trial</p><h2 id="trainee-title">Trainee car</h2></div>
           </div>
-          <p className="trainee-copy">Найдите номер кампании и кодовое слово в наших публикациях. Каждую кампанию можно активировать один раз на кошелёк.</p>
+          <p className="trainee-copy">Find the campaign number and code word in our posts. Each campaign can be activated once per wallet.</p>
           <div className="trainee-form">
-            <label>Кампания<input inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="Например, 1" /></label>
-            <label>Кодовое слово<input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Слово из публикации" /></label>
+            <label>Campaign<input inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="For example, 1" /></label>
+            <label>Code word<input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Word from the post" /></label>
             <button disabled={Boolean(busy) || !campaignId || !keyword.trim()} onClick={() => runAction(
               'activate-trainee',
               () => activateTrainee(wallet, campaignId, keyword, status),
-              'Стажёрская машина активирована.',
-            )}>Активировать</button>
+              'Trainee car activated.',
+            )}>Activate</button>
           </div>
           {trainees.length > 0 && <div className="trainee-list">
             {trainees.map(trainee => <article key={String(trainee.campaignId)}>
-              <span><strong>Кампания #{String(trainee.campaignId)} · {trainee.rewardDisplay} FARE</strong><small>Работает до {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('ru-RU')}</small></span>
+              <span><strong>Campaign #{String(trainee.campaignId)} · {trainee.rewardDisplay} FARE</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
               <button disabled={Boolean(busy) || trainee.reward === 0n} onClick={() => runAction(
                 `claim-trainee-${trainee.campaignId}`,
                 () => claimTrainee(wallet, trainee, status),
-                'Доход стажёрской машины отправлен.',
-              )}>Забрать FARE</button>
+                'Trainee rewards sent.',
+              )}>Claim FARE</button>
             </article>)}
           </div>}
         </section>
 
         <section className="panel mint-panel" aria-labelledby="mint-title">
-          <div className="section-title"><div><p className="eyebrow">1425 машин</p><h2 id="mint-title">Выбрать класс</h2></div></div>
+          <div className="section-title"><div><p className="eyebrow">1,425 cars</p><h2 id="mint-title">Choose a class</h2></div></div>
           <div className="class-grid">
             {CLASSES.map((item, classIndex) => {
               const solPrice = status.deployed ? formatSolAmount(status.config.mintPrices[classIndex]) : null;
@@ -216,13 +216,13 @@ export function TaxiDashboard() {
                 : item.count;
               return <article className={`class-card ${item.tone}`} key={item.name}>
                 <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
-                <img className="class-image" src={item.image} alt={`NFT-машина класса «${item.name}»`} />
+                <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} />
                 <dl>
-                  <div><dt>Цена</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
-                  <div><dt>Осталось</dt><dd>{remaining} / {item.count}</dd></div>
+                  <div><dt>Price</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
+                  <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>
                 </dl>
-                <button disabled={Boolean(busy) || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name}: NFT-машина выпущена.`)}>
-                  {remaining === 0 ? 'Распродано' : solPrice ? `Купить · ${solPrice} SOL` : 'Купить за SOL'}
+                <button disabled={Boolean(busy) || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
+                  {remaining === 0 ? 'Sold out' : solPrice ? `Buy · ${solPrice} SOL` : 'Buy with SOL'}
                 </button>
               </article>;
             })}
@@ -230,8 +230,8 @@ export function TaxiDashboard() {
         </section>
 
         <p className="jurisdiction-notice">
-          Пользователям из юрисдикций, в которых использование xStocks запрещено, нельзя пользоваться stock-функциями проекта.
-          Подключая кошелёк, пользователь самостоятельно подтверждает, что вправе пользоваться продуктом в своей стране.
+          Users in jurisdictions where xStocks are prohibited must not use the project's stock features.
+          By connecting a wallet, you confirm that you are legally allowed to use the product in your country.
         </p>
 
         {notice && <div className="taxi-notice" role="status"><span>{notice}{lastSignature && <> · <a href={explorerTransaction(lastSignature)} target="_blank" rel="noreferrer">Explorer</a></>}</span><button onClick={() => setNotice('')}>×</button></div>}
@@ -242,6 +242,6 @@ export function TaxiDashboard() {
 
 function formatProtocolTime(value) {
   const seconds = Number(value || 0n);
-  if (!Number.isFinite(seconds) || seconds <= 0) return 'ещё не считался';
-  return new Date(seconds * 1000).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+  if (!Number.isFinite(seconds) || seconds <= 0) return 'not calculated yet';
+  return new Date(seconds * 1000).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
 }

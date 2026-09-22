@@ -26,10 +26,10 @@ export function createVoucherService(config: ServerConfig, database: TaxiDatabas
     await consumeRateLimit(database, `${remoteAddress}:${body.wallet}`);
     const campaign = await database.campaigns.findOne({ campaignId: body.campaignId, enabled: true });
     if (!campaign || !keywordMatches(body.keyword, campaign.keywordHash, config.wordPepper)) {
-      throw new VoucherError('Кодовое слово или кампания не найдены.', 403);
+      throw new VoucherError('Code word or campaign not found.', 403);
     }
     const clock = await loadProtocolClock(config.solanaRpcUrl, config.programId);
-    if (clock.paused) throw new VoucherError('Протокол временно приостановлен.', 503);
+    if (clock.paused) throw new VoucherError('The protocol is temporarily paused.', 503);
     if (clock.backendSigner !== signer.publicKey) {
       throw new Error('BACKEND_SIGNER_SECRET_KEY does not match the on-chain backend signer');
     }
@@ -105,7 +105,7 @@ export async function consumeRateLimit(database: TaxiDatabase, identity: string)
     { $inc: { attempts: 1 } },
     { returnDocument: 'after' },
   );
-  if (!result) throw new VoucherError('Слишком много попыток. Попробуйте позже.', 429);
+  if (!result) throw new VoucherError('Too many attempts. Try again later.', 429);
 }
 
 function isDuplicateKey(error: unknown) {
@@ -113,17 +113,17 @@ function isDuplicateKey(error: unknown) {
 }
 
 function validateInput(input: unknown) {
-  if (!input || typeof input !== 'object') throw new VoucherError('Неверный JSON.', 400);
+  if (!input || typeof input !== 'object') throw new VoucherError('Invalid JSON.', 400);
   const value = input as Record<string, unknown>;
   const wallet = String(value.wallet || '').trim();
   const campaignId = String(value.campaignId || '').trim();
   const keyword = String(value.keyword || '');
   const pageIndex = Number(value.pageIndex);
-  try { address(wallet); } catch { throw new VoucherError('Неверный адрес кошелька.', 400); }
-  if (!/^\d{1,20}$/.test(campaignId)) throw new VoucherError('Неверный номер кампании.', 400);
-  if (!keyword.trim() || keyword.length > 128) throw new VoucherError('Неверное кодовое слово.', 400);
+  try { address(wallet); } catch { throw new VoucherError('Invalid wallet address.', 400); }
+  if (!/^\d{1,20}$/.test(campaignId)) throw new VoucherError('Invalid campaign number.', 400);
+  if (!keyword.trim() || keyword.length > 128) throw new VoucherError('Invalid code word.', 400);
   if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= 80) {
-    throw new VoucherError('Неверная страница очереди.', 400);
+    throw new VoucherError('Invalid queue page.', 400);
   }
   return { wallet, campaignId, keyword, pageIndex };
 }

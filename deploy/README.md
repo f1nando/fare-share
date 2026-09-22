@@ -18,3 +18,15 @@ until they are no longer needed. Never upload source files or environment files.
 
 Smoke: HTTPS `/` and its assets return 200; HTTP redirects to HTTPS; the city
 and settings render on desktop/mobile. FPS tool: `/?benchmark=1&duration=20`.
+
+## FARE Taxi Park
+
+Host: `bkserv`, URL: `https://taxi.demotest.live/`.
+Nginx source configuration: `deploy/taxi.demotest.live.nginx.conf`; the live copy is
+`/etc/nginx/sites-available/taxi.demotest.live` and is enabled by symlink.
+
+Upload each frontend build to a new `/var/www/taxi-park/releases/<release>/`
+directory and atomically point `/var/www/taxi-park/current` to it. Do not upload
+source files, `.env` files or keypairs. The public site remains a frontend demo
+until the Solana program, `$FARE`, permanent metadata and backend configuration
+are initialized separately.

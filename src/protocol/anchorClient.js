@@ -75,7 +75,7 @@ class Reader {
 
   take(length) {
     const end = this.offset + length;
-    if (end > this.bytes.length) throw new Error('Повреждённые данные Solana account.');
+    if (end > this.bytes.length) throw new Error('Invalid Solana account data.');
     const result = this.bytes.slice(this.offset, end);
     this.offset = end;
     return result;
@@ -250,7 +250,7 @@ export async function deriveTraineeAddresses(programAddress, owner, campaignId, 
 
 export function chooseEventPage(queue, requiredSlots = 2) {
   const page = queue.pages.find(item => item.count + requiredSlots <= 128);
-  if (!page) throw new Error('Очередь событий заполнена. Нужна обработка CalculateRewards.');
+  if (!page) throw new Error('The event queue is full. CalculateRewards must run first.');
   return page.index;
 }
 
@@ -290,7 +290,7 @@ export async function buildClaimInstructions({
   amounts,
 }) {
   if (!Array.isArray(amounts) || amounts.length !== mints.length) {
-    throw new Error('Для Claim нужны актуальные суммы всех reward-активов.');
+    throw new Error('Claim requires current balances for every reward asset.');
   }
   const payer = createNoopSigner(address(owner));
   const setup = [];
@@ -404,7 +404,7 @@ export async function buildActivateTraineeInstructions({
   const message = base64Bytes(voucher.message);
   const signer = addressBytes(voucher.backendSigner);
   if (signature.length !== 64 || signer.length !== 32 || message.length > 65535) {
-    throw new Error('Backend вернул повреждённый ваучер.');
+    throw new Error('The backend returned an invalid voucher.');
   }
   const publicKeyOffset = 16;
   const signatureOffset = publicKeyOffset + 32;
@@ -503,7 +503,7 @@ export async function buildClaimTraineeInstructions({
 
 export async function sendWalletInstructions({ rpc, wallet, account, chain, instructions, additionalSigners = [] }) {
   const feature = wallet.features['solana:signAndSendTransaction'];
-  if (!feature) throw new Error('Phantom не поддерживает отправку транзакций через Wallet Standard.');
+  if (!feature) throw new Error('Phantom does not support transaction signing through Wallet Standard.');
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -539,13 +539,13 @@ export async function waitForFinalizedSignature(
     }
     const status = result.value[0];
     if (status?.err) {
-      throw transactionError(`Транзакция Solana не выполнена: ${JSON.stringify(status.err)}`, signature);
+      throw transactionError(`Solana transaction failed: ${JSON.stringify(status.err)}`, signature);
     }
     if (status?.confirmationStatus === 'finalized') return;
     if (Date.now() >= deadline) break;
     await sleep(pollMs);
   } while (Date.now() <= deadline);
-  throw transactionError('Solana не подтвердила транзакцию за 45 секунд. Проверьте её в Explorer перед повтором.', signature);
+  throw transactionError('Solana did not confirm the transaction within 45 seconds. Check it in Explorer before retrying.', signature);
 }
 
 function transactionError(message, signature) {
@@ -571,7 +571,7 @@ export function addressBytes(value) {
   let number = 0n;
   for (const character of String(value)) {
     const index = alphabet.indexOf(character);
-    if (index < 0) throw new Error('Некорректный Solana address.');
+    if (index < 0) throw new Error('Invalid Solana address.');
     number = number * 58n + BigInt(index);
   }
   const output = new Uint8Array(32);

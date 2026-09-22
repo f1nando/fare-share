@@ -299,7 +299,7 @@ test('wallet transaction surfaces an on-chain failure before showing success', a
     'signature',
     { timeoutMs: 1000, pollMs: 0, sleep: async () => {} },
   ).catch(value => value);
-  assert.match(error.message, /Транзакция Solana не выполнена/);
+  assert.match(error.message, /Solana transaction failed/);
   assert.equal(error.signature, 'signature');
 });
 
@@ -314,6 +314,6 @@ test('wallet transaction timeout keeps its signature for Explorer verification',
     'pending-signature',
     { timeoutMs: -1, pollMs: 0, sleep: async () => {} },
   ).catch(value => value);
-  assert.match(error.message, /Explorer перед повтором/);
+  assert.match(error.message, /Explorer before retrying/);
   assert.equal(error.signature, 'pending-signature');
 });

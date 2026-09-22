@@ -43,7 +43,7 @@ const XSTOCKS_API_URL = 'https://api.xstocks.fi/api/v2/public/assets';
 
 export function resolveSolanaChain(configuredChain, rpcUrl) {
   if (configuredChain === 'solana:devnet' || configuredChain === 'solana:mainnet') return configuredChain;
-  if (configuredChain) throw new Error('VITE_SOLANA_CHAIN должен быть solana:devnet или solana:mainnet.');
+  if (configuredChain) throw new Error('VITE_SOLANA_CHAIN must be solana:devnet or solana:mainnet.');
   return String(rpcUrl).includes('devnet') ? 'solana:devnet' : 'solana:mainnet';
 }
 
@@ -152,7 +152,7 @@ export async function loadOwnedTrainees(owner, knownStatus) {
     }),
   });
   const body = await response.json();
-  if (body.error) throw new Error(`Не удалось прочитать стажёрские машины: ${body.error.message}`);
+  if (body.error) throw new Error(`Could not load trainee cars: ${body.error.message}`);
   const trainees = (body.result || []).map(item => ({
     address: address(item.pubkey),
     ...decodeTrainee(base64Bytes(item.account.data[0])),
@@ -173,7 +173,7 @@ export async function loadOwnedTrainees(owner, knownStatus) {
     loadMultipleAccounts(bucketAddresses.flat()),
     rpc.getAccountInfo(status.config.fareMint, { commitment: 'finalized', encoding: 'base64' }).send(),
   ]);
-  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  if (!mintAccount.value) throw new Error('FARE mint is unavailable.');
   const decimals = mintDecimals(accountBytes(mintAccount.value));
   return trainees.map((trainee, index) => {
     const startAccount = bucketAccounts[index * 2];
@@ -195,7 +195,7 @@ export async function activateTrainee(connection, campaignId, keyword, knownStat
     body: JSON.stringify({ wallet: owner, campaignId, keyword, pageIndex }),
   });
   const voucher = await response.json();
-  if (!response.ok) throw new Error(voucher.error || 'Backend не выдал ваучер.');
+  if (!response.ok) throw new Error(voucher.error || 'The backend did not issue a voucher.');
   const instructions = await buildActivateTraineeInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -218,7 +218,7 @@ export async function claimTrainee(connection, trainee, knownStatus) {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
-  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  if (!mintAccount.value) throw new Error('FARE mint is unavailable.');
   const instructions = await buildClaimTraineeInstructions({
     programAddress: PROGRAM_ID,
     owner: address(connection.account.address),
@@ -250,7 +250,7 @@ export async function loadOwnedMachines(owner, knownStatus) {
     rpc.getMultipleAccounts(rewardMints, { commitment: 'finalized', encoding: 'base64' }).send(),
     loadStockMultipliers(status.chainUnixTime),
   ]);
-  if (mintResponse.value.some(value => !value)) throw new Error('Один из reward mint недоступен.');
+  if (mintResponse.value.some(value => !value)) throw new Error('One of the reward mints is unavailable.');
   const rewardDecimals = mintResponse.value.map(value => mintDecimals(accountBytes(value)));
   const protocolNow = Number(calculateProtocolTime(status.config, status.chainUnixTime));
   return assets.flatMap((asset, index) => {
@@ -342,8 +342,8 @@ async function loadFinalizedChainTime() {
 
 export async function mintMachine(connection, classIndex, knownStatus) {
   const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
-  if (!status.deployed) throw new Error('Программа ещё не развёрнута в выбранной сети.');
-  if (!status.config.saleStarted) throw new Error('Продажа машин ещё не открыта.');
+  if (!status.deployed) throw new Error('The program is not deployed on the selected network yet.');
+  if (!status.config.saleStarted) throw new Error('The car sale is not open yet.');
   const pageIndex = chooseEventPage(status.queue, 2);
   const owner = address(connection.account.address);
   const built = await buildMintMachine({
@@ -371,7 +371,7 @@ export async function claimMachine(connection, machine, knownStatus) {
   const owner = address(connection.account.address);
   const mints = [status.config.fareMint, ...status.config.stockMints];
   const mintAccounts = await rpc.getMultipleAccounts(mints, { commitment: 'finalized', encoding: 'base64' }).send();
-  if (mintAccounts.value.some(value => !value)) throw new Error('Один из reward mint недоступен.');
+  if (mintAccounts.value.some(value => !value)) throw new Error('One of the reward mints is unavailable.');
   const instructions = await buildClaimInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -399,7 +399,7 @@ export async function repairMachine(connection, machine, knownStatus) {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
-  if (!mintAccount.value) throw new Error('FARE mint недоступен.');
+  if (!mintAccount.value) throw new Error('FARE mint is unavailable.');
   const instructions = await buildRepairInstructions({
     programAddress: PROGRAM_ID,
     owner: address(connection.account.address),
@@ -425,12 +425,12 @@ export async function repairMachine(connection, machine, knownStatus) {
 export async function connectWallet() {
   const wallets = getWallets().get();
   const phantom = wallets.find(wallet => wallet.name.toLowerCase().includes('phantom'));
-  if (!phantom) throw new Error('Phantom не найден. Установите расширение или откройте сайт во встроенном браузере Phantom.');
+  if (!phantom) throw new Error('Phantom was not found. Install the extension or open this site in Phantom\'s built-in browser.');
   const connect = phantom.features['standard:connect'];
-  if (!connect) throw new Error('Этот кошелёк не поддерживает Wallet Standard connect.');
+  if (!connect) throw new Error('This wallet does not support Wallet Standard connect.');
   const result = await connect.connect();
   const account = result.accounts?.[0] || phantom.accounts?.[0];
-  if (!account) throw new Error('Phantom не вернул активный аккаунт.');
+  if (!account) throw new Error('Phantom did not return an active account.');
   return { wallet: phantom, account };
 }
 
@@ -450,7 +450,7 @@ async function refreshStatus(status) {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
-  if (!queueAccount.value) throw new Error('Очередь программы недоступна.');
+  if (!queueAccount.value) throw new Error('The program queue is unavailable.');
   return { ...status, queue: decodeEventQueue(accountBytes(queueAccount.value)) };
 }
 
@@ -460,7 +460,7 @@ async function refreshTraineeStatus(status) {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
-  if (!queueAccount.value) throw new Error('Стажёрская очередь программы недоступна.');
+  if (!queueAccount.value) throw new Error('The trainee queue is unavailable.');
   return { ...status, traineeQueue: decodeEventQueue(accountBytes(queueAccount.value)) };
 }
 
@@ -491,7 +491,7 @@ export async function loadDASAssets(owner, collection, fetchImplementation = fet
     }
     throw new Error('DAS pagination exceeded 100 pages');
   } catch (error) {
-    throw new Error(`Не удалось загрузить NFT-машины. Проверьте VITE_SOLANA_DAS_URL: ${error.message}`);
+    throw new Error(`Could not load NFT cars. Check VITE_SOLANA_DAS_URL: ${error.message}`);
   }
 }
 
@@ -501,7 +501,7 @@ function accountBytes(account) {
 }
 
 function mintDecimals(bytes) {
-  if (bytes.length < 45) throw new Error('Повреждённый reward mint.');
+  if (bytes.length < 45) throw new Error('Invalid reward mint data.');
   return bytes[44];
 }
 
@@ -510,5 +510,5 @@ export function networkName() {
 }
 
 function className(weight) {
-  return ({ 1: 'Эконом', 3: 'Комфорт', 10: 'Бизнес', 30: 'Легенда' })[weight] || 'Машина';
+  return ({ 1: 'Economy', 3: 'Comfort', 10: 'Business', 30: 'Legend' })[weight] || 'Car';
 }
