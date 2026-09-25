@@ -229,10 +229,17 @@ pub mod taxi_park {
     pub fn credit_devnet_rewards(
         ctx: Context<CreditDevnetRewards>,
         amounts: [u64; ASSET_COUNT],
+        trainee_fare_amount: u64,
     ) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
-        require!(amounts.iter().any(|amount| *amount > 0), TaxiError::InvalidRewardAmount);
-        ctx.accounts.pool.add_to_next(amounts)
+        require!(
+            trainee_fare_amount > 0 || amounts.iter().any(|amount| *amount > 0),
+            TaxiError::InvalidRewardAmount
+        );
+        ctx.accounts.pool.add_to_next(amounts)?;
+        ctx.accounts
+            .trainee_pool
+            .add_to_next([trainee_fare_amount, 0, 0, 0, 0])
     }
 
     pub fn rescue_token(ctx: Context<RescueToken>, amount: u64) -> Result<()> {
@@ -1566,6 +1573,8 @@ pub struct CreditDevnetRewards<'info> {
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
     pub pool: Box<Account<'info, RewardPool>>,
+    #[account(mut, seeds = [b"pool", b"trainee"], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
 }
 
 #[derive(Accounts)]

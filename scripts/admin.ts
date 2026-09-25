@@ -32,10 +32,10 @@ if (commandName === 'rescue-sol') {
 } else if (commandName === 'credit-devnet-rewards') {
   exactArgs(args, 1);
   const amounts = args[0].split(',').map(nonNegativeBigInt);
-  if (amounts.length !== 5) throw new Error('credit-devnet-rewards expects five comma-separated raw token amounts');
+  if (amounts.length !== 6) throw new Error('credit-devnet-rewards expects five main amounts and one trainee FARE amount');
   instructions = [buildCreditDevnetRewardsInstruction(
-    programId, admin.address, addresses.config, addresses.pool,
-    amounts as [bigint, bigint, bigint, bigint, bigint],
+    programId, admin.address, addresses.config, addresses.pool, addresses.traineePool,
+    amounts.slice(0, 5) as [bigint, bigint, bigint, bigint, bigint], amounts[5],
   )];
 } else if (commandName === 'rescue-token') {
   exactArgs(args, 3);
@@ -113,7 +113,7 @@ function usage(): never {
     'propose-admin <pubkey> | accept-admin | set-team <pubkey>',
     'set-backend-signer <pubkey> | set-jupiter <program>',
     'rescue-sol <recipient> <lamports> | rescue-token <mint> <recipient-wallet> <raw-amount>',
-    'credit-devnet-rewards <fare,uberx,tslax,googlx,amznx raw amounts> (paused Devnet only)',
+    'credit-devnet-rewards <fare,uberx,tslax,googlx,amznx,trainee-fare raw amounts> (paused Devnet only)',
   ].join('\n'));
 }
 
