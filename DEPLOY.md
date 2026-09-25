@@ -34,6 +34,28 @@
 6. Опубликовать программу в devnet с подготовленным program keypair и временной upgrade authority, затем выполнить `npm run protocol:initialize`.
 7. Запустить backend и worker, после чего проверить сценарии F0/F0a из `docs/SCENARIO-TESTS.md`: сбор до graduation, PumpSwap WSOL после graduation, swaps, расчёт, claim, ремонт и стажёра.
 
+### Возврат Devnet SOL
+
+Devnet upgrade authority не отзывается. Поэтому rent программы и ProgramData можно
+вернуть deployer, если тестовое развёртывание окончательно закрывается. Для текущего
+Devnet доступны read-only аудит и защищённый recovery:
+
+```sh
+npm run protocol:audit-devnet-recovery
+bash scripts/recover-devnet-sol.sh
+```
+
+Вторая команда по умолчанию выполняет только dry-run. Режим `--execute` требует
+точную строку подтверждения, проверяет genesis Devnet, Program ID, ProgramData,
+upgrade authority и локальные keypair. Скрипт запрещает необратимое закрытие, пока
+в SOL- или token-vault остаются средства: сначала нужно поставить протокол на паузу
+и вывести их командами `rescue-sol` / `rescue-token`. После проверки он возвращает
+баланс worker и закрывает программу в пользу deployer. Rent обычных PDA, коллекции,
+mint и token account (сейчас около `0.0443 SOL`) текущая версия контракта не закрывает.
+
+Команду с `--execute` нельзя запускать для обычного rollback: закрытие программы
+необратимо и допустимо только после отдельного явного решения владельца.
+
 Пример формы команды публикации; реальные пути и signer задаёт оператор:
 
 ```sh
