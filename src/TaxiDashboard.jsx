@@ -207,6 +207,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
 
         <section className="panel mint-panel" aria-labelledby="mint-title">
           <div className="section-title"><div><p className="eyebrow">1,425 cars</p><h2 id="mint-title">Choose a class</h2></div></div>
+          {simple && <p className="mint-cost-note">Phantom will show the NFT price plus approximately 0.0045 SOL for the personal Metaplex Core asset and Machine account rent. This is account creation cost, not network gas. The shared Devnet event page has already been prepaid by the deployer.</p>}
           <div className="class-grid">
             {CLASSES.map((item, classIndex) => {
               const solPrice = status.deployed ? formatSolAmount(status.config.mintPrices[classIndex]) : null;
