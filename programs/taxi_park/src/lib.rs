@@ -226,6 +226,15 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn credit_devnet_rewards(
+        ctx: Context<CreditDevnetRewards>,
+        amounts: [u64; ASSET_COUNT],
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(amounts.iter().any(|amount| *amount > 0), TaxiError::InvalidRewardAmount);
+        ctx.accounts.pool.add_to_next(amounts)
+    }
+
     pub fn rescue_token(ctx: Context<RescueToken>, amount: u64) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
         token::assert_program(&ctx.accounts.token_program)?;
@@ -1548,6 +1557,15 @@ pub struct RescueSol<'info> {
     /// CHECK: Admin deliberately chooses the emergency recipient.
     #[account(mut)]
     pub recipient: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CreditDevnetRewards<'info> {
+    pub admin: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
 }
 
 #[derive(Accounts)]

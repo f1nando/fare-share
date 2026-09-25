@@ -3,6 +3,7 @@ import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction }
 import {
   buildRescueSolInstruction,
   buildRescueTokenInstruction,
+  buildCreditDevnetRewardsInstruction,
   buildSimpleAdminInstruction,
   type SimpleAdminCommand,
 } from '../server/admin.js';
@@ -27,6 +28,14 @@ if (commandName === 'rescue-sol') {
   exactArgs(args, 2);
   instructions = [buildRescueSolInstruction(
     programId, admin.address, addresses.config, addresses.feeVault, address(args[0]), positiveBigInt(args[1]),
+  )];
+} else if (commandName === 'credit-devnet-rewards') {
+  exactArgs(args, 1);
+  const amounts = args[0].split(',').map(nonNegativeBigInt);
+  if (amounts.length !== 5) throw new Error('credit-devnet-rewards expects five comma-separated raw token amounts');
+  instructions = [buildCreditDevnetRewardsInstruction(
+    programId, admin.address, addresses.config, addresses.pool,
+    amounts as [bigint, bigint, bigint, bigint, bigint],
   )];
 } else if (commandName === 'rescue-token') {
   exactArgs(args, 3);
@@ -87,6 +96,12 @@ function positiveBigInt(value: string) {
   return parsed;
 }
 
+function nonNegativeBigInt(value: string) {
+  const parsed = BigInt(value);
+  if (parsed < 0n) throw new Error('Amount must be a non-negative integer');
+  return parsed;
+}
+
 function exactArgs(values: string[], count: number) {
   if (values.length !== count) throw new Error(`Expected ${count} argument(s), received ${values.length}`);
 }
@@ -98,6 +113,7 @@ function usage(): never {
     'propose-admin <pubkey> | accept-admin | set-team <pubkey>',
     'set-backend-signer <pubkey> | set-jupiter <program>',
     'rescue-sol <recipient> <lamports> | rescue-token <mint> <recipient-wallet> <raw-amount>',
+    'credit-devnet-rewards <fare,uberx,tslax,googlx,amznx raw amounts> (paused Devnet only)',
   ].join('\n'));
 }
 

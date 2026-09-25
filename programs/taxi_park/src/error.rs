@@ -90,6 +90,8 @@ pub enum TaxiError {
     InvalidJupiterProgram,
     #[msg("Rescue amount is zero or exceeds the vault balance")]
     InvalidRescueAmount,
+    #[msg("At least one Devnet reward amount must be greater than zero")]
+    InvalidRewardAmount,
     #[msg("The Metaplex Core asset still exists and has not been burned")]
     AssetNotBurned,
     #[msg("Trainee duration must be between one hour and seven days")]
