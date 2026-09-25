@@ -10,6 +10,6 @@ if (new URLSearchParams(location.search).get('benchmark') === '1') {
   <React.StrictMode>
     {new URLSearchParams(location.search).get('city') === '1'
       ? <CityBackground />
-      : <TaxiDashboard />}
+      : <TaxiDashboard background={<CityBackground fixed showSettings={false} />} />}
   </React.StrictMode>,
 );

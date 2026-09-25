@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CityBackground } from './CityBackground.jsx';
 import {
   activateTrainee,
   claimMachine,
@@ -30,7 +29,7 @@ const DEMO_CARS = [
 
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
 
-export function TaxiDashboard() {
+export function TaxiDashboard({ simple = false, background = null }) {
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState(DEMO_CARS);
@@ -121,9 +120,9 @@ export function TaxiDashboard() {
   }
 
   return (
-    <div className="taxi-app">
-      <CityBackground fixed showSettings={false} />
-      <div className="taxi-shade" />
+    <div className={`taxi-app${simple ? ' is-test-panel' : ''}`}>
+      {!simple && background}
+      {!simple && <div className="taxi-shade" />}
       <header className="taxi-header">
         <a className="taxi-brand" href="#top" aria-label="FARE Taxi Park">
           <span className="brand-mark">F</span>
@@ -141,9 +140,9 @@ export function TaxiDashboard() {
 
       <main className="taxi-content" id="top">
         <section className="hero-card">
-          <p className="eyebrow">Revenue without promised APY</p>
-          <h1>Your taxi fleet pays<br /><span>FARE and stocks</span></h1>
-          <p className="hero-copy">The fleet distributes only fees it actually earns. No trading volume means no rewards.</p>
+          <p className="eyebrow">{simple ? 'Devnet functional test' : 'Revenue without promised APY'}</p>
+          <h1>{simple ? <>FARE Taxi Park<br /><span>Test panel</span></> : <>Your taxi fleet pays<br /><span>FARE and stocks</span></>}</h1>
+          <p className="hero-copy">{simple ? 'Use this page to test wallet connection, minting, rewards, repair and trainee flows without loading the 3D city.' : 'The fleet distributes only fees it actually earns. No trading volume means no rewards.'}</p>
           <div className="pool-strip">
             <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
             <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
