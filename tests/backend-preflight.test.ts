@@ -59,6 +59,28 @@ test('deployment preflight rejects placeholders, wrong mint order and zero price
   assert.doesNotMatch(combined, /a-secure-random-pepper/);
 });
 
+test('deployment preflight permits explicit test mints only on devnet', async () => {
+  const env = validEnvironment();
+  env.STOCK_MINTS = [
+    'EfKpTsykvLLew289idBNd89TKjRNQSqL8YJQHE4PaTui',
+    '4MZq4bmK6waS6xg2BtwFnq6oXBH2CQifFQ8FaqPgEzeP',
+    'EaUbexsnj136p7nxHbeKxh8dnNDMdctjGYjcXZjRpx4P',
+    'FFxPKHYbaSgzp6g12MgH1ybQZH76EMPkhPsFMg9oMh7f',
+  ].join(',');
+  env.DEVNET_ALLOW_TEST_MINTS = 'true';
+  env.JUPITER_API_KEY = '';
+  const devnet = await validateDeploymentEnvironment(env);
+  assert.deepEqual(devnet.errors, []);
+  assert.match(devnet.warnings.join('\n'), /тестовые Devnet mint/);
+  assert.match(devnet.warnings.join('\n'), /swap worker будет отключён/);
+
+  env.VITE_SOLANA_CHAIN = 'solana:mainnet';
+  const mainnet = await validateDeploymentEnvironment(env);
+  assert.match(mainnet.errors.join('\n'), /DEVNET_ALLOW_TEST_MINTS: разрешено только/);
+  assert.match(mainnet.errors.join('\n'), /официальными mint/);
+  assert.match(mainnet.errors.join('\n'), /JUPITER_API_KEY/);
+});
+
 test('deployment preflight rejects a 64-byte array whose key halves do not match', async () => {
   const env = validEnvironment();
   env.WORKER_KEYPAIR_SECRET_KEY = JSON.stringify(Array.from({ length: 64 }, (_, index) => index));

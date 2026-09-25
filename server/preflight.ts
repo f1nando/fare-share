@@ -75,6 +75,14 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (frontendChain && frontendChain !== 'solana:devnet' && frontendChain !== 'solana:mainnet') {
     errors.push('VITE_SOLANA_CHAIN: допустимы только solana:devnet или solana:mainnet');
   }
+  const testMintSetting = value('DEVNET_ALLOW_TEST_MINTS');
+  if (testMintSetting && testMintSetting !== 'true' && testMintSetting !== 'false') {
+    errors.push('DEVNET_ALLOW_TEST_MINTS: допустимы только true или false');
+  }
+  const allowDevnetTestMints = testMintSetting === 'true' && frontendChain === 'solana:devnet';
+  if (testMintSetting === 'true' && frontendChain !== 'solana:devnet') {
+    errors.push('DEVNET_ALLOW_TEST_MINTS: разрешено только для solana:devnet');
+  }
 
   const programId = validAddress('TAXI_PROGRAM_ID');
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');
@@ -88,7 +96,11 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const stockMints = tuple('STOCK_MINTS');
   stockMints.forEach((mint, index) => validAddress(`STOCK_MINTS[${index}]`, mint));
   if (stockMints.length === 4 && stockMints.some((mint, index) => mint !== OFFICIAL_XSTOCK_MINTS[index])) {
-    errors.push('STOCK_MINTS: ожидается порядок UBERx,TSLAx,GOOGLx,AMZNx с зафиксированными официальными mint');
+    if (allowDevnetTestMints) {
+      warnings.push('STOCK_MINTS: используются тестовые Devnet mint вместо официальных xStocks');
+    } else {
+      errors.push('STOCK_MINTS: ожидается порядок UBERx,TSLAx,GOOGLx,AMZNx с зафиксированными официальными mint');
+    }
   }
   if (fareMint && new Set([fareMint, ...stockMints]).size !== stockMints.length + 1) {
     errors.push('FARE_MINT и STOCK_MINTS должны быть разными адресами');
@@ -130,7 +142,11 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (pepper && (pepper === 'replace-with-a-long-random-secret' || pepper.length < 32)) {
     errors.push('TRAINEE_WORD_PEPPER: нужен случайный секрет длиной не менее 32 символов');
   }
-  required('JUPITER_API_KEY');
+  if (!value('JUPITER_API_KEY') && allowDevnetTestMints) {
+    warnings.push('JUPITER_API_KEY: не задан; Devnet swap worker будет отключён');
+  } else {
+    required('JUPITER_API_KEY');
+  }
 
   const collectionName = required('COLLECTION_NAME');
   if (collectionName.length > 64) errors.push('COLLECTION_NAME: максимум 64 символа');
