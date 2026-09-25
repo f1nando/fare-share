@@ -5,12 +5,12 @@ anchor_version = "0.32.1"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-taxi_park = "9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv"
+[programs.devnet]
+taxi_park = "FHc9uKp4gwmPi4GpaNScjBMpcdH1WEEBRwfNJgjaHALf"
 
 [provider]
-cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "Devnet"
+wallet = "~/.config/solana/taxi-devnet-deployer.json"
 
 [scripts]
 test = "cargo test -p taxi-park"
