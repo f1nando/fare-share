@@ -15,6 +15,7 @@ import {
 
 import {
   PROGRAM_ID,
+  calculateDurabilityPercent,
   calculateRepairQuote,
   calculateProtocolTime,
   calculateTraineeReward,
@@ -109,6 +110,9 @@ test('repair quote charges 25% of earned FARE for any non-zero wear', () => {
 test('durability uses finalized Solana time and freezes during pause', () => {
   assert.equal(calculateProtocolTime({ pausedAt: 0n, totalPausedSeconds: 50n }, 1050), 1000n);
   assert.equal(calculateProtocolTime({ pausedAt: 900n, totalPausedSeconds: 50n }, 5000), 850n);
+  assert.equal(calculateDurabilityPercent(5 * 24 * 60 * 60), 100);
+  assert.equal(calculateDurabilityPercent(5 * 24 * 60 * 60 - 1), 99.9);
+  assert.equal(calculateDurabilityPercent(4 * 24 * 60 * 60 + 6 * 60 * 60), 85);
 });
 
 test('trainee reward uses processed start/end bucket boundaries', () => {

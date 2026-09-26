@@ -61,6 +61,12 @@ export function calculateProtocolTime(config, chainUnixTime) {
   return frozenTime - config.totalPausedSeconds;
 }
 
+export function calculateDurabilityPercent(secondsLeft) {
+  const boundedRemaining = Math.max(0, Math.min(MAX_DURABILITY, Number(secondsLeft)));
+  if (boundedRemaining === MAX_DURABILITY) return 100;
+  return Math.floor(boundedRemaining * 1000 / MAX_DURABILITY) / 10;
+}
+
 export function calculateTraineeReward(trainee, pool, startBucket, endBucket) {
   const effectiveUntil = pool.effectiveCalculatedUntil;
   if (!startBucket?.processed || effectiveUntil < trainee.activeFrom) return 0n;
@@ -283,7 +289,7 @@ export async function loadOwnedMachines(owner, knownStatus) {
       name: asset.content?.metadata?.name || className(machine.weight),
       image: asset.content?.links?.image || '',
       weight: machine.weight,
-      durability: Math.round(secondsLeft * 100 / MAX_DURABILITY),
+      durability: calculateDurabilityPercent(secondsLeft),
       rewards,
       rewardDisplay,
       fareBase: machine.fareBase,
