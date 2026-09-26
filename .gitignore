@@ -12,3 +12,4 @@ test-ledger/
 *.log
 .qa/
 dist-nft/
+dist-porsche/
