@@ -23,6 +23,9 @@ const DEFAULTS = {
   doublePulseGap: 160,
   doubleSecondOpacity: 100,
   backgroundHue: 0,
+  backgroundSaturation: 100,
+  backgroundBrightness: 100,
+  backgroundContrast: 100,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const SETTINGS_VERSION = 2;
@@ -205,7 +208,9 @@ function DrivingDemo() {
               className="car-shot"
               src="/driving-demo/m3.png"
               alt="Жёлтое такси BMW M3 на дороге"
-              style={{ filter: `hue-rotate(${settings.backgroundHue}deg)` }}
+              style={{
+                filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) brightness(${settings.backgroundBrightness}%) contrast(${settings.backgroundContrast}%)`,
+              }}
             />
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
               {Array.from({ length: 32 }, (_, index) => {
@@ -289,6 +294,9 @@ function DrivingDemo() {
           <fieldset>
             <legend>Фоновая картинка</legend>
             <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
+            <Range label="Насыщенность" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
+            <Range label="Яркость" value={settings.backgroundBrightness} min={40} max={180} step={5} unit="%" onChange={update('backgroundBrightness')} />
+            <Range label="Контраст" value={settings.backgroundContrast} min={40} max={200} step={5} unit="%" onChange={update('backgroundContrast')} />
           </fieldset>
 
           <fieldset>
