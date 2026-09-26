@@ -16,8 +16,8 @@ button { cursor: pointer; }
 .scene-shell, .demo-controls { border: 1px solid #ffffff14; border-radius: 20px; background: #1b1b18; box-shadow: 0 24px 80px #0006; overflow: hidden; }
 .driving-scene { position: relative; aspect-ratio: 1; overflow: hidden; background: #dbdcde; isolation: isolate; }
 .car-shot { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
-.road-marks { position: absolute; z-index: 2; inset: 0; transform: translateX(var(--travel, 0)); pointer-events: none; }
-.road-marks img { position: absolute; left: calc(var(--index) * (var(--mark-width) + var(--mark-gap)) - 600%); top: var(--mark-y); width: var(--mark-width); height: auto; transform: translateY(-50%) rotate(var(--mark-angle)); transform-origin: center; filter: drop-shadow(0 3px 3px #0002); }
+.road-marks { position: absolute; z-index: 2; inset: 0; transform: translate(var(--travel-x, 0), var(--travel-y, 0)); pointer-events: none; }
+.road-marks img { position: absolute; width: var(--mark-width); height: auto; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; filter: drop-shadow(0 3px 3px #0002); }
 .headlight { position: absolute; z-index: 4; height: auto; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: drop-shadow(0 0 12px #fff); }
 .headlight.lights-on { opacity: 1; }
 .blink-single { animation: blink-single .62s ease-out; }.blink-double { animation: blink-double 1.15s ease-out; }
