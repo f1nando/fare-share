@@ -83,6 +83,9 @@ function DrivingDemo() {
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
   const marksRef = useRef(null);
   const offsetRef = useRef(0);
+  const targetSpeedRef = useRef(settings.markSpeed);
+  const currentSpeedRef = useRef(settings.markSpeed);
+  targetSpeedRef.current = settings.markSpeed;
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
@@ -101,8 +104,10 @@ function DrivingDemo() {
       previous = now;
       if (!paused && marksRef.current) {
         const spacing = settings.markSpacing;
+        const easing = 1 - Math.exp(-elapsed * 6);
+        currentSpeedRef.current += (targetSpeedRef.current - currentSpeedRef.current) * easing;
         // Two slots keep the alternating lateral offset seamless at the loop boundary.
-        offsetRef.current = (offsetRef.current + elapsed * settings.markSpeed) % (spacing * 2);
+        offsetRef.current = (offsetRef.current + elapsed * currentSpeedRef.current) % (spacing * 2);
         const radians = settings.pathAngle * Math.PI / 180;
         const travel = offsetRef.current;
         marksRef.current.style.setProperty('--travel-x', `${travel * Math.cos(radians)}px`);
@@ -112,7 +117,7 @@ function DrivingDemo() {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [paused, settings.markSpacing, settings.markSpeed, settings.pathAngle]);
+  }, [paused, settings.markSpacing, settings.pathAngle]);
 
   const blink = (mode) => {
     setBlinkMode('off');
