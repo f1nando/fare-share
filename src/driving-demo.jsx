@@ -193,11 +193,11 @@ function DrivingDemo() {
           <fieldset>
             <legend>Движение</legend>
             <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={600} unit=" px/s" onChange={update('markSpeed')} />
-            <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} unit="°" onChange={update('pathAngle')} />
+            <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('pathAngle')} />
             <div className="angle-stepper" aria-label="Изменить угол траектории">
-              <button onClick={() => update('pathAngle')(Math.max(-180, settings.pathAngle - 10))}>−10°</button>
+              <button onClick={() => update('pathAngle')(Math.max(-180, Math.round((settings.pathAngle - 0.1) * 10) / 10))}>−0.1°</button>
               <span>{settings.pathAngle}°</span>
-              <button onClick={() => update('pathAngle')(Math.min(180, settings.pathAngle + 10))}>+10°</button>
+              <button onClick={() => update('pathAngle')(Math.min(180, Math.round((settings.pathAngle + 0.1) * 10) / 10))}>+0.1°</button>
             </div>
             <div className="direction-control">
               <span>Куда движутся полоски</span>
