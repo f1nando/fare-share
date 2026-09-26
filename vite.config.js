@@ -6,6 +6,6 @@ export default defineConfig(({ mode }) => ({
   define: { __CITY_VERSION__: JSON.stringify(codeVersion()) },
   plugins: [react()],
   build: { ...(mode === 'city' ? { outDir: 'dist-city' } : {}),
-    rollupOptions: { input: mode === 'city' ? 'city.html' : { main: 'index.html', test: 'test.html' },
+    rollupOptions: { input: mode === 'city' ? 'city.html' : { main: 'index.html', test: 'test.html', drivingDemo: 'driving-demo.html' },
       output: { manualChunks: { three: ['three'] } } } },
 }));
