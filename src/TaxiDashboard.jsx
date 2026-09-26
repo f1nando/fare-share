@@ -11,6 +11,7 @@ import {
   mintMachine,
   networkName,
   repairMachine,
+  transferMachine,
   formatSolAmount,
   shortAddress,
 } from './protocol/solana.js';
@@ -36,6 +37,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
   const [trainees, setTrainees] = useState([]);
   const [campaignId, setCampaignId] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [transferRecipient, setTransferRecipient] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [lastSignature, setLastSignature] = useState('');
@@ -163,6 +165,10 @@ export function TaxiDashboard({ simple = false, background = null }) {
               {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
+          {simple && <div className="transfer-test-form">
+            <label>Devnet transfer recipient<input value={transferRecipient} onChange={event => setTransferRecipient(event.target.value.trim())} placeholder="Second wallet public address" /></label>
+            <small>Transfers the selected Core NFT with its existing Machine state. Public address only.</small>
+          </div>}
           <div className="car-list">
             {cars.map(car => <article className="car-row" key={car.asset || car.id}>
               <div className="car-icon"><img src={car.image || CLASS_IMAGE_BY_WEIGHT[car.weight]} alt="" /></div>
@@ -179,6 +185,11 @@ export function TaxiDashboard({ simple = false, background = null }) {
                 <button disabled={Boolean(busy) || protocolPaused || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Car restored to 5 days of durability.')}>
                   {car.missingSeconds === 0 ? 'Full durability' : car.repairCost === undefined ? 'Repair' : `Repair · ${car.repairCostDisplay} FARE`}
                 </button>
+                {simple && <button disabled={Boolean(busy) || protocolPaused || !transferRecipient} className="secondary" onClick={() => runAction(
+                  `transfer-${car.asset || car.id}`,
+                  () => transferMachine(wallet, car, transferRecipient, status),
+                  'NFT transferred. Its protocol state stays attached to the asset.',
+                )}>Transfer test</button>}
               </div>
             </article>)}
           </div>

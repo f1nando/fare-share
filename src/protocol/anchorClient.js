@@ -337,6 +337,22 @@ export async function buildClaimInstructions({
   ];
 }
 
+export function buildTransferCoreAssetInstruction({ owner, asset, collection, newOwner }) {
+  return {
+    programAddress: MPL_CORE_PROGRAM,
+    accounts: [
+      meta(asset, AccountRole.WRITABLE),
+      meta(collection, AccountRole.READONLY),
+      meta(owner, AccountRole.WRITABLE_SIGNER),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(newOwner, AccountRole.READONLY),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+    ],
+    data: Uint8Array.of(14, 0),
+  };
+}
+
 export async function buildRepairInstructions({
   programAddress,
   owner,

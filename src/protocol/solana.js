@@ -13,6 +13,7 @@ import {
   buildClaimTraineeInstructions,
   buildMintMachine,
   buildRepairInstructions,
+  buildTransferCoreAssetInstruction,
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
@@ -405,6 +406,25 @@ export async function claimMachine(connection, machine, knownStatus) {
     account: connection.account,
     chain: SOLANA_CHAIN,
     instructions,
+  });
+}
+
+export async function transferMachine(connection, machine, recipient, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const owner = address(connection.account.address);
+  const newOwner = address(String(recipient).trim());
+  if (String(owner) === String(newOwner)) throw new Error('Choose a different recipient wallet.');
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildTransferCoreAssetInstruction({
+      owner,
+      asset: machine.asset,
+      collection: status.config.collection,
+      newOwner,
+    })],
   });
 }
 

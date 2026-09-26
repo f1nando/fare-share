@@ -33,6 +33,7 @@ import {
   buildActivateTraineeInstructions,
   buildClaimInstructions,
   buildRepairInstructions,
+  buildTransferCoreAssetInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeEventQueue,
@@ -276,6 +277,19 @@ test('claim skips redundant token account creation when destinations already exi
 
   assert.equal(instructions.length, 1);
   assert.deepEqual([...instructions[0].data], [...TAXI_DISCRIMINATORS.claim]);
+});
+
+test('Core transfer keeps the asset account and changes only its owner', async () => {
+  const signers = await Promise.all(Array.from({ length: 4 }, () => generateKeyPairSigner()));
+  const [owner, asset, collection, newOwner] = signers.map(signer => signer.address);
+  const instruction = buildTransferCoreAssetInstruction({ owner, asset, collection, newOwner });
+
+  assert.equal(String(instruction.programAddress), 'CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
+  assert.deepEqual([...instruction.data], [14, 0]);
+  assert.equal(String(instruction.accounts[0].address), String(asset));
+  assert.equal(String(instruction.accounts[1].address), String(collection));
+  assert.equal(String(instruction.accounts[2].address), String(owner));
+  assert.equal(String(instruction.accounts[4].address), String(newOwner));
 });
 
 test('free repair does not create a FARE token account while paid repair can create it', async () => {
