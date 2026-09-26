@@ -39,6 +39,7 @@ function DrivingDemo() {
   const [settings, setSettings] = useState(DEFAULTS);
   const [paused, setPaused] = useState(false);
   const [blinkMode, setBlinkMode] = useState('off');
+  const [lightsOn, setLightsOn] = useState(false);
   const marksRef = useRef(null);
   const offsetRef = useRef(0);
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
@@ -96,7 +97,7 @@ function DrivingDemo() {
             ].map(([name, x, y]) => (
               <img
                 key={`${name}-${blinkMode}`}
-                className={`headlight headlight-${name} blink-${blinkMode}`}
+                className={`headlight headlight-${name} blink-${blinkMode} ${lightsOn ? 'lights-on' : ''}`}
                 src="/driving-demo/blink.png"
                 alt=""
                 style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
@@ -137,6 +138,16 @@ function DrivingDemo() {
 
           <fieldset>
             <legend>Фары</legend>
+            <button
+              className={`lights-toggle ${lightsOn ? 'active' : ''}`}
+              type="button"
+              role="switch"
+              aria-checked={lightsOn}
+              onClick={() => setLightsOn((value) => !value)}
+            >
+              <span><i />Постоянный свет</span>
+              <b>{lightsOn ? 'Включён' : 'Выключен'}</b>
+            </button>
             <Range label="Размер блика" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
             <div className="light-grid">
               <div><b>Левая</b><Range label="X" value={settings.leftX} min={0} max={100} unit="%" onChange={update('leftX')} /><Range label="Y" value={settings.leftY} min={0} max={100} unit="%" onChange={update('leftY')} /></div>
