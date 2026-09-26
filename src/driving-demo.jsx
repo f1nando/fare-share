@@ -19,6 +19,23 @@ const DEFAULTS = {
   rightY: 60,
   blinkSize: 12,
 };
+const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
+
+function loadStoredState() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!stored || typeof stored !== 'object') throw new Error('Empty settings');
+    const settings = Object.fromEntries(
+      Object.entries(DEFAULTS).map(([key, fallback]) => [
+        key,
+        Number.isFinite(stored.settings?.[key]) ? stored.settings[key] : fallback,
+      ]),
+    );
+    return { settings, lightsOn: stored.lightsOn === true };
+  } catch {
+    return { settings: DEFAULTS, lightsOn: false };
+  }
+}
 
 function Range({ label, value, min, max, step = 1, unit = '', onChange }) {
   const fill = ((value - min) / (max - min)) * 100;
@@ -39,13 +56,22 @@ function Range({ label, value, min, max, step = 1, unit = '', onChange }) {
 }
 
 function DrivingDemo() {
-  const [settings, setSettings] = useState(DEFAULTS);
+  const [initialState] = useState(loadStoredState);
+  const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [blinkMode, setBlinkMode] = useState('off');
-  const [lightsOn, setLightsOn] = useState(false);
+  const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
   const marksRef = useRef(null);
   const offsetRef = useRef(0);
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings, lightsOn }));
+    } catch {
+      // The demo remains usable when storage is blocked by the browser.
+    }
+  }, [settings, lightsOn]);
 
   useEffect(() => {
     let frame;
