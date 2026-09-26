@@ -4,6 +4,7 @@ import {
   getProgramDerivedAddress,
   getUtf8Encoder,
 } from '@solana/kit';
+import { findAssociatedTokenPda } from '@solana-program/token';
 import { getWallets } from '@wallet-standard/app';
 import {
   base64Bytes,
@@ -378,6 +379,14 @@ export async function claimMachine(connection, machine, knownStatus) {
   const mints = [status.config.fareMint, ...status.config.stockMints];
   const mintAccounts = await rpc.getMultipleAccounts(mints, { commitment: 'finalized', encoding: 'base64' }).send();
   if (mintAccounts.value.some(value => !value)) throw new Error('One of the reward mints is unavailable.');
+  const tokenPrograms = mintAccounts.value.map(value => address(value.owner));
+  const destinationAddresses = await Promise.all(mints.map((mint, index) => (
+    findAssociatedTokenPda({ owner, mint, tokenProgram: tokenPrograms[index] }).then(([result]) => result)
+  )));
+  const destinationAccounts = await rpc.getMultipleAccounts(destinationAddresses, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
   const instructions = await buildClaimInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -386,8 +395,9 @@ export async function claimMachine(connection, machine, knownStatus) {
     machine: machine.machineAddress,
     asset: machine.asset,
     mints,
-    tokenPrograms: mintAccounts.value.map(value => address(value.owner)),
+    tokenPrograms,
     amounts: machine.rewards,
+    destinationAccountsExist: destinationAccounts.value.map(Boolean),
   });
   return sendWalletInstructions({
     rpc,

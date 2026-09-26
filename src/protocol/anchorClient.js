@@ -290,6 +290,7 @@ export async function buildClaimInstructions({
   mints,
   tokenPrograms,
   amounts,
+  destinationAccountsExist = [],
 }) {
   if (!Array.isArray(amounts) || amounts.length !== mints.length) {
     throw new Error('Claim requires current balances for every reward asset.');
@@ -303,7 +304,7 @@ export async function buildClaimInstructions({
     const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint, tokenProgram });
     const [destination] = await findAssociatedTokenPda({ owner, mint, tokenProgram });
     const hasReward = BigInt(amounts[index]) > 0n;
-    if (hasReward) {
+    if (hasReward && !destinationAccountsExist[index]) {
       setup.push(getCreateAssociatedTokenIdempotentInstruction({
         payer,
         ata: destination,

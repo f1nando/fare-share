@@ -258,6 +258,26 @@ test('claim creates destination token accounts only for non-zero rewards', async
   }
 });
 
+test('claim skips redundant token account creation when destinations already exist', async () => {
+  const signers = await Promise.all(Array.from({ length: 10 }, () => generateKeyPairSigner()));
+  const [owner, config, pool, machine, asset, ...mints] = signers.map(signer => signer.address);
+  const instructions = await buildClaimInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    machine,
+    asset,
+    mints,
+    tokenPrograms: Array(5).fill(TOKEN_PROGRAM),
+    amounts: Array(5).fill(1n),
+    destinationAccountsExist: Array(5).fill(true),
+  });
+
+  assert.equal(instructions.length, 1);
+  assert.deepEqual([...instructions[0].data], [...TAXI_DISCRIMINATORS.claim]);
+});
+
 test('free repair does not create a FARE token account while paid repair can create it', async () => {
   const signers = await Promise.all(Array.from({ length: 7 }, () => generateKeyPairSigner()));
   const [owner, configAddress, pool, queue, machine, asset, fareMint] = signers.map(signer => signer.address);
