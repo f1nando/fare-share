@@ -3,12 +3,12 @@ import { createRoot } from 'react-dom/client';
 import './driving-demo.css';
 
 const DEFAULTS = {
-  markSpeed: 240,
-  markSpacing: 460,
+  markSpeed: 19,
+  markSpacing: 37,
   pathAngle: -135,
   markX: 50,
   markY: 84,
-  markWidth: 210,
+  markWidth: 17,
   markAngle: 0,
   markStagger: 0,
   markOpacity: 100,
@@ -21,6 +21,8 @@ const DEFAULTS = {
   blinkOpacity: 100,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
+const SETTINGS_VERSION = 2;
+const SOURCE_IMAGE_SIZE = 1254;
 const DIRECTION_PRESETS = [
   { angle: -135, label: '↖', title: 'Вверх-влево', column: 1, row: 1 },
   { angle: -90, label: '↑', title: 'Вверх', column: 2, row: 1 },
@@ -40,18 +42,25 @@ function loadStoredState() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!stored || typeof stored !== 'object') throw new Error('Empty settings');
+    const source = { ...stored.settings };
+    if (!Number.isFinite(source.markSpacing) && Number.isFinite(source.markGap)) {
+      source.markSpacing = source.markGap + (Number.isFinite(source.markWidth) ? source.markWidth : 210);
+    }
+    if (source.direction === -1 && Number.isFinite(source.pathAngle)) {
+      source.pathAngle = normalizeAngle(source.pathAngle + 180);
+    }
+    if (stored.version !== SETTINGS_VERSION) {
+      const pixelsToPercent = (value) => Math.round(value / SOURCE_IMAGE_SIZE * 10000) / 100;
+      for (const key of ['markSpeed', 'markSpacing', 'markWidth', 'markStagger']) {
+        if (Number.isFinite(source[key])) source[key] = pixelsToPercent(source[key]);
+      }
+    }
     const settings = Object.fromEntries(
       Object.entries(DEFAULTS).map(([key, fallback]) => [
         key,
-        Number.isFinite(stored.settings?.[key]) ? stored.settings[key] : fallback,
+        Number.isFinite(source[key]) ? source[key] : fallback,
       ]),
     );
-    if (!Number.isFinite(stored.settings?.markSpacing) && Number.isFinite(stored.settings?.markGap)) {
-      settings.markSpacing = stored.settings.markGap + (Number.isFinite(stored.settings.markWidth) ? stored.settings.markWidth : DEFAULTS.markWidth);
-    }
-    if (stored.settings?.direction === -1 && Number.isFinite(stored.settings?.pathAngle)) {
-      settings.pathAngle = normalizeAngle(settings.pathAngle + 180);
-    }
     return { settings, lightsOn: stored.lightsOn === true };
   } catch {
     return { settings: DEFAULTS, lightsOn: false };
@@ -91,7 +100,7 @@ function DrivingDemo() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings, lightsOn }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SETTINGS_VERSION, settings, lightsOn }));
     } catch {
       // The demo remains usable when storage is blocked by the browser.
     }
@@ -111,8 +120,8 @@ function DrivingDemo() {
         offsetRef.current = (offsetRef.current + elapsed * currentSpeedRef.current) % (spacing * 2);
         const radians = settings.pathAngle * Math.PI / 180;
         const travel = offsetRef.current;
-        marksRef.current.style.setProperty('--travel-x', `${travel * Math.cos(radians)}px`);
-        marksRef.current.style.setProperty('--travel-y', `${travel * Math.sin(radians)}px`);
+        marksRef.current.style.setProperty('--travel-x', `${travel * Math.cos(radians)}%`);
+        marksRef.current.style.setProperty('--travel-y', `${travel * Math.sin(radians)}%`);
       }
       frame = requestAnimationFrame(animate);
     };
@@ -126,7 +135,7 @@ function DrivingDemo() {
   };
 
   const markStyle = {
-    '--mark-width': `${settings.markWidth}px`,
+    '--mark-width': `${settings.markWidth}%`,
     '--mark-angle': `${settings.markAngle}deg`,
     '--mark-opacity': settings.markOpacity / 100,
   };
@@ -155,7 +164,7 @@ function DrivingDemo() {
                 const stagger = (index % 2 ? 1 : -1) * settings.markStagger / 2;
                 const x = slot * spacing * pathX + stagger * normalX;
                 const y = slot * spacing * pathY + stagger * normalY;
-                return <img key={index} src="/driving-demo/mark.png" style={{ left: `calc(${settings.markX}% + ${x}px)`, top: `calc(${settings.markY}% + ${y}px)` }} alt="" />;
+                return <img key={index} src="/driving-demo/mark.png" style={{ left: `${settings.markX + x}%`, top: `${settings.markY + y}%` }} alt="" />;
               })}
             </div>
             {[
@@ -194,7 +203,7 @@ function DrivingDemo() {
 
           <fieldset>
             <legend>Движение</legend>
-            <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={600} unit=" px/s" onChange={update('markSpeed')} />
+            <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={60} step={0.5} unit="%/с" onChange={update('markSpeed')} />
             <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('pathAngle')} />
             <div className="angle-stepper" aria-label="Изменить угол траектории">
               <button onClick={() => update('pathAngle')(Math.max(-180, Math.round((settings.pathAngle - 0.1) * 10) / 10))}>−0.1°</button>
@@ -222,11 +231,11 @@ function DrivingDemo() {
             <legend>Разметка</legend>
             <Range label="Положение по X" value={settings.markX} min={0} max={100} unit="%" onChange={update('markX')} />
             <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
-            <Range label="Размер полоски" value={settings.markWidth} min={70} max={420} unit=" px" onChange={update('markWidth')} />
-            <Range label="Между центрами" value={settings.markSpacing} min={80} max={900} unit=" px" onChange={update('markSpacing')} />
+            <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
+            <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
-            <Range label="Сдвиг соседних" value={settings.markStagger} min={-250} max={250} unit=" px" onChange={update('markStagger')} />
+            <Range label="Сдвиг соседних" value={settings.markStagger} min={-20} max={20} step={0.5} unit="%" onChange={update('markStagger')} />
           </fieldset>
 
           <fieldset>
