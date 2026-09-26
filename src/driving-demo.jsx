@@ -22,6 +22,7 @@ const DEFAULTS = {
   doublePulseDuration: 180,
   doublePulseGap: 160,
   doubleSecondOpacity: 100,
+  backgroundHue: 0,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const SETTINGS_VERSION = 2;
@@ -85,6 +86,16 @@ function Range({ label, value, min, max, step = 1, unit = '', onChange }) {
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
+  );
+}
+
+function FinePositionButtons({ value, onChange }) {
+  const adjust = (delta) => onChange(Math.max(0, Math.min(100, Math.round((value + delta) * 10) / 10)));
+  return (
+    <div className="position-stepper">
+      <button type="button" onClick={() => adjust(-0.1)}>−0.1</button>
+      <button type="button" onClick={() => adjust(0.1)}>+0.1</button>
+    </div>
   );
 }
 
@@ -190,7 +201,12 @@ function DrivingDemo() {
       <section className="demo-layout">
         <div className="scene-shell">
           <div className="driving-scene">
-            <img className="car-shot" src="/driving-demo/m3.png" alt="Жёлтое такси BMW M3 на дороге" />
+            <img
+              className="car-shot"
+              src="/driving-demo/m3.png"
+              alt="Жёлтое такси BMW M3 на дороге"
+              style={{ filter: `hue-rotate(${settings.backgroundHue}deg)` }}
+            />
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
               {Array.from({ length: 32 }, (_, index) => {
                 const slot = index - 16;
@@ -271,6 +287,11 @@ function DrivingDemo() {
           </fieldset>
 
           <fieldset>
+            <legend>Фоновая картинка</legend>
+            <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
+          </fieldset>
+
+          <fieldset>
             <legend>Фары</legend>
             <button
               className={`lights-toggle ${lightsOn ? 'active' : ''}`}
@@ -290,8 +311,20 @@ function DrivingDemo() {
             <Range label="Пауза между импульсами" value={settings.doublePulseGap} min={0} max={1000} step={10} unit=" мс" onChange={update('doublePulseGap')} />
             <Range label="Яркость второго" value={settings.doubleSecondOpacity} min={10} max={100} step={5} unit="%" onChange={update('doubleSecondOpacity')} />
             <div className="light-grid">
-              <div><b>Левая</b><Range label="X" value={settings.leftX} min={0} max={100} unit="%" onChange={update('leftX')} /><Range label="Y" value={settings.leftY} min={0} max={100} unit="%" onChange={update('leftY')} /></div>
-              <div><b>Правая</b><Range label="X" value={settings.rightX} min={0} max={100} unit="%" onChange={update('rightX')} /><Range label="Y" value={settings.rightY} min={0} max={100} unit="%" onChange={update('rightY')} /></div>
+              <div>
+                <b>Левая</b>
+                <Range label="X" value={settings.leftX} min={0} max={100} step={0.1} unit="%" onChange={update('leftX')} />
+                <FinePositionButtons value={settings.leftX} onChange={update('leftX')} />
+                <Range label="Y" value={settings.leftY} min={0} max={100} step={0.1} unit="%" onChange={update('leftY')} />
+                <FinePositionButtons value={settings.leftY} onChange={update('leftY')} />
+              </div>
+              <div>
+                <b>Правая</b>
+                <Range label="X" value={settings.rightX} min={0} max={100} step={0.1} unit="%" onChange={update('rightX')} />
+                <FinePositionButtons value={settings.rightX} onChange={update('rightX')} />
+                <Range label="Y" value={settings.rightY} min={0} max={100} step={0.1} unit="%" onChange={update('rightY')} />
+                <FinePositionButtons value={settings.rightY} onChange={update('rightY')} />
+              </div>
             </div>
           </fieldset>
         </aside>
