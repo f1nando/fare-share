@@ -192,6 +192,11 @@ function DrivingDemo() {
             <Range label="Скорость авто" value={settings.carSpeed} min={0} max={220} unit=" км/ч" onChange={update('carSpeed')} />
             <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={600} unit=" px/s" onChange={update('markSpeed')} />
             <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} unit="°" onChange={update('pathAngle')} />
+            <div className="angle-stepper" aria-label="Изменить угол траектории">
+              <button onClick={() => update('pathAngle')(Math.max(-180, settings.pathAngle - 10))}>−10°</button>
+              <span>{settings.pathAngle}°</span>
+              <button onClick={() => update('pathAngle')(Math.min(180, settings.pathAngle + 10))}>+10°</button>
+            </div>
             <div className="direction-control">
               <span>Куда движутся полоски</span>
               <div className="direction-pad" aria-label="Направление движения разметки">
