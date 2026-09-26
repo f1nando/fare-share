@@ -11,6 +11,7 @@ const DEFAULTS = {
   markWidth: 210,
   markAngle: 0,
   markStagger: 0,
+  markOpacity: 100,
   leftX: 65,
   leftY: 59,
   rightX: 83,
@@ -127,6 +128,7 @@ function DrivingDemo() {
   const markStyle = {
     '--mark-width': `${settings.markWidth}px`,
     '--mark-angle': `${settings.markAngle}deg`,
+    '--mark-opacity': settings.markOpacity / 100,
   };
   const pathRadians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(pathRadians);
@@ -222,6 +224,7 @@ function DrivingDemo() {
             <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
             <Range label="Размер полоски" value={settings.markWidth} min={70} max={420} unit=" px" onChange={update('markWidth')} />
             <Range label="Между центрами" value={settings.markSpacing} min={80} max={900} unit=" px" onChange={update('markSpacing')} />
+            <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
             <Range label="Сдвиг соседних" value={settings.markStagger} min={-250} max={250} unit=" px" onChange={update('markStagger')} />
           </fieldset>
