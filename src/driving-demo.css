@@ -34,6 +34,7 @@ button { cursor: pointer; }
 .lights-toggle span { display: flex; align-items: center; gap: 9px; }.lights-toggle i { width: 8px; height: 8px; border-radius: 50%; background: #4b4b45; box-shadow: none; transition: .2s ease; }.lights-toggle b { color: #77776f; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
 .lights-toggle.active { color: #f3f3ec; border-color: #f8c82455; background: #f8c8240b; }.lights-toggle.active i { background: #fffbd2; box-shadow: 0 0 12px 3px #fff7a7; }.lights-toggle.active b { color: #f8c824; }
 .control-subsection { margin: 20px 0 -3px; padding-top: 15px; border-top: 1px solid #ffffff0e; color: #d8d8d1; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.control-note { margin: 9px 0 0; color: #6f6f69; font-size: 9px; line-height: 1.45; }
 .filter-reset { width: 100%; min-height: 34px; margin-top: 15px; border: 1px solid #ffffff14; border-radius: 8px; color: #a3a39c; background: #282824; font-size: 10px; font-weight: 700; }.filter-reset:hover { color: #171711; border-color: #f8c824; background: #f8c824; }
 .color-toggle { margin-top: 8px; }
 .demo-range { display: block; margin-top: 15px; }

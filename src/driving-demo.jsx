@@ -27,6 +27,7 @@ const DEFAULTS = {
   backgroundBrightness: 100,
   backgroundContrast: 100,
   backgroundGrayscale: 0,
+  carBlackness: 0,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const SETTINGS_VERSION = 2;
@@ -44,6 +45,50 @@ const DIRECTION_PRESETS = [
 
 function normalizeAngle(angle) {
   return ((angle + 180) % 360 + 360) % 360 - 180;
+}
+
+function createBlackCarLayer(source) {
+  const layer = new ImageData(source.width, source.height);
+  for (let index = 0; index < source.data.length; index += 4) {
+    const red = source.data[index];
+    const green = source.data[index + 1];
+    const blue = source.data[index + 2];
+    const alpha = source.data[index + 3];
+    const max = Math.max(red, green, blue);
+    const min = Math.min(red, green, blue);
+    const delta = max - min;
+    if (!delta || !alpha) continue;
+
+    let hue;
+    if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+    else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+    else hue = 60 * ((red - green) / delta + 4);
+    if (hue < 0) hue += 360;
+    const saturation = delta / max;
+    const hueWeight = Math.max(0, Math.min(1, Math.min((hue - 15) / 15, (78 - hue) / 15)));
+    const saturationWeight = Math.max(0, Math.min(1, (saturation - .18) / .32));
+    const mask = hueWeight * saturationWeight;
+    if (mask <= 0) continue;
+
+    const luminance = red * .2126 + green * .7152 + blue * .0722;
+    const shade = Math.max(6, Math.min(62, 7 + luminance * .22));
+    layer.data[index] = shade * .86;
+    layer.data[index + 1] = shade * .92;
+    layer.data[index + 2] = shade;
+    layer.data[index + 3] = alpha * mask;
+  }
+  return layer;
+}
+
+function drawCar(canvas, image, blackLayer, blackness) {
+  if (!canvas || !image || !blackLayer) return;
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.globalAlpha = 1;
+  context.drawImage(image, 0, 0);
+  context.globalAlpha = blackness / 100;
+  context.drawImage(blackLayer, 0, 0);
+  context.globalAlpha = 1;
 }
 
 function loadStoredState() {
@@ -110,11 +155,43 @@ function DrivingDemo() {
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
   const marksRef = useRef(null);
   const headlightRefs = useRef([]);
+  const carCanvasRef = useRef(null);
+  const carImageRef = useRef(null);
+  const blackCarLayerRef = useRef(null);
+  const blacknessRef = useRef(settings.carBlackness);
   const offsetRef = useRef(0);
   const targetSpeedRef = useRef(settings.markSpeed);
   const currentSpeedRef = useRef(settings.markSpeed);
   targetSpeedRef.current = settings.markSpeed;
+  blacknessRef.current = settings.carBlackness;
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
+
+  useEffect(() => {
+    let active = true;
+    const image = new Image();
+    image.onload = () => {
+      if (!active || !carCanvasRef.current) return;
+      const canvas = carCanvasRef.current;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(image, 0, 0);
+      const source = context.getImageData(0, 0, canvas.width, canvas.height);
+      const blackLayer = document.createElement('canvas');
+      blackLayer.width = canvas.width;
+      blackLayer.height = canvas.height;
+      blackLayer.getContext('2d').putImageData(createBlackCarLayer(source), 0, 0);
+      carImageRef.current = image;
+      blackCarLayerRef.current = blackLayer;
+      drawCar(canvas, image, blackLayer, blacknessRef.current);
+    };
+    image.src = '/driving-demo/m3.png';
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    drawCar(carCanvasRef.current, carImageRef.current, blackCarLayerRef.current, settings.carBlackness);
+  }, [settings.carBlackness]);
 
   useEffect(() => {
     try {
@@ -205,10 +282,11 @@ function DrivingDemo() {
       <section className="demo-layout">
         <div className="scene-shell">
           <div className="driving-scene">
-            <img
+            <canvas
+              ref={carCanvasRef}
               className="car-shot"
-              src="/driving-demo/m3.png"
-              alt="Жёлтое такси BMW M3 на дороге"
+              role="img"
+              aria-label="Такси BMW M3 на дороге"
               style={{
                 filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) brightness(${settings.backgroundBrightness}%) contrast(${settings.backgroundContrast}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
@@ -290,6 +368,12 @@ function DrivingDemo() {
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
             <Range label="Сдвиг соседних" value={settings.markStagger} min={-20} max={20} step={0.5} unit="%" onChange={update('markStagger')} />
+          </fieldset>
+
+          <fieldset>
+            <legend>Цвет машины</legend>
+            <Range label="Чернота жёлтых частей" value={settings.carBlackness} min={0} max={100} step={5} unit="%" onChange={update('carBlackness')} />
+            <p className="control-note">Меняется только жёлтый кузов, тени и блики сохраняются.</p>
           </fieldset>
 
           <fieldset>
