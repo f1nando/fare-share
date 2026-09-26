@@ -11,3 +11,4 @@ test-ledger/
 !.env.example
 *.log
 .qa/
+dist-nft/

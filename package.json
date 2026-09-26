@@ -25,6 +25,9 @@
     "metadata:build": "node --env-file-if-exists=.env --import tsx scripts/build-nft-metadata.ts",
     "build": "vite build",
     "build:city": "vite build --mode city",
+    "models:build": "node scripts/build-collection.mjs",
+    "build:nft": "npm run models:build && vite build --config vite.nft.config.js",
+    "test:nft": "node --test tests/nft-collection.test.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test"
   },

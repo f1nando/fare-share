@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "units": "meters",
+  "up": "+Y",
+  "forward": "-X",
+  "models": {
+    "porsche-911": {
+      "url": "/models/collection/porsche-911.glb",
+      "triangles": 1870,
+      "meshes": 21,
+      "materials": 6,
+      "bytes": 87472
+    }
+  }
+}
