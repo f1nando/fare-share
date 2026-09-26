@@ -19,10 +19,10 @@ button { cursor: pointer; }
 .road-marks { position: absolute; z-index: 2; inset: 0; transform: translate(var(--travel-x, 0), var(--travel-y, 0)); pointer-events: none; }
 .road-marks img { position: absolute; width: var(--mark-width); height: auto; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; filter: drop-shadow(0 3px 3px #0002); }
 .headlight { position: absolute; z-index: 4; height: auto; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: drop-shadow(0 0 12px #fff); }
-.headlight.lights-on { opacity: 1; }
-.blink-single { animation: blink-single .62s ease-out; }.blink-double { animation: blink-double 1.15s ease-out; }
-@keyframes blink-single { 0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.35) rotate(-10deg); } 24%, 54% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-@keyframes blink-double { 0%, 34%, 58%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 15%, 76% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.headlight.lights-on { opacity: var(--blink-opacity, 1); }
+.blink-single { animation: blink-single var(--single-duration, .62s) ease-out; }.blink-double { animation: blink-double var(--double-duration, 1.15s) ease-out; }
+@keyframes blink-single { 0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.35) rotate(-10deg); } 24%, 54% { opacity: var(--blink-opacity, 1); transform: translate(-50%, -50%) scale(1); } }
+@keyframes blink-double { 0%, 34%, 58%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.4); } 15%, 76% { opacity: var(--blink-opacity, 1); transform: translate(-50%, -50%) scale(1); } }
 .scene-status { position: absolute; z-index: 5; top: 17px; left: 17px; padding: 8px 11px; border: 1px solid #ffffff2b; border-radius: 99px; color: #f3f3ec; background: #121210a6; backdrop-filter: blur(9px); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .scene-status i { display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #f8c824; box-shadow: 0 0 10px #f8c824; }
 .scene-actions { display: flex; gap: 8px; padding: 13px; }

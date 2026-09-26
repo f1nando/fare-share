@@ -18,6 +18,8 @@ const DEFAULTS = {
   rightX: 83,
   rightY: 60,
   blinkSize: 12,
+  blinkSpeed: 1,
+  blinkOpacity: 100,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 
@@ -141,7 +143,14 @@ function DrivingDemo() {
                 className={`headlight headlight-${name} blink-${blinkMode} ${lightsOn ? 'lights-on' : ''}`}
                 src="/driving-demo/blink.png"
                 alt=""
-                style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  width: `${settings.blinkSize}%`,
+                  '--blink-opacity': settings.blinkOpacity / 100,
+                  '--single-duration': `${0.62 / settings.blinkSpeed}s`,
+                  '--double-duration': `${1.15 / settings.blinkSpeed}s`,
+                }}
               />
             ))}
             <div className="scene-status"><i />{paused ? 'Пауза' : 'Симуляция движения'}</div>
@@ -193,6 +202,8 @@ function DrivingDemo() {
               <b>{lightsOn ? 'Включён' : 'Выключен'}</b>
             </button>
             <Range label="Размер блика" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
+            <Range label="Скорость вспышки" value={settings.blinkSpeed} min={0.25} max={3} step={0.05} unit="×" onChange={update('blinkSpeed')} />
+            <Range label="Макс. непрозрачность" value={settings.blinkOpacity} min={5} max={100} step={5} unit="%" onChange={update('blinkOpacity')} />
             <div className="light-grid">
               <div><b>Левая</b><Range label="X" value={settings.leftX} min={0} max={100} unit="%" onChange={update('leftX')} /><Range label="Y" value={settings.leftY} min={0} max={100} unit="%" onChange={update('leftY')} /></div>
               <div><b>Правая</b><Range label="X" value={settings.rightX} min={0} max={100} unit="%" onChange={update('rightX')} /><Range label="Y" value={settings.rightY} min={0} max={100} unit="%" onChange={update('rightY')} /></div>
