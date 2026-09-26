@@ -19,6 +19,9 @@ const DEFAULTS = {
   blinkSize: 12,
   blinkSpeed: 1,
   blinkOpacity: 100,
+  doublePulseDuration: 180,
+  doublePulseGap: 160,
+  doubleSecondOpacity: 100,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const SETTINGS_VERSION = 2;
@@ -89,9 +92,9 @@ function DrivingDemo() {
   const [initialState] = useState(loadStoredState);
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
-  const [blinkMode, setBlinkMode] = useState('off');
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
   const marksRef = useRef(null);
+  const headlightRefs = useRef([]);
   const offsetRef = useRef(0);
   const targetSpeedRef = useRef(settings.markSpeed);
   const currentSpeedRef = useRef(settings.markSpeed);
@@ -130,8 +133,38 @@ function DrivingDemo() {
   }, [paused, settings.markSpacing, settings.pathAngle]);
 
   const blink = (mode) => {
-    setBlinkMode('off');
-    requestAnimationFrame(() => setBlinkMode(mode));
+    const maxOpacity = settings.blinkOpacity / 100;
+    const base = { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' };
+    let keyframes;
+    let duration;
+    if (mode === 'double') {
+      const pulse = settings.doublePulseDuration / settings.blinkSpeed;
+      const gap = settings.doublePulseGap / settings.blinkSpeed;
+      duration = pulse * 2 + gap;
+      const firstEnd = pulse / duration;
+      const secondStart = (pulse + gap) / duration;
+      keyframes = [
+        { ...base, offset: 0 },
+        { opacity: maxOpacity, transform: 'translate(-50%, -50%) scale(1)', offset: firstEnd * .25 },
+        { ...base, offset: firstEnd },
+        { ...base, offset: secondStart },
+        { opacity: maxOpacity * settings.doubleSecondOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: secondStart + (1 - secondStart) * .25 },
+        { ...base, offset: 1 },
+      ];
+    } else {
+      duration = 620 / settings.blinkSpeed;
+      keyframes = [
+        { ...base, offset: 0 },
+        { opacity: maxOpacity, transform: 'translate(-50%, -50%) scale(1)', offset: .24 },
+        { opacity: maxOpacity, transform: 'translate(-50%, -50%) scale(1)', offset: .54 },
+        { ...base, offset: 1 },
+      ];
+    }
+    headlightRefs.current.forEach((light) => {
+      if (!light) return;
+      light.getAnimations().forEach((animation) => animation.cancel());
+      light.animate(keyframes, { duration, easing: 'ease-out' });
+    });
   };
 
   const markStyle = {
@@ -170,10 +203,11 @@ function DrivingDemo() {
             {[
               ['left', settings.leftX, settings.leftY],
               ['right', settings.rightX, settings.rightY],
-            ].map(([name, x, y]) => (
+            ].map(([name, x, y], index) => (
               <img
-                key={`${name}-${blinkMode}`}
-                className={`headlight headlight-${name} blink-${blinkMode} ${lightsOn ? 'lights-on' : ''}`}
+                key={name}
+                ref={(element) => { headlightRefs.current[index] = element; }}
+                className={`headlight headlight-${name} ${lightsOn ? 'lights-on' : ''}`}
                 src="/driving-demo/blink.png"
                 alt=""
                 style={{
@@ -181,8 +215,6 @@ function DrivingDemo() {
                   top: `${y}%`,
                   width: `${settings.blinkSize}%`,
                   '--blink-opacity': settings.blinkOpacity / 100,
-                  '--single-duration': `${0.62 / settings.blinkSpeed}s`,
-                  '--double-duration': `${1.15 / settings.blinkSpeed}s`,
                 }}
               />
             ))}
@@ -253,6 +285,10 @@ function DrivingDemo() {
             <Range label="Размер блика" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
             <Range label="Скорость вспышки" value={settings.blinkSpeed} min={0.25} max={3} step={0.05} unit="×" onChange={update('blinkSpeed')} />
             <Range label="Макс. непрозрачность" value={settings.blinkOpacity} min={5} max={100} step={5} unit="%" onChange={update('blinkOpacity')} />
+            <div className="control-subsection">Двойной сигнал</div>
+            <Range label="Длительность импульса" value={settings.doublePulseDuration} min={80} max={600} step={10} unit=" мс" onChange={update('doublePulseDuration')} />
+            <Range label="Пауза между импульсами" value={settings.doublePulseGap} min={0} max={1000} step={10} unit=" мс" onChange={update('doublePulseGap')} />
+            <Range label="Яркость второго" value={settings.doubleSecondOpacity} min={10} max={100} step={5} unit="%" onChange={update('doubleSecondOpacity')} />
             <div className="light-grid">
               <div><b>Левая</b><Range label="X" value={settings.leftX} min={0} max={100} unit="%" onChange={update('leftX')} /><Range label="Y" value={settings.leftY} min={0} max={100} unit="%" onChange={update('leftY')} /></div>
               <div><b>Правая</b><Range label="X" value={settings.rightX} min={0} max={100} unit="%" onChange={update('rightX')} /><Range label="Y" value={settings.rightY} min={0} max={100} unit="%" onChange={update('rightY')} /></div>
