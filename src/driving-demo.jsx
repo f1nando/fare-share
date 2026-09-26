@@ -24,8 +24,6 @@ const DEFAULTS = {
   doubleSecondOpacity: 100,
   backgroundHue: 0,
   backgroundSaturation: 100,
-  backgroundBrightness: 100,
-  backgroundContrast: 100,
   backgroundGrayscale: 0,
   carBlackness: 0,
 };
@@ -288,7 +286,7 @@ function DrivingDemo() {
               role="img"
               aria-label="Такси BMW M3 на дороге"
               style={{
-                filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) brightness(${settings.backgroundBrightness}%) contrast(${settings.backgroundContrast}%) grayscale(${settings.backgroundGrayscale}%)`,
+                filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
             />
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
@@ -385,8 +383,6 @@ function DrivingDemo() {
                 ...current,
                 backgroundHue: DEFAULTS.backgroundHue,
                 backgroundSaturation: DEFAULTS.backgroundSaturation,
-                backgroundBrightness: DEFAULTS.backgroundBrightness,
-                backgroundContrast: DEFAULTS.backgroundContrast,
                 backgroundGrayscale: DEFAULTS.backgroundGrayscale,
               }))}
             >
@@ -404,8 +400,6 @@ function DrivingDemo() {
             </button>
             <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
             <Range label="Насыщенность" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
-            <Range label="Яркость" value={settings.backgroundBrightness} min={40} max={180} step={5} unit="%" onChange={update('backgroundBrightness')} />
-            <Range label="Контраст" value={settings.backgroundContrast} min={40} max={200} step={5} unit="%" onChange={update('backgroundContrast')} />
           </fieldset>
 
           <fieldset>
