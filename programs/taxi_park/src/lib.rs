@@ -82,6 +82,7 @@ pub mod taxi_park {
 
         let instruction = metaplex_core::create_collection_v2(
             ctx.accounts.collection.key(),
+            ctx.accounts.admin.key(),
             config.key(),
             ctx.accounts.admin.key(),
             ctx.accounts.system_program.key(),
@@ -93,7 +94,6 @@ pub mod taxi_park {
             &[
                 ctx.accounts.mpl_core_program.to_account_info(),
                 ctx.accounts.collection.to_account_info(),
-                config.to_account_info(),
                 ctx.accounts.admin.to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
             ],
@@ -745,7 +745,10 @@ pub mod taxi_park {
         let config_info = ctx.accounts.config.to_account_info();
         let config_bump = [ctx.accounts.config.bump];
         let config_seeds: &[&[u8]] = &[b"config", &config_bump];
-        metaplex_core::assert_collection(&ctx.accounts.collection, &ctx.accounts.config.key())?;
+        metaplex_core::assert_collection(
+            &ctx.accounts.collection,
+            &[ctx.accounts.config.key(), ctx.accounts.config.admin],
+        )?;
         let instruction = metaplex_core::create_asset_v1(metaplex_core::CreateAsset {
             asset: ctx.accounts.asset.key(),
             collection: ctx.accounts.collection.key(),

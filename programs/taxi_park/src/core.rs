@@ -11,11 +11,13 @@ const COLLECTION_UPDATE_AUTHORITY: u8 = 2;
 const CREATE_V1_DISCRIMINATOR: u8 = 0;
 const CREATE_COLLECTION_V2_DISCRIMINATOR: u8 = 21;
 const ACCOUNT_STATE: u8 = 0;
+const UPDATE_DELEGATE_PLUGIN: u8 = 4;
 const IMMUTABLE_METADATA_PLUGIN: u8 = 12;
 
 pub fn create_collection_v2(
     collection: Pubkey,
     update_authority: Pubkey,
+    update_delegate: Pubkey,
     payer: Pubkey,
     system_program: Pubkey,
     name: &str,
@@ -26,11 +28,15 @@ pub fn create_collection_v2(
     push_string(&mut data, name)?;
     push_string(&mut data, uri)?;
 
-    // Some([ImmutableMetadata { authority: None }]). The byte layout is the
-    // official Borsh layout used by MPL Core's CreateCollectionV2 instruction.
+    // Some([ImmutableMetadata { authority: None }, UpdateDelegate { ... }]).
+    // This is the official Borsh layout used by CreateCollectionV2.
     data.push(1);
-    data.extend_from_slice(&1_u32.to_le_bytes());
+    data.extend_from_slice(&2_u32.to_le_bytes());
     data.push(IMMUTABLE_METADATA_PLUGIN);
+    data.push(0);
+    data.push(UPDATE_DELEGATE_PLUGIN);
+    data.extend_from_slice(&1_u32.to_le_bytes());
+    data.extend_from_slice(update_delegate.as_ref());
     data.push(0);
     // external_plugin_adapters: None
     data.push(0);
@@ -83,7 +89,7 @@ pub fn create_asset_v1(args: CreateAsset<'_>) -> Result<Instruction> {
     })
 }
 
-pub fn assert_collection(account: &AccountInfo<'_>, update_authority: &Pubkey) -> Result<()> {
+pub fn assert_collection(account: &AccountInfo<'_>, update_authorities: &[Pubkey]) -> Result<()> {
     require_keys_eq!(*account.owner, MPL_CORE_ID, TaxiError::InvalidCollection);
     let data = account.try_borrow_data()?;
     require!(
@@ -91,9 +97,8 @@ pub fn assert_collection(account: &AccountInfo<'_>, update_authority: &Pubkey) -
         TaxiError::InvalidCollection
     );
     let stored_authority = pubkey_at(&data, 1).ok_or(TaxiError::InvalidCollection)?;
-    require_keys_eq!(
-        stored_authority,
-        *update_authority,
+    require!(
+        update_authorities.contains(&stored_authority),
         TaxiError::InvalidCollection
     );
     Ok(())
@@ -179,15 +184,17 @@ mod tests {
     }
 
     #[test]
-    fn collection_layout_contains_immutable_metadata_plugin() {
+    fn collection_layout_contains_immutable_metadata_and_update_delegate_plugins() {
         let collection = Pubkey::new_unique();
         let update_authority = Pubkey::new_unique();
+        let update_delegate = Pubkey::new_unique();
         let payer = Pubkey::new_unique();
         let name = "FARE Taxi Park";
         let uri = "https://example.test/collection.json";
         let instruction = create_collection_v2(
             collection,
             update_authority,
+            update_delegate,
             payer,
             anchor_lang::system_program::ID,
             name,
@@ -204,12 +211,22 @@ mod tests {
         .instruction(mpl_core::instructions::CreateCollectionV2InstructionArgs {
             name: name.to_owned(),
             uri: uri.to_owned(),
-            plugins: Some(vec![mpl_core::types::PluginAuthorityPair {
-                plugin: mpl_core::types::Plugin::ImmutableMetadata(
-                    mpl_core::types::ImmutableMetadata {},
-                ),
-                authority: None,
-            }]),
+            plugins: Some(vec![
+                mpl_core::types::PluginAuthorityPair {
+                    plugin: mpl_core::types::Plugin::ImmutableMetadata(
+                        mpl_core::types::ImmutableMetadata {},
+                    ),
+                    authority: None,
+                },
+                mpl_core::types::PluginAuthorityPair {
+                    plugin: mpl_core::types::Plugin::UpdateDelegate(
+                        mpl_core::types::UpdateDelegate {
+                            additional_delegates: vec![update_delegate],
+                        },
+                    ),
+                    authority: None,
+                },
+            ]),
             external_plugin_adapters: None,
         });
 
