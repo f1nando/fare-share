@@ -46,6 +46,7 @@ const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
 const WSOL_MINT = address('So11111111111111111111111111111111111111112');
 const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 
@@ -111,7 +112,7 @@ async function cleanupBurnedMachines(
 ) {
   const machines = await listOpenMachines(rpcUrl, programId);
   const assetAccounts = await getOptionalAccountsInChunks(rpcUrl, machines.map(machine => machine.asset));
-  const burned = machines.filter((_, index) => assetAccounts[index] === null).slice(0, limit);
+  const burned = machines.filter((_, index) => isBurnedCoreAssetAccount(assetAccounts[index])).slice(0, limit);
 
   for (const machine of burned) {
     try {
@@ -570,6 +571,14 @@ function anchorDiscriminator(name: string) {
 function meta(value: Address, role: AccountRole) { return { address: value, role }; }
 
 interface RpcAccount { data: Uint8Array; lamports: bigint; owner: Address }
+
+export function isBurnedCoreAssetAccount(account: Pick<RpcAccount, 'data' | 'owner'> | null) {
+  return account === null || (
+    String(account.owner) === String(MPL_CORE_PROGRAM)
+    && account.data.length === 1
+    && account.data[0] === 0
+  );
+}
 
 async function getAccount(rpcUrl: string, account: Address): Promise<RpcAccount> {
   return (await getAccounts(rpcUrl, [account]))[0];

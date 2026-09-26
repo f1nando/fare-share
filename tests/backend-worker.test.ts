@@ -11,7 +11,7 @@ import {
   selectWritableQueuePage,
   type EventPageState,
 } from '../server/programState.js';
-import { buildCleanupBurnedMachineInstruction } from '../server/worker.js';
+import { buildCleanupBurnedMachineInstruction, isBurnedCoreAssetAccount } from '../server/worker.js';
 
 const targetA = address('11111111111111111111111111111111');
 const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
@@ -100,6 +100,14 @@ test('worker decodes open and closed machines for burn scans', () => {
   assert.equal(decodeMachineCleanupState(bytes).closed, false);
   bytes[59] = 1;
   assert.equal(decodeMachineCleanupState(bytes).closed, true);
+});
+
+test('worker recognizes the uninitialized account left by a Metaplex Core burn', () => {
+  const coreProgram = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
+  assert.equal(isBurnedCoreAssetAccount(null), true);
+  assert.equal(isBurnedCoreAssetAccount({ owner: coreProgram, data: Uint8Array.of(0) }), true);
+  assert.equal(isBurnedCoreAssetAccount({ owner: coreProgram, data: Uint8Array.of(1) }), false);
+  assert.equal(isBurnedCoreAssetAccount({ owner: targetA, data: Uint8Array.of(0) }), false);
 });
 
 test('worker chooses a queue page with room for a burn event', () => {

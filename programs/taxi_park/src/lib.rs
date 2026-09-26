@@ -927,8 +927,12 @@ pub mod taxi_park {
         );
 
         let asset_info = ctx.accounts.asset.to_account_info();
+        let asset_data = asset_info.try_borrow_data()?;
+        let fully_closed = asset_info.lamports() == 0 && asset_data.is_empty();
+        let core_uninitialized = asset_info.owner == &metaplex_core::MPL_CORE_ID
+            && asset_data.as_ref() == [0];
         require!(
-            asset_info.lamports() == 0 && asset_info.data_is_empty(),
+            fully_closed || core_uninitialized,
             TaxiError::AssetNotBurned
         );
 
@@ -1800,7 +1804,7 @@ pub struct CleanupBurnedMachine<'info> {
     pub event_page: Box<Account<'info, EventPage>>,
     #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
     pub machine: Box<Account<'info, Machine>>,
-    /// CHECK: Its address is bound to Machine; a burned Core asset has zero lamports and no data.
+    /// CHECK: Its address is bound to Machine; Core burn leaves either a closed account or Core-owned Uninitialized data.
     pub asset: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
