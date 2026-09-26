@@ -39,6 +39,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [lastSignature, setLastSignature] = useState('');
+  const protocolPaused = Boolean(status.deployed && status.config?.pausedAt !== 0n);
 
   useEffect(() => {
     let active = true;
@@ -95,6 +96,10 @@ export function TaxiDashboard({ simple = false, background = null }) {
       setNotice('Connect Phantom first.');
       return;
     }
+    if (protocolPaused) {
+      setNotice('The protocol is paused. Transactions are temporarily disabled.');
+      return;
+    }
     setBusy(key);
     setNotice('Approve the transaction in Phantom and wait for Solana finalization…');
     setLastSignature('');
@@ -129,8 +134,8 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <span>FARE <small>TAXI PARK</small></span>
         </a>
         <div className="header-actions">
-          <span className={`network-pill ${status.deployed ? 'online' : ''}`}>
-            <i /> {status.loading ? 'checking network' : status.deployed ? status.network : `demo · ${status.network}`}
+          <span className={`network-pill ${status.deployed ? 'online' : ''}${protocolPaused ? ' paused' : ''}`}>
+            <i /> {status.loading ? 'checking network' : protocolPaused ? `${status.network} · paused` : status.deployed ? status.network : `demo · ${status.network}`}
           </span>
           <button className="wallet-button" onClick={handleConnect}>
             {wallet ? shortAddress(wallet.account.address) : 'Connect Phantom'}
@@ -143,6 +148,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <p className="eyebrow">{simple ? 'Devnet functional test' : 'Revenue without promised APY'}</p>
           <h1>{simple ? <>FARE Taxi Park<br /><span>Test panel</span></> : <>Your taxi fleet pays<br /><span>FARE and stocks</span></>}</h1>
           <p className="hero-copy">{simple ? 'Use this page to test wallet connection, minting, rewards, repair and trainee flows without loading the 3D city.' : 'The fleet distributes only fees it actually earns. No trading volume means no rewards.'}</p>
+          {protocolPaused && <p className="protocol-paused" role="alert">Protocol paused — mint, claim, repair and trainee actions are temporarily disabled.</p>}
           <div className="pool-strip">
             <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
             <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
@@ -169,8 +175,8 @@ export function TaxiDashboard({ simple = false, background = null }) {
                   : `+ ${car.stocks} in stocks`}</small>
               </div>
               <div className="row-actions">
-                <button disabled={Boolean(busy)} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Rewards sent to your wallet.')}>Claim</button>
-                <button disabled={Boolean(busy) || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Car restored to 5 days of durability.')}>
+                <button disabled={Boolean(busy) || protocolPaused} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Rewards sent to your wallet.')}>Claim</button>
+                <button disabled={Boolean(busy) || protocolPaused || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Car restored to 5 days of durability.')}>
                   {car.missingSeconds === 0 ? 'Full durability' : car.repairCost === undefined ? 'Repair' : `Repair · ${car.repairCostDisplay} FARE`}
                 </button>
               </div>
@@ -187,7 +193,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <div className="trainee-form">
             <label>Campaign<input inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="For example, 1" /></label>
             <label>Code word<input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Word from the post" /></label>
-            <button disabled={Boolean(busy) || !campaignId || !keyword.trim()} onClick={() => runAction(
+            <button disabled={Boolean(busy) || protocolPaused || !campaignId || !keyword.trim()} onClick={() => runAction(
               'activate-trainee',
               () => activateTrainee(wallet, campaignId, keyword, status),
               'Trainee car activated.',
@@ -196,7 +202,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           {trainees.length > 0 && <div className="trainee-list">
             {trainees.map(trainee => <article key={String(trainee.campaignId)}>
               <span><strong>Campaign #{String(trainee.campaignId)} · {trainee.rewardDisplay} FARE</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
-              <button disabled={Boolean(busy) || trainee.reward === 0n} onClick={() => runAction(
+              <button disabled={Boolean(busy) || protocolPaused || trainee.reward === 0n} onClick={() => runAction(
                 `claim-trainee-${trainee.campaignId}`,
                 () => claimTrainee(wallet, trainee, status),
                 'Trainee rewards sent.',
@@ -221,7 +227,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
                   <div><dt>Price</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
                   <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>
                 </dl>
-                <button disabled={Boolean(busy) || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
+                <button disabled={Boolean(busy) || protocolPaused || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
                   {remaining === 0 ? 'Sold out' : solPrice ? `Buy · ${solPrice} SOL` : 'Buy with SOL'}
                 </button>
               </article>;
