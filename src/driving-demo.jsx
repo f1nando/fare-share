@@ -26,6 +26,7 @@ const DEFAULTS = {
   backgroundSaturation: 100,
   backgroundBrightness: 100,
   backgroundContrast: 100,
+  backgroundGrayscale: 0,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const SETTINGS_VERSION = 2;
@@ -209,7 +210,7 @@ function DrivingDemo() {
               src="/driving-demo/m3.png"
               alt="Жёлтое такси BMW M3 на дороге"
               style={{
-                filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) brightness(${settings.backgroundBrightness}%) contrast(${settings.backgroundContrast}%)`,
+                filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) brightness(${settings.backgroundBrightness}%) contrast(${settings.backgroundContrast}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
             />
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
@@ -302,9 +303,20 @@ function DrivingDemo() {
                 backgroundSaturation: DEFAULTS.backgroundSaturation,
                 backgroundBrightness: DEFAULTS.backgroundBrightness,
                 backgroundContrast: DEFAULTS.backgroundContrast,
+                backgroundGrayscale: DEFAULTS.backgroundGrayscale,
               }))}
             >
               Сбросить только цвета
+            </button>
+            <button
+              className={`lights-toggle color-toggle ${settings.backgroundGrayscale === 100 ? 'active' : ''}`}
+              type="button"
+              role="switch"
+              aria-checked={settings.backgroundGrayscale === 100}
+              onClick={() => update('backgroundGrayscale')(settings.backgroundGrayscale === 100 ? 0 : 100)}
+            >
+              <span><i />Градации серого</span>
+              <b>{settings.backgroundGrayscale === 100 ? 'Включены' : 'Выключены'}</b>
             </button>
             <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
             <Range label="Насыщенность" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
