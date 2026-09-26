@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import './driving-demo.css';
 
 const DEFAULTS = {
-  carSpeed: 72,
   markSpeed: 240,
   markSpacing: 460,
   pathAngle: -135,
@@ -137,7 +136,6 @@ function DrivingDemo() {
           <p>Motion lab / NFT taxi</p>
           <h1>Driving configurator</h1>
         </div>
-        <div className="speed-readout"><strong>{settings.carSpeed}</strong><span>км/ч</span></div>
       </header>
 
       <section className="demo-layout">
@@ -189,7 +187,6 @@ function DrivingDemo() {
 
           <fieldset>
             <legend>Движение</legend>
-            <Range label="Скорость авто" value={settings.carSpeed} min={0} max={220} unit=" км/ч" onChange={update('carSpeed')} />
             <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={600} unit=" px/s" onChange={update('markSpeed')} />
             <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} unit="°" onChange={update('pathAngle')} />
             <div className="angle-stepper" aria-label="Изменить угол траектории">
