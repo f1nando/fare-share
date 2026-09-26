@@ -293,6 +293,19 @@ function DrivingDemo() {
 
           <fieldset>
             <legend>Фоновая картинка</legend>
+            <button
+              type="button"
+              className="filter-reset"
+              onClick={() => setSettings((current) => ({
+                ...current,
+                backgroundHue: DEFAULTS.backgroundHue,
+                backgroundSaturation: DEFAULTS.backgroundSaturation,
+                backgroundBrightness: DEFAULTS.backgroundBrightness,
+                backgroundContrast: DEFAULTS.backgroundContrast,
+              }))}
+            >
+              Сбросить только цвета
+            </button>
             <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
             <Range label="Насыщенность" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
             <Range label="Яркость" value={settings.backgroundBrightness} min={40} max={180} step={5} unit="%" onChange={update('backgroundBrightness')} />
