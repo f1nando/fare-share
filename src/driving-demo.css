@@ -47,6 +47,9 @@ button { cursor: pointer; }
 .demo-range input::-moz-range-track { height: 3px; background: #3b3b36; }.demo-range input::-moz-range-progress { height: 3px; background: #f8c824; }.demo-range input::-moz-range-thumb { width: 11px; height: 11px; border: 0; border-radius: 50%; background: #f8c824; }
 .segmented { display: grid; grid-template-columns: 1fr 1fr; margin-top: 17px; padding: 3px; border-radius: 10px; background: #11110f; }
 .segmented button { min-height: 33px; border: 0; border-radius: 7px; color: #77776f; background: transparent; font-size: 10px; }.segmented button.active { color: #171711; background: #f8c824; font-weight: 800; }
+.direction-control { margin-top: 17px; }.direction-control > span { display: block; margin-bottom: 8px; color: #a3a39c; font-size: 10px; }
+.direction-pad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 34px); gap: 4px; padding: 4px; border-radius: 10px; background: #11110f; }
+.direction-pad button { min-height: 34px; border: 0; border-radius: 7px; color: #a3a39c; background: #22221f; font-size: 17px; line-height: 1; }.direction-pad button:hover { color: #fff; background: #30302b; }.direction-pad button.active { color: #171711; background: #f8c824; box-shadow: 0 0 14px #f8c82422; }
 .light-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 17px; }.light-grid > div { padding: 12px; border: 1px solid #ffffff0e; border-radius: 11px; background: #151513; }.light-grid b { color: #d9d9d2; font-size: 10px; }.light-grid .demo-range { margin-top: 10px; }
 button:focus-visible, input:focus-visible { outline: 2px solid #f8c824; outline-offset: 3px; }
 @media (max-width: 720px) { .demo-layout { grid-template-columns: 1fr; }.demo-controls { max-height: none; }.driving-scene { max-height: 72vh; margin: auto; }.scene-shell { background: #1b1b18; } }

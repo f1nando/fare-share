@@ -5,9 +5,8 @@ import './driving-demo.css';
 const DEFAULTS = {
   carSpeed: 72,
   markSpeed: 240,
-  markGap: 250,
-  direction: -1,
-  pathAngle: 0,
+  markSpacing: 460,
+  pathAngle: -135,
   markX: 50,
   markY: 84,
   markWidth: 210,
@@ -22,6 +21,20 @@ const DEFAULTS = {
   blinkOpacity: 100,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
+const DIRECTION_PRESETS = [
+  { angle: -135, label: '↖', title: 'Вверх-влево', column: 1, row: 1 },
+  { angle: -90, label: '↑', title: 'Вверх', column: 2, row: 1 },
+  { angle: -45, label: '↗', title: 'Вверх-вправо', column: 3, row: 1 },
+  { angle: -180, label: '←', title: 'Влево', column: 1, row: 2 },
+  { angle: 0, label: '→', title: 'Вправо', column: 3, row: 2 },
+  { angle: 135, label: '↙', title: 'Вниз-влево', column: 1, row: 3 },
+  { angle: 90, label: '↓', title: 'Вниз', column: 2, row: 3 },
+  { angle: 45, label: '↘', title: 'Вниз-вправо', column: 3, row: 3 },
+];
+
+function normalizeAngle(angle) {
+  return ((angle + 180) % 360 + 360) % 360 - 180;
+}
 
 function loadStoredState() {
   try {
@@ -33,6 +46,12 @@ function loadStoredState() {
         Number.isFinite(stored.settings?.[key]) ? stored.settings[key] : fallback,
       ]),
     );
+    if (!Number.isFinite(stored.settings?.markSpacing) && Number.isFinite(stored.settings?.markGap)) {
+      settings.markSpacing = stored.settings.markGap + (Number.isFinite(stored.settings.markWidth) ? stored.settings.markWidth : DEFAULTS.markWidth);
+    }
+    if (stored.settings?.direction === -1 && Number.isFinite(stored.settings?.pathAngle)) {
+      settings.pathAngle = normalizeAngle(settings.pathAngle + 180);
+    }
     return { settings, lightsOn: stored.lightsOn === true };
   } catch {
     return { settings: DEFAULTS, lightsOn: false };
@@ -82,11 +101,11 @@ function DrivingDemo() {
       const elapsed = Math.min((now - previous) / 1000, 0.05);
       previous = now;
       if (!paused && marksRef.current) {
-        const spacing = settings.markGap + settings.markWidth;
+        const spacing = settings.markSpacing;
         // Two slots keep the alternating lateral offset seamless at the loop boundary.
         offsetRef.current = (offsetRef.current + elapsed * settings.markSpeed) % (spacing * 2);
         const radians = settings.pathAngle * Math.PI / 180;
-        const travel = offsetRef.current * settings.direction;
+        const travel = offsetRef.current;
         marksRef.current.style.setProperty('--travel-x', `${travel * Math.cos(radians)}px`);
         marksRef.current.style.setProperty('--travel-y', `${travel * Math.sin(radians)}px`);
       }
@@ -94,7 +113,7 @@ function DrivingDemo() {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [paused, settings.direction, settings.markGap, settings.markSpeed, settings.markWidth, settings.pathAngle]);
+  }, [paused, settings.markSpacing, settings.markSpeed, settings.pathAngle]);
 
   const blink = (mode) => {
     setBlinkMode('off');
@@ -110,7 +129,7 @@ function DrivingDemo() {
   const pathY = Math.sin(pathRadians);
   const normalX = -pathY;
   const normalY = pathX;
-  const spacing = settings.markGap + settings.markWidth;
+  const spacing = settings.markSpacing;
   return (
     <main className="driving-demo">
       <header className="demo-header">
@@ -173,10 +192,20 @@ function DrivingDemo() {
             <Range label="Скорость авто" value={settings.carSpeed} min={0} max={220} unit=" км/ч" onChange={update('carSpeed')} />
             <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={600} unit=" px/s" onChange={update('markSpeed')} />
             <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} unit="°" onChange={update('pathAngle')} />
-            <Range label="Интервал" value={settings.markGap} min={30} max={700} unit=" px" onChange={update('markGap')} />
-            <div className="segmented" aria-label="Направление движения разметки">
-              <button className={settings.direction === -1 ? 'active' : ''} onClick={() => update('direction')(-1)}>← Назад</button>
-              <button className={settings.direction === 1 ? 'active' : ''} onClick={() => update('direction')(1)}>Вперёд →</button>
+            <div className="direction-control">
+              <span>Куда движутся полоски</span>
+              <div className="direction-pad" aria-label="Направление движения разметки">
+                {DIRECTION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.angle}
+                    className={settings.pathAngle === preset.angle ? 'active' : ''}
+                    title={preset.title}
+                    aria-label={preset.title}
+                    style={{ gridColumn: preset.column, gridRow: preset.row }}
+                    onClick={() => update('pathAngle')(preset.angle)}
+                  >{preset.label}</button>
+                ))}
+              </div>
             </div>
           </fieldset>
 
@@ -184,7 +213,8 @@ function DrivingDemo() {
             <legend>Разметка</legend>
             <Range label="Положение по X" value={settings.markX} min={0} max={100} unit="%" onChange={update('markX')} />
             <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
-            <Range label="Ширина" value={settings.markWidth} min={70} max={420} unit=" px" onChange={update('markWidth')} />
+            <Range label="Размер полоски" value={settings.markWidth} min={70} max={420} unit=" px" onChange={update('markWidth')} />
+            <Range label="Между центрами" value={settings.markSpacing} min={80} max={900} unit=" px" onChange={update('markSpacing')} />
             <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
             <Range label="Сдвиг соседних" value={settings.markStagger} min={-250} max={250} unit=" px" onChange={update('markStagger')} />
           </fieldset>
