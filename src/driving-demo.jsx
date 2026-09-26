@@ -39,7 +39,6 @@ function DrivingDemo() {
   const [settings, setSettings] = useState(DEFAULTS);
   const [paused, setPaused] = useState(false);
   const [blinkMode, setBlinkMode] = useState('off');
-  const sceneRef = useRef(null);
   const marksRef = useRef(null);
   const offsetRef = useRef(0);
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
@@ -72,8 +71,6 @@ function DrivingDemo() {
     '--mark-y': `${settings.markY}%`,
     '--mark-angle': `${settings.markAngle}deg`,
   };
-  const vibration = paused ? 0 : settings.carSpeed / 160;
-
   return (
     <main className="driving-demo">
       <header className="demo-header">
@@ -86,11 +83,7 @@ function DrivingDemo() {
 
       <section className="demo-layout">
         <div className="scene-shell">
-          <div
-            className={`driving-scene ${paused ? 'is-paused' : ''}`}
-            ref={sceneRef}
-            style={{ '--vibration': `${vibration}px` }}
-          >
+          <div className="driving-scene">
             <img className="car-shot" src="/driving-demo/m3.png" alt="Жёлтое такси BMW M3 на дороге" />
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
               {Array.from({ length: 24 }, (_, index) => (

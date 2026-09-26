@@ -15,9 +15,7 @@ button { cursor: pointer; }
 .demo-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
 .scene-shell, .demo-controls { border: 1px solid #ffffff14; border-radius: 20px; background: #1b1b18; box-shadow: 0 24px 80px #0006; overflow: hidden; }
 .driving-scene { position: relative; aspect-ratio: 1; overflow: hidden; background: #dbdcde; isolation: isolate; }
-.car-shot { position: absolute; z-index: 1; inset: calc(var(--vibration) * -1) 0 0; display: block; width: 100%; height: 100%; object-fit: cover; animation: car-vibration .13s steps(2, jump-none) infinite; }
-.is-paused .car-shot { animation-play-state: paused; }
-@keyframes car-vibration { 50% { transform: translateY(var(--vibration)); } }
+.car-shot { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .road-marks { position: absolute; z-index: 2; inset: 0; transform: translateX(var(--travel, 0)); pointer-events: none; }
 .road-marks img { position: absolute; left: calc(var(--index) * (var(--mark-width) + var(--mark-gap)) - 600%); top: var(--mark-y); width: var(--mark-width); height: auto; transform: translateY(-50%) rotate(var(--mark-angle)); transform-origin: center; filter: drop-shadow(0 3px 3px #0002); }
 .headlight { position: absolute; z-index: 4; height: auto; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: drop-shadow(0 0 12px #fff); }
@@ -47,6 +45,5 @@ button { cursor: pointer; }
 .segmented button { min-height: 33px; border: 0; border-radius: 7px; color: #77776f; background: transparent; font-size: 10px; }.segmented button.active { color: #171711; background: #f8c824; font-weight: 800; }
 .light-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 17px; }.light-grid > div { padding: 12px; border: 1px solid #ffffff0e; border-radius: 11px; background: #151513; }.light-grid b { color: #d9d9d2; font-size: 10px; }.light-grid .demo-range { margin-top: 10px; }
 button:focus-visible, input:focus-visible { outline: 2px solid #f8c824; outline-offset: 3px; }
-@media (max-width: 980px) { .demo-layout { grid-template-columns: 1fr; }.demo-controls { max-height: none; }.driving-scene { max-height: 72vh; margin: auto; }.scene-shell { background: #1b1b18; } }
+@media (max-width: 720px) { .demo-layout { grid-template-columns: 1fr; }.demo-controls { max-height: none; }.driving-scene { max-height: 72vh; margin: auto; }.scene-shell { background: #1b1b18; } }
 @media (max-width: 560px) { .driving-demo { padding: 20px 12px 30px; }.demo-header { margin-inline: 5px; }.speed-readout { display: none; }.scene-shell, .demo-controls { border-radius: 15px; }.scene-actions { display: grid; grid-template-columns: 1fr 1fr; }.scene-actions button:last-child { grid-column: 1 / -1; }.controls-title, .demo-controls fieldset { padding-inline: 17px; }.light-grid { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .car-shot { animation: none; } }
