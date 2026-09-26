@@ -8,6 +8,12 @@ Nginx configuration: `deploy/city.nginx.conf`, installed as
 `/etc/nginx/sites-available/city.monosoftware.dev` and enabled by symlink.
 Uses the existing `monosoftware-wildcard` certificate.
 
+The same standalone city release is also available at
+https://taxicity.demotest.live/. Its Nginx configuration is
+`deploy/taxicity.demotest.live.nginx.conf`, installed as
+`/etc/nginx/sites-available/taxicity.demotest.live` and enabled by symlink.
+It uses a dedicated Let's Encrypt certificate managed by Certbot.
+
 Upload each build to a new `/var/www/taxi-city/releases/<release>/` directory,
 then atomically replace `/var/www/taxi-city/current` with a symlink to it.
 Set uploaded directories to mode `755` and static files to `644` so nginx can read them
