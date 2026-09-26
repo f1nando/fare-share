@@ -11,7 +11,11 @@ import {
   selectWritableQueuePage,
   type EventPageState,
 } from '../server/programState.js';
-import { buildCleanupBurnedMachineInstruction, isBurnedCoreAssetAccount } from '../server/worker.js';
+import {
+  buildCleanupBurnedMachineInstruction,
+  hasAssignableRewards,
+  isBurnedCoreAssetAccount,
+} from '../server/worker.js';
 
 const targetA = address('11111111111111111111111111111111');
 const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
@@ -108,6 +112,13 @@ test('worker recognizes the uninitialized account left by a Metaplex Core burn',
   assert.equal(isBurnedCoreAssetAccount({ owner: coreProgram, data: Uint8Array.of(0) }), true);
   assert.equal(isBurnedCoreAssetAccount({ owner: coreProgram, data: Uint8Array.of(1) }), false);
   assert.equal(isBurnedCoreAssetAccount({ owner: targetA, data: Uint8Array.of(0) }), false);
+});
+
+test('worker does not loop on reward dust that cannot be assigned', () => {
+  assert.equal(hasAssignableRewards([0n, 1n], 44n), false);
+  assert.equal(hasAssignableRewards([0n, 2n], 44n), true);
+  assert.equal(hasAssignableRewards([1n], 1n), true);
+  assert.equal(hasAssignableRewards([100n], 0n), false);
 });
 
 test('worker chooses a queue page with room for a burn event', () => {
