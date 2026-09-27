@@ -171,7 +171,7 @@ function FinePositionButtons({ value, onChange }) {
 
 function DrivingDemo() {
   const [initialState] = useState(loadStoredState);
-  const [m3Reference, setM3Reference] = useState(() => loadM3Reference(initialState));
+  const [m3Reference] = useState(() => loadM3Reference(initialState));
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
@@ -193,6 +193,7 @@ function DrivingDemo() {
   blacknessRef.current = settings.carBlackness;
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
   const activeScene = scenes.find((scene) => scene.id === activeSceneId);
+  const databaseM3 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'm3');
   const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/m3.png';
 
   const selectScene = (scene) => {
@@ -319,13 +320,6 @@ function DrivingDemo() {
       if (bundle.format !== 'taxi-driving-settings') throw new Error('Это не файл настроек Taxi Driving.');
       applySettingsBundle(bundle, 'Настройки импортированы. Нажмите «Сохранить», чтобы записать их для этой машины.');
     } catch (error) { setSceneStatus(error.message); }
-  };
-
-  const saveM3Reference = () => {
-    const reference = { settings: { ...settings }, lightsOn };
-    setM3Reference(reference);
-    localStorage.setItem(M3_REFERENCE_KEY, JSON.stringify(reference));
-    setSceneStatus('Текущие настройки сохранены как эталон M3.');
   };
 
   useEffect(() => {
@@ -510,10 +504,9 @@ function DrivingDemo() {
             </div>
             <div className="settings-transfer">
               <button type="button" onClick={() => applySettingsBundle(
-                { ...m3Reference, lightsOn: true },
-                'Эталон M3 применён, фары включены для проверки. Нажмите «Сохранить» для записи в MongoDB.',
+                { settings: databaseM3?.settings || m3Reference.settings, lightsOn: true },
+                `${databaseM3 ? 'Эталон из сцены M3' : 'Локальный эталон M3'} применён, фары включены для проверки. Нажмите «Сохранить» для записи в MongoDB.`,
               )}>Применить эталон M3</button>
-              <button type="button" onClick={saveM3Reference}>Обновить эталон M3</button>
               <button type="button" onClick={exportSettings}>Экспорт JSON</button>
               <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
             </div>
