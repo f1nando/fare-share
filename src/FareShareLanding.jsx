@@ -1,4 +1,25 @@
 export function FareShareLanding() {
+  const steps = [
+    {
+      number: '1',
+      title: 'GET A CAR',
+      text: 'Start with a free trainee car, then build your real fleet.',
+      image: '/fare-share/how-it-works/get-a-car.png',
+    },
+    {
+      number: '2',
+      title: 'RUN A SHIFT',
+      text: 'Send ready cars to work with one clear action.',
+      image: '/fare-share/how-it-works/run-a-shift.png',
+    },
+    {
+      number: '3',
+      title: 'COLLECT',
+      text: 'Receive daily revenue in cash and your selected stock.',
+      image: '/fare-share/how-it-works/collect.png',
+    },
+  ];
+
   return (
     <div className="fare-page">
       <header className="fare-header">
@@ -45,9 +66,24 @@ export function FareShareLanding() {
           </div>
         </section>
 
-        <section className="fare-placeholder" id="taxis">
-          <p>FRONTEND WORKSPACE</p>
-          <h2>The next section will live here.</h2>
+        <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title">
+          <div className="fare-how-heading">
+            <h2 id="fare-how-title">SIMPLE. FAIR. CLEAR.</h2>
+            <p>Get a car, run one shift, collect revenue, service it<br />when needed.</p>
+          </div>
+
+          <div className="fare-step-grid">
+            {steps.map(step => <article className="fare-step-card" key={step.number}>
+              <span className="fare-step-number" aria-hidden="true">{step.number}</span>
+              <img src={step.image} alt="" />
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>)}
+          </div>
+
+          <a className="fare-button fare-button-primary fare-how-button" href="#taxis">
+            Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true">↗</span>
+          </a>
         </section>
       </main>
     </div>
