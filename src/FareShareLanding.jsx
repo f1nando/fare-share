@@ -430,7 +430,7 @@ export function FareShareLanding() {
           </div>
         </section>
 
-        <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title" hidden>
+        <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title">
           <div className="fare-how-heading">
             <h2 id="fare-how-title">SIMPLE. FAIR. CLEAR.</h2>
             <p>Get a car, run one shift, collect revenue, service it<br />when needed.</p>
@@ -439,7 +439,7 @@ export function FareShareLanding() {
           <div className="fare-step-grid">
             {steps.map(step => <article className="fare-step-card" key={step.number}>
               <span className="fare-step-number" aria-hidden="true">{step.number}</span>
-              <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" />
+              <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />
               <h3>{step.title}</h3>
               <p>{step.text}</p>
             </article>)}
