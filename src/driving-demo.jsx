@@ -28,6 +28,7 @@ const DEFAULTS = {
   carBlackness: 0,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
+const M3_REFERENCE_KEY = 'taxi-driving-demo-m3-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -119,6 +120,24 @@ function loadStoredState() {
   }
 }
 
+function loadM3Reference(fallback) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(M3_REFERENCE_KEY));
+    if (!stored?.settings) throw new Error('Empty reference');
+    return {
+      settings: Object.fromEntries(Object.entries(DEFAULTS).map(([key, value]) => [
+        key,
+        Number.isFinite(stored.settings[key]) ? stored.settings[key] : value,
+      ])),
+      lightsOn: stored.lightsOn === true,
+    };
+  } catch {
+    const reference = { settings: { ...fallback.settings }, lightsOn: fallback.lightsOn };
+    localStorage.setItem(M3_REFERENCE_KEY, JSON.stringify(reference));
+    return reference;
+  }
+}
+
 function Range({ label, value, min, max, step = 1, unit = '', onChange }) {
   const fill = ((value - min) / (max - min)) * 100;
   return (
@@ -149,6 +168,7 @@ function FinePositionButtons({ value, onChange }) {
 
 function DrivingDemo() {
   const [initialState] = useState(loadStoredState);
+  const [m3Reference, setM3Reference] = useState(() => loadM3Reference(initialState));
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
@@ -258,6 +278,52 @@ function DrivingDemo() {
       await refreshScenes();
       setSceneStatus('Сцена удалена.');
     } catch (error) { setSceneStatus(error.message); }
+  };
+
+  const applySettingsBundle = (bundle, message) => {
+    if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
+    const imported = Object.fromEntries(Object.entries(DEFAULTS).map(([key, fallback]) => [
+      key,
+      Number.isFinite(bundle.settings[key]) ? bundle.settings[key] : fallback,
+    ]));
+    setSettings(imported);
+    setLightsOn(bundle.lightsOn === true);
+    setSceneStatus(message);
+  };
+
+  const exportSettings = () => {
+    const file = new Blob([JSON.stringify({
+      format: 'taxi-driving-settings',
+      version: 1,
+      source: sceneName,
+      settings,
+      lightsOn,
+    }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${sceneName.trim().replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, '-') || 'taxi'}-settings.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setSceneStatus('Настройки экспортированы в JSON.');
+  };
+
+  const importSettings = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const bundle = JSON.parse(await file.text());
+      if (bundle.format !== 'taxi-driving-settings') throw new Error('Это не файл настроек Taxi Driving.');
+      applySettingsBundle(bundle, 'Настройки импортированы. Нажмите «Сохранить», чтобы записать их для этой машины.');
+    } catch (error) { setSceneStatus(error.message); }
+  };
+
+  const saveM3Reference = () => {
+    const reference = { settings: { ...settings }, lightsOn };
+    setM3Reference(reference);
+    localStorage.setItem(M3_REFERENCE_KEY, JSON.stringify(reference));
+    setSceneStatus('Текущие настройки сохранены как эталон M3.');
   };
 
   useEffect(() => {
@@ -442,6 +508,12 @@ function DrivingDemo() {
               <label className="upload-button">＋ Загрузить<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadScene} /></label>
               <button className="save-scene" type="button" onClick={saveScene}>Сохранить</button>
               <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Удалить</button>
+            </div>
+            <div className="settings-transfer">
+              <button type="button" onClick={() => applySettingsBundle(m3Reference, 'Эталон M3 применён. Нажмите «Сохранить» для записи в MongoDB.')}>Применить эталон M3</button>
+              <button type="button" onClick={saveM3Reference}>Обновить эталон M3</button>
+              <button type="button" onClick={exportSettings}>Экспорт JSON</button>
+              <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
             </div>
             {sceneStatus && <p className="scene-message">{sceneStatus}</p>}
           </fieldset>
