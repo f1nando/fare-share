@@ -22,6 +22,18 @@ function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function createSceneSequence(scenes, count) {
+  if (scenes.length < 2) return Array.from({ length: count }, () => scenes[0]);
+  const sequence = [];
+  for (let index = 0; index < count; index += 1) {
+    const previousId = sequence[index - 1]?.id;
+    const firstId = index === count - 1 ? sequence[0]?.id : undefined;
+    const candidates = scenes.filter((scene) => scene.id !== previousId && scene.id !== firstId);
+    sequence.push(randomItem(candidates.length ? candidates : scenes.filter((scene) => scene.id !== previousId)));
+  }
+  return sequence;
+}
+
 function FleetSceneCard({ scene }) {
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
@@ -62,7 +74,7 @@ function FleetCardBackground() {
   }, []);
 
   const columns = useMemo(() => Array.from({ length: 6 }, (_, columnIndex) => {
-    const cards = Array.from({ length: 5 }, () => randomItem(scenes));
+    const cards = createSceneSequence(scenes, 6);
     return { columnIndex, cards: [...cards, ...cards] };
   }), [scenes]);
 
