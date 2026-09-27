@@ -180,14 +180,13 @@ function FleetSceneCard({ scene, fleetClass }) {
   );
 }
 
-function FareStepDrivingScene() {
-  const scene = PORSCHE_STEP_SCENE;
+export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE }) {
   const roadRef = useRef(null);
   const boundsRef = useRef(null);
   const rateFrameRef = useRef(0);
   const previousRateFrameRef = useRef(0);
   const targetRateRef = useRef(1);
-  const settings = { ...FALLBACK_SCENE.settings, ...PORSCHE_STEP_SCENE.settings, ...scene.settings };
+  const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
@@ -643,7 +642,7 @@ export function FareShareLanding() {
             <p className="fare-hero-intro">Better classes receive a larger earning share. No twelve-stat RPG spreadsheet.</p>
           </div>
 
-          <a className="fare-button fare-button-primary fare-fleet-button" href="#garage">
+          <a className="fare-button fare-button-primary fare-fleet-button" href="/garage/">
             Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
           </div>

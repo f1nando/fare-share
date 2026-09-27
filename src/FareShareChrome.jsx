@@ -23,7 +23,7 @@ function MobileWalletIcon() {
   );
 }
 
-export function FareHeader({ linkPrefix = '' }) {
+export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home' }) {
   return (
     <header className="fare-header container">
       <a className="fare-brand" href={`${linkPrefix}#top`} aria-label="Fare Share home">
@@ -33,10 +33,10 @@ export function FareHeader({ linkPrefix = '' }) {
       </a>
 
       <nav className="fare-nav" aria-label="Main navigation">
-        <a className={!linkPrefix ? 'is-active' : undefined} href={`${linkPrefix}#top`}>HOME</a>
+        <a className={activeItem === 'home' ? 'is-active' : undefined} href={`${linkPrefix}#top`}>HOME</a>
         <a href={`${linkPrefix}#dashboard`}>DASHBOARD</a>
         <a href={`${linkPrefix}#taxis`}>MINT</a>
-        <a href={`${linkPrefix}#garage`}>GARAGE</a>
+        <a className={activeItem === 'garage' ? 'is-active' : undefined} href="/garage/">GARAGE</a>
         <a href={`${linkPrefix}#market`}>MARKET</a>
         <a href={`${linkPrefix}#trade`}>TRADE</a>
         <a href={`${linkPrefix}#faq`}>FAQ</a>
@@ -79,7 +79,7 @@ export function FareFooter({ linkPrefix = '' }) {
           <h2>NAVIGATION</h2>
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href={`${linkPrefix}#taxis`}>Fleet</a>
-          <a href={`${linkPrefix}#garage`}>Garage</a>
+          <a href="/garage/">Garage</a>
           <a href={`${linkPrefix}#shift`}>Shift</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Resources">
