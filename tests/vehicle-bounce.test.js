@@ -20,7 +20,10 @@ test('each vehicle type gets only its requested visual stunt', () => {
   assert.ok(Math.abs(vehicleStunt('motorcycle', 450).pitch - Math.PI) < 1e-9);
   assert.ok(Math.abs(vehicleStunt('motorcycle', 450, -1).pitch + Math.PI) < 1e-9);
   assert.ok(Math.abs(vehicleStunt('taxi', 425).roll - Math.PI) < 1e-9);
-  assert.ok(vehicleStunt('heavy', 200).roll !== 0);
+  const heavy = vehicleStunt('heavy', 180);
+  assert.ok(Math.abs(heavy.roll) > 0.1);
+  assert.ok(Math.abs(heavy.pitch) > 0.02);
+  assert.ok(heavy.lift > 0.1);
   assert.ok(vehicleStunt('boat', 200).pitch !== 0);
   assert.ok(vehicleStunt('helicopter', 500).yaw > 3);
 });

@@ -17,7 +17,12 @@ export function vehicleStunt(type, elapsed, direction = 1, reducedMotion = false
   if (reducedMotion) return { lift: envelope * 0.3, pitch: 0, roll: 0, yaw: 0 };
   if (type === 'motorcycle') return { lift: envelope * 1.35, pitch: turn * direction, roll: 0, yaw: 0 };
   if (type === 'taxi') return { lift: envelope * 0.8, pitch: 0, roll: turn, yaw: 0 };
-  if (type === 'heavy') return { lift: envelope * 0.08, pitch: 0, roll: Math.sin(progress * Math.PI * 4) * envelope * 0.16, yaw: 0 };
+  if (type === 'heavy') return {
+    lift: envelope * 0.24,
+    pitch: Math.sin(progress * Math.PI * 4 + Math.PI / 2) * envelope * 0.09,
+    roll: Math.sin(progress * Math.PI * 4) * envelope * 0.3,
+    yaw: 0,
+  };
   if (type === 'boat') return { lift: 0, pitch: Math.sin(progress * Math.PI * 4) * envelope * 0.045,
     roll: Math.sin(progress * Math.PI * 6) * envelope * 0.12, yaw: 0 };
   if (type === 'helicopter') return { lift: 0, pitch: 0, roll: 0, yaw: turn };
