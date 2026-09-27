@@ -24,6 +24,14 @@ function XIcon() {
   );
 }
 
+function MobileMenuIcon() {
+  return <svg width="28" height="22" viewBox="0 0 28 22" fill="none" aria-hidden="true"><path d="M2 2H26M2 11H26M2 20H26" stroke="#111" strokeWidth="3" strokeLinecap="round" /></svg>;
+}
+
+function MobileWalletIcon() {
+  return <svg width="29" height="25" viewBox="0 0 29 25" fill="none" aria-hidden="true"><path d="M2 4.5H23V19.5H2V4.5ZM5 1.5H21" stroke="#111" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" /><path d="M22.5 15V24M18 19.5H27" stroke="#111" strokeWidth="3" strokeLinecap="round" /></svg>;
+}
+
 function ChevronIcon() {
   return (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -138,6 +146,12 @@ export function UIKitPage() {
             </Specimen>
             <Specimen name="Primary / medium" meta="64px height · 28px horizontal padding">
               <button className="fare-connect" type="button">Connect Wallet</button>
+            </Specimen>
+            <Specimen name="Mobile header actions" meta="44 × 44px rendered · 2px border · 4px / 5px shadow">
+              <div className="ui-mobile-header-actions">
+                <button className="fare-mobile-menu" type="button" aria-label="Mobile menu example"><MobileMenuIcon /></button>
+                <button className="fare-connect" type="button" aria-label="Mobile wallet example"><MobileWalletIcon /></button>
+              </div>
             </Specimen>
             <Specimen name="Leaderboard action" meta="64px height · trailing arrow">
               <a className="fare-leaderboard-button" href="#leaderboard-sample">View Full Leaderboard <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon color="#FFFFFF" /></span></a>

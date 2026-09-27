@@ -59,6 +59,10 @@
 .ui-button-grid .fare-button-light { min-width: 196px; }
 .ui-button-grid .fare-button-dark { min-width: 374px; }
 .ui-kit-ca .fare-copy-icon { margin-left: 28px; }
+.ui-mobile-header-actions { display: flex; align-items: center; gap: 8px; }
+.ui-mobile-header-actions .fare-mobile-menu, .ui-mobile-header-actions .fare-connect { display: grid; width: 53.5px; min-width: 53.5px; height: 53.5px; padding: 0; place-items: center; border: 2px solid #111; border-radius: 50%; box-shadow: 5px 6px 0 #111; }
+.ui-mobile-header-actions .fare-mobile-menu { color: #111; background: #fff; }
+.ui-mobile-header-actions .fare-connect { background: #ffe72f; }
 .ui-faq-control { width: 100%; }
 .ui-nav-control { margin: 0; padding: 0; }
 .ui-size-table { display: grid; margin-top: 32px; border: 2px solid #111; border-radius: 24px; background: #fff; overflow: hidden; }

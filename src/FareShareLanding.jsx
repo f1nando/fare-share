@@ -457,6 +457,23 @@ function XIcon() {
   );
 }
 
+function MobileMenuIcon() {
+  return (
+    <svg width="28" height="22" viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M2 2H26M2 11H26M2 20H26" stroke="#111" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MobileWalletIcon() {
+  return (
+    <svg className="fare-mobile-wallet-icon" width="29" height="25" viewBox="0 0 29 25" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M2 4.5H23V19.5H2V4.5ZM5 1.5H21" stroke="#111" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M22.5 15V24M18 19.5H27" stroke="#111" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function FaqChevron() {
   return (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -582,6 +599,7 @@ export function FareShareLanding() {
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
           <img src="/brand/fare-driver.png" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
+          <span className="fare-brand-ticker">$TAXI</span>
         </a>
 
         <nav className="fare-nav" aria-label="Main navigation">
@@ -596,6 +614,9 @@ export function FareShareLanding() {
         </nav>
 
         <div className="fare-header-actions">
+          <button className="fare-mobile-menu" type="button" aria-label="Open navigation">
+            <MobileMenuIcon />
+          </button>
           <a className="fare-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X">
             <XIcon />
           </a>
@@ -604,6 +625,7 @@ export function FareShareLanding() {
             <svg className="fare-wallet-icon" width="107" height="93" viewBox="0 0 107 93" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M0 78.1789C0 90.2265 6.2065 93 12.6613 93C26.3155 93 36.577 80.6058 42.7007 70.8118C41.9559 72.9786 41.5422 75.1454 41.5422 77.2255C41.5422 82.946 44.6868 87.0196 50.8933 87.0196C59.4169 87.0196 68.5197 79.219 73.2367 70.8118C72.9056 72.0252 72.7401 73.1519 72.7401 74.192C72.7401 78.1789 74.8917 80.6924 79.2777 80.6924C93.0975 80.6924 107 55.124 107 32.7623C107 15.3411 98.5592 0 77.3743 0C40.1354 0 0 47.4967 0 78.1789ZM64.5476 30.8555C64.5476 26.5219 66.8647 23.4884 70.2575 23.4884C73.5677 23.4884 75.8848 26.5219 75.8848 30.8555C75.8848 35.1892 73.5677 38.3094 70.2575 38.3094C66.8647 38.3094 64.5476 35.1892 64.5476 30.8555ZM82.2568 30.8555C82.2568 26.5219 84.5739 23.4884 87.9668 23.4884C91.2769 23.4884 93.594 26.5219 93.594 30.8555C93.594 35.1892 91.2769 38.3094 87.9668 38.3094C84.5739 38.3094 82.2568 35.1892 82.2568 30.8555Z" fill="black" />
             </svg>
+            <MobileWalletIcon />
           </button>
         </div>
       </header>
