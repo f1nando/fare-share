@@ -9,7 +9,7 @@ const FLEET_CLASSES = {
   legend: { name: 'Legend', tone: 'legend' },
 };
 const FLEET_CLASS_BY_SCENE_NAME = new Map([
-  ...['Old America', 'Old London', 'Old NY', 'Toyota Sienna'].map((name) => [name.toLowerCase(), FLEET_CLASSES.economy]),
+  ...['Old America', 'Old London', 'Chevrolet Caprice', 'Toyota Sienna'].map((name) => [name.toLowerCase(), FLEET_CLASSES.economy]),
   ...['Prius', 'NY', 'Camry', 'W211'].map((name) => [name.toLowerCase(), FLEET_CLASSES.comfort]),
   ...['Tesla', 'Bentley', 'G63', 'Rolls Royce'].map((name) => [name.toLowerCase(), FLEET_CLASSES.business]),
   ...['M3E46', 'Lambo', 'Chiron', '911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
