@@ -425,13 +425,18 @@ function FleetCardBackground() {
       onPointerEnter={() => refreshCardBounds()}
       onPointerLeave={resetRoadPlaybackRates}
     >
-      {visibleColumns.map(({ columnIndex, cards }) => (
-        <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
-          <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
-            {cards.map(({ scene, fleetClass }, cardIndex) => <FleetSceneCard scene={scene} fleetClass={fleetClass} key={`${scene.id}-${cardIndex}`} />)}
+      <div className="fare-fleet-wall-track">
+        {[0, 1].map(copyIndex => <div className="fare-fleet-wall-grid" key={copyIndex}>
+          {visibleColumns.map(({ columnIndex, cards }) => (
+            <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={`${copyIndex}-${columnIndex}`}>
+              <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
+                {cards.map(({ scene, fleetClass }, cardIndex) => <FleetSceneCard scene={scene} fleetClass={fleetClass} key={`${scene.id}-${cardIndex}`} />)}
+              </div>
+            </div>
+          ))}
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 }

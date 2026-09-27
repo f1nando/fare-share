@@ -96,7 +96,7 @@ export function UIKitPage() {
             <Specimen name="Header identity" meta="Brand 28px · ticker 23px">
               <div className="fare-brand ui-brand-type"><strong>FARE SHARE</strong><span>$TAXI</span></div>
             </Specimen>
-            <Specimen name="Fleet class" meta="11px · 800 · uppercase">
+            <Specimen name="Fleet class" meta="13px · 800 · 34px height · uppercase">
               <div className="ui-badge-row">
                 <span className="fare-fleet-class is-economy">ECONOMY</span>
                 <span className="fare-fleet-class is-business">BUSINESS</span>

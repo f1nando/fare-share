@@ -245,14 +245,16 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   overflow: hidden;
 }
 .fare-fleet::after { content: ''; position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, #111 0%, #111 .5%, transparent 25%, transparent 75%, #111 99.5%, #111 100%); pointer-events: none; }
-.fare-fleet-card-wall { position: absolute; z-index: 1; inset: -180px -8.333vw; display: grid; grid-template-columns: repeat(7, minmax(160px, 1fr)); gap: 14px; opacity: 1; -webkit-mask-image: linear-gradient(180deg, transparent .5%, #000 25%, #000 75%, transparent 99.5%); mask-image: linear-gradient(180deg, transparent .5%, #000 25%, #000 75%, transparent 99.5%); animation: fare-fleet-wall-slide 32s linear infinite alternate; will-change: transform; }
+.fare-fleet-card-wall { --wall-gap: 14px; --wall-half-gap: 7px; position: absolute; z-index: 1; inset: -180px -8.333vw; opacity: 1; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, transparent .5%, #000 25%, #000 75%, transparent 99.5%); mask-image: linear-gradient(180deg, transparent .5%, #000 25%, #000 75%, transparent 99.5%); }
+.fare-fleet-wall-track { display: flex; width: calc(200% + var(--wall-gap)); gap: var(--wall-gap); animation: fare-fleet-wall-slide 32s linear infinite; will-change: transform; }
+.fare-fleet-wall-grid { display: grid; flex: 0 0 calc((100% - var(--wall-gap)) / 2); grid-template-columns: repeat(7, minmax(160px, 1fr)); gap: var(--wall-gap); }
 .fare-fleet-card-column { min-width: 0; overflow: hidden; }
 .fare-fleet-card-track { --card-half-gap: 7px; display: flex; flex-direction: column; gap: 14px; animation: fare-fleet-column-up var(--column-duration) linear var(--column-delay) infinite; will-change: transform; }
 .fare-fleet-card-column.is-down .fare-fleet-card-track { animation-name: fare-fleet-column-down; }
 .fare-fleet-container { position: relative; height: 100%; }
 .fare-fleet-scene-card { position: relative; flex: 0 0 auto; aspect-ratio: 1; border: 0; border-radius: 12px; background: #d9d9d7; cursor: pointer; overflow: hidden; isolation: isolate; }
 .fare-fleet-scene-card img { -webkit-user-drag: none; user-select: none; }
-.fare-fleet-class { position: absolute; z-index: 5; top: 12px; left: 12px; display: inline-flex; min-height: 28px; align-items: center; padding: 0 12px; border: 2px solid #111; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
+.fare-fleet-class { position: absolute; z-index: 5; top: 12px; left: 12px; display: inline-flex; min-height: 34px; align-items: center; padding: 0 15px; border: 2px solid #111; border-radius: 999px; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
 .fare-fleet-class.is-economy, .fare-fleet-class.is-comfort { border-color: #111; color: #111; background: #fff; }
 .fare-fleet-class.is-business { border-color: #fff; color: #fff; background: #111; }
 .fare-fleet-class.is-legend { border-color: #111; color: #111; background: #ffe72f; }
@@ -266,12 +268,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @keyframes fare-fleet-column-up { from { transform: translateY(0); } to { transform: translateY(calc(-50% - var(--card-half-gap))); } }
 @keyframes fare-fleet-column-down { from { transform: translateY(calc(-50% - var(--card-half-gap))); } to { transform: translateY(0); } }
 @keyframes fare-fleet-road-motion { from { transform: translate(0, 0); } to { transform: translate(var(--road-travel-x), var(--road-travel-y)); } }
-@keyframes fare-fleet-wall-slide { from { transform: translateX(8vw); } to { transform: translateX(-8vw); } }
+@keyframes fare-fleet-wall-slide { from { transform: translateX(0); } to { transform: translateX(calc(-50% - var(--wall-half-gap))); } }
 
-.fare-fleet-card-wall.is-paused, .fare-fleet-card-wall.is-paused .fare-fleet-card-track, .fare-fleet-card-wall.is-paused .fare-fleet-road { animation-play-state: paused; }
+.fare-fleet-card-wall.is-paused .fare-fleet-wall-track, .fare-fleet-card-wall.is-paused .fare-fleet-card-track, .fare-fleet-card-wall.is-paused .fare-fleet-road { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fare-step-sprite, .fare-collect-asset, .fare-fleet-card-wall, .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
+  .fare-step-sprite, .fare-collect-asset, .fare-fleet-wall-track, .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
   .fare-collect-asset { opacity: 1; transform: translate(var(--flight-x), calc(var(--flight-y) - 72px)) rotate(var(--flight-rotate)) scale(1); }
 }
 
@@ -359,15 +361,15 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 1500px) {
-  .fare-fleet-card-wall { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .fare-fleet-wall-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1200px) {
-  .fare-fleet-card-wall { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fare-fleet-wall-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
-  .fare-fleet-card-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fare-fleet-wall-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
@@ -392,7 +394,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-token-symbol { margin-right: 10px; }
   .fare-copy-icon { width: 14px; height: 17px; margin-left: 12px; }
   .fare-fleet { height: 760px; padding: 96px 0 0; }
-  .fare-fleet-card-wall { inset: -100px -56px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; opacity: .9; }
+  .fare-fleet-card-wall { --wall-gap: 10px; --wall-half-gap: 5px; inset: -100px -56px; opacity: .9; }
+  .fare-fleet-wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .fare-fleet-card-track { --card-half-gap: 5px; gap: 10px; }
   .fare-fleet-scene-card { border-radius: 10px; }
   .fare-fleet-heading { display: block; }
@@ -401,5 +404,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 420px) {
-  .fare-fleet-card-wall { right: -44px; left: -44px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fare-fleet-card-wall { right: -44px; left: -44px; }
+  .fare-fleet-wall-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
