@@ -7,6 +7,6 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: { watch: { ignored: ['**/public/fare-share/how-it-works/**'] } },
   build: { ...(mode === 'city' ? { outDir: 'dist-city' } : {}),
-    rollupOptions: { input: mode === 'city' ? 'city.html' : { main: 'index.html', fareShare: 'fare-share/index.html' },
+    rollupOptions: { input: mode === 'city' ? 'city.html' : { main: 'index.html', fareShare: 'fare-share/index.html', uiKit: 'ui-kit/index.html' },
       output: { manualChunks: { three: ['three'] } } } },
 }));
