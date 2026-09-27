@@ -16,7 +16,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 .fare-page { min-height: 100%; background: #111; }
 .fare-header {
-  position: absolute;
+  position: fixed;
   z-index: 2;
   top: 16px;
   left: 50%;
