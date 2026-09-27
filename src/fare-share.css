@@ -424,8 +424,19 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-leaderboard-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
   .fare-leaderboard-page-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
   .fare-leaderboard-page-heading p { width: min(340px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
-  .fare-leaderboard-full { margin-top: 42px; border-radius: 24px; overflow-x: auto; }
-  .fare-leaderboard-full .fare-leaderboard-row { min-width: 760px; }
+  .fare-leaderboard-full { display: grid; gap: 14px; margin-top: 42px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  .fare-leaderboard-full .fare-leaderboard-row { display: grid; grid-template: 'rank driver earnings' auto 'rank cars earnings' auto / 42px minmax(0, 1fr) auto; min-width: 0; height: auto; min-height: 92px; padding: 14px 18px; border: 2px solid #111; border-radius: 20px; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 15px; }
+  .fare-leaderboard-full .fare-leaderboard-header { display: none; }
+  .fare-leaderboard-full .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
+  .fare-leaderboard-full .fare-leaderboard-row.is-current-driver { background: #fff7bd; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(1) { grid-area: rank; align-self: center; font-size: 18px; font-weight: 900; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(2) { grid-area: driver; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(3) { grid-area: cars; align-self: start; color: #666; font-size: 12px; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(4) { grid-area: earnings; align-self: center; margin-left: 14px; font-size: 17px; font-weight: 800; white-space: nowrap; }
+  .fare-leaderboard-full .fare-driver-cell { gap: 10px; font-weight: 700; }
+  .fare-leaderboard-full .fare-driver-cell img { width: 48px; height: 48px; }
+  .fare-leaderboard-full .fare-driver-name { gap: 7px; }
+  .fare-leaderboard-full .fare-you-badge { min-width: 38px; height: 22px; padding: 0 7px; font-size: 9px; }
   .fare-current-driver-dock { right: 12px; bottom: 16px; left: 12px; grid-template-columns: 42px minmax(0, 1fr) auto; width: calc(100% - 24px); height: 76px; padding: 0 16px; border-radius: 20px; box-shadow: 5px 6px 0 #111; font-size: 14px; }
   .fare-current-driver-dock > :nth-child(3) { display: none; }
   .fare-current-driver-dock .fare-driver-cell { gap: 10px; }
