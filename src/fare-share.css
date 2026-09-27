@@ -307,6 +307,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-driver-cell { display: flex; align-items: center; gap: 20px; }
 .fare-driver-cell img { display: block; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 
+.fare-leaderboard-page-main { position: relative; z-index: 1; min-height: 100vh; padding: 210px 0 120px; }
+.fare-leaderboard-page-section { position: relative; }
+.fare-leaderboard-page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
+.fare-leaderboard-page-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .9; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }
+.fare-leaderboard-page-heading p { max-width: 430px; margin: 0 0 8px; padding: 13px 16px; border-left: 8px solid #111; background: #fff; font-size: 22px; font-weight: 700; line-height: 27px; }
+.fare-leaderboard-full { position: relative; top: auto; right: auto; left: auto; margin-top: 70px; }
+
 .fare-faq {
   min-height: 1045px;
   padding: 100px 0 121px;
@@ -408,6 +415,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-heading { display: block; }
   .fare-how-heading h2, .fare-fleet-heading h2, .fare-treasury-heading h2, .fare-leaderboard-heading h3 { font-size: 42px; text-shadow: 3px 4px 0 #111; }
   .fare-fleet-button { top: auto; bottom: 70px; left: 12px; width: 210px; }
+  .fare-leaderboard-page-main { padding-top: 150px; padding-bottom: 80px; }
+  .fare-leaderboard-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
+  .fare-leaderboard-page-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
+  .fare-leaderboard-page-heading p { width: min(340px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
+  .fare-leaderboard-full { margin-top: 42px; border-radius: 24px; overflow-x: auto; }
+  .fare-leaderboard-full .fare-leaderboard-row { min-width: 760px; }
 }
 
 @media (max-width: 420px) {
