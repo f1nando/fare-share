@@ -1,3 +1,84 @@
+import { useEffect, useMemo, useState } from 'react';
+
+const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
+const FALLBACK_SCENE = {
+  id: 'local-m3',
+  imageUrl: '/driving-demo/m3.webp',
+  settings: {
+    markSpacing: 37,
+    pathAngle: -135,
+    markX: 50,
+    markY: 84,
+    markWidth: 17,
+    markAngleOffset: 0,
+    markOpacity: 100,
+    backgroundHue: 0,
+    backgroundSaturation: 100,
+    backgroundGrayscale: 0,
+  },
+};
+
+function randomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function FleetSceneCard({ scene }) {
+  const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
+  const radians = settings.pathAngle * Math.PI / 180;
+  const pathX = Math.cos(radians);
+  const pathY = Math.sin(radians);
+  const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
+
+  return (
+    <div className="fare-fleet-scene-card">
+      <img
+        className="fare-fleet-car"
+        src={imageUrl}
+        alt=""
+        style={{ filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)` }}
+      />
+      <div className="fare-fleet-road" style={{ '--mark-width': `${settings.markWidth}%`, '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`, '--mark-opacity': settings.markOpacity / 100 }}>
+        {Array.from({ length: 15 }, (_, index) => {
+          const slot = index - 7;
+          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FleetCardBackground() {
+  const [scenes, setScenes] = useState([FALLBACK_SCENE]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_BASE}/api/driving-scenes`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Scene library unavailable')))
+      .then((body) => {
+        if (body.scenes?.length) setScenes(body.scenes);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  const columns = useMemo(() => Array.from({ length: 8 }, (_, columnIndex) => {
+    const cards = Array.from({ length: 5 }, () => randomItem(scenes));
+    return { columnIndex, cards: [...cards, ...cards] };
+  }), [scenes]);
+
+  return (
+    <div className="fare-fleet-card-wall" aria-hidden="true">
+      {columns.map(({ columnIndex, cards }) => (
+        <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
+          <div className="fare-fleet-card-track" style={{ '--column-duration': `${25 + columnIndex * 1.7}s`, '--column-delay': `${-columnIndex * 2.4}s` }}>
+            {cards.map((scene, cardIndex) => <FleetSceneCard scene={scene} key={`${scene.id}-${cardIndex}`} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function GetStartedArrow({ color = '#FFE72F' }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +196,7 @@ export function FareShareLanding() {
                 <span className="fare-token-symbol">$TAXI</span>
                 <span>0x7d91...af4f2</span>
                 <span className="fare-copy-icon" aria-hidden="true" />
-                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true">тЖЧ</span>
+                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true"><GetStartedArrow color="#101010" /></span>
               </a>
             </div>
           </div>
@@ -142,6 +223,7 @@ export function FareShareLanding() {
         </section>
 
         <section className="fare-fleet" id="taxis" aria-labelledby="fare-fleet-title">
+          <FleetCardBackground />
           <div className="fare-fleet-heading">
             <h2 id="fare-fleet-title">FOUR CARS. ONE RULE.</h2>
             <p>Better classes receive a larger earning share. No twelve-stat<br />RPG spreadsheet.</p>
@@ -212,7 +294,7 @@ export function FareShareLanding() {
             <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
             <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
             <a className="fare-footer-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
-            <p className="fare-footer-copyright">┬й 2026 Fare Share. All rights reserved.</p>
+            <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
           </div>
 
           <nav className="fare-footer-column" aria-label="Footer navigation">
