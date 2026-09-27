@@ -624,7 +624,6 @@ export function FareShareLanding() {
                     <path d="M4 12.5L9.2 17.5L20 6.5" />
                   </svg>
                 </span>
-                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true"><GetStartedArrow color="#101010" /></span>
               </button>
             </div>
           </div>
