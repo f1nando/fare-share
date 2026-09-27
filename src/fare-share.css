@@ -446,11 +446,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-nav { display: none; }
   .fare-header-actions { margin-left: auto; }
   .fare-mobile-menu { display: grid; flex: 0 0 auto; width: var(--fare-control-height-md); height: var(--fare-control-height-md); padding: 0; place-items: center; border: var(--fare-control-border) solid #111; border-radius: 50%; color: #111; background: #fff; }
-  .fare-menu-layer { position: fixed; z-index: 20; inset: 0; display: block; visibility: hidden; pointer-events: none; }
-  .fare-menu-layer.is-open { visibility: visible; pointer-events: auto; }
-  .fare-menu-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgb(17 17 17 / 55%); opacity: 0; transition: opacity .2s ease; }
+  .fare-menu-layer { position: fixed; z-index: 20; inset: 0; display: block; visibility: hidden; pointer-events: none; transition: visibility 0s linear .3s; }
+  .fare-menu-layer.is-open { visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .fare-menu-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: rgb(17 17 17 / 55%); opacity: 0; transition: opacity .3s ease; }
   .fare-menu-layer.is-open .fare-menu-backdrop { opacity: 1; }
-  .fare-menu-drawer { position: absolute; top: 0; right: 0; display: flex; flex-direction: column; width: min(420px, 100%); height: 100dvh; padding: 32px; background: #fff; box-shadow: -12px 0 30px rgb(0 0 0 / 24%); overflow-y: auto; transform: translateX(105%); transition: transform .25s ease; }
+  .fare-menu-drawer { position: absolute; top: 0; right: 0; display: flex; flex-direction: column; width: min(420px, 100%); height: 100dvh; padding: 32px; background: #fff; box-shadow: -12px 0 30px rgb(0 0 0 / 24%); overflow-y: auto; transform: translateX(105%); transition: transform .3s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
   .fare-menu-layer.is-open .fare-menu-drawer { transform: translateX(0); }
   .fare-menu-drawer-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 24px; border-bottom: 2px solid #111; }
   .fare-menu-drawer-header strong { font-size: 24px; font-weight: 900; }
