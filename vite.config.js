@@ -5,6 +5,7 @@ import { codeVersion } from './scripts/benchmark-version.mjs';
 export default defineConfig(({ mode }) => ({
   define: { __CITY_VERSION__: JSON.stringify(codeVersion()) },
   plugins: [react()],
+  server: { watch: { ignored: ['**/public/fare-share/how-it-works/**'] } },
   build: { ...(mode === 'city' ? { outDir: 'dist-city' } : {}),
     rollupOptions: { input: mode === 'city' ? 'city.html' : { main: 'index.html', fareShare: 'fare-share/index.html', test: 'test.html', drivingDemo: 'driving-demo.html' },
       output: { manualChunks: { three: ['three'] } } } },
