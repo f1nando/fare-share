@@ -421,7 +421,7 @@ function DrivingDemo() {
 
   const markStyle = {
     '--mark-width': `${settings.markWidth}%`,
-    '--mark-angle': `${settings.markAngle}deg`,
+    '--mark-angle': `${settings.pathAngle + settings.markAngle}deg`,
     '--mark-opacity': settings.markOpacity / 100,
   };
   const pathRadians = settings.pathAngle * Math.PI / 180;
@@ -549,7 +549,12 @@ function DrivingDemo() {
             <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
             <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
-            <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
+            <Range label="Доп. поворот элементов" value={settings.markAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngle')} />
+            <div className="angle-stepper" aria-label="Скорректировать поворот элементов">
+              <button onClick={() => update('markAngle')(Math.max(-180, Math.round((settings.markAngle - 0.1) * 10) / 10))}>−0.1°</button>
+              <span>{settings.markAngle}°</span>
+              <button onClick={() => update('markAngle')(Math.min(180, Math.round((settings.markAngle + 0.1) * 10) / 10))}>+0.1°</button>
+            </div>
           </fieldset>
 
           <fieldset>
