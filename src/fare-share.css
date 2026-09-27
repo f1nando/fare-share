@@ -194,7 +194,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 .fare-footer { position: relative; height: 529px; padding: 120px max(24px, calc((100vw - 1720px) / 2)) 0; color: #fff; background: #111; overflow: hidden; }
 .fare-footer-inner { position: relative; z-index: 1; display: grid; grid-template-columns: 1068px 262px 262px 1fr; }
-.fare-footer-watermark { position: absolute; z-index: 0; top: 281px; left: max(42px, calc((100vw - 1836px) / 2)); color: transparent; font-family: 'Intro Friday', Impact, sans-serif; font-size: 340px; font-weight: 400; line-height: .8; white-space: nowrap; -webkit-text-stroke: 2px #1b1b1b; }
+.fare-footer-watermark { position: absolute; z-index: 0; top: 235px; left: max(24px, calc((100vw - 1872px) / 2)); color: transparent; font-family: 'Intro Friday', Impact, sans-serif; font-size: 500px; font-weight: 400; line-height: .8; white-space: nowrap; -webkit-text-stroke: 3px #1b1b1b; text-shadow: 18px 20px 0 #080808; }
 .fare-footer-brand { display: flex; height: 64px; align-items: center; }
 .fare-footer-brand img { display: block; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 .fare-footer-brand strong { margin-left: 15px; font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -.055em; }
