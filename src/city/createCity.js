@@ -38,6 +38,7 @@ import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle } from './foliageAnimation.js';
+import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -314,10 +315,14 @@ export function createCity(container, initialSettings, benchmark = null) {
   const foliageAnimatedMatrix = new THREE.Matrix4();
   const foliageRotationMatrix = new THREE.Matrix4();
   const foliageTranslationMatrix = new THREE.Matrix4();
+  const buildingAnimatedMatrix = new THREE.Matrix4();
+  const buildingScaleMatrix = new THREE.Matrix4();
+  const buildingTranslationMatrix = new THREE.Matrix4();
   const clickableVehicles = [];
   const clickableVehiclePool = [];
   const vehicleStunts = new Map();
   const foliageSwings = new Map();
+  const buildingStretches = new Map();
   const addClickableVehicle = (x, y, z, key, type) => {
     const index = clickableVehicles.length;
     const vehicle = clickableVehiclePool[index] ?? (clickableVehiclePool[index] = {
@@ -350,6 +355,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     staticBatch.flush();
     foliageSwings.clear();
+    buildingStretches.clear();
     if (!reveal.done && !reveal.initialized) {
       reveal.waterPresent = [...staticBatch.items.values()].some(group =>
         group.values.slice(0, group.count).some(item => item[11] === REVEAL.water));
@@ -511,6 +517,23 @@ export function createCity(container, initialSettings, benchmark = null) {
         target.mesh.instanceMatrix.needsUpdate = true;
       }
     }
+    for (const [index, stretch] of buildingStretches) {
+      const elapsed = timestamp - stretch.started;
+      if (elapsed >= BUILDING_STRETCH_DURATION) {
+        stretch.mesh.setMatrixAt(index, stretch.base);
+        stretch.mesh.instanceMatrix.needsUpdate = true;
+        buildingStretches.delete(index);
+        continue;
+      }
+      const scaleY = buildingStretch(elapsed, reducedMotion.matches);
+      buildingAnimatedMatrix.makeTranslation(stretch.x, stretch.bottom, stretch.z);
+      buildingScaleMatrix.makeScale(1, scaleY, 1);
+      buildingAnimatedMatrix.multiply(buildingScaleMatrix);
+      buildingTranslationMatrix.makeTranslation(-stretch.x, -stretch.bottom, -stretch.z);
+      buildingAnimatedMatrix.multiply(buildingTranslationMatrix).multiply(stretch.base);
+      stretch.mesh.setMatrixAt(index, buildingAnimatedMatrix);
+      stretch.mesh.instanceMatrix.needsUpdate = true;
+    }
     if (!reveal.done) {
       reveal.advance(delta, { paused: settings.paused || document.hidden, reducedMotion: reducedMotion.matches });
       // Horns are pooled transparent sprites with their own animated opacity.
@@ -599,10 +622,28 @@ export function createCity(container, initialSettings, benchmark = null) {
         x: foliage.item[0], pivotY, z: foliage.item[2] });
       return;
     }
-    if (!vehicle) return;
-    if (!claimGestureTarget(gestureTargets, vehicle.key)) return;
-    vehicleStunts.set(vehicle.key, { started: performance.now(),
-      direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
+    if (vehicle) {
+      if (!claimGestureTarget(gestureTargets, vehicle.key)) return;
+      vehicleStunts.set(vehicle.key, { started: performance.now(),
+        direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
+      return;
+    }
+    let building = null, buildingDistance = (event.pointerType === 'touch' ? 62 : 52) ** 2;
+    const buildingGroup = staticBatch.items.get('building');
+    for (let index = 0; index < (buildingGroup?.count ?? 0); index++) {
+      const item = buildingGroup.values[index];
+      projectedVehicle.set(item[0], item[1], item[2]).project(camera);
+      const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
+      const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
+      const distance = (screenX - gesturePoint.x) ** 2 + (screenY - gesturePoint.y) ** 2;
+      if (distance < buildingDistance) { buildingDistance = distance; building = { index, item }; }
+    }
+    if (!building || !claimGestureTarget(gestureTargets, `building:${building.index}`)) return;
+    const existing = buildingStretches.get(building.index);
+    const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
+    if (!existing) mesh.getMatrixAt(building.index, base);
+    buildingStretches.set(building.index, { mesh, base, started: performance.now(),
+      x: building.item[0], bottom: building.item[1] - building.item[4] / 2, z: building.item[2] });
   };
   const beginGesture = event => {
     if (event.button !== 0 || overControl(event)) return;
