@@ -14,6 +14,15 @@ function XIcon() {
   );
 }
 
+function FaqChevron() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="44" height="44" rx="22" fill="black" />
+      <path d="M14 19L22 27L30 19" stroke="white" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function FareShareLanding() {
   const steps = [
     {
@@ -185,7 +194,7 @@ export function FareShareLanding() {
           <div className="fare-faq-list">
             {faqItems.map(item => <button className="fare-faq-item" type="button" aria-expanded="false" key={item}>
               <span>{item}</span>
-              <i aria-hidden="true" />
+              <FaqChevron />
             </button>)}
           </div>
         </section>
