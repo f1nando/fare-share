@@ -471,6 +471,20 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-wall-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
+@media (max-width: 1000px) {
+  .fare-hero { height: 960px; padding-top: 225px; }
+  .fare-hero-copy { width: min(760px, 100%); }
+  .fare-hero h1 { font-size: 116px; -webkit-text-stroke-width: 3px; text-shadow: 8px 9px 0 #111; }
+  .fare-hero-intro { width: min(620px, 100%); min-height: 72px; margin-top: 48px; padding: 11px 20px; border-left-width: 7px; font-size: 26px; line-height: 30px; }
+  .fare-hero-actions { flex-wrap: wrap; gap: 14px; width: min(700px, 100%); margin-top: 44px; }
+  .fare-button { height: 64px; font-size: 17px; }
+  .fare-button-primary { width: 190px; }
+  .fare-button-light { width: 170px; }
+  .fare-button-dark { width: 310px; }
+  .fare-round-arrow { width: 42px; height: 42px; }
+  .fare-token-symbol { margin-right: 18px; }
+}
+
 @media (max-width: 900px) {
   .fare-fleet-wall-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fare-garage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
