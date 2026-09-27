@@ -522,7 +522,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
-    if (activeBrushEvent) animateAtPointer(activeBrushEvent);
+    if (activeBrushEvent) animateAtPointer(activeBrushEvent, true);
     carsBatch.flush();
     for (const [index, swing] of foliageSwings) {
       const elapsed = timestamp - swing.started;
@@ -606,10 +606,15 @@ export function createCity(container, initialSettings, benchmark = null) {
   renderer.setAnimationLoop(frame);
   let gesturePointer = null;
   const gestureTargets = new Set();
+  const brushTargetsNow = new Set();
+  const brushVehicleTargets = new Set();
+  const brushVehiclesNow = new Set();
   const gesturePoint = { x: 0, y: 0 };
   const overControl = event => event.target instanceof Element && event.target.closest('button, input, select, textarea, a');
-  const activateFoliage = (index, item) => {
-    if (!claimGestureTarget(gestureTargets, `foliage:${index}`)) return;
+  const activateFoliage = (index, item, targetsInBrush) => {
+    const key = `foliage:${index}`;
+    targetsInBrush.add(key);
+    if (!claimGestureTarget(gestureTargets, key)) return;
     const existing = foliageSwings.get(index);
     let targets = existing?.targets;
     let pivotY = existing?.pivotY;
@@ -631,27 +636,42 @@ export function createCity(container, initialSettings, benchmark = null) {
     foliageSwings.set(index, { targets, started: performance.now(), direction: Math.random() < 0.5 ? -1 : 1,
       x: item[0], pivotY, z: item[2] });
   };
-  const activateBuilding = (index, item) => {
-    if (!claimGestureTarget(gestureTargets, `building:${index}`)) return;
+  const activateBuilding = (index, item, targetsInBrush) => {
+    const key = `building:${index}`;
+    targetsInBrush.add(key);
+    if (!claimGestureTarget(gestureTargets, key)) return;
     const existing = buildingStretches.get(index);
     const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
     if (!existing) mesh.getMatrixAt(index, base);
     buildingStretches.set(index, { mesh, base, started: performance.now(),
       x: item[0], bottom: item[1] - item[4] / 2, z: item[2] });
   };
-  function animateAtPointer(event) {
+  function animateAtPointer(event, vehiclesOnly = false) {
     const rect = renderer.domElement.getBoundingClientRect();
-    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
+      activeBrushEvent = null; gestureTargets.clear(); return;
+    }
     const radius = event.pointerType === 'touch' ? 72 : 56;
+    const targetsInBrush = brushTargetsNow;
+    targetsInBrush.clear();
+    brushVehiclesNow.clear();
     gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
     for (const vehicle of clickableVehicles) {
       projectedVehicle.set(vehicle.x, vehicle.y, vehicle.z).project(camera);
       vehicle.screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint, radius) ||
-        !claimGestureTarget(gestureTargets, vehicle.key)) continue;
+      if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint, radius)) continue;
+      targetsInBrush.add(vehicle.key);
+      brushVehiclesNow.add(vehicle.key);
+      if (!claimGestureTarget(gestureTargets, vehicle.key)) continue;
       vehicleStunts.set(vehicle.key, { started: performance.now(),
         direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
+    }
+    if (vehiclesOnly) {
+      for (const target of brushVehicleTargets) if (!brushVehiclesNow.has(target)) gestureTargets.delete(target);
+      brushVehicleTargets.clear();
+      for (const target of brushVehiclesNow) brushVehicleTargets.add(target);
+      return;
     }
     const crownGroup = staticBatch.items.get('crown');
     for (let index = 0; index < (crownGroup?.count ?? 0); index++) {
@@ -659,7 +679,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       projectedVehicle.set(item[0], item[1], item[2]).project(camera);
       const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateFoliage(index, item);
+      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateFoliage(index, item, targetsInBrush);
     }
     const buildingGroup = staticBatch.items.get('building');
     for (let index = 0; index < (buildingGroup?.count ?? 0); index++) {
@@ -667,8 +687,11 @@ export function createCity(container, initialSettings, benchmark = null) {
       projectedVehicle.set(item[0], item[1], item[2]).project(camera);
       const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateBuilding(index, item);
+      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateBuilding(index, item, targetsInBrush);
     }
+    for (const target of gestureTargets) if (!targetsInBrush.has(target)) gestureTargets.delete(target);
+    brushVehicleTargets.clear();
+    for (const target of brushVehiclesNow) brushVehicleTargets.add(target);
   }
   const updateActiveBrush = event => {
     activeBrushEvent ??= {};
@@ -698,22 +721,17 @@ export function createCity(container, initialSettings, benchmark = null) {
     activeBrushEvent = null;
     gestureTargets.clear();
   };
-  let mouseGesture = false;
   const beginMouseGesture = event => {
     if (event.button !== 0 || overControl(event)) return;
-    mouseGesture = true;
     gestureTargets.clear();
     updateActiveBrush(event);
     animateAtPointer(event);
   };
   const continueMouseGesture = event => {
-    if (!mouseGesture) return;
-    if (!(event.buttons & 1)) { mouseGesture = false; activeBrushEvent = null; gestureTargets.clear(); return; }
-    if (overControl(event)) { activeBrushEvent = null; return; }
+    if (overControl(event)) { activeBrushEvent = null; gestureTargets.clear(); return; }
     updateActiveBrush(event); animateAtPointer(event);
   };
-  const endMouseGesture = () => {
-    mouseGesture = false;
+  const leaveMouseBrush = () => {
     activeBrushEvent = null;
     gestureTargets.clear();
   };
@@ -723,7 +741,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   window.addEventListener('pointercancel', endGesture, true);
   window.addEventListener('mousedown', beginMouseGesture, true);
   window.addEventListener('mousemove', continueMouseGesture, true);
-  window.addEventListener('mouseup', endMouseGesture, true);
+  document.documentElement.addEventListener('mouseleave', leaveMouseBrush);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
     adaptiveQuality?.reset();
@@ -764,7 +782,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     window.removeEventListener('pointercancel', endGesture, true);
     window.removeEventListener('mousedown', beginMouseGesture, true);
     window.removeEventListener('mousemove', continueMouseGesture, true);
-    window.removeEventListener('mouseup', endMouseGesture, true);
+    document.documentElement.removeEventListener('mouseleave', leaveMouseBrush);
     renderer.setAnimationLoop(null);
     reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();

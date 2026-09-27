@@ -11,7 +11,7 @@ test('clicked foliage sways both ways and returns exactly to rest', () => {
   assert.equal(foliageSwayAngle(FOLIAGE_SWAY_DURATION + 100), 0);
 });
 
-test('a held-pointer gesture activates each object once until release', () => {
+test('a pointer brush activates each object once until it leaves the area', () => {
   const touched = new Set(), tree = {}, taxi = {};
   assert.equal(claimGestureTarget(touched, tree), true);
   assert.equal(claimGestureTarget(touched, tree), false);
