@@ -2,14 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
-const FLEET_CLASSES = [
-  { name: 'Economy', tone: 'economy' },
-  { name: 'Comfort', tone: 'comfort' },
-  { name: 'Business', tone: 'business' },
-  { name: 'Legend', tone: 'legend' },
-];
+const FLEET_CLASSES = {
+  economy: { name: 'Economy', tone: 'economy' },
+  comfort: { name: 'Comfort', tone: 'comfort' },
+  business: { name: 'Business', tone: 'business' },
+  legend: { name: 'Legend', tone: 'legend' },
+};
+const FLEET_CLASS_BY_SCENE_NAME = new Map([
+  ...['Old America', 'Old London', 'Old NY', 'Van'].map((name) => [name.toLowerCase(), FLEET_CLASSES.economy]),
+  ...['Prius', 'NY', 'Camry', 'W211'].map((name) => [name.toLowerCase(), FLEET_CLASSES.comfort]),
+  ...['Tesla', 'Bentley', 'G63', 'Rolls'].map((name) => [name.toLowerCase(), FLEET_CLASSES.business]),
+  ...['M3', 'Lambo', 'Chiron', '911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
+]);
 const FALLBACK_SCENE = {
   id: 'local-m3',
+  name: 'M3',
   imageUrl: '/driving-demo/m3.webp',
   settings: {
     markSpacing: 37,
@@ -33,6 +40,10 @@ const FALLBACK_SCENE = {
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function getFleetClass(scene) {
+  return FLEET_CLASS_BY_SCENE_NAME.get(String(scene.name || '').trim().toLowerCase()) || FLEET_CLASSES.economy;
 }
 
 function createSceneSequence(scenes, count) {
@@ -123,7 +134,7 @@ function FleetCardBackground() {
   }, []);
 
   const classesByScene = useMemo(() => new Map(
-    scenes.map((scene) => [scene.id, randomItem(FLEET_CLASSES)]),
+    scenes.map((scene) => [scene.id, getFleetClass(scene)]),
   ), [scenes]);
 
   const columns = useMemo(() => Array.from({ length: 7 }, (_, columnIndex) => {
