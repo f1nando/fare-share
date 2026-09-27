@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
+const FLEET_ROAD_SPEED = 19;
 const FALLBACK_SCENE = {
   id: 'local-m3',
   imageUrl: '/driving-demo/m3.webp',
@@ -49,7 +50,14 @@ function FleetSceneCard({ scene }) {
         alt=""
         style={{ filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)` }}
       />
-      <div className="fare-fleet-road" style={{ '--mark-width': `${settings.markWidth}%`, '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`, '--mark-opacity': settings.markOpacity / 100 }}>
+      <div className="fare-fleet-road" style={{
+        '--mark-width': `${settings.markWidth}%`,
+        '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
+        '--mark-opacity': settings.markOpacity / 100,
+        '--road-travel-x': `${settings.markSpacing * pathX}%`,
+        '--road-travel-y': `${settings.markSpacing * pathY}%`,
+        '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
+      }}>
         {Array.from({ length: 15 }, (_, index) => {
           const slot = index - 7;
           return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
