@@ -140,7 +140,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-class.is-legend { border-color: #111; color: #111; background: #ffe72f; }
 .fare-fleet-car { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; will-change: transform; }
-.fare-fleet-road span { position: absolute; width: var(--mark-width); aspect-ratio: 360 / 88; background: #c5c5c5; -webkit-mask: url('/driving-demo/mark.webp') center / contain no-repeat; mask: url('/driving-demo/mark.webp') center / contain no-repeat; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; }
+.fare-fleet-road img { position: absolute; width: var(--mark-width); height: auto; opacity: 1; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; }
 .fare-fleet-headlight { position: absolute; z-index: 3; height: auto; opacity: var(--headlight-opacity); transform: translate(-50%, -50%); pointer-events: none; }
 .fare-fleet-heading { position: relative; z-index: 2; display: grid; grid-template-columns: 964px 1fr; align-items: flex-start; }
 .fare-fleet-heading h2 { margin: 0; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.055em; text-shadow: 7px 8px 0 #000; }

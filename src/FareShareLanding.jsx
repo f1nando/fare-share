@@ -101,7 +101,7 @@ function FleetSceneCard({ scene, fleetClass }) {
       }}>
         {Array.from({ length: 15 }, (_, index) => {
           const slot = index - 7;
-          return <span key={index} style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} />;
+          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
         })}
       </div>
       {isHovered && [
