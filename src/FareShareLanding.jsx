@@ -81,7 +81,7 @@ function FleetCardBackground() {
     return () => controller.abort();
   }, []);
 
-  const columns = useMemo(() => Array.from({ length: 6 }, (_, columnIndex) => {
+  const columns = useMemo(() => Array.from({ length: 5 }, (_, columnIndex) => {
     const cards = createSceneSequence(scenes, 6);
     return { columnIndex, cards: [...cards, ...cards] };
   }), [scenes]);
@@ -90,7 +90,7 @@ function FleetCardBackground() {
     <div className="fare-fleet-card-wall" aria-hidden="true">
       {columns.map(({ columnIndex, cards }) => (
         <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
-          <div className="fare-fleet-card-track" style={{ '--column-duration': `${25 + columnIndex * 1.7}s`, '--column-delay': `${-columnIndex * 2.4}s` }}>
+          <div className="fare-fleet-card-track" style={{ '--column-duration': `${40 + columnIndex * 2.4}s`, '--column-delay': `${-columnIndex * 3.6}s` }}>
             {cards.map((scene, cardIndex) => <FleetSceneCard scene={scene} key={`${scene.id}-${cardIndex}`} />)}
           </div>
         </div>
