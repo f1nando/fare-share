@@ -430,7 +430,7 @@ export function FareShareLanding() {
           </div>
         </section>
 
-        <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title">
+        <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title" hidden>
           <div className="fare-how-heading">
             <h2 id="fare-how-title">SIMPLE. FAIR. CLEAR.</h2>
             <p>Get a car, run one shift, collect revenue, service it<br />when needed.</p>
