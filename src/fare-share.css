@@ -127,8 +127,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-collect { position: relative; background: radial-gradient(circle at 50% 66%, #fff 0, #fff 38%, #f3f3f3 100%); overflow: hidden; isolation: isolate; }
 .fare-collect-wallet { position: absolute; left: 50%; bottom: 13px; display: block; width: 96%; height: auto; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-wallet-back { z-index: 1; }
-.fare-collect-wallet-front { z-index: 3; }
+.fare-collect-wallet-front { z-index: 4; }
 .fare-collect-flying-assets { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+.fare-collect-depth-mask { position: absolute; z-index: 3; top: 47%; right: 0; bottom: 0; left: 0; background: #fff; pointer-events: none; }
 .fare-collect-asset { position: absolute; display: block; opacity: 0; animation: fare-collect-flight 4s linear infinite; pointer-events: none; will-change: transform, opacity; }
 .fare-collect-asset img { display: block; width: 100%; height: auto; transition: transform .14s ease-out; }
 .fare-collect-card { width: 36%; animation-duration: 7.6s; }
@@ -168,8 +169,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @keyframes fare-collect-flight {
   0% { opacity: 0; transform: translate(var(--start-x), var(--start-y)) rotate(var(--start-rotate)); }
   10% { opacity: 1; }
-  88% { opacity: 1; transform: translate(var(--flight-x), calc(var(--flight-y) + 90px)) rotate(var(--flight-rotate)); }
-  89%, 100% { opacity: 0; transform: translate(var(--flight-x), calc(var(--flight-y) + 90px)) rotate(var(--flight-rotate)); }
+  98% { opacity: 1; transform: translate(var(--flight-x), calc(var(--flight-y) + 190px)) rotate(var(--flight-rotate)); }
+  99%, 100% { opacity: 0; transform: translate(var(--flight-x), calc(var(--flight-y) + 190px)) rotate(var(--flight-rotate)); }
 }
 
 .fare-fleet {

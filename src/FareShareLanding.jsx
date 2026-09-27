@@ -208,6 +208,7 @@ function FareStepCollectScene() {
         <span className="fare-collect-asset fare-collect-coin fare-collect-coin-two"><img src={`${assetPath}/coin-2.png`} alt="" /></span>
         <span className="fare-collect-asset fare-collect-coin fare-collect-coin-three"><img src={`${assetPath}/coin-3.png`} alt="" /></span>
       </div>
+      <div className="fare-collect-depth-mask" />
       <img className="fare-collect-wallet fare-collect-wallet-front" src={`${assetPath}/wallet-front.png`} alt="" />
     </div>
   );
