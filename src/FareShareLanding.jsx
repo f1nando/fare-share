@@ -481,19 +481,27 @@ async function copyToClipboard(value) {
 
 export function FareShareLanding() {
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
-  const [caCopied, setCaCopied] = useState(false);
+  const [caCopyState, setCaCopyState] = useState('idle');
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
+  const copyReturnTimerRef = useRef(null);
 
-  useEffect(() => () => window.clearTimeout(copyResetTimerRef.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(copyResetTimerRef.current);
+    window.clearTimeout(copyReturnTimerRef.current);
+  }, []);
 
   const handleCopyCa = async () => {
     try {
       await copyToClipboard(TOKEN_CA);
-      setCaCopied(true);
+      setCaCopyState('copied');
       setCopyAnimationKey(key => key + 1);
       window.clearTimeout(copyResetTimerRef.current);
-      copyResetTimerRef.current = window.setTimeout(() => setCaCopied(false), 900);
+      window.clearTimeout(copyReturnTimerRef.current);
+      copyResetTimerRef.current = window.setTimeout(() => {
+        setCaCopyState('returning');
+        copyReturnTimerRef.current = window.setTimeout(() => setCaCopyState('idle'), 250);
+      }, 900);
     } catch (error) {
       console.error('Could not copy token CA', error);
     }
@@ -603,10 +611,10 @@ export function FareShareLanding() {
               <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
               <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
               <button
-                className={`fare-button fare-button-dark${caCopied ? ' is-copied' : ''}`}
+                className={`fare-button fare-button-dark${caCopyState === 'copied' ? ' is-copied' : ''}${caCopyState === 'returning' ? ' is-returning' : ''}`}
                 type="button"
                 onClick={handleCopyCa}
-                aria-label={caCopied ? 'CA copied' : 'Copy CA'}
+                aria-label={caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
               >
                 <span className="fare-token-symbol">$TAXI</span>
                 <span>0x7d91...af4f2</span>

@@ -107,6 +107,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-button-dark.is-copied .fare-copy-icon { animation: fare-copy-turn .35s ease-in-out; }
 .fare-button-dark.is-copied .fare-copy-glyph { animation: fare-copy-hide .35s ease-in-out forwards; }
 .fare-button-dark.is-copied .fare-copy-check { animation: fare-check-show .35s ease-in-out forwards; }
+.fare-button-dark.is-returning .fare-copy-glyph { animation: fare-copy-return .25s ease-out forwards; }
+.fare-button-dark.is-returning .fare-copy-check { animation: fare-check-hide .25s ease-out forwards; }
 .fare-round-arrow { display: grid; flex: 0 0 auto; width: 48px; height: 48px; place-items: center; margin-left: 14px; border-radius: 50%; font-size: 30px; font-weight: 500; line-height: 1; }
 .fare-round-arrow svg { display: block; }
 .fare-round-arrow-dark { color: #ffe11a; background: #111; }
@@ -123,6 +125,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @keyframes fare-check-show {
   0%, 49% { opacity: 0; }
   58%, 100% { opacity: 1; }
+}
+@keyframes fare-copy-return {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fare-check-hide {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .fare-how {
