@@ -134,12 +134,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-collect-asset { position: absolute; display: block; opacity: 1; animation: fare-collect-flight 4s linear infinite; pointer-events: none; will-change: transform; }
 .fare-collect-asset img { display: block; width: 100%; height: auto; transition: transform .14s ease-out; }
 .fare-collect-card { width: 36%; animation-duration: 7.6s; }
-.fare-collect-card-one { --start-x: 30px; --start-y: -215px; --start-rotate: 6deg; --flight-x: -5px; --flight-y: 144px; --flight-rotate: -3deg; top: 4px; left: 48%; animation-delay: -1.2s; }
+.fare-collect-card-one { --start-x: 15px; --start-y: -215px; --start-rotate: 6deg; --flight-x: -20px; --flight-y: 144px; --flight-rotate: -3deg; top: 4px; left: 44%; animation-delay: -1.2s; }
 .fare-collect-card-two { --start-x: -30px; --start-y: -150px; --start-rotate: -7deg; --flight-x: 15px; --flight-y: 145px; --flight-rotate: 3deg; top: -28px; left: 37%; width: 31%; animation-delay: -5s; }
 .fare-collect-coin { width: 34%; animation-duration: 3.2s; }
 .fare-collect-coin-one { --start-x: -80px; --start-y: -165px; --start-rotate: -7deg; --flight-x: 48px; --flight-y: 151px; --flight-rotate: 4deg; top: 4px; left: 17%; animation-delay: -1.3s; }
-.fare-collect-coin-two { --start-x: 30px; --start-y: -180px; --start-rotate: 6deg; --flight-x: -30px; --flight-y: 141px; --flight-rotate: -4deg; top: 8px; left: 54%; width: 35%; animation-delay: -2.1s; }
-.fare-collect-coin-three { --start-x: -35px; --start-y: -145px; --start-rotate: -5deg; --flight-x: 20px; --flight-y: 150px; --flight-rotate: 3deg; top: -15px; left: 44%; width: 30%; animation-delay: -2.8s; }
+.fare-collect-coin-two { --start-x: 15px; --start-y: -180px; --start-rotate: 6deg; --flight-x: -15px; --flight-y: 141px; --flight-rotate: -4deg; top: 8px; left: 48%; width: 35%; animation-delay: -2.1s; }
+.fare-collect-coin-three { --start-x: -35px; --start-y: -145px; --start-rotate: -5deg; --flight-x: 15px; --flight-y: 150px; --flight-rotate: 3deg; top: -15px; left: 40%; width: 30%; animation-delay: -2.8s; }
 .fare-collect-coin { cursor: pointer; pointer-events: auto; }
 .fare-collect-coin:hover img { transform: scale(1.08); }
 .fare-collect-coin:active img { transform: scale(1.16); }
