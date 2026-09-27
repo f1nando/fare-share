@@ -59,9 +59,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   transition: transform .15s ease, box-shadow .15s ease;
 }
 .fare-connect { min-width: 280px; height: 64px; padding: 0 26px 0 34px; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-size: 18px; letter-spacing: -.02em; }
-.fare-wallet-icon { position: relative; display: inline-block; width: 28px; height: 22px; margin-left: 22px; border: 3px solid #111; border-radius: 2px; }
-.fare-wallet-icon::before { content: ''; position: absolute; right: -5px; bottom: -6px; width: 12px; height: 3px; background: #111; }
-.fare-wallet-icon::after { content: ''; position: absolute; right: -1px; bottom: -10px; width: 3px; height: 12px; background: #111; }
+.fare-wallet-icon { display: block; flex: 0 0 auto; width: 28px; height: 26px; margin-left: 22px; }
 .fare-connect:hover, .fare-button:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #111; }
 
 .fare-hero {
