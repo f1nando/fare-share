@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 import { FareShareCityBackground } from './FareShareLanding.jsx';
 
@@ -25,6 +26,17 @@ const leaders = [
 ];
 
 export function LeaderboardPage() {
+  const currentDriverRef = useRef(null);
+  const [currentDriverVisible, setCurrentDriverVisible] = useState(true);
+
+  useEffect(() => {
+    const row = currentDriverRef.current;
+    if (!row) return undefined;
+    const observer = new IntersectionObserver(([entry]) => setCurrentDriverVisible(entry.isIntersecting), { threshold: .2 });
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="fare-page fare-leaderboard-page">
       <FareShareCityBackground />
@@ -42,9 +54,9 @@ export function LeaderboardPage() {
               <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>TOTAL EARNINGS</span>
             </div>
             {leaders.map(([driver, cars, earnings], index) => (
-              <div className="fare-leaderboard-row" key={driver}>
+              <div className={`fare-leaderboard-row${index === 0 ? ' is-current-driver' : ''}`} key={driver} ref={index === 0 ? currentDriverRef : undefined}>
                 <span>{index + 1}</span>
-                <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />{driver}</span>
+                <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" /><span className="fare-driver-name">{driver}{index === 0 && <strong className="fare-you-badge">YOU</strong>}</span></span>
                 <span>{cars} Cars</span>
                 <span>{earnings}</span>
               </div>
@@ -52,6 +64,13 @@ export function LeaderboardPage() {
           </div>
         </section>
       </main>
+
+      <div className={`fare-current-driver-dock${currentDriverVisible ? ' is-hidden' : ''}`} aria-hidden={currentDriverVisible}>
+        <span>1</span>
+        <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" decoding="async" /><span className="fare-driver-name">User_4312234<strong className="fare-you-badge">YOU</strong></span></span>
+        <span>12 Cars</span>
+        <span>24 430$</span>
+      </div>
 
       <FareFooter linkPrefix="/fare-share/" />
     </div>
