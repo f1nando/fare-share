@@ -35,7 +35,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
       <nav className="fare-nav" aria-label="Main navigation">
         <a className={activeItem === 'home' ? 'is-active' : undefined} href={`${linkPrefix}#top`}>HOME</a>
         <a href={`${linkPrefix}#dashboard`}>DASHBOARD</a>
-        <a href={`${linkPrefix}#taxis`}>MINT</a>
+        <a className={activeItem === 'mint' ? 'is-active' : undefined} href="/mint/">MINT</a>
         <a className={activeItem === 'garage' ? 'is-active' : undefined} href="/garage/">GARAGE</a>
         <a href={`${linkPrefix}#market`}>MARKET</a>
         <a href={`${linkPrefix}#trade`}>TRADE</a>
