@@ -3,9 +3,10 @@ import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
 import { fleetColumnCount, fleetRoadPlaybackRate } from './fleetWall.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
+import drivingScenes from './drivingScenes.json';
 
-const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
+const STATIC_DRIVING_SCENES = drivingScenes;
 const FLEET_CLASSES = {
   economy: { name: 'Economy', tone: 'economy' },
   comfort: { name: 'Comfort', tone: 'comfort' },
@@ -41,7 +42,7 @@ const FALLBACK_SCENE = {
     blinkOpacity: 100,
   },
 };
-const PORSCHE_STEP_SCENE = {
+const PORSCHE_STEP_SCENE = STATIC_DRIVING_SCENES.find(scene => scene.name === 'Porsche 911') || {
   imageUrl: '/fare-share/how-it-works/porsche-911.webp',
   settings: {
     markSpacing: 34.5,
@@ -129,7 +130,7 @@ function FleetSceneCard({ scene, fleetClass }) {
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
-  const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
+  const imageUrl = scene.imageUrl;
 
   return (
     <div
@@ -176,7 +177,7 @@ function FleetSceneCard({ scene, fleetClass }) {
 }
 
 function FareStepDrivingScene() {
-  const [scene, setScene] = useState(PORSCHE_STEP_SCENE);
+  const scene = PORSCHE_STEP_SCENE;
   const roadRef = useRef(null);
   const boundsRef = useRef(null);
   const rateFrameRef = useRef(0);
@@ -187,19 +188,7 @@ function FareStepDrivingScene() {
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
-  const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${API_BASE}/api/driving-scenes`, { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Scene library unavailable')))
-      .then((body) => {
-        const porsche = body.scenes?.find((item) => String(item.name).trim().toLowerCase() === 'porsche 911');
-        if (porsche) setScene(porsche);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
+  const imageUrl = scene.imageUrl;
 
   const animateRoadRate = (now) => {
     rateFrameRef.current = 0;
@@ -299,7 +288,7 @@ function FareStepCollectScene() {
 }
 
 function FleetCardBackground() {
-  const [scenes, setScenes] = useState([FALLBACK_SCENE]);
+  const scenes = STATIC_DRIVING_SCENES;
   const [columnCount, setColumnCount] = useState(() => fleetColumnCount(window.innerWidth));
   const wallRef = useRef(null);
   const wallVisibleRef = useRef(false);
@@ -308,17 +297,6 @@ function FleetCardBackground() {
   const proximityFrameRef = useRef(0);
   const rateFrameRef = useRef(0);
   const previousRateFrameRef = useRef(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${API_BASE}/api/driving-scenes`, { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Scene library unavailable')))
-      .then((body) => {
-        if (body.scenes?.length) setScenes(body.scenes);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
 
   const classesByScene = useMemo(() => new Map(
     scenes.map((scene) => [scene.id, getFleetClass(scene)]),
