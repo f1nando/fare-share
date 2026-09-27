@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
+import { fleetColumnCount, fleetRoadStrip } from './fleetWall.js';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
@@ -37,6 +38,17 @@ const FALLBACK_SCENE = {
     rightY: 60,
     blinkSize: 12,
     blinkOpacity: 100,
+  },
+};
+const PORSCHE_STEP_SCENE = {
+  imageUrl: '/fare-share/how-it-works/porsche-911.webp',
+  settings: {
+    markSpacing: 34.5,
+    pathAngle: -169,
+    markX: 50,
+    markY: 81,
+    markWidth: 29.5,
+    markAngleOffset: 167.5,
   },
 };
 
@@ -99,11 +111,13 @@ function createSceneSequence(scenes, count) {
 
 function FleetSceneCard({ scene, fleetClass }) {
   const [isHovered, setIsHovered] = useState(false);
+  const roadPatternId = `fleet-road-${useId().replaceAll(':', '')}`;
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
+  const roadStrip = fleetRoadStrip(settings);
 
   const blink = (event) => {
     event.currentTarget.querySelectorAll('.fare-fleet-headlight').forEach((light) => {
@@ -132,16 +146,26 @@ function FleetSceneCard({ scene, fleetClass }) {
         alt=""
       />
       <div className="fare-fleet-road" style={{
-        '--mark-width': `${settings.markWidth}%`,
-        '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
         '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
       }}>
-        {Array.from({ length: 15 }, (_, index) => {
-          const slot = index - 7;
-          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
-        })}
+        <svg className="fare-fleet-road-line" viewBox={`0 0 ${roadStrip.width} ${roadStrip.height}`} preserveAspectRatio="none" style={{
+          left: `${settings.markX}%`,
+          top: `${settings.markY}%`,
+          width: `${roadStrip.width}%`,
+          height: `${roadStrip.height}%`,
+          opacity: settings.markOpacity / 100,
+          transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
+        }} aria-hidden="true">
+          <defs>
+            <pattern id={roadPatternId} width={settings.markSpacing} height={roadStrip.height} patternUnits="userSpaceOnUse">
+              <image href="/driving-demo/mark.webp" width={settings.markWidth} height={roadStrip.height}
+                preserveAspectRatio="none" transform={`rotate(${settings.markAngleOffset} ${settings.markWidth / 2} ${roadStrip.height / 2})`} />
+            </pattern>
+          </defs>
+          <rect width={roadStrip.width} height={roadStrip.height} fill={`url(#${roadPatternId})`} />
+        </svg>
       </div>
       {isHovered && [
         ['left', settings.leftX, settings.leftY],
@@ -163,9 +187,38 @@ function FleetSceneCard({ scene, fleetClass }) {
   );
 }
 
+function FareStepDrivingScene() {
+  const settings = PORSCHE_STEP_SCENE.settings;
+  const radians = settings.pathAngle * Math.PI / 180;
+  const pathX = Math.cos(radians);
+  const pathY = Math.sin(radians);
+
+  return (
+    <div className="fare-step-media fare-step-driving" aria-hidden="true">
+      <img className="fare-step-driving-car" src={PORSCHE_STEP_SCENE.imageUrl} alt="" />
+      <div className="fare-fleet-road" style={{
+        '--mark-width': `${settings.markWidth}%`,
+        '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
+        '--road-travel-x': `${settings.markSpacing * pathX}%`,
+        '--road-travel-y': `${settings.markSpacing * pathY}%`,
+        '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
+      }}>
+        {Array.from({ length: 15 }, (_, index) => {
+          const slot = index - 7;
+          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FleetCardBackground() {
   const [scenes, setScenes] = useState([FALLBACK_SCENE]);
+  const [columnCount, setColumnCount] = useState(() => fleetColumnCount(window.innerWidth));
   const wallRef = useRef(null);
+  const wallVisibleRef = useRef(false);
+  const cardEntriesRef = useRef([]);
+  const boundsMeasuredAtRef = useRef(0);
   const proximityFrameRef = useRef(0);
   const rateFrameRef = useRef(0);
   const previousRateFrameRef = useRef(0);
@@ -192,6 +245,50 @@ function FleetCardBackground() {
     }));
     return { columnIndex, cards: [...cards, ...cards] };
   }), [classesByScene, scenes]);
+  const visibleColumns = useMemo(() => columns.slice(0, columnCount), [columnCount, columns]);
+
+  const collectCards = () => {
+    cardEntriesRef.current = [...(wallRef.current?.querySelectorAll('.fare-fleet-scene-card') ?? [])].map(card => ({
+      card,
+      road: card.querySelector('.fare-fleet-road'),
+      bounds: null,
+    }));
+    boundsMeasuredAtRef.current = 0;
+  };
+
+  const refreshCardBounds = (now = performance.now()) => {
+    for (const entry of cardEntriesRef.current) entry.bounds = entry.card.getBoundingClientRect();
+    boundsMeasuredAtRef.current = now;
+  };
+
+  useEffect(collectCards, [visibleColumns]);
+
+  useEffect(() => {
+    let frame = 0;
+    const resize = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => setColumnCount(fleetColumnCount(window.innerWidth)));
+    };
+    window.addEventListener('resize', resize);
+    return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(frame); };
+  }, []);
+
+  useEffect(() => {
+    const wall = wallRef.current;
+    const section = wall?.closest('.fare-fleet');
+    const observer = new IntersectionObserver(([entry]) => {
+      wallVisibleRef.current = entry.isIntersecting;
+      wall?.classList.toggle('is-paused', !entry.isIntersecting);
+      if (!entry.isIntersecting) {
+        cancelAnimationFrame(proximityFrameRef.current);
+        cancelAnimationFrame(rateFrameRef.current);
+        proximityFrameRef.current = 0;
+        rateFrameRef.current = 0;
+      } else collectCards();
+    });
+    if (section) observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => () => {
     cancelAnimationFrame(proximityFrameRef.current);
@@ -205,17 +302,18 @@ function FleetCardBackground() {
     const easing = 1 - Math.exp(-elapsed * 2.8);
     let needsAnotherFrame = false;
 
-    wallRef.current?.querySelectorAll('.fare-fleet-road').forEach((road) => {
+    for (const { road } of cardEntriesRef.current) {
+      if (!road) continue;
       const targetRate = Number(road.dataset.targetPlaybackRate || 1);
       const animations = road.getAnimations();
-      if (!animations.length) return;
+      if (!animations.length) continue;
       const currentRate = Number(road.dataset.currentPlaybackRate || animations[0].playbackRate || 1);
       const difference = targetRate - currentRate;
       const nextRate = Math.abs(difference) < .01 ? targetRate : currentRate + difference * easing;
       road.dataset.currentPlaybackRate = String(nextRate);
       animations.forEach((animation) => { animation.playbackRate = nextRate; });
       if (Math.abs(targetRate - nextRate) >= .01) needsAnotherFrame = true;
-    });
+    }
 
     previousRateFrameRef.current = now;
     if (needsAnotherFrame) rateFrameRef.current = requestAnimationFrame(animateRoadPlaybackRates);
@@ -230,10 +328,13 @@ function FleetCardBackground() {
   };
 
   const setRoadPlaybackRates = (clientX, clientY) => {
+    if (!wallVisibleRef.current) return;
     cancelAnimationFrame(proximityFrameRef.current);
     proximityFrameRef.current = requestAnimationFrame(() => {
-      wallRef.current?.querySelectorAll('.fare-fleet-scene-card').forEach((card) => {
-        const bounds = card.getBoundingClientRect();
+      const now = performance.now();
+      if (now - boundsMeasuredAtRef.current > 500) refreshCardBounds(now);
+      for (const { bounds, road } of cardEntriesRef.current) {
+        if (!bounds) continue;
         const distanceX = Math.max(bounds.left - clientX, 0, clientX - bounds.right);
         const distanceY = Math.max(bounds.top - clientY, 0, clientY - bounds.bottom);
         const distance = Math.hypot(distanceX, distanceY);
@@ -252,30 +353,30 @@ function FleetCardBackground() {
         }
         const smoothProximity = proximity ** 3 * (proximity * (proximity * 6 - 15) + 10);
         const playbackRate = 1 + smoothProximity * 9;
-        const road = card.querySelector('.fare-fleet-road');
         if (road) road.dataset.targetPlaybackRate = String(playbackRate);
-      });
+      }
       startRoadRateTransition();
     });
   };
 
   const resetRoadPlaybackRates = () => {
     cancelAnimationFrame(proximityFrameRef.current);
-    wallRef.current?.querySelectorAll('.fare-fleet-road').forEach((road) => {
+    for (const { road } of cardEntriesRef.current) if (road) {
       road.dataset.targetPlaybackRate = '1';
-    });
+    }
     startRoadRateTransition();
   };
 
   return (
     <div
-      className="fare-fleet-card-wall"
+      className="fare-fleet-card-wall is-paused"
       ref={wallRef}
       aria-hidden="true"
       onPointerMove={(event) => setRoadPlaybackRates(event.clientX, event.clientY)}
+      onPointerEnter={() => refreshCardBounds()}
       onPointerLeave={resetRoadPlaybackRates}
     >
-      {columns.map(({ columnIndex, cards }) => (
+      {visibleColumns.map(({ columnIndex, cards }) => (
         <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
           <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
             {cards.map(({ scene, fleetClass }, cardIndex) => <FleetSceneCard scene={scene} fleetClass={fleetClass} key={`${scene.id}-${cardIndex}`} />)}
@@ -325,8 +426,7 @@ export function FareShareLanding() {
       number: '2',
       title: 'RUN A SHIFT',
       text: 'Send ready cars to work with one clear action.',
-      video: '/fare-share/how-it-works/run-a-shift.mp4',
-      poster: '/fare-share/how-it-works/run-a-shift.png',
+      drivingScene: true,
     },
     {
       number: '3',
@@ -446,6 +546,8 @@ export function FareShareLanding() {
                     onPointerLeave={(event) => event.currentTarget.getAnimations().forEach((animation) => { animation.playbackRate = 1; })}
                     aria-hidden="true"
                   />
+                : step.drivingScene
+                  ? <FareStepDrivingScene />
                 : <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />}
               <h3>{step.title}</h3>
               <p>{step.text}</p>

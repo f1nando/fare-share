@@ -120,8 +120,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-media { display: block; width: 100%; height: 429px; border-radius: 22px; object-fit: cover; }
 .fare-step-media[hidden] { display: none; }
 .fare-step-sprite { background-repeat: no-repeat; background-position: 0 0; background-size: 400% 400%; animation: fare-step-sprite-frames 4.8s steps(1, end) infinite; }
+.fare-step-driving { position: relative; overflow: hidden; isolation: isolate; }
+.fare-step-driving-car { position: absolute; z-index: 0; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.fare-step-driving .fare-fleet-road { z-index: 1; }
 .fare-step-card:nth-child(3) > .fare-step-media { transform: scale(1.06); }
-.fare-step-number { position: absolute; z-index: 1; top: 23px; left: 23px; display: grid; width: 54px; height: 54px; place-items: center; border: 2px solid #111; border-radius: 50%; color: #fff; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 37px; font-weight: 400; line-height: 1; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
+.fare-step-number { position: absolute; z-index: 3; top: 23px; left: 23px; display: grid; width: 54px; height: 54px; place-items: center; border: 2px solid #111; border-radius: 50%; color: #fff; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 37px; font-weight: 400; line-height: 1; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-step-card h3 { margin: 24px 0 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 39px; font-weight: 400; line-height: .8; letter-spacing: -.02em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-step-card p { max-width: 391px; margin: 15px 0 0; font-size: 17px; font-weight: 500; line-height: 17px; }
 .fare-how-button { margin-top: 48px; }
@@ -165,8 +168,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-class.is-business { border-color: #fff; color: #fff; background: #111; }
 .fare-fleet-class.is-legend { border-color: #111; color: #111; background: #ffe72f; }
 .fare-fleet-car { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
-.fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; will-change: transform; }
-.fare-fleet-road img { position: absolute; width: var(--mark-width); height: auto; opacity: 1; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; }
+.fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; }
+.fare-fleet-road-line { position: absolute; display: block; overflow: visible; transform-origin: center; }
 .fare-fleet-headlight { position: absolute; z-index: 3; height: auto; opacity: 0; transform: translate(-50%, -50%); pointer-events: none; }
 .fare-fleet-heading { position: relative; z-index: 2; display: grid; grid-template-columns: 964px 1fr; align-items: flex-start; }
 .fare-fleet-heading h2 { margin: 0; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.055em; text-shadow: 7px 8px 0 #000; }
@@ -177,6 +180,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @keyframes fare-fleet-column-down { from { transform: translateY(calc(-50% - var(--card-half-gap))); } to { transform: translateY(0); } }
 @keyframes fare-fleet-road-motion { from { transform: translate(0, 0); } to { transform: translate(var(--road-travel-x), var(--road-travel-y)); } }
 @keyframes fare-fleet-wall-slide { from { transform: translateX(8vw); } to { transform: translateX(-8vw); } }
+
+.fare-fleet-card-wall.is-paused, .fare-fleet-card-wall.is-paused .fare-fleet-card-track, .fare-fleet-card-wall.is-paused .fare-fleet-road { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
   .fare-step-sprite, .fare-fleet-card-wall, .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
@@ -266,17 +271,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 @media (max-width: 1500px) {
   .fare-fleet-card-wall { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .fare-fleet-card-column:nth-child(n + 7) { display: none; }
 }
 
 @media (max-width: 1200px) {
   .fare-fleet-card-wall { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .fare-fleet-card-column:nth-child(n + 6) { display: none; }
 }
 
 @media (max-width: 900px) {
   .fare-fleet-card-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .fare-fleet-card-column:nth-child(n + 5) { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -302,7 +304,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet { height: 760px; padding: 96px 20px 0; }
   .fare-fleet-card-wall { inset: -100px -56px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; opacity: .9; }
   .fare-fleet-card-track { --card-half-gap: 5px; gap: 10px; }
-  .fare-fleet-card-column:nth-child(n + 4) { display: none; }
   .fare-fleet-scene-card { border-radius: 10px; }
   .fare-fleet-heading { display: block; }
   .fare-fleet-heading h2 { font-size: 42px; }
@@ -313,5 +314,4 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 @media (max-width: 420px) {
   .fare-fleet-card-wall { right: -44px; left: -44px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fare-fleet-card-column:nth-child(n + 3) { display: none; }
 }
