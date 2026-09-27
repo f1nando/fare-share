@@ -41,7 +41,7 @@ body { overflow-x: hidden; }
 button { font: inherit; cursor: pointer; }
 button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offset: 4px; }
 
-.fare-page { position: relative; min-height: 100%; background: transparent; isolation: isolate; }
+.fare-page { position: relative; min-height: 100%; background: transparent; isolation: isolate; zoom: .75; }
 .fare-city-background { position: fixed; z-index: 0; inset: 0; overflow: hidden; background: #dedede; pointer-events: none; }
 .fare-city-canvas { position: absolute; inset: 0; }
 .fare-city-canvas canvas { display: block; width: 100%; height: 100%; }
