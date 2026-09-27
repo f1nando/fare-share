@@ -161,6 +161,19 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-driver-cell { display: flex; align-items: center; gap: 20px; }
 .fare-driver-cell img { display: block; width: 64px; height: 64px; border: 1px solid #111; border-radius: 50%; object-fit: cover; }
 
+.fare-faq {
+  height: 1045px;
+  padding: 100px max(24px, calc((100vw - 1720px) / 2)) 0;
+  border-radius: 0 0 72px 72px;
+  color: #111;
+  background: #fff;
+}
+.fare-faq h2 { height: 112px; margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 130px; font-weight: 400; line-height: .8; text-align: center; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
+.fare-faq-list { display: grid; gap: 24px; margin-top: 66px; }
+.fare-faq-item { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 110px; padding: 0 17px 0 32px; border: 1px solid #111; border-radius: 38px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111, 0 15px 24px rgb(0 0 0 / 12%); font-size: 29px; font-weight: 900; line-height: 1; letter-spacing: -.02em; text-align: left; }
+.fare-faq-item i { position: relative; display: block; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #000; }
+.fare-faq-item i::after { content: ''; position: absolute; top: 15px; left: 14px; width: 12px; height: 12px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg); }
+
 @media (max-width: 1000px) {
   .fare-nav { display: none; }
   .fare-header-actions { margin-left: auto; }

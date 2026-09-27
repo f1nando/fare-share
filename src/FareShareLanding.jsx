@@ -45,6 +45,14 @@ export function FareShareLanding() {
     ['5', '24 430$'],
   ];
 
+  const faqItems = [
+    'HOW DO IT EARN FROM MY CARS?',
+    'WHAT ARE THE FEES?',
+    'CAN I SELL MY CARS?',
+    'IS THIS A REAL PRODUCT?',
+    'WHERE CAN I READ THE FULL DOCS',
+  ];
+
   return (
     <div className="fare-page">
       <header className="fare-header">
@@ -163,6 +171,16 @@ export function FareShareLanding() {
               <span>12 Cars</span>
               <span>{earnings}</span>
             </div>)}
+          </div>
+        </section>
+
+        <section className="fare-faq" id="faq" aria-labelledby="fare-faq-title">
+          <h2 id="fare-faq-title">FAQ</h2>
+          <div className="fare-faq-list">
+            {faqItems.map(item => <button className="fare-faq-item" type="button" aria-expanded="false" key={item}>
+              <span>{item}</span>
+              <i aria-hidden="true" />
+            </button>)}
           </div>
         </section>
       </main>
