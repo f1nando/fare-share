@@ -44,6 +44,7 @@ export function loadServerConfig() {
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
     trustProxy: process.env.TRUST_PROXY === 'true',
     jupiterApiKey: optional('JUPITER_API_KEY'),
+    sceneAdminToken: optional('SCENE_ADMIN_TOKEN'),
     swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 1_000_000, 1)),
     swapSlippageBps: boundedInteger('SWAP_SLIPPAGE_BPS', 500, 1, 10_000),
     swapPlanTtlSeconds: integer('SWAP_PLAN_TTL_SECONDS', 600, 30),
