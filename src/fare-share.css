@@ -29,12 +29,9 @@
   color: #111;
   background: #dedede;
   font-synthesis: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
 }
 * { box-sizing: border-box; }
-img { user-select: none; -webkit-user-drag: none; }
+img { -webkit-user-drag: none; }
 html { scroll-behavior: smooth; }
 html, body, #root { width: 100%; min-height: 100%; margin: 0; }
 body { overflow-x: hidden; }
