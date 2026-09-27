@@ -500,6 +500,13 @@ function DrivingDemo() {
             <div className="scene-library-actions">
               <label className="upload-button">＋ Загрузить<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadScene} /></label>
               <button className="save-scene" type="button" onClick={saveScene}>Сохранить</button>
+              <button
+                className={`spacing-preview-action ${compactSpacingPreview ? 'active' : ''}`}
+                type="button"
+                aria-pressed={compactSpacingPreview}
+                title="Временно установить расстояние между центрами 15% и положение Y 77%"
+                onClick={() => setCompactSpacingPreview((value) => !value)}
+              >15% / Y 77%</button>
               <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Удалить</button>
             </div>
             <div className="settings-transfer">
@@ -545,16 +552,6 @@ function DrivingDemo() {
             <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
             <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
             <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
-            <button
-              className={`lights-toggle spacing-preview-toggle ${compactSpacingPreview ? 'active' : ''}`}
-              type="button"
-              role="switch"
-              aria-checked={compactSpacingPreview}
-              onClick={() => setCompactSpacingPreview((value) => !value)}
-            >
-              <span><i />Временно: центры 15%, Y 77%</span>
-              <b>{compactSpacingPreview ? 'Включено' : 'Выключено'}</b>
-            </button>
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Доп. поворот элементов" value={settings.markAngleOffset} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngleOffset')} />
             <div className="angle-stepper" aria-label="Скорректировать поворот элементов">
