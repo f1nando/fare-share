@@ -30,12 +30,17 @@ export function FareShareLanding() {
       <main id="top">
         <section className="fare-hero" aria-labelledby="fare-hero-title">
           <div className="fare-hero-copy">
-            <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>RETURNS.</span></h1>
-            <p>Buy NFT taxis and earn a share of real fleet revenue in FARE and tokenized stocks.</p>
+            <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
+            <p>Put your taxis to work and collect park fees in<br />stock tokens.</p>
             <div className="fare-hero-actions">
-              <a className="fare-button fare-button-primary" href="#taxis">BUY TAXI <span aria-hidden="true">✦</span></a>
-              <a className="fare-button fare-button-light" href="#how-it-works">LEARN MORE</a>
-              <a className="fare-button fare-button-dark" href="#game">PLAY TAXI GAME <span aria-hidden="true">↗</span></a>
+              <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true">↗</span></a>
+              <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
+              <a className="fare-button fare-button-dark" href="#token">
+                <span className="fare-token-symbol">$TAXI</span>
+                <span>0x7d91...af4f2</span>
+                <span className="fare-copy-icon" aria-hidden="true" />
+                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true">↗</span>
+              </a>
             </div>
           </div>
         </section>
