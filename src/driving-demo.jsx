@@ -510,7 +510,10 @@ function DrivingDemo() {
               <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Удалить</button>
             </div>
             <div className="settings-transfer">
-              <button type="button" onClick={() => applySettingsBundle(m3Reference, 'Эталон M3 применён. Нажмите «Сохранить» для записи в MongoDB.')}>Применить эталон M3</button>
+              <button type="button" onClick={() => applySettingsBundle(
+                { ...m3Reference, lightsOn: true },
+                'Эталон M3 применён, фары включены для проверки. Нажмите «Сохранить» для записи в MongoDB.',
+              )}>Применить эталон M3</button>
               <button type="button" onClick={saveM3Reference}>Обновить эталон M3</button>
               <button type="button" onClick={exportSettings}>Экспорт JSON</button>
               <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
