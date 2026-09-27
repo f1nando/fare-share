@@ -670,7 +670,7 @@ export function FareShareLanding() {
           <div className="container fare-fleet-container">
           <div className="fare-fleet-heading">
             <h2 id="fare-fleet-title">FOUR CARS. ONE RULE.</h2>
-            <p>Better classes receive a larger earning share. No twelve-stat<br />RPG spreadsheet.</p>
+            <p className="fare-hero-intro">Better classes receive a larger earning share. No twelve-stat RPG spreadsheet.</p>
           </div>
 
           <a className="fare-button fare-button-primary fare-fleet-button" href="#garage">
