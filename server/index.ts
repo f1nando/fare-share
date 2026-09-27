@@ -10,7 +10,7 @@ const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
 const issueVoucher = createVoucherService(config, database);
 
 const server = createServer(async (request, response) => {
-  setCors(response);
+  setCors(request, response);
   if (request.method === 'OPTIONS') {
     response.writeHead(204).end();
     return;
@@ -117,8 +117,10 @@ async function readJson(request: IncomingMessage, maximumSize = 16_384): Promise
   catch { throw new VoucherError('Invalid JSON.', 400); }
 }
 
-function setCors(response: ServerResponse) {
-  response.setHeader('access-control-allow-origin', config.allowedOrigin);
+function setCors(request: IncomingMessage, response: ServerResponse) {
+  const origin = request.headers.origin;
+  const localOrigin = typeof origin === 'string' && /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin);
+  response.setHeader('access-control-allow-origin', localOrigin ? origin : config.allowedOrigin);
   response.setHeader('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
   response.setHeader('access-control-allow-headers', 'content-type');
   response.setHeader('vary', 'origin');
