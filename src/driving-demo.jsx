@@ -10,7 +10,6 @@ const DEFAULTS = {
   markY: 84,
   markWidth: 17,
   markAngle: 0,
-  markStagger: 0,
   markOpacity: 100,
   leftX: 65,
   leftY: 59,
@@ -104,7 +103,7 @@ function loadStoredState() {
     }
     if (stored.version !== SETTINGS_VERSION) {
       const pixelsToPercent = (value) => Math.round(value / SOURCE_IMAGE_SIZE * 10000) / 100;
-      for (const key of ['markSpeed', 'markSpacing', 'markWidth', 'markStagger']) {
+      for (const key of ['markSpeed', 'markSpacing', 'markWidth']) {
         if (Number.isFinite(source[key])) source[key] = pixelsToPercent(source[key]);
       }
     }
@@ -373,8 +372,7 @@ function DrivingDemo() {
         const spacing = settings.markSpacing;
         const easing = 1 - Math.exp(-elapsed * 6);
         currentSpeedRef.current += (targetSpeedRef.current - currentSpeedRef.current) * easing;
-        // Two slots keep the alternating lateral offset seamless at the loop boundary.
-        offsetRef.current = (offsetRef.current + elapsed * currentSpeedRef.current) % (spacing * 2);
+        offsetRef.current = (offsetRef.current + elapsed * currentSpeedRef.current) % spacing;
         const radians = settings.pathAngle * Math.PI / 180;
         const travel = offsetRef.current;
         marksRef.current.style.setProperty('--travel-x', `${travel * Math.cos(radians)}%`);
@@ -429,8 +427,6 @@ function DrivingDemo() {
   const pathRadians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(pathRadians);
   const pathY = Math.sin(pathRadians);
-  const normalX = -pathY;
-  const normalY = pathX;
   const spacing = settings.markSpacing;
   return (
     <main className="driving-demo">
@@ -456,9 +452,8 @@ function DrivingDemo() {
             <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
               {Array.from({ length: 32 }, (_, index) => {
                 const slot = index - 16;
-                const stagger = (index % 2 ? 1 : -1) * settings.markStagger / 2;
-                const x = slot * spacing * pathX + stagger * normalX;
-                const y = slot * spacing * pathY + stagger * normalY;
+                const x = slot * spacing * pathX;
+                const y = slot * spacing * pathY;
                 return <img key={index} src="/driving-demo/mark.png" style={{ left: `${settings.markX + x}%`, top: `${settings.markY + y}%` }} alt="" />;
               })}
             </div>
@@ -555,7 +550,6 @@ function DrivingDemo() {
             <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Поворот элементов" value={settings.markAngle} min={-180} max={180} unit="°" onChange={update('markAngle')} />
-            <Range label="Сдвиг соседних" value={settings.markStagger} min={-20} max={20} step={0.5} unit="%" onChange={update('markStagger')} />
           </fieldset>
 
           <fieldset>
