@@ -163,8 +163,8 @@ function FinePositionButtons({ value, onChange }) {
   const adjust = (delta) => onChange(Math.max(0, Math.min(100, Math.round((value + delta) * 10) / 10)));
   return (
     <div className="position-stepper">
-      <button type="button" onClick={() => adjust(-0.1)}>−0.1</button>
-      <button type="button" onClick={() => adjust(0.1)}>+0.1</button>
+      <button type="button" onClick={() => adjust(-0.4)}>−0.4</button>
+      <button type="button" onClick={() => adjust(0.4)}>+0.4</button>
     </div>
   );
 }
