@@ -44,7 +44,7 @@
 .ui-table-type > p { height: 78px; font-size: 22px; font-weight: 600; }
 .ui-table-type strong { text-align: right; }
 .ui-faq-type strong { display: block; font-size: 29px; font-weight: 900; }
-.ui-faq-type p { margin: 16px 0 0; color: #555; font-size: 18px; font-weight: 500; line-height: 24px; }
+.ui-faq-type p { margin: 16px 0 0; color: #555; font-size: 20px; font-weight: 500; line-height: 28px; }
 .ui-footer-type { display: flex; align-items: flex-start; flex-direction: column; }
 .ui-footer-type strong { color: #d9bd00; font-size: 26px; }
 .ui-footer-type a { margin-top: 18px; color: #777; font-size: 26px; text-decoration: none; }

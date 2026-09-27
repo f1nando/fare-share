@@ -109,7 +109,7 @@ export function UIKitPage() {
             <Specimen name="Leaderboard row" meta="Header 18px · row 22px">
               <div className="ui-table-type"><div><span>#</span><span>DRIVER</span><span>TOTAL EARNINGS</span></div><p><span>1</span><span>User_4312234</span><strong>24 430$</strong></p></div>
             </Specimen>
-            <Specimen name="FAQ copy" meta="Question 29px · answer 18px / 24px">
+            <Specimen name="FAQ copy" meta="Question 29px · answer 20px / 28px">
               <div className="ui-faq-type"><strong>WHAT ARE THE FEES?</strong><p>Every charge is shown before you confirm an action.</p></div>
             </Specimen>
             <Specimen name="Footer copy" meta="Heading 26px · link 26px · body 21px">

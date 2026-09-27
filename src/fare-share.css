@@ -316,7 +316,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-faq-item svg { display: block; flex: 0 0 auto; width: 44px; height: 44px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
 .fare-faq-entry.is-open .fare-faq-item svg { transform: rotate(180deg); }
 .fare-faq-answer { display: none; }
-.fare-faq-answer p { margin: 0; padding: 0 88px 28px 31px; color: #555; font-size: 18px; font-weight: 500; line-height: 24px; }
+.fare-faq-answer p { margin: 0; padding: 0 88px 28px 31px; color: #555; font-size: 20px; font-weight: 500; line-height: 28px; }
 .fare-faq-entry.is-open .fare-faq-answer { display: block; }
 .fare-faq-entry.is-open .fare-faq-answer p { animation: fare-faq-answer-in .22s cubic-bezier(.22, 1, .36, 1); }
 
