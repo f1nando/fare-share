@@ -127,36 +127,64 @@ export function TaxiDashboard({ simple = false, background = null }) {
   }
 
   return (
-    <div className={`taxi-app${simple ? ' is-test-panel' : ''}`}>
+    <div className={`taxi-app${simple ? ' is-test-panel' : ' is-landing'}`}>
       {!simple && background}
       {!simple && <div className="taxi-shade" />}
-      <header className="taxi-header">
-        <a className="taxi-brand" href="#top" aria-label="FARE Taxi Park">
-          <span className="brand-mark">F</span>
-          <span>FARE <small>TAXI PARK</small></span>
-        </a>
-        <div className="header-actions">
-          <span className={`network-pill ${status.deployed ? 'online' : ''}${protocolPaused ? ' paused' : ''}`}>
-            <i /> {status.loading ? 'checking network' : protocolPaused ? `${status.network} · paused` : status.deployed ? status.network : `demo · ${status.network}`}
-          </span>
-          <button className="wallet-button" onClick={handleConnect}>
-            {wallet ? shortAddress(wallet.account.address) : 'Connect Phantom'}
-          </button>
-        </div>
-      </header>
+      {simple ? <header className="taxi-header">
+          <a className="taxi-brand" href="#top" aria-label="FARE Taxi Park">
+            <span className="brand-mark">F</span>
+            <span>FARE <small>TAXI PARK</small></span>
+          </a>
+          <div className="header-actions">
+            <span className={`network-pill ${status.deployed ? 'online' : ''}${protocolPaused ? ' paused' : ''}`}>
+              <i /> {status.loading ? 'checking network' : protocolPaused ? `${status.network} · paused` : status.deployed ? status.network : `demo · ${status.network}`}
+            </span>
+            <button className="wallet-button" onClick={handleConnect}>
+              {wallet ? shortAddress(wallet.account.address) : 'Connect Phantom'}
+            </button>
+          </div>
+        </header> : <header className="landing-header">
+          <a className="landing-brand" href="#top" aria-label="Fare Share home">
+            <span className="landing-brand-mark" aria-hidden="true"><b>F</b></span>
+            <span>FARE SHARE</span>
+          </a>
+          <nav className="landing-nav" aria-label="Main navigation">
+            <a href="#garage-title">MY GARAGE</a>
+            <a href="#taxis">TAXIS</a>
+            <a href="#how-it-works">HOW IT WORKS</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+          <div className="landing-actions">
+            <a className="social-link" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X">𝕏</a>
+            <button className="connect-button" onClick={handleConnect}>
+              {wallet ? shortAddress(wallet.account.address) : 'CONNECT WALLET'} <span aria-hidden="true">▣</span>
+            </button>
+          </div>
+        </header>}
 
       <main className="taxi-content" id="top">
-        <section className="hero-card">
-          <p className="eyebrow">{simple ? 'Devnet functional test' : 'Revenue without promised APY'}</p>
-          <h1>{simple ? <>FARE Taxi Park<br /><span>Test panel</span></> : <>Your taxi fleet pays<br /><span>FARE and stocks</span></>}</h1>
-          <p className="hero-copy">{simple ? 'Use this page to test wallet connection, minting, rewards, repair and trainee flows without loading the 3D city.' : 'The fleet distributes only fees it actually earns. No trading volume means no rewards.'}</p>
-          {protocolPaused && <p className="protocol-paused" role="alert">Protocol paused — mint, claim, repair and trainee actions are temporarily disabled.</p>}
-          <div className="pool-strip">
-            <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
-            <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
-            <div><small>Rewards calculated through</small><strong>{status.deployed ? formatProtocolTime(status.pool.effectiveCalculatedUntil) : '—'}</strong></div>
-          </div>
-        </section>
+        {simple ? <section className="hero-card">
+            <p className="eyebrow">Devnet functional test</p>
+            <h1>FARE Taxi Park<br /><span>Test panel</span></h1>
+            <p className="hero-copy">Use this page to test wallet connection, minting, rewards, repair and trainee flows without loading the 3D city.</p>
+            {protocolPaused && <p className="protocol-paused" role="alert">Protocol paused — mint, claim, repair and trainee actions are temporarily disabled.</p>}
+            <div className="pool-strip">
+              <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
+              <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
+              <div><small>Rewards calculated through</small><strong>{status.deployed ? formatProtocolTime(status.pool.effectiveCalculatedUntil) : '—'}</strong></div>
+            </div>
+          </section> : <section className="fare-hero" aria-labelledby="fare-hero-title">
+            <div className="fare-hero-copy">
+              <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>RETURNS.</span></h1>
+              <p>Buy NFT taxis and earn a share of real fleet revenue in FARE and tokenized stocks.</p>
+              {protocolPaused && <p className="protocol-paused" role="alert">Protocol paused — transactions are temporarily disabled.</p>}
+              <div className="fare-hero-actions">
+                <a className="hero-button hero-button-primary" href="#taxis">BUY TAXI <span aria-hidden="true">✦</span></a>
+                <a className="hero-button hero-button-light" href="#how-it-works">LEARN MORE</a>
+                <a className="hero-button hero-button-dark" href="/driving-demo.html">PLAY TAXI GAME <span aria-hidden="true">↗</span></a>
+              </div>
+            </div>
+          </section>}
 
         <section className="panel" aria-labelledby="garage-title">
           <div className="section-title">
@@ -196,7 +224,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <p className="demo-note">{status.deployed ? 'Data is read from finalized Solana accounts.' : 'Demo data will disappear when the deployed Solana program is connected.'}</p>
         </section>
 
-        <section className="panel trainee-panel" aria-labelledby="trainee-title">
+        <section className="panel trainee-panel" id="how-it-works" aria-labelledby="trainee-title">
           <div className="section-title">
             <div><p className="eyebrow">Free trial</p><h2 id="trainee-title">Trainee car</h2></div>
           </div>
@@ -222,7 +250,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           </div>}
         </section>
 
-        <section className="panel mint-panel" aria-labelledby="mint-title">
+        <section className="panel mint-panel" id="taxis" aria-labelledby="mint-title">
           <div className="section-title"><div><p className="eyebrow">1,425 cars</p><h2 id="mint-title">Choose a class</h2></div></div>
           {simple && <p className="mint-cost-note">Phantom will show the NFT price plus approximately 0.0045 SOL for the personal Metaplex Core asset and Machine account rent. This is account creation cost, not network gas. The shared Devnet event page has already been prepaid by the deployer.</p>}
           <div className="class-grid">
@@ -246,7 +274,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           </div>
         </section>
 
-        <p className="jurisdiction-notice">
+        <p className="jurisdiction-notice" id="faq">
           Users in jurisdictions where xStocks are prohibited must not use the project's stock features.
           By connecting a wallet, you confirm that you are legally allowed to use the product in your country.
         </p>
