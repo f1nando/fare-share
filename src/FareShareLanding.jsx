@@ -6,6 +6,14 @@ function GetStartedArrow({ color = '#FFE72F' }) {
   );
 }
 
+function XIcon() {
+  return (
+    <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M18.9 0H22.581L14.541 9.3189L24 22H16.5945L10.794 14.3076L4.1565 22H0.474L9.0735 12.0317L0 0H7.5945L12.837 7.02938L18.9 0ZM17.61 19.7666H19.65L6.4845 2.11655H4.2975L17.61 19.7666Z" fill="#101010" />
+    </svg>
+  );
+}
+
 export function FareShareLanding() {
   const steps = [
     {
@@ -75,9 +83,7 @@ export function FareShareLanding() {
 
         <div className="fare-header-actions">
           <a className="fare-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X">
-            <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M18.9 0H22.581L14.541 9.3189L24 22H16.5945L10.794 14.3076L4.1565 22H0.474L9.0735 12.0317L0 0H7.5945L12.837 7.02938L18.9 0ZM17.61 19.7666H19.65L6.4845 2.11655H4.2975L17.61 19.7666Z" fill="#101010" />
-            </svg>
+            <XIcon />
           </a>
           <button className="fare-connect" type="button">
             Connect Wallet
@@ -184,6 +190,46 @@ export function FareShareLanding() {
           </div>
         </section>
       </main>
+
+      <footer className="fare-footer">
+        <div className="fare-footer-watermark" aria-hidden="true">FARE SHARE</div>
+        <div className="fare-footer-inner">
+          <div className="fare-footer-about">
+            <div className="fare-footer-brand">
+              <img src="/brand/fare-driver.png" alt="" />
+              <strong>FARE SHARE</strong>
+              <span>$NFT</span>
+            </div>
+            <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
+            <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
+            <a className="fare-footer-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
+            <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
+          </div>
+
+          <nav className="fare-footer-column" aria-label="Footer navigation">
+            <h2>NAVIGATION</h2>
+            <a href="#top">Home</a>
+            <a href="#taxis">Fleet</a>
+            <a href="#garage">Garage</a>
+            <a href="#shift">Shift</a>
+          </nav>
+
+          <nav className="fare-footer-column" aria-label="Resources">
+            <h2>RESOURCES</h2>
+            <a href="#how-it-works">How it Works</a>
+            <a href="#dashboard">Treasury</a>
+            <a href="#docs">Docs</a>
+            <a href="#faq">FAQ</a>
+          </nav>
+
+          <nav className="fare-footer-column" aria-label="Legal">
+            <h2>LEGAL</h2>
+            <a href="#terms">Terms</a>
+            <a href="#privacy">Privacy</a>
+            <a href="#disclaimer">Disclaimer</a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
