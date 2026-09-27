@@ -86,7 +86,7 @@ export function UIKitPage() {
             <div><h2 id="component-text-title">COMPONENT TEXT</h2><p>Every text treatment used inside product components.</p></div>
           </div>
           <div className="ui-component-type-grid">
-            <Specimen name="Step card" meta="Number 37px · title 39px · body 17px">
+            <Specimen name="Step card" meta="Number 37px · title 39px · body 19px / 21px">
               <div className="fare-step-card ui-step-type-card">
                 <span className="fare-step-number">1</span>
                 <h3>GET A CAR</h3>
