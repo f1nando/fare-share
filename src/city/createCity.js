@@ -39,6 +39,7 @@ import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './di
 import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
+import { AdaptiveQuality, QUALITY_PROFILES, scaledDensity } from './adaptiveQuality.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -226,13 +227,14 @@ export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, h
 
 export function createCity(container, initialSettings, benchmark = null) {
   let settings = normalizeSettings(initialSettings);
+  let qualityProfile = QUALITY_PROFILES.high;
   let BLOCK = settings.blockSize;
   let rebuildTimer;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR_SCHEMES[settings.colorScheme].background);
   const backgroundFade = createBackgroundFade(settings.colorScheme);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(benchmark?.pixelRatio ?? Math.min(window.devicePixelRatio, 1.6));
+  renderer.setPixelRatio(benchmark?.pixelRatio ?? Math.min(window.devicePixelRatio, qualityProfile.pixelRatio));
   renderer.shadowMap.enabled = benchmark?.shadows ?? true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -297,6 +299,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   sunlight.shadow.bias = -0.00015;
   sunlight.shadow.radius = 3;
   scene.add(sunlight, sunlight.target);
+  renderer.domElement.dataset.quality = qualityProfile.name;
 
   const camera = new THREE.OrthographicCamera(-80, 80, 45, -45, 1, 400);
   const cameraOffset = new THREE.Vector3(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
@@ -331,7 +334,8 @@ export function createCity(container, initialSettings, benchmark = null) {
     vehicle.x = x; vehicle.y = y; vehicle.z = z; vehicle.key = key; vehicle.type = type;
     clickableVehicles.push(vehicle);
   };
-  const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
+  const effectiveSettings = () => ({ ...settings, blockSize: BLOCK, density: scaledDensity(settings.density, qualityProfile) });
+  const workerConfig = () => ({ settings: effectiveSettings(), area,
     focus: { x: originX + focus.x, z: originZ + focus.z }, lightTime: time,
     seed: benchmark?.seed ?? 0, simulationHz: benchmark?.simulationHz === 60 ? 60 : 30,
     simulate: benchmark?.simulate !== false });
@@ -341,8 +345,35 @@ export function createCity(container, initialSettings, benchmark = null) {
     simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
   };
 
+  function restartPopulation() {
+    lanes.clear(); previousPoses = new WeakMap(); simulationClock.reset(); renderAlpha = 1;
+    lastCellX = NaN; workerFrame = null;
+    worker?.restart(workerConfig());
+  }
+
+  function applyQuality(profile) {
+    if (profile === qualityProfile) return;
+    const densityChanged = profile.densityScale !== qualityProfile.densityScale;
+    qualityProfile = profile;
+    renderer.domElement.dataset.quality = profile.name;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, profile.pixelRatio));
+    renderer.shadowMap.enabled = profile.shadows;
+    sunlight.castShadow = profile.shadows;
+    if (profile.shadows && sunlight.shadow.mapSize.x !== profile.shadowMapSize) {
+      sunlight.shadow.mapSize.set(profile.shadowMapSize, profile.shadowMapSize);
+      sunlight.shadow.map?.dispose(); sunlight.shadow.map = null;
+    }
+    renderer.shadowMap.needsUpdate = profile.shadows;
+    resize();
+    if (densityChanged) restartPopulation();
+  }
+
+  // Benchmarks keep explicit graphics settings so before/after runs remain
+  // comparable. The live scene selects quality from measured frame cadence.
+  const adaptiveQuality = benchmark ? null : new AdaptiveQuality(applyQuality);
+
   function rebuild() {
-    const layoutSettings = { ...settings, blockSize: BLOCK };
+    const layoutSettings = effectiveSettings();
     if (groundBlock !== BLOCK || groundColumn !== worldX) {
       ground.geometry.dispose();
       ground.geometry = createCanalGround(BLOCK, worldX);
@@ -545,6 +576,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const renderStart = benchmark ? performance.now() : 0;
     benchmark?.beforeRender?.();
     renderer.render(scene, camera);
+    adaptiveQuality?.record(timestamp, rafMs);
     if (benchmark) {
       const end = performance.now();
       benchmark.afterRender?.();
@@ -669,6 +701,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   window.addEventListener('pointercancel', endGesture, true);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
+    adaptiveQuality?.reset();
     renderer.setAnimationLoop(document.hidden ? null : frame);
   };
   document.addEventListener('visibilitychange', visibility);
@@ -688,12 +721,8 @@ export function createCity(container, initialSettings, benchmark = null) {
         focus.multiplyScalar(scale);
         BLOCK = settings.blockSize;
         originX = worldX * BLOCK; originZ = worldZ * BLOCK;
-        lanes.clear();
-        previousPoses = new WeakMap(); simulationClock.reset(); renderAlpha = 1;
-        lastCellX = NaN;
         resize();
-        workerFrame = null;
-        worker?.restart(workerConfig());
+        restartPopulation();
       }, 180);
     }
   }
@@ -717,5 +746,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     renderer.dispose();
     renderer.domElement.remove();
   }
-  return { updateSettings, dispose, snapshot: () => worker ? frameSnapshot(workerFrame?.lower) : trafficSnapshot(lanes) };
+  return { updateSettings, dispose, quality: () => qualityProfile,
+    snapshot: () => worker ? frameSnapshot(workerFrame?.lower) : trafficSnapshot(lanes) };
 }
