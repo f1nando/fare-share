@@ -259,7 +259,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; }
 .fare-fleet-road-line { position: absolute; display: block; overflow: visible; transform-origin: center; }
 .fare-fleet-headlight { position: absolute; z-index: 3; height: auto; opacity: 0; transform: translate(-50%, -50%); pointer-events: none; }
-.fare-fleet-heading { position: relative; z-index: 2; }
+.fare-fleet-heading { position: relative; z-index: 2; pointer-events: none; }
 .fare-fleet-button { position: absolute; z-index: 2; top: 644px; left: 12px; width: 279px; }
 
 @keyframes fare-fleet-column-up { from { transform: translateY(0); } to { transform: translateY(calc(-50% - var(--card-half-gap))); } }
