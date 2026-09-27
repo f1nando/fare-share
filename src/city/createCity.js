@@ -521,7 +521,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const vehicle = nearestClickableVehicle(clickableVehicles, hit.point);
     if (vehicle) vehicleBounces.set(vehicle.key, performance.now());
   };
-  renderer.domElement.addEventListener('pointerdown', bounceVehicle);
+  container.addEventListener('pointerdown', bounceVehicle);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
     renderer.setAnimationLoop(document.hidden ? null : frame);
@@ -559,7 +559,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     worker?.dispose();
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
-    renderer.domElement.removeEventListener('pointerdown', bounceVehicle);
+    container.removeEventListener('pointerdown', bounceVehicle);
     renderer.setAnimationLoop(null);
     reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
