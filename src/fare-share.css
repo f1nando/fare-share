@@ -83,7 +83,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   text-transform: uppercase;
   -webkit-text-stroke: 4px #111;
   paint-order: stroke fill;
-  text-shadow: 5px 6px 0 #111;
+  text-shadow: 10px 12px 0 #111;
 }
 .fare-hero h1 span { display: block; white-space: nowrap; }
 .fare-hero-copy > p { max-width: 620px; margin: 60px 0 0; color: #111; font-size: 24px; font-weight: 800; line-height: 28px; }
