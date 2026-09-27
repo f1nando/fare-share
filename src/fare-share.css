@@ -110,7 +110,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-button-dark.is-returning .fare-copy-glyph { animation: fare-copy-return .25s ease-out forwards; }
 .fare-button-dark.is-returning .fare-copy-check { animation: fare-check-hide .25s ease-out forwards; }
 .fare-round-arrow { display: grid; flex: 0 0 auto; width: 48px; height: 48px; place-items: center; margin-left: 14px; border-radius: 50%; font-size: 30px; font-weight: 500; line-height: 1; }
-.fare-round-arrow svg { display: block; }
+.fare-round-arrow svg { display: block; transition: transform .2s ease; }
+.fare-button:hover .fare-round-arrow svg,
+.fare-leaderboard-button:hover .fare-round-arrow svg { transform: rotate(45deg); }
 .fare-round-arrow-dark { color: #ffe11a; background: #111; }
 .fare-round-arrow-light { color: #111; background: #fff; }
 
