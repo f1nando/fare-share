@@ -175,6 +175,7 @@ function DrivingDemo() {
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
+  const [compactSpacingPreview, setCompactSpacingPreview] = useState(false);
   const [scenes, setScenes] = useState([]);
   const [activeSceneId, setActiveSceneId] = useState('');
   const [sceneName, setSceneName] = useState('Локальное демо');
@@ -200,6 +201,7 @@ function DrivingDemo() {
     if (scene) {
       setSettings(normalizeSettings(scene.settings));
       setLightsOn(scene.lightsOn === true);
+      setCompactSpacingPreview(false);
       offsetRef.current = 0;
     }
   };
@@ -370,7 +372,7 @@ function DrivingDemo() {
       const elapsed = Math.min((now - previous) / 1000, 0.05);
       previous = now;
       if (!paused && marksRef.current) {
-        const spacing = settings.markSpacing;
+        const spacing = compactSpacingPreview ? 15 : settings.markSpacing;
         const easing = 1 - Math.exp(-elapsed * 6);
         currentSpeedRef.current += (targetSpeedRef.current - currentSpeedRef.current) * easing;
         offsetRef.current = (offsetRef.current + elapsed * currentSpeedRef.current) % spacing;
@@ -383,7 +385,7 @@ function DrivingDemo() {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [paused, settings.markSpacing, settings.pathAngle]);
+  }, [paused, compactSpacingPreview, settings.markSpacing, settings.pathAngle]);
 
   const blink = (mode) => {
     const maxOpacity = settings.blinkOpacity / 100;
@@ -428,7 +430,7 @@ function DrivingDemo() {
   const pathRadians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(pathRadians);
   const pathY = Math.sin(pathRadians);
-  const spacing = settings.markSpacing;
+  const spacing = compactSpacingPreview ? 15 : settings.markSpacing;
   return (
     <main className="driving-demo">
       <header className="demo-header">
@@ -549,6 +551,16 @@ function DrivingDemo() {
             <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
             <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
             <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
+            <button
+              className={`lights-toggle spacing-preview-toggle ${compactSpacingPreview ? 'active' : ''}`}
+              type="button"
+              role="switch"
+              aria-checked={compactSpacingPreview}
+              onClick={() => setCompactSpacingPreview((value) => !value)}
+            >
+              <span><i />Временно: центры 15%</span>
+              <b>{compactSpacingPreview ? 'Включено' : 'Выключено'}</b>
+            </button>
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
             <Range label="Доп. поворот элементов" value={settings.markAngleOffset} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngleOffset')} />
             <div className="angle-stepper" aria-label="Скорректировать поворот элементов">
