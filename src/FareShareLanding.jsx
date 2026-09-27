@@ -178,7 +178,7 @@ function FleetCardBackground() {
           proximity = .5 + Math.min(1, depthInside / (bounds.width * .25)) * .5;
         }
         const smoothProximity = proximity ** 3 * (proximity * (proximity * 6 - 15) + 10);
-        const playbackRate = 1 + smoothProximity * 6;
+        const playbackRate = 1 + smoothProximity * 9;
         const road = card.querySelector('.fare-fleet-road');
         if (road) road.dataset.targetPlaybackRate = String(playbackRate);
       });
@@ -244,19 +244,22 @@ export function FareShareLanding() {
       number: '1',
       title: 'GET A CAR',
       text: 'Start with a free trainee car, then build your real fleet.',
-      image: '/fare-share/how-it-works/get-a-car.png',
+      video: '/fare-share/how-it-works/get-a-car.mp4',
+      poster: '/fare-share/how-it-works/get-a-car.png',
     },
     {
       number: '2',
       title: 'RUN A SHIFT',
       text: 'Send ready cars to work with one clear action.',
-      image: '/fare-share/how-it-works/run-a-shift.png',
+      video: '/fare-share/how-it-works/run-a-shift.mp4',
+      poster: '/fare-share/how-it-works/run-a-shift.png',
     },
     {
       number: '3',
       title: 'COLLECT',
       text: 'Receive daily revenue in cash and your selected stock.',
-      image: '/fare-share/how-it-works/collect.png',
+      video: '/fare-share/how-it-works/collect.mp4',
+      poster: '/fare-share/how-it-works/collect.png',
     },
   ];
 
@@ -345,7 +348,7 @@ export function FareShareLanding() {
           <div className="fare-step-grid">
             {steps.map(step => <article className="fare-step-card" key={step.number}>
               <span className="fare-step-number" aria-hidden="true">{step.number}</span>
-              <img src={step.image} alt="" />
+              <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" />
               <h3>{step.title}</h3>
               <p>{step.text}</p>
             </article>)}
