@@ -467,6 +467,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 1200px) {
+  .fare-header { width: calc(100% - 40px); }
   .fare-fleet-wall-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
