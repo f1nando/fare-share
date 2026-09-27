@@ -100,6 +100,17 @@ export function FareShareLanding() {
             Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
         </section>
+
+        <section className="fare-fleet" id="taxis" aria-labelledby="fare-fleet-title">
+          <div className="fare-fleet-heading">
+            <h2 id="fare-fleet-title">FOUR CARS. ONE RULE.</h2>
+            <p>Better classes receive a larger earning share. No twelve-stat<br />RPG spreadsheet.</p>
+          </div>
+
+          <a className="fare-button fare-button-primary fare-fleet-button" href="#garage">
+            Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
+          </a>
+        </section>
       </main>
     </div>
   );

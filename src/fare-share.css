@@ -118,6 +118,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-card p { max-width: 460px; margin: 18px 0 0; font-size: 20px; font-weight: 500; line-height: 20px; }
 .fare-how-button { margin-top: 56px; }
 
+.fare-fleet {
+  position: relative;
+  height: 1080px;
+  padding: 176px max(24px, calc((100vw - 1720px) / 2)) 0;
+  color: #fff;
+  background: #111;
+}
+.fare-fleet-heading { display: grid; grid-template-columns: 964px 1fr; align-items: flex-start; }
+.fare-fleet-heading h2 { margin: 0; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.055em; text-shadow: 7px 8px 0 #000; }
+.fare-fleet-heading p { width: 756px; margin: 4px 0 0; font-size: 24px; font-weight: 700; line-height: 25px; }
+.fare-fleet-button { position: absolute; top: 820px; left: max(24px, calc((100vw - 1720px) / 2)); width: 279px; }
+
 @media (max-width: 1000px) {
   .fare-nav { display: none; }
   .fare-header-actions { margin-left: auto; }
