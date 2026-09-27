@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AdaptiveQuality, QUALITY_PROFILES, framePercentile, qualityForFrameTime, scaledDensity } from '../src/city/adaptiveQuality.js';
+import { AdaptiveQuality, QUALITY_PROFILES, framePercentile, qualityForFrameTime } from '../src/city/adaptiveQuality.js';
 
 test('quality profiles follow real p95 frame time boundaries', () => {
   assert.equal(qualityForFrameTime(18, QUALITY_PROFILES.high), QUALITY_PROFILES.max);
@@ -12,13 +12,11 @@ test('quality profiles follow real p95 frame time boundaries', () => {
   assert.equal(framePercentile([40, 10, 20, 30], 0.5), 20);
 });
 
-test('density profiles apply their exact live scale without changing the saved setting', () => {
-  assert.equal(scaledDensity(70, QUALITY_PROFILES.max), 70);
-  assert.equal(scaledDensity(70, QUALITY_PROFILES.high), 56);
-  assert.equal(scaledDensity(70, QUALITY_PROFILES.medium), 42);
-  assert.equal(scaledDensity(70, QUALITY_PROFILES.low), 28);
-  assert.equal(scaledDensity(0, QUALITY_PROFILES.low), 0);
-  assert.equal(scaledDensity(200, QUALITY_PROFILES.max), 200);
+test('quality profiles contain graphics settings only', () => {
+  for (const profile of Object.values(QUALITY_PROFILES)) {
+    assert.equal('densityScale' in profile, false);
+    assert.ok(profile.pixelRatio > 0);
+  }
 });
 
 test('the first 2.5 second window selects quality from measured frames', () => {

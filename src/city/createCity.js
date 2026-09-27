@@ -39,7 +39,7 @@ import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './di
 import { stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
-import { AdaptiveQuality, QUALITY_PROFILES, scaledDensity } from './adaptiveQuality.js';
+import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -336,8 +336,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     vehicle.x = x; vehicle.y = y; vehicle.z = z; vehicle.key = key; vehicle.type = type;
     clickableVehicles.push(vehicle);
   };
-  const effectiveSettings = () => ({ ...settings, blockSize: BLOCK, density: scaledDensity(settings.density, qualityProfile) });
-  const workerConfig = () => ({ settings: effectiveSettings(), area,
+  const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
     focus: { x: originX + focus.x, z: originZ + focus.z }, lightTime: time,
     seed: benchmark?.seed ?? 0, simulationHz: benchmark?.simulationHz === 60 ? 60 : 30,
     simulate: benchmark?.simulate !== false });
@@ -355,7 +354,6 @@ export function createCity(container, initialSettings, benchmark = null) {
 
   function applyQuality(profile) {
     if (profile === qualityProfile) return;
-    const densityChanged = profile.densityScale !== qualityProfile.densityScale;
     qualityProfile = profile;
     renderer.domElement.dataset.quality = profile.name;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, profile.pixelRatio));
@@ -367,7 +365,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     renderer.shadowMap.needsUpdate = profile.shadows;
     resize();
-    if (densityChanged) restartPopulation();
   }
 
   // Benchmarks keep explicit graphics settings so before/after runs remain
@@ -375,7 +372,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const adaptiveQuality = benchmark ? null : new AdaptiveQuality(applyQuality);
 
   function rebuild() {
-    const layoutSettings = effectiveSettings();
+    const layoutSettings = { ...settings, blockSize: BLOCK };
     if (groundBlock !== BLOCK || groundColumn !== worldX) {
       ground.geometry.dispose();
       ground.geometry = createCanalGround(BLOCK, worldX);

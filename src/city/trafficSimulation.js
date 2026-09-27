@@ -8,9 +8,7 @@ import { packTraffic } from './trafficFrames.js';
 
 export class TrafficSimulation {
   constructor({ settings, area, focus, lightTime = 0, seed = 0, simulationHz = 30, simulate = true }) {
-    this.settings = normalizeSettings(settings);
-    if (Number.isFinite(settings.density)) this.settings.density = Math.max(0, Math.min(200, settings.density));
-    this.area = area;
+    this.settings = normalizeSettings(settings); this.area = area;
     this.focus = { ...focus }; this.lightTime = lightTime; this.seed = seed;
     this.step = 1 / simulationHz; this.simulate = simulate; this.time = 0;
     this.lanes = new Map(); this.identities = { ids: new WeakMap(), next: 0, blockSize: this.settings.blockSize };

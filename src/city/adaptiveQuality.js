@@ -1,8 +1,8 @@
 export const QUALITY_PROFILES = Object.freeze({
-  max: Object.freeze({ name: 'max', pixelRatio: 1.6, shadowMapSize: 2048, shadows: true, densityScale: 1 }),
-  high: Object.freeze({ name: 'high', pixelRatio: 1.4, shadowMapSize: 1024, shadows: true, densityScale: 0.8 }),
-  medium: Object.freeze({ name: 'medium', pixelRatio: 1.2, shadowMapSize: 512, shadows: true, densityScale: 0.6 }),
-  low: Object.freeze({ name: 'low', pixelRatio: 1, shadowMapSize: 0, shadows: false, densityScale: 0.4 }),
+  max: Object.freeze({ name: 'max', pixelRatio: 1.6, shadowMapSize: 2048, shadows: true }),
+  high: Object.freeze({ name: 'high', pixelRatio: 1.4, shadowMapSize: 1024, shadows: true }),
+  medium: Object.freeze({ name: 'medium', pixelRatio: 1.2, shadowMapSize: 512, shadows: true }),
+  low: Object.freeze({ name: 'low', pixelRatio: 1, shadowMapSize: 0, shadows: false }),
 });
 
 const SAMPLE_DURATION = 2500;
@@ -36,10 +36,6 @@ export function qualityForFrameTime(p95, current = QUALITY_PROFILES.high) {
     return QUALITY_PROFILES.low;
   }
   return p95 <= 28 ? QUALITY_PROFILES.medium : QUALITY_PROFILES.low;
-}
-
-export function scaledDensity(density, profile) {
-  return Math.max(0, Math.min(200, density * profile.densityScale));
 }
 
 export class AdaptiveQuality {
