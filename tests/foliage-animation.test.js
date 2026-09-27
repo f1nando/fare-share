@@ -21,12 +21,12 @@ test('a held-pointer gesture activates each object once until release', () => {
 });
 
 test('gesture brush includes every object inside its circular area', () => {
-  const point = { x: 100, y: 100 }, radius = 82;
+  const point = { x: 100, y: 100 }, radius = 56;
   assert.equal(withinGestureRadius(100, 100, point, radius), true);
-  assert.equal(withinGestureRadius(150, 150, point, radius), true);
-  assert.equal(withinGestureRadius(182, 100, point, radius), true);
-  assert.equal(withinGestureRadius(183, 100, point, radius), false);
-  assert.equal(withinGestureRadius(170, 170, point, radius), false);
+  assert.equal(withinGestureRadius(135, 135, point, radius), true);
+  assert.equal(withinGestureRadius(156, 100, point, radius), true);
+  assert.equal(withinGestureRadius(157, 100, point, radius), false);
+  assert.equal(withinGestureRadius(150, 150, point, radius), false);
 });
 
 test('sway direction can be mirrored and reduced-motion stays subtle', () => {

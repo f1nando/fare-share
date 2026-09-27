@@ -645,7 +645,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   function animateAtPointer(event) {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
-    const radius = event.pointerType === 'touch' ? 100 : 82;
+    const radius = event.pointerType === 'touch' ? 72 : 56;
     gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
     for (const vehicle of clickableVehicles) {
       projectedVehicle.set(vehicle.x, vehicle.y, vehicle.z).project(camera);
