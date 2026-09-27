@@ -671,27 +671,47 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
   };
   const beginGesture = event => {
-    if (event.button !== 0 || overControl(event)) return;
+    if (event.pointerType === 'mouse' || event.button !== 0 || overControl(event)) return;
     gesturePointer = event.pointerId;
     gestureTargets.clear();
     animateAtPointer(event);
   };
   const continueGesture = event => {
+    if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
-    if (event.pointerType === 'mouse' && !(event.buttons & 1)) { gesturePointer = null; gestureTargets.clear(); return; }
     if (overControl(event)) return;
     const points = event.getCoalescedEvents?.() ?? [event];
     for (const point of points.length ? points : [event]) animateAtPointer(point);
   };
   const endGesture = event => {
+    if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
     gesturePointer = null;
+    gestureTargets.clear();
+  };
+  let mouseGesture = false;
+  const beginMouseGesture = event => {
+    if (event.button !== 0 || overControl(event)) return;
+    mouseGesture = true;
+    gestureTargets.clear();
+    animateAtPointer(event);
+  };
+  const continueMouseGesture = event => {
+    if (!mouseGesture) return;
+    if (!(event.buttons & 1)) { mouseGesture = false; gestureTargets.clear(); return; }
+    if (!overControl(event)) animateAtPointer(event);
+  };
+  const endMouseGesture = () => {
+    mouseGesture = false;
     gestureTargets.clear();
   };
   window.addEventListener('pointerdown', beginGesture, true);
   window.addEventListener('pointermove', continueGesture, true);
   window.addEventListener('pointerup', endGesture, true);
   window.addEventListener('pointercancel', endGesture, true);
+  window.addEventListener('mousedown', beginMouseGesture, true);
+  window.addEventListener('mousemove', continueMouseGesture, true);
+  window.addEventListener('mouseup', endMouseGesture, true);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
     adaptiveQuality?.reset();
@@ -730,6 +750,9 @@ export function createCity(container, initialSettings, benchmark = null) {
     window.removeEventListener('pointermove', continueGesture, true);
     window.removeEventListener('pointerup', endGesture, true);
     window.removeEventListener('pointercancel', endGesture, true);
+    window.removeEventListener('mousedown', beginMouseGesture, true);
+    window.removeEventListener('mousemove', continueMouseGesture, true);
+    window.removeEventListener('mouseup', endMouseGesture, true);
     renderer.setAnimationLoop(null);
     reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
