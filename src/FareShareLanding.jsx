@@ -188,25 +188,36 @@ function FleetSceneCard({ scene, fleetClass }) {
 }
 
 function FareStepDrivingScene() {
+  const roadPatternId = `step-road-${useId().replaceAll(':', '')}`;
   const settings = PORSCHE_STEP_SCENE.settings;
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
+  const roadStrip = fleetRoadStrip(settings);
 
   return (
     <div className="fare-step-media fare-step-driving" aria-hidden="true">
       <img className="fare-step-driving-car" src={PORSCHE_STEP_SCENE.imageUrl} alt="" />
       <div className="fare-fleet-road" style={{
-        '--mark-width': `${settings.markWidth}%`,
-        '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
         '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
       }}>
-        {Array.from({ length: 15 }, (_, index) => {
-          const slot = index - 7;
-          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
-        })}
+        <svg className="fare-fleet-road-line" viewBox={`0 0 ${roadStrip.width} ${roadStrip.height}`} preserveAspectRatio="none" style={{
+          left: `${settings.markX}%`,
+          top: `${settings.markY}%`,
+          width: `${roadStrip.width}%`,
+          height: `${roadStrip.height}%`,
+          transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
+        }} aria-hidden="true">
+          <defs>
+            <pattern id={roadPatternId} width={settings.markSpacing} height={roadStrip.height} patternUnits="userSpaceOnUse">
+              <image href="/driving-demo/mark.webp" width={settings.markWidth} height={roadStrip.height}
+                preserveAspectRatio="none" transform={`rotate(${settings.markAngleOffset} ${settings.markWidth / 2} ${roadStrip.height / 2})`} />
+            </pattern>
+          </defs>
+          <rect width={roadStrip.width} height={roadStrip.height} fill={`url(#${roadPatternId})`} />
+        </svg>
       </div>
     </div>
   );
