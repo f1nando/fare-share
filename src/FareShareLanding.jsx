@@ -319,8 +319,7 @@ export function FareShareLanding() {
       number: '1',
       title: 'GET A CAR',
       text: 'Start with a free trainee car, then build your real fleet.',
-      video: '/fare-share/how-it-works/get-a-car.mp4',
-      poster: '/fare-share/how-it-works/get-a-car.png',
+      sprite: '/fare-share/how-it-works/get-a-car-sprite.png',
     },
     {
       number: '2',
@@ -439,7 +438,9 @@ export function FareShareLanding() {
           <div className="fare-step-grid">
             {steps.map(step => <article className="fare-step-card" key={step.number}>
               <span className="fare-step-number" aria-hidden="true">{step.number}</span>
-              <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />
+              {step.sprite
+                ? <div className="fare-step-media fare-step-sprite" style={{ backgroundImage: `url(${step.sprite})` }} aria-hidden="true" />
+                : <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />}
               <h3>{step.title}</h3>
               <p>{step.text}</p>
             </article>)}
