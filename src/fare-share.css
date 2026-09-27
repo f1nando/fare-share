@@ -181,7 +181,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-faq {
   height: 1045px;
   padding: 100px max(24px, calc((100vw - 1720px) / 2)) 0;
-  border-radius: 0 0 72px 72px;
   color: #111;
   background: #fff;
 }
