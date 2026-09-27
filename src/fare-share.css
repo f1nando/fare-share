@@ -25,9 +25,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   width: min(1720px, calc(100% - 48px));
   min-height: 92px;
   padding: 10px 18px;
-  border: 1px solid #d5d5d5;
+  border: 0;
+  border-radius: 18px;
   background: #fff;
-  box-shadow: 0 5px 0 #171717;
+  box-shadow: 0 9px 22px rgb(0 0 0 / 22%);
   transform: translateX(-50%);
   font-size: 14px;
   font-weight: 800;
@@ -101,7 +102,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
-  .fare-header { top: 12px; width: calc(100% - 24px); min-height: 66px; padding: 7px 9px; }
+  .fare-header { top: 12px; width: calc(100% - 24px); min-height: 66px; padding: 7px 9px; border-radius: 14px; }
   .fare-brand { gap: 7px; }
   .fare-brand img { width: 48px; height: 48px; }
   .fare-brand strong { font-size: 15px; }
