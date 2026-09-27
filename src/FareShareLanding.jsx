@@ -6,7 +6,8 @@ import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
 
 const FLEET_ROAD_SPEED = 19;
-const TOKEN_CA = import.meta.env.VITE_FARE_MINT || '0x7d91...af4f2';
+const TOKEN_CA = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+const TOKEN_CA_DISPLAY = `${TOKEN_CA.slice(0, 6)}...${TOKEN_CA.slice(-6)}`;
 const STATIC_DRIVING_SCENES = drivingScenes;
 const FLEET_CLASSES = {
   economy: { name: 'Economy', tone: 'economy' },
@@ -619,7 +620,7 @@ export function FareShareLanding() {
                 aria-label={caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
               >
                 <span className="fare-token-symbol">$TAXI</span>
-                <span>0x7d91...af4f2</span>
+                <span>{TOKEN_CA_DISPLAY}</span>
                 <span className="fare-copy-icon" key={copyAnimationKey} aria-hidden="true">
                   <span className="fare-copy-glyph" />
                   <svg className="fare-copy-check" viewBox="0 0 24 24" fill="none">

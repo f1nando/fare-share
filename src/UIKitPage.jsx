@@ -116,7 +116,7 @@ export function UIKitPage() {
               <div className="ui-footer-type"><strong>NAVIGATION</strong><a href="#footer-sample">Fleet</a><p>Build your taxi fleet and collect park fees.</p></div>
             </Specimen>
             <Specimen name="Data and mono" meta="Roboto Mono · 18–23px">
-              <div className="ui-mono-type"><span>$NFT</span><strong>0x7d91...af4f2</strong></div>
+              <div className="ui-mono-type"><span>$NFT</span><strong>2NUNSx...2EGVnF</strong></div>
             </Specimen>
           </div>
         </section>
@@ -134,7 +134,7 @@ export function UIKitPage() {
               <button className="fare-button fare-button-light" type="button">How It Works</button>
             </Specimen>
             <Specimen name="Dark / large" meta="74px height · copy action">
-              <button className="fare-button fare-button-dark ui-kit-ca" type="button"><span className="fare-token-symbol">$TAXI</span><span>0x7d91...af4f2</span><span className="fare-copy-icon"><span className="fare-copy-glyph" /></span></button>
+              <button className="fare-button fare-button-dark ui-kit-ca" type="button"><span className="fare-token-symbol">$TAXI</span><span>2NUNSx...2EGVnF</span><span className="fare-copy-icon"><span className="fare-copy-glyph" /></span></button>
             </Specimen>
             <Specimen name="Primary / medium" meta="64px height · 28px horizontal padding">
               <button className="fare-connect" type="button">Connect Wallet</button>
