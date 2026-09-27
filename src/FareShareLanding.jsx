@@ -101,6 +101,8 @@ function FleetCardBackground() {
   const [scenes, setScenes] = useState([FALLBACK_SCENE]);
   const wallRef = useRef(null);
   const proximityFrameRef = useRef(0);
+  const rateFrameRef = useRef(0);
+  const previousRateFrameRef = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -118,7 +120,41 @@ function FleetCardBackground() {
     return { columnIndex, cards: [...cards, ...cards] };
   }), [scenes]);
 
-  useEffect(() => () => cancelAnimationFrame(proximityFrameRef.current), []);
+  useEffect(() => () => {
+    cancelAnimationFrame(proximityFrameRef.current);
+    cancelAnimationFrame(rateFrameRef.current);
+  }, []);
+
+  const animateRoadPlaybackRates = (now) => {
+    rateFrameRef.current = 0;
+    const previous = previousRateFrameRef.current || now - 16;
+    const elapsed = Math.min((now - previous) / 1000, .05);
+    const easing = 1 - Math.exp(-elapsed * 2.8);
+    let needsAnotherFrame = false;
+
+    wallRef.current?.querySelectorAll('.fare-fleet-road').forEach((road) => {
+      const targetRate = Number(road.dataset.targetPlaybackRate || 1);
+      const animations = road.getAnimations();
+      if (!animations.length) return;
+      const currentRate = Number(road.dataset.currentPlaybackRate || animations[0].playbackRate || 1);
+      const difference = targetRate - currentRate;
+      const nextRate = Math.abs(difference) < .01 ? targetRate : currentRate + difference * easing;
+      road.dataset.currentPlaybackRate = String(nextRate);
+      animations.forEach((animation) => { animation.playbackRate = nextRate; });
+      if (Math.abs(targetRate - nextRate) >= .01) needsAnotherFrame = true;
+    });
+
+    previousRateFrameRef.current = now;
+    if (needsAnotherFrame) rateFrameRef.current = requestAnimationFrame(animateRoadPlaybackRates);
+    else previousRateFrameRef.current = 0;
+  };
+
+  const startRoadRateTransition = () => {
+    if (!rateFrameRef.current) {
+      previousRateFrameRef.current = 0;
+      rateFrameRef.current = requestAnimationFrame(animateRoadPlaybackRates);
+    }
+  };
 
   const setRoadPlaybackRates = (clientX, clientY) => {
     cancelAnimationFrame(proximityFrameRef.current);
@@ -143,18 +179,19 @@ function FleetCardBackground() {
         }
         const smoothProximity = proximity ** 3 * (proximity * (proximity * 6 - 15) + 10);
         const playbackRate = 1 + smoothProximity * 6;
-        card.querySelector('.fare-fleet-road')?.getAnimations().forEach((animation) => {
-          animation.playbackRate = playbackRate;
-        });
+        const road = card.querySelector('.fare-fleet-road');
+        if (road) road.dataset.targetPlaybackRate = String(playbackRate);
       });
+      startRoadRateTransition();
     });
   };
 
   const resetRoadPlaybackRates = () => {
     cancelAnimationFrame(proximityFrameRef.current);
     wallRef.current?.querySelectorAll('.fare-fleet-road').forEach((road) => {
-      road.getAnimations().forEach((animation) => { animation.playbackRate = 1; });
+      road.dataset.targetPlaybackRate = '1';
     });
+    startRoadRateTransition();
   };
 
   return (
