@@ -360,6 +360,38 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-submit { width: 100%; height: 64px; margin-top: 28px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 5px 6px 0 #111; font-size: 18px; font-weight: 800; }
 .fare-mint-note { margin: 24px 0 0; color: #777; font-size: 14px; line-height: 18px; }
 
+.fare-docs-page { background: #f4f4f4; }
+.fare-docs-page .fare-city-background { opacity: .16; filter: grayscale(1); }
+.fare-docs-main { position: relative; z-index: 1; min-height: 100vh; padding: 150px 0 70px; }
+.fare-docs-tabs { display: flex; width: max-content; align-items: center; gap: 8px; margin-left: auto; padding: 7px; border-radius: 999px; background: #fff; box-shadow: 0 10px 24px rgb(0 0 0 / 12%); }
+.fare-docs-tabs a { display: inline-flex; height: 42px; align-items: center; padding: 0 18px; border-radius: 999px; color: #111; font-size: 13px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.fare-docs-tabs a.is-active { color: #fff; background: #111; }
+.fare-docs-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; gap: 24px; margin-top: 26px; }
+.fare-docs-sidebar { position: sticky; top: 138px; padding: 28px 24px; border-radius: 26px; background: #fff; box-shadow: 0 12px 26px rgb(0 0 0 / 13%); }
+.fare-docs-sidebar > span { display: block; margin-bottom: 24px; color: #666; font-size: 13px; font-weight: 600; }
+.fare-docs-sidebar nav { display: grid; gap: 10px; }
+.fare-docs-sidebar a { display: grid; grid-template-columns: 34px 1fr; min-height: 48px; align-items: center; padding: 0 14px; border-radius: 999px; color: #111; font-size: 12px; font-weight: 800; text-decoration: none; }
+.fare-docs-sidebar a.is-active { color: #fff; background: #111; }
+.fare-docs-sidebar a.is-active::after { content: ''; justify-self: end; width: 8px; height: 8px; border-radius: 50%; background: #ffe72f; }
+.fare-docs-sidebar a.is-active { grid-template-columns: 34px 1fr 8px; }
+.fare-docs-sidebar a span { color: #777; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 11px; }
+.fare-docs-sidebar a.is-active span { color: #fff; }
+.fare-docs-article { padding: 34px 32px 42px; border-radius: 28px; background: #fff; box-shadow: 0 12px 26px rgb(0 0 0 / 13%); }
+.fare-docs-article-header { display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: start; gap: 34px; }
+.fare-docs-article-header h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 58px; font-weight: 400; line-height: .76; letter-spacing: -.025em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 5px 6px 0 #111; }
+.fare-docs-article-header p { margin: 4px 0 0; color: #555; font-size: 17px; line-height: 23px; }
+.fare-docs-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+.fare-docs-steps > div { display: flex; min-height: 76px; justify-content: center; flex-direction: column; padding: 12px 18px; border: 2px solid #111; border-radius: 18px; box-shadow: 3px 4px 0 #111; }
+.fare-docs-steps strong { font-size: 15px; }
+.fare-docs-steps span { margin-top: 7px; color: #666; font-size: 13px; }
+.fare-docs-copy-section { padding-top: 28px; scroll-margin-top: 140px; }
+.fare-docs-copy-section + .fare-docs-copy-section { margin-top: 28px; border-top: 1px solid #bbb; }
+.fare-docs-section-title { display: grid; grid-template-columns: 42px 1fr; align-items: baseline; }
+.fare-docs-section-title span { color: #777; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 13px; }
+.fare-docs-section-title h2 { margin: 0; font-size: 25px; font-weight: 900; letter-spacing: -.045em; }
+.fare-docs-copy-section p { margin: 18px 0 0 42px; color: #555; font-size: 15px; line-height: 22px; }
+.fare-docs-callout { margin: 24px 0 0 42px; padding: 14px 20px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; box-shadow: 3px 4px 0 #111; font-size: 13px; font-weight: 800; text-align: center; }
+
 .fare-faq {
   min-height: 1045px;
   padding: 100px 0 121px;
@@ -429,6 +461,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-garage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-mint-intro { grid-template-columns: 1fr; gap: 28px; }
   .fare-mint-layout { grid-template-columns: 1fr; }
+  .fare-docs-layout { grid-template-columns: 1fr; }
+  .fare-docs-sidebar { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -503,6 +537,20 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-mint-panel h2 { margin-bottom: 30px; font-size: 30px; }
   .fare-mint-summary { padding: 16px 18px; border-radius: 20px; }
   .fare-mint-submit { height: 54px; }
+  .fare-docs-main { padding-top: 126px; padding-bottom: 60px; }
+  .fare-docs-tabs { width: 100%; justify-content: flex-start; gap: 4px; padding: 5px; overflow-x: auto; }
+  .fare-docs-tabs a { height: 38px; padding: 0 13px; font-size: 10px; }
+  .fare-docs-layout { margin-top: 20px; }
+  .fare-docs-article { padding: 24px 18px 30px; border-radius: 22px; }
+  .fare-docs-article-header { grid-template-columns: 1fr; gap: 20px; }
+  .fare-docs-article-header h1 { font-size: 46px; text-shadow: 4px 5px 0 #111; }
+  .fare-docs-article-header p { font-size: 14px; line-height: 19px; }
+  .fare-docs-steps { grid-template-columns: 1fr; gap: 10px; margin-top: 24px; }
+  .fare-docs-steps > div { min-height: 66px; border-radius: 16px; }
+  .fare-docs-section-title { grid-template-columns: 32px 1fr; }
+  .fare-docs-section-title h2 { font-size: 21px; }
+  .fare-docs-copy-section p { margin-left: 32px; font-size: 13px; line-height: 19px; }
+  .fare-docs-callout { margin-left: 32px; border-radius: 18px; font-size: 11px; line-height: 15px; }
 }
 
 @media (max-width: 420px) {

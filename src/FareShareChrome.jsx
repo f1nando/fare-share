@@ -40,7 +40,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
         <a href={`${linkPrefix}#market`}>MARKET</a>
         <a href={`${linkPrefix}#trade`}>TRADE</a>
         <a href={`${linkPrefix}#faq`}>FAQ</a>
-        <a href={`${linkPrefix}#docs`}>DOCS</a>
+        <a className={activeItem === 'docs' ? 'is-active' : undefined} href="/docs/">DOCS</a>
       </nav>
 
       <div className="fare-header-actions">
@@ -86,7 +86,7 @@ export function FareFooter({ linkPrefix = '' }) {
           <h2>RESOURCES</h2>
           <a href={`${linkPrefix}#how-it-works`}>How it Works</a>
           <a href={`${linkPrefix}#dashboard`}>Treasury</a>
-          <a href={`${linkPrefix}#docs`}>Docs</a>
+          <a href="/docs/">Docs</a>
           <a href={`${linkPrefix}#faq`}>FAQ</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Legal">
