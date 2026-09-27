@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import './driving-demo.css';
 
 const DEFAULTS = {
@@ -428,16 +429,9 @@ function DrivingDemo() {
     });
   };
 
-  const markStyle = {
-    '--mark-width': `${settings.markWidth}%`,
-    '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
-    '--mark-opacity': settings.markOpacity / 100,
-  };
-  const pathRadians = settings.pathAngle * Math.PI / 180;
-  const pathX = Math.cos(pathRadians);
-  const pathY = Math.sin(pathRadians);
   const spacing = compactSpacingPreview ? 15 : settings.markSpacing;
   const markY = compactSpacingPreview ? 77 : settings.markY;
+  const previewSettings = { ...settings, markSpacing: spacing, markY };
   return (
     <main className="driving-demo">
       <header className="demo-header">
@@ -459,13 +453,8 @@ function DrivingDemo() {
                 filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
             />
-            <div className="road-marks" ref={marksRef} style={markStyle} aria-hidden="true">
-              {Array.from({ length: 32 }, (_, index) => {
-                const slot = index - 16;
-                const x = slot * spacing * pathX;
-                const y = slot * spacing * pathY;
-                return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + x}%`, top: `${markY + y}%` }} alt="" />;
-              })}
+            <div className="road-marks" ref={marksRef} aria-hidden="true">
+              <RoadMarkStrip className="road-mark-line" settings={previewSettings} />
             </div>
             {[
               ['left', settings.leftX, settings.leftY],

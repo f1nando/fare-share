@@ -16,7 +16,7 @@ button { cursor: pointer; }
 .driving-scene { position: relative; aspect-ratio: 1; overflow: hidden; background: #dbdcde; isolation: isolate; }
 .car-shot { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .road-marks { position: absolute; z-index: 2; inset: 0; transform: translate(var(--travel-x, 0), var(--travel-y, 0)); pointer-events: none; }
-.road-marks img { position: absolute; width: var(--mark-width); height: auto; transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; opacity: var(--mark-opacity, 1); filter: drop-shadow(0 3px 3px #0002); }
+.road-mark-line { position: absolute; display: block; overflow: visible; transform-origin: center; filter: drop-shadow(0 3px 3px #0002); }
 .headlight { position: absolute; z-index: 4; height: auto; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; mix-blend-mode: screen; filter: drop-shadow(0 0 12px #fff); }
 .headlight.lights-on { opacity: var(--blink-opacity, 1); }
 .scene-status { position: absolute; z-index: 5; top: 17px; left: 17px; padding: 8px 11px; border: 1px solid #ffffff2b; border-radius: 99px; color: #f3f3ec; background: #121210a6; backdrop-filter: blur(9px); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }

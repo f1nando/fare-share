@@ -1,7 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
-import { fleetColumnCount, fleetRoadStrip } from './fleetWall.js';
+import { fleetColumnCount } from './fleetWall.js';
+import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
@@ -111,13 +112,12 @@ function createSceneSequence(scenes, count) {
 
 function FleetSceneCard({ scene, fleetClass }) {
   const [isHovered, setIsHovered] = useState(false);
-  const roadPatternId = `fleet-road-${useId().replaceAll(':', '')}`;
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
+  const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
   const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
-  const roadStrip = fleetRoadStrip(settings);
 
   const blink = (event) => {
     event.currentTarget.querySelectorAll('.fare-fleet-headlight').forEach((light) => {
@@ -148,24 +148,10 @@ function FleetSceneCard({ scene, fleetClass }) {
       <div className="fare-fleet-road" style={{
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
-        '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
+        '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
+        animationPlayState: roadSpeed > 0 ? undefined : 'paused',
       }}>
-        <svg className="fare-fleet-road-line" viewBox={`0 0 ${roadStrip.width} ${roadStrip.height}`} preserveAspectRatio="none" style={{
-          left: `${settings.markX}%`,
-          top: `${settings.markY}%`,
-          width: `${roadStrip.width}%`,
-          height: `${roadStrip.height}%`,
-          opacity: settings.markOpacity / 100,
-          transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
-        }} aria-hidden="true">
-          <defs>
-            <pattern id={roadPatternId} width={settings.markSpacing} height={roadStrip.height} patternUnits="userSpaceOnUse">
-              <image href="/driving-demo/mark.webp" width={settings.markWidth} height={roadStrip.height}
-                preserveAspectRatio="none" transform={`rotate(${settings.markAngleOffset} ${settings.markWidth / 2} ${roadStrip.height / 2})`} />
-            </pattern>
-          </defs>
-          <rect width={roadStrip.width} height={roadStrip.height} fill={`url(#${roadPatternId})`} />
-        </svg>
+        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} />
       </div>
       {isHovered && [
         ['left', settings.leftX, settings.leftY],
@@ -188,12 +174,11 @@ function FleetSceneCard({ scene, fleetClass }) {
 }
 
 function FareStepDrivingScene() {
-  const roadPatternId = `step-road-${useId().replaceAll(':', '')}`;
   const settings = PORSCHE_STEP_SCENE.settings;
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
-  const roadStrip = fleetRoadStrip(settings);
+  const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
 
   return (
     <div className="fare-step-media fare-step-driving" aria-hidden="true">
@@ -201,23 +186,10 @@ function FareStepDrivingScene() {
       <div className="fare-fleet-road" style={{
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
-        '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
+        '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
+        animationPlayState: roadSpeed > 0 ? undefined : 'paused',
       }}>
-        <svg className="fare-fleet-road-line" viewBox={`0 0 ${roadStrip.width} ${roadStrip.height}`} preserveAspectRatio="none" style={{
-          left: `${settings.markX}%`,
-          top: `${settings.markY}%`,
-          width: `${roadStrip.width}%`,
-          height: `${roadStrip.height}%`,
-          transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
-        }} aria-hidden="true">
-          <defs>
-            <pattern id={roadPatternId} width={settings.markSpacing} height={roadStrip.height} patternUnits="userSpaceOnUse">
-              <image href="/driving-demo/mark.webp" width={settings.markWidth} height={roadStrip.height}
-                preserveAspectRatio="none" transform={`rotate(${settings.markAngleOffset} ${settings.markWidth / 2} ${roadStrip.height / 2})`} />
-            </pattern>
-          </defs>
-          <rect width={roadStrip.width} height={roadStrip.height} fill={`url(#${roadPatternId})`} />
-        </svg>
+        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} />
       </div>
     </div>
   );
