@@ -59,6 +59,7 @@ function createSceneSequence(scenes, count) {
 }
 
 function FleetSceneCard({ scene, fleetClass }) {
+  const [isHovered, setIsHovered] = useState(false);
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
@@ -78,13 +79,18 @@ function FleetSceneCard({ scene, fleetClass }) {
   };
 
   return (
-    <div className="fare-fleet-scene-card" onClick={blink} onDragStart={(event) => event.preventDefault()}>
+    <div
+      className="fare-fleet-scene-card"
+      onClick={blink}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
+      onDragStart={(event) => event.preventDefault()}
+    >
       <span className={`fare-fleet-class is-${fleetClass.tone}`}>{fleetClass.name}</span>
       <img
         className="fare-fleet-car"
         src={imageUrl}
         alt=""
-        style={{ filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)` }}
       />
       <div className="fare-fleet-road" style={{
         '--mark-width': `${settings.markWidth}%`,
@@ -99,7 +105,7 @@ function FleetSceneCard({ scene, fleetClass }) {
           return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
         })}
       </div>
-      {[
+      {isHovered && [
         ['left', settings.leftX, settings.leftY],
         ['right', settings.rightX, settings.rightY],
       ].map(([name, x, y]) => (
@@ -108,7 +114,12 @@ function FleetSceneCard({ scene, fleetClass }) {
           src="/driving-demo/blink.webp"
           alt=""
           key={name}
-          style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
+          style={{
+            left: `${x}%`,
+            top: `${y}%`,
+            width: `${settings.blinkSize}%`,
+            '--headlight-opacity': settings.blinkOpacity / 100,
+          }}
         />
       ))}
     </div>
