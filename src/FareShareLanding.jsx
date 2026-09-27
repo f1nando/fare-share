@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
@@ -69,6 +69,8 @@ function FleetSceneCard({ scene }) {
 
 function FleetCardBackground() {
   const [scenes, setScenes] = useState([FALLBACK_SCENE]);
+  const wallRef = useRef(null);
+  const proximityFrameRef = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,8 +88,40 @@ function FleetCardBackground() {
     return { columnIndex, cards: [...cards, ...cards] };
   }), [scenes]);
 
+  useEffect(() => () => cancelAnimationFrame(proximityFrameRef.current), []);
+
+  const setRoadPlaybackRates = (clientX, clientY) => {
+    cancelAnimationFrame(proximityFrameRef.current);
+    proximityFrameRef.current = requestAnimationFrame(() => {
+      wallRef.current?.querySelectorAll('.fare-fleet-scene-card').forEach((card) => {
+        const bounds = card.getBoundingClientRect();
+        const distanceX = Math.max(bounds.left - clientX, 0, clientX - bounds.right);
+        const distanceY = Math.max(bounds.top - clientY, 0, clientY - bounds.bottom);
+        const distance = Math.hypot(distanceX, distanceY);
+        const influence = Math.max(0, 1 - distance / bounds.width);
+        const playbackRate = 1 + influence * 3;
+        card.querySelector('.fare-fleet-road')?.getAnimations().forEach((animation) => {
+          animation.playbackRate = playbackRate;
+        });
+      });
+    });
+  };
+
+  const resetRoadPlaybackRates = () => {
+    cancelAnimationFrame(proximityFrameRef.current);
+    wallRef.current?.querySelectorAll('.fare-fleet-road').forEach((road) => {
+      road.getAnimations().forEach((animation) => { animation.playbackRate = 1; });
+    });
+  };
+
   return (
-    <div className="fare-fleet-card-wall" aria-hidden="true">
+    <div
+      className="fare-fleet-card-wall"
+      ref={wallRef}
+      aria-hidden="true"
+      onPointerMove={(event) => setRoadPlaybackRates(event.clientX, event.clientY)}
+      onPointerLeave={resetRoadPlaybackRates}
+    >
       {columns.map(({ columnIndex, cards }) => (
         <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
           <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
