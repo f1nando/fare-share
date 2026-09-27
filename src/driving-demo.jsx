@@ -156,7 +156,6 @@ function DrivingDemo() {
   const [activeSceneId, setActiveSceneId] = useState('');
   const [sceneName, setSceneName] = useState('Локальное демо');
   const [sceneStatus, setSceneStatus] = useState('');
-  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem('taxi-scene-admin-token') || '');
   const marksRef = useRef(null);
   const headlightRefs = useRef([]);
   const carCanvasRef = useRef(null);
@@ -187,7 +186,6 @@ function DrivingDemo() {
       ...options,
       headers: {
         'content-type': 'application/json',
-        ...(adminToken ? { 'x-admin-token': adminToken } : {}),
         ...options.headers,
       },
     });
@@ -211,11 +209,6 @@ function DrivingDemo() {
   };
 
   useEffect(() => { refreshScenes(); }, []);
-
-  useEffect(() => {
-    if (adminToken) sessionStorage.setItem('taxi-scene-admin-token', adminToken);
-    else sessionStorage.removeItem('taxi-scene-admin-token');
-  }, [adminToken]);
 
   const saveScene = async () => {
     if (!activeSceneId) { setSceneStatus('Сначала загрузите и выберите сцену.'); return; }
@@ -438,7 +431,6 @@ function DrivingDemo() {
 
           <fieldset className="scene-library">
             <legend>Библиотека сцен</legend>
-            <label className="text-control">Admin token<input type="password" value={adminToken} onChange={(event) => setAdminToken(event.target.value)} placeholder="SCENE_ADMIN_TOKEN" /></label>
             <label className="text-control">Сцена
               <select value={activeSceneId} onChange={(event) => selectScene(scenes.find((scene) => scene.id === event.target.value))}>
                 <option value="">Локальное демо</option>

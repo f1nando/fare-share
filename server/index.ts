@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 import { Binary, ObjectId } from 'mongodb';
 import { loadServerConfig } from './config.js';
 import { connectDatabase } from './database.js';
@@ -18,6 +17,7 @@ const server = createServer(async (request, response) => {
   }
   try {
     const url = new URL(request.url || '/', 'http://localhost');
+    if (url.pathname.startsWith('/api/driving-scenes')) requireLocalSceneAccess(request);
     if (request.method === 'GET' && request.url === '/api/health') {
       json(response, 200, { ok: true });
       return;
@@ -47,7 +47,6 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/driving-scenes') {
-      requireSceneAdmin(request);
       const input = parseSceneInput(await readJson(request, 12 * 1024 * 1024), true);
       const now = new Date();
       const document = {
@@ -66,7 +65,6 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'PUT' && sceneRoute && !sceneRoute[2]) {
-      requireSceneAdmin(request);
       const input = parseSceneInput(await readJson(request, 12 * 1024 * 1024), false);
       const now = new Date();
       const update: Record<string, unknown> = {
@@ -89,7 +87,6 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'DELETE' && sceneRoute && !sceneRoute[2]) {
-      requireSceneAdmin(request);
       const result = await database.drivingScenes.deleteOne({ _id: new ObjectId(sceneRoute[1]) });
       if (!result.deletedCount) throw new DrivingSceneError('Scene not found.', 404);
       response.writeHead(204).end();
@@ -123,18 +120,14 @@ async function readJson(request: IncomingMessage, maximumSize = 16_384): Promise
 function setCors(response: ServerResponse) {
   response.setHeader('access-control-allow-origin', config.allowedOrigin);
   response.setHeader('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.setHeader('access-control-allow-headers', 'content-type, x-admin-token');
+  response.setHeader('access-control-allow-headers', 'content-type');
   response.setHeader('vary', 'origin');
 }
 
-function requireSceneAdmin(request: IncomingMessage) {
-  if (!config.sceneAdminToken) throw new DrivingSceneError('Scene administration is not configured.', 503);
-  const provided = request.headers['x-admin-token'];
-  const actual = Array.isArray(provided) ? provided[0] : provided || '';
-  const expectedBytes = Buffer.from(config.sceneAdminToken);
-  const actualBytes = Buffer.from(actual);
-  if (actualBytes.length !== expectedBytes.length || !timingSafeEqual(actualBytes, expectedBytes)) {
-    throw new DrivingSceneError('Invalid admin token.', 401);
+function requireLocalSceneAccess(request: IncomingMessage) {
+  const address = request.socket.remoteAddress || '';
+  if (address !== '127.0.0.1' && address !== '::1' && address !== '::ffff:127.0.0.1') {
+    throw new DrivingSceneError('Driving scene library is available only on this computer.', 403);
   }
 }
 
