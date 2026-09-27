@@ -173,7 +173,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-stat-card > span { display: block; color: #aaa; font-size: 20px; font-weight: 500; line-height: 24px; }
 .fare-stat-card strong { display: block; margin-top: 10px; font-size: 47px; font-weight: 900; line-height: 47px; letter-spacing: -.025em; }
 .fare-stat-card strong.is-accent { color: #ffe72f; }
-.fare-chevron { position: absolute; top: 63px; right: 29px; width: 17px; height: 17px; border-right: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(45deg); }
 .fare-leaderboard-heading { position: absolute; top: 816px; right: max(24px, calc((100vw - 1720px) / 2)); left: max(24px, calc((100vw - 1720px) / 2)); display: flex; align-items: flex-start; justify-content: space-between; }
 .fare-leaderboard-heading h3 { font-size: 66px; }
 .fare-leaderboard-button { --press-x: 8px; --press-y: 9px; position: relative; top: -2px; display: inline-flex; align-items: center; justify-content: space-between; width: 320px; height: 64px; padding: 0 10px 0 28px; border: 2px solid #111; border-radius: 34px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111; font-size: 20px; font-weight: 800; text-decoration: none; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }

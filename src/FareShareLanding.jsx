@@ -408,7 +408,6 @@ export function FareShareLanding() {
             {treasuryStats.map(stat => <article className="fare-stat-card" key={stat.label}>
               <span>{stat.label}</span>
               <strong className={stat.accent ? 'is-accent' : undefined}>{stat.value}</strong>
-              <i className="fare-chevron" aria-hidden="true" />
             </article>)}
           </div>
 
