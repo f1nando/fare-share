@@ -214,7 +214,7 @@ function DrivingDemo() {
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
   const activeScene = scenes.find((scene) => scene.id === activeSceneId);
   const databaseM3 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'm3');
-  const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/m3.png';
+  const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/m3.webp';
 
   const selectScene = (scene) => {
     setActiveSceneId(scene?.id || '');
@@ -464,7 +464,7 @@ function DrivingDemo() {
                 const slot = index - 16;
                 const x = slot * spacing * pathX;
                 const y = slot * spacing * pathY;
-                return <img key={index} src="/driving-demo/mark.png" style={{ left: `${settings.markX + x}%`, top: `${markY + y}%` }} alt="" />;
+                return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + x}%`, top: `${markY + y}%` }} alt="" />;
               })}
             </div>
             {[
@@ -475,7 +475,7 @@ function DrivingDemo() {
                 key={name}
                 ref={(element) => { headlightRefs.current[index] = element; }}
                 className={`headlight headlight-${name} ${lightsOn ? 'lights-on' : ''}`}
-                src="/driving-demo/blink.png"
+                src="/driving-demo/blink.webp"
                 alt=""
                 style={{
                   left: `${x}%`,
