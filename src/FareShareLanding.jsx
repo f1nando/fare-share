@@ -195,6 +195,24 @@ function FareStepDrivingScene() {
   );
 }
 
+function FareStepCollectScene() {
+  const assetPath = '/fare-share/how-it-works/collect-wallet';
+
+  return (
+    <div className="fare-step-media fare-step-collect" aria-hidden="true">
+      <img className="fare-collect-wallet fare-collect-wallet-back" src={`${assetPath}/wallet-back.png`} alt="" />
+      <div className="fare-collect-flying-assets">
+        <img className="fare-collect-asset fare-collect-card fare-collect-card-one" src={`${assetPath}/stock-card.png`} alt="" />
+        <img className="fare-collect-asset fare-collect-card fare-collect-card-two" src={`${assetPath}/stock-card.png`} alt="" />
+        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-one" src={`${assetPath}/coin-1.png`} alt="" />
+        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-two" src={`${assetPath}/coin-2.png`} alt="" />
+        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-three" src={`${assetPath}/coin-3.png`} alt="" />
+      </div>
+      <img className="fare-collect-wallet fare-collect-wallet-front" src={`${assetPath}/wallet-front.png`} alt="" />
+    </div>
+  );
+}
+
 function FleetCardBackground() {
   const [scenes, setScenes] = useState([FALLBACK_SCENE]);
   const [columnCount, setColumnCount] = useState(() => fleetColumnCount(window.innerWidth));
@@ -415,8 +433,7 @@ export function FareShareLanding() {
       number: '3',
       title: 'COLLECT',
       text: 'Receive daily revenue in cash and your selected stock.',
-      video: '/fare-share/how-it-works/collect.mp4',
-      poster: '/fare-share/how-it-works/collect.png',
+      collectScene: true,
     },
   ];
 
@@ -531,7 +548,9 @@ export function FareShareLanding() {
                   />
                 : step.drivingScene
                   ? <FareStepDrivingScene />
-                : <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />}
+                : step.collectScene
+                  ? <FareStepCollectScene />
+                  : null}
               <h3>{step.title}</h3>
               <p>{step.text}</p>
             </article>)}
