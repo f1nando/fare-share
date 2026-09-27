@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_BODY_PITCH, MAX_BODY_ROLL, bodyPartPose, updateBodyMotion } from '../src/city/vehicleBody.js';
 import { addCar } from '../src/city/createCity.js';
+import { vehicleStunt } from '../src/city/vehicleBounce.js';
 
 test('taxi nose rises under acceleration, leans in steering and settles back on a straight', () => {
   const car = { taxi: true, speed: 0, steer: 0.2 };
@@ -15,6 +16,22 @@ test('taxi nose rises under acceleration, leans in steering and settles back on 
   car.steer = 0;
   for (let frame = 0; frame < 200; frame++) updateBodyMotion(car, 0.02, car.speed);
   assert.ok(Math.abs(car.pitch) < 1e-6 && Math.abs(car.roll) < 1e-6);
+});
+
+test('taxi barrel roll and motorcycle flip rotate every visible model part', () => {
+  for (const [car, type, axis] of [
+    [{ taxi: true }, 'taxi', 10],
+    [{ taxi: false, kind: 'motorcycle' }, 'motorcycle', 9],
+  ]) {
+    const parts = [];
+    Object.assign(car, { axis: 0, direction: 1, line: 0, position: 0, offset: 0.82,
+      speed: 4, steer: 0, pitch: 0, roll: 0, flashAge: 0 });
+    const effect = vehicleStunt(type, type === 'taxi' ? 425 : 450);
+    addCar({ add(...args) { parts.push(args); } }, car, 0, 0, { x: 0, z: 0 }, { right: 100, top: 100 }, 40,
+      null, null, 1, effect);
+    assert.ok(parts.length > 4);
+    for (const part of parts.filter(value => value[0] !== 'beam')) assert.ok(Math.abs(part[axis]) > 3);
+  }
 });
 
 test('braking tips the nose down; maximum combined lean leaves the body above the ground', () => {

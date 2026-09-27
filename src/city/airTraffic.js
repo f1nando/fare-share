@@ -89,13 +89,16 @@ export class AirTraffic {
     scene.add(helicopter, this.airplane);
   }
 
-  update(time, focus, camera) {
+  update(time, focus, camera, { effectFor, onVisible } = {}) {
     for (const kind of ['helicopter', 'airplane']) {
       const mesh = this[kind], pose = flightPose(kind, time, focus, camera);
       mesh.visible = Boolean(pose);
       if (!pose) continue;
       mesh.position.set(pose.x, pose.y, pose.z);
-      mesh.rotation.y = pose.angle;
+      const key = kind;
+      const effect = kind === 'helicopter' ? effectFor?.(key, kind) : null;
+      mesh.rotation.set(0, pose.angle + (effect?.yaw ?? 0), 0);
+      if (kind === 'helicopter') onVisible?.(pose.x, pose.y, pose.z, key, kind);
     }
     this.rotor.rotation.y = time * 31;
     this.tailRotor.rotation.x = time * 43;

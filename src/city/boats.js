@@ -32,11 +32,18 @@ const WAKE_COLORS = Array.from({ length: 32 }, (_, i) => {
   return `#${shade}${shade}${shade}`;
 });
 
-function drawBoat(batch, boat, x, y, z, direction) {
+function drawBoat(batch, boat, x, y, z, direction, effect = null) {
   const { kind, width, length, height, color } = boat;
   const rotation = direction > 0 ? 0 : Math.PI;
-  const part = (shape, dx, dy, dz, w, h, d, tint) =>
-    batch.add(shape, x + direction * dx, y + dy, z + direction * dz, w, h, d, tint, rotation);
+  const pitch = effect?.pitch ?? 0, roll = effect?.roll ?? 0, lift = effect?.lift ?? 0;
+  const part = (shape, dx, dy, dz, w, h, d, tint) => {
+    const rolledX = dx * Math.cos(roll) - dy * Math.sin(roll);
+    const rolledY = dx * Math.sin(roll) + dy * Math.cos(roll);
+    const tiltedY = rolledY * Math.cos(pitch) - dz * Math.sin(pitch);
+    const tiltedZ = rolledY * Math.sin(pitch) + dz * Math.cos(pitch);
+    batch.add(shape, x + direction * rolledX, y + tiltedY + lift, z + direction * tiltedZ,
+      w, h, d, tint, rotation, pitch, roll);
+  };
   part('boat', 0, 0, 0, width, height, length, color);
   part('boat', 0, height + 0.01, 0, width * 0.81, 0.06, length * 0.87, '#909792');
 
@@ -67,7 +74,7 @@ function drawBoat(batch, boat, x, y, z, direction) {
 
 // World-anchored spacing keeps boats continuous across camera origin shifts.
 // Only the nearby copies are drawn, so the endless canal needs no growing state.
-export function addBoats(batch, block, worldX, worldZ, area, time) {
+export function addBoats(batch, block, worldX, worldZ, area, time, { effectFor, onVisible } = {}) {
   const { width } = canalDimensions(block), spacing = block * 1.2;
   const minZ = (worldZ - area.z) * block - 12;
   const maxZ = (worldZ + area.z + 1) * block + 12;
@@ -81,7 +88,9 @@ export function addBoats(batch, block, worldX, worldZ, area, time) {
         const boat = BOATS[((typeIndex % BOATS.length) + BOATS.length) % BOATS.length];
         const z = index * spacing + offset - worldZ * block;
         const y = CANAL_WATER_LEVEL + 0.04 + Math.sin(time * 1.8 + phase * 10) * 0.025;
-        drawBoat(batch, boat, x, y, z, direction);
+        const key = `boat:${column}:${direction}:${index}`;
+        onVisible?.(x, y, z, key, 'boat');
+        drawBoat(batch, boat, x, y, z, direction, effectFor?.(key, 'boat'));
 
         // Three small V-shaped ripples expand and fade into the water behind the stern.
         for (let ripple = 0; ripple < 3; ripple++) {

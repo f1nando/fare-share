@@ -39,6 +39,15 @@ test('aircraft and rotor animation freeze with the clock and follow origin rebas
   assert.equal(scene.children.length, 0);
 });
 
+test('clicked helicopter spins around its vertical axis without changing its route', () => {
+  const scene = new THREE.Scene(), traffic = new AirTraffic(scene), camera = { right: 70, top: 40 };
+  const pose = flightPose('helicopter', 12, { x: 0, z: 0 }, camera);
+  traffic.update(12, { x: 0, z: 0 }, camera, { effectFor: () => ({ yaw: Math.PI }) });
+  assert.ok(Math.abs(traffic.helicopter.rotation.y - pose.angle - Math.PI) < 1e-9);
+  assert.deepEqual(traffic.helicopter.position.toArray(), [pose.x, pose.y, pose.z]);
+  traffic.dispose();
+});
+
 test('airplane casts a shadow without writing visible pixels or hiding the city', () => {
   const scene = new THREE.Scene(), traffic = new AirTraffic(scene);
   traffic.update(32, { x: 0, z: 0 }, { right: 70, top: 40 });

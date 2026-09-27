@@ -36,7 +36,7 @@ import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
-import { VEHICLE_BOUNCE_DURATION, nearestScreenVehicle, vehicleBounceLift } from './vehicleBounce.js';
+import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -149,26 +149,32 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
 }
 
 export function addCar(batch, car, originX, originZ, focus, camera, blockSize, hornEffects, previousPose = null, alpha = 1,
-  visualLift = 0, onVisible = null, selectionKey = car) {
+  visualEffect = null, onVisible = null, selectionKey = car) {
   const coordinates = carCoordinates(car, blockSize);
   // Simulate the offscreen traffic, but only upload visible cars to the GPU.
   if (!visiblePosition(coordinates, originX, originZ, focus, camera)) return;
   const pose = interpolatePresentation(presentation(car, coordinates), previousPose, alpha);
-  return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize, visualLift, onVisible, selectionKey);
+  return drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize, visualEffect, onVisible, selectionKey);
 }
 
-function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize, visualLift = 0, onVisible = null,
+function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize, visualEffect = null, onVisible = null,
   selectionKey = car) {
   const bridgeLift = liftBridgePose(pose, blockSize);
   pose.x -= originX; pose.z -= originZ;
-  onVisible?.(pose.x, pose.z, selectionKey);
+  const visualType = stuntType(car.kind, car.taxi);
+  onVisible?.(pose.x, 0.65 + (visualEffect?.lift ?? 0), pose.z, selectionKey, visualType);
   pose.sin = Math.sin(pose.angle); pose.cos = Math.cos(pose.angle);
   const { pitch, roll, lift } = pose;
   if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, pose.x, pose.z, camera, bridgeLift);
   const part = (kind, dx, y, dz, w, h, d, color, sprung = true) => {
     const local = sprung && (pitch || roll) ? bodyPartPose(dx, y, dz, pitch, roll) : { x: dx, y, z: dz };
-    batch.add(kind, pose.x + local.x * pose.cos + local.z * pose.sin, local.y + (sprung ? lift : 0) + visualLift,
-      pose.z - local.x * pose.sin + local.z * pose.cos, w, h, d, color, pose.angle, sprung ? pitch : 0, sprung ? roll : 0);
+    const animated = kind !== 'beam' && (visualEffect?.pitch || visualEffect?.roll)
+      ? bodyPartPose(local.x, local.y, local.z, visualEffect.pitch, visualEffect.roll) : local;
+    const visualLift = kind === 'beam' ? 0 : visualEffect?.lift ?? 0;
+    batch.add(kind, pose.x + animated.x * pose.cos + animated.z * pose.sin, animated.y + (sprung ? lift : 0) + visualLift,
+      pose.z - animated.x * pose.sin + animated.z * pose.cos, w, h, d, color, pose.angle,
+      (sprung ? pitch : 0) + (kind === 'beam' ? 0 : visualEffect?.pitch ?? 0),
+      (sprung ? roll : 0) + (kind === 'beam' ? 0 : visualEffect?.roll ?? 0));
   };
   if (drawTrafficVehicle(part, car, pose)) return true;
   const color = car.taxi ? '#ffca00' : car.color;
@@ -191,7 +197,7 @@ function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, bl
 }
 
 export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, hornEffects, blockSize = BLOCK,
-  visualLift = null, onVisible = null) {
+  effectFor = null, onVisible = null) {
   if (!frame) return 0;
   const { lower, upper, alpha } = frame, pose = {}, previousPose = {}, car = {};
   let visible = 0;
@@ -209,8 +215,9 @@ export function addTrafficFrame(batch, frame, originX, originZ, focus, camera, h
     }
     if (before !== undefined) car.rideHeight = lower.data[before + 16] + (upper.data[offset + 16] - lower.data[before + 16]) * alpha;
     const key = `worker:${upper.data[offset]}`;
+    const type = stuntType(car.kind, car.taxi);
     drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize,
-      visualLift?.(key) ?? 0, onVisible, key); visible++;
+      effectFor?.(key, type), onVisible, key); visible++;
   }
   return visible;
 }
@@ -305,13 +312,13 @@ export function createCity(container, initialSettings, benchmark = null) {
   const projectedVehicle = new THREE.Vector3();
   const clickableVehicles = [];
   const clickableVehiclePool = [];
-  const vehicleBounces = new Map();
-  const addClickableVehicle = (x, z, key) => {
+  const vehicleStunts = new Map();
+  const addClickableVehicle = (x, y, z, key, type) => {
     const index = clickableVehicles.length;
     const vehicle = clickableVehiclePool[index] ?? (clickableVehiclePool[index] = {
-      x: 0, z: 0, screenX: 0, screenY: 0, key: null,
+      x: 0, y: 0, z: 0, screenX: 0, screenY: 0, key: null, type: 'car',
     });
-    vehicle.x = x; vehicle.z = z; vehicle.key = key;
+    vehicle.x = x; vehicle.y = y; vehicle.z = z; vehicle.key = key; vehicle.type = type;
     clickableVehicles.push(vehicle);
   };
   const workerConfig = () => ({ settings: { ...settings, blockSize: BLOCK }, area,
@@ -455,24 +462,24 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     const prepareStart = benchmark ? performance.now() : 0;
     clickableVehicles.length = 0;
-    const bounceLift = key => {
-      const started = vehicleBounces.get(key);
-      if (started === undefined) return 0;
-      const elapsed = timestamp - started;
-      if (elapsed >= VEHICLE_BOUNCE_DURATION) { vehicleBounces.delete(key); return 0; }
-      return vehicleBounceLift(elapsed, reducedMotion.matches);
+    const effectFor = (key, type) => {
+      const stunt = vehicleStunts.get(key);
+      if (!stunt) return null;
+      const effect = vehicleStunt(type, timestamp - stunt.started, stunt.direction, reducedMotion.matches);
+      if (!effect) vehicleStunts.delete(key);
+      return effect;
     };
     let visibleCars = worker ? addTrafficFrame(carsBatch, workerFrame, originX, originZ, focus, camera, hornEffects, BLOCK,
-      bounceLift, addClickableVehicle) : 0;
+      effectFor, addClickableVehicle) : 0;
     for (const lane of lanes.values()) {
       for (const car of lane.cars) {
         if (addCar(carsBatch, car, originX, originZ, focus, camera, BLOCK, hornEffects,
-          fixedSimulation ? previousPoses.get(car) : null, renderAlpha, bounceLift(car),
+          fixedSimulation ? previousPoses.get(car) : null, renderAlpha, effectFor(car, stuntType(car.kind, car.taxi)),
           addClickableVehicle, car)) visibleCars++;
       }
     }
-    addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
-    airTraffic.update(boatTime, focus, camera);
+    addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
+    airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
     carsBatch.flush();
     if (!reveal.done) {
       reveal.advance(delta, { paused: settings.paused || document.hidden, reducedMotion: reducedMotion.matches });
@@ -517,14 +524,15 @@ export function createCity(container, initialSettings, benchmark = null) {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
     for (const vehicle of clickableVehicles) {
-      projectedVehicle.set(vehicle.x, 0.65, vehicle.z).project(camera);
+      projectedVehicle.set(vehicle.x, vehicle.y, vehicle.z).project(camera);
       vehicle.screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
     }
-    const radius = event.pointerType === 'touch' ? 42 : 30;
+    const radius = event.pointerType === 'touch' ? 46 : 38;
     const vehicle = nearestScreenVehicle(clickableVehicles, { x: event.clientX, y: event.clientY }, radius);
     if (!vehicle) return;
-    vehicleBounces.set(vehicle.key, performance.now());
+    vehicleStunts.set(vehicle.key, { started: performance.now(),
+      direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
   };
   window.addEventListener('pointerdown', bounceVehicle, true);
   const visibility = () => {

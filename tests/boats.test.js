@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { addBoats } from '../src/city/boats.js';
 import { canalDimensions, CANAL_WATER_LEVEL } from '../src/city/canal.js';
 import { bridgeHeight } from '../src/city/bridgeProfile.js';
+import { vehicleStunt } from '../src/city/vehicleBounce.js';
 
 function scene(block, worldX, worldZ, time, area = { x: 2, z: 6 }) {
   const parts = [];
@@ -17,6 +18,14 @@ test('canals show more boats simultaneously in both directions', () => {
   assert.ok(Math.max(...boats.map(p => p[6])) > Math.min(...boats.map(p => p[6])) * 2);
   assert.equal(new Set(boats.map(p => p[6])).size, 4);
   assert.ok(boats.some(p => p[8] === 0) && boats.some(p => p[8] === Math.PI));
+});
+
+test('clicked boats rock as complete models', () => {
+  const parts = [];
+  addBoats({ add: (...part) => parts.push(part) }, 40, 0, 0, { x: 1, z: 1 }, 20,
+    { effectFor: () => vehicleStunt('boat', 200) });
+  const hull = parts.find(part => part[0] === 'boat');
+  assert.ok(hull[9] !== 0 && hull[10] !== 0);
 });
 
 test('boat sizes and positions remain continuous across camera origin shifts', () => {
