@@ -36,8 +36,8 @@ import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
-import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
-import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle } from './foliageAnimation.js';
+import { stuntType, vehicleStunt } from './vehicleBounce.js';
+import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES, scaledDensity } from './adaptiveQuality.js';
 
@@ -608,74 +608,67 @@ export function createCity(container, initialSettings, benchmark = null) {
   const gestureTargets = new Set();
   const gesturePoint = { x: 0, y: 0 };
   const overControl = event => event.target instanceof Element && event.target.closest('button, input, select, textarea, a');
+  const activateFoliage = (index, item) => {
+    if (!claimGestureTarget(gestureTargets, `foliage:${index}`)) return;
+    const existing = foliageSwings.get(index);
+    let targets = existing?.targets;
+    let pivotY = existing?.pivotY;
+    if (!targets) {
+      const crownMesh = staticBatch.meshes.get('crown'), crownBase = new THREE.Matrix4();
+      crownMesh.getMatrixAt(index, crownBase);
+      targets = [{ mesh: crownMesh, index, base: crownBase, animated: new THREE.Matrix4() }];
+      pivotY = item[1] - item[4];
+      const trunkGroup = staticBatch.items.get('box');
+      const trunkIndex = trunkGroup?.values.slice(0, trunkGroup.count).findIndex(trunk =>
+        trunk[11] === REVEAL.trees && Math.hypot(trunk[0] - item[0], trunk[2] - item[2]) < 0.08) ?? -1;
+      if (trunkIndex >= 0) {
+        const trunkMesh = staticBatch.meshes.get('box'), trunkBase = new THREE.Matrix4();
+        trunkMesh.getMatrixAt(trunkIndex, trunkBase);
+        targets.push({ mesh: trunkMesh, index: trunkIndex, base: trunkBase, animated: new THREE.Matrix4() });
+        pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
+      }
+    }
+    foliageSwings.set(index, { targets, started: performance.now(), direction: Math.random() < 0.5 ? -1 : 1,
+      x: item[0], pivotY, z: item[2] });
+  };
+  const activateBuilding = (index, item) => {
+    if (!claimGestureTarget(gestureTargets, `building:${index}`)) return;
+    const existing = buildingStretches.get(index);
+    const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
+    if (!existing) mesh.getMatrixAt(index, base);
+    buildingStretches.set(index, { mesh, base, started: performance.now(),
+      x: item[0], bottom: item[1] - item[4] / 2, z: item[2] });
+  };
   const animateAtPointer = event => {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+    const radius = event.pointerType === 'touch' ? 100 : 82;
+    gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
     for (const vehicle of clickableVehicles) {
       projectedVehicle.set(vehicle.x, vehicle.y, vehicle.z).project(camera);
       vehicle.screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
+      if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint, radius) ||
+        !claimGestureTarget(gestureTargets, vehicle.key)) continue;
+      vehicleStunts.set(vehicle.key, { started: performance.now(),
+        direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
     }
-    const radius = event.pointerType === 'touch' ? 46 : 38;
-    gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
-    const vehicle = nearestScreenVehicle(clickableVehicles, gesturePoint, radius);
-    let nearestDistance = vehicle ? (vehicle.screenX - gesturePoint.x) ** 2 + (vehicle.screenY - gesturePoint.y) ** 2 : radius ** 2;
-    let foliage = null;
     const crownGroup = staticBatch.items.get('crown');
     for (let index = 0; index < (crownGroup?.count ?? 0); index++) {
       const item = crownGroup.values[index];
       projectedVehicle.set(item[0], item[1], item[2]).project(camera);
       const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      const distance = (screenX - gesturePoint.x) ** 2 + (screenY - gesturePoint.y) ** 2;
-      if (distance < nearestDistance) { nearestDistance = distance; foliage = { index, item }; }
+      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateFoliage(index, item);
     }
-    if (foliage) {
-      if (!claimGestureTarget(gestureTargets, `foliage:${foliage.index}`)) return;
-      const existing = foliageSwings.get(foliage.index);
-      let targets = existing?.targets;
-      let pivotY = existing?.pivotY;
-      if (!targets) {
-        const crownMesh = staticBatch.meshes.get('crown'), crownBase = new THREE.Matrix4();
-        crownMesh.getMatrixAt(foliage.index, crownBase);
-        targets = [{ mesh: crownMesh, index: foliage.index, base: crownBase, animated: new THREE.Matrix4() }];
-        pivotY = foliage.item[1] - foliage.item[4];
-        const trunkGroup = staticBatch.items.get('box');
-        const trunkIndex = trunkGroup?.values.slice(0, trunkGroup.count).findIndex(item =>
-          item[11] === REVEAL.trees && Math.hypot(item[0] - foliage.item[0], item[2] - foliage.item[2]) < 0.08) ?? -1;
-        if (trunkIndex >= 0) {
-          const trunkMesh = staticBatch.meshes.get('box'), trunkBase = new THREE.Matrix4();
-          trunkMesh.getMatrixAt(trunkIndex, trunkBase);
-          targets.push({ mesh: trunkMesh, index: trunkIndex, base: trunkBase, animated: new THREE.Matrix4() });
-          pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
-        }
-      }
-      foliageSwings.set(foliage.index, { targets, started: performance.now(), direction: Math.random() < 0.5 ? -1 : 1,
-        x: foliage.item[0], pivotY, z: foliage.item[2] });
-      return;
-    }
-    if (vehicle) {
-      if (!claimGestureTarget(gestureTargets, vehicle.key)) return;
-      vehicleStunts.set(vehicle.key, { started: performance.now(),
-        direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
-      return;
-    }
-    let building = null, buildingDistance = (event.pointerType === 'touch' ? 62 : 52) ** 2;
     const buildingGroup = staticBatch.items.get('building');
     for (let index = 0; index < (buildingGroup?.count ?? 0); index++) {
       const item = buildingGroup.values[index];
       projectedVehicle.set(item[0], item[1], item[2]).project(camera);
       const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      const distance = (screenX - gesturePoint.x) ** 2 + (screenY - gesturePoint.y) ** 2;
-      if (distance < buildingDistance) { buildingDistance = distance; building = { index, item }; }
+      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateBuilding(index, item);
     }
-    if (!building || !claimGestureTarget(gestureTargets, `building:${building.index}`)) return;
-    const existing = buildingStretches.get(building.index);
-    const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
-    if (!existing) mesh.getMatrixAt(building.index, base);
-    buildingStretches.set(building.index, { mesh, base, started: performance.now(),
-      x: building.item[0], bottom: building.item[1] - building.item[4] / 2, z: building.item[2] });
   };
   const beginGesture = event => {
     if (event.button !== 0 || overControl(event)) return;

@@ -13,3 +13,7 @@ export function claimGestureTarget(touched, target) {
   touched.add(target);
   return true;
 }
+
+export function withinGestureRadius(screenX, screenY, point, radius) {
+  return (screenX - point.x) ** 2 + (screenY - point.y) ** 2 <= radius ** 2;
+}
