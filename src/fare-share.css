@@ -75,8 +75,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-nav a:hover { opacity: .52; }
 .fare-nav .is-active { padding: 0 20px; border-radius: 32px; color: #fff; background: #111; }
 .fare-header-actions { display: flex; align-items: center; flex: 0 0 auto; gap: var(--fare-control-group-gap); }
-.fare-social { display: grid; width: var(--fare-control-height-md); height: var(--fare-control-height-md); place-items: center; border: var(--fare-control-border) solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: none; text-decoration: none; transition: opacity var(--fare-control-transition); }
+.fare-social { display: grid; width: var(--fare-control-height-md); height: var(--fare-control-height-md); place-items: center; border: var(--fare-control-border) solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: none; text-decoration: none; transition: color var(--fare-control-transition), background-color var(--fare-control-transition); }
 .fare-social svg { display: block; width: 24px; height: 22px; }
+.fare-social svg path { transition: fill var(--fare-control-transition); }
 
 .fare-connect, .fare-button {
   border: var(--fare-control-border) solid #111;
@@ -88,7 +89,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 .fare-connect { display: inline-flex; align-items: center; justify-content: center; min-width: 240px; height: var(--fare-control-height-md); padding: 0 22px; background: #ffe11a; box-shadow: none; font-size: var(--fare-control-font-md); letter-spacing: -.02em; white-space: nowrap; transition: opacity var(--fare-control-transition); }
 .fare-wallet-icon { display: block; flex: 0 0 auto; width: 24px; height: 21px; margin-left: 12px; }
-.fare-social:hover, .fare-connect:hover { opacity: .78; }
+.fare-social:hover { color: #fff; background: #111; }
+.fare-social:hover svg path { fill: #fff; }
+.fare-connect:hover { opacity: .78; }
 
 .fare-hero {
   display: flex;
