@@ -1,5 +1,6 @@
-:root { font-family: Arial, sans-serif; color: #444444; background: #dedede; font-synthesis: none; }
+:root { font-family: Arial, sans-serif; color: #444444; background: #dedede; font-synthesis: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 * { box-sizing: border-box; }
+img { user-select: none; -webkit-user-drag: none; }
 html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 .city-background { position: relative; width: 100%; height: 100%; overflow: hidden; background: #dedede; }
 .city-background.is-fixed { position: fixed; inset: 0; }

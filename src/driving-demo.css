@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
-:root { font-family: Manrope, Arial, sans-serif; color: #f5f5ef; background: #11110f; font-synthesis: none; }
+:root { font-family: Manrope, Arial, sans-serif; color: #f5f5ef; background: #11110f; font-synthesis: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 * { box-sizing: border-box; }
+img { user-select: none; -webkit-user-drag: none; }
 html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }
 body { min-height: 100vh; background: radial-gradient(circle at 18% -10%, #363226 0, transparent 34%), #11110f; }
 button, input { font: inherit; }
