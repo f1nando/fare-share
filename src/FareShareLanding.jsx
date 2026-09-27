@@ -128,8 +128,10 @@ function FleetCardBackground() {
         const distanceX = Math.max(bounds.left - clientX, 0, clientX - bounds.right);
         const distanceY = Math.max(bounds.top - clientY, 0, clientY - bounds.bottom);
         const distance = Math.hypot(distanceX, distanceY);
-        const influence = Math.max(0, 1 - distance / bounds.width);
-        const playbackRate = 1 + influence * 3;
+        const activationDistance = bounds.width * .5;
+        const proximity = Math.max(0, 1 - distance / activationDistance);
+        const smoothProximity = proximity * proximity * (3 - 2 * proximity);
+        const playbackRate = 1 + smoothProximity * 6;
         card.querySelector('.fare-fleet-road')?.getAnimations().forEach((animation) => {
           animation.playbackRate = playbackRate;
         });
