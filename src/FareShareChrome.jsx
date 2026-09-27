@@ -42,7 +42,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     if (!isMenuOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
-    const breakpoint = window.matchMedia('(max-width: 1000px)');
+    const breakpoint = window.matchMedia('(max-width: 1100px)');
     const closeOnDesktop = (event) => {
       if (!event.matches) setIsMenuOpen(false);
     };

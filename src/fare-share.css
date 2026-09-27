@@ -442,7 +442,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-footer-column a:hover { color: #fff; }
 .fare-footer-column a + a { margin-top: 35px; }
 
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .fare-nav { display: none; }
   .fare-header-actions { margin-left: auto; }
   .fare-mobile-menu { display: grid; flex: 0 0 auto; width: var(--fare-control-height-md); height: var(--fare-control-height-md); padding: 0; place-items: center; border: var(--fare-control-border) solid #111; border-radius: 50%; color: #111; background: #fff; }
