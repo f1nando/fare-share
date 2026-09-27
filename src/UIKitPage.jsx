@@ -16,6 +16,23 @@ function ArrowIcon({ color = '#FFE72F' }) {
   );
 }
 
+function XIcon() {
+  return (
+    <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M18.9 0H22.581L14.541 9.3189L24 22H16.5945L10.794 14.3076L4.1565 22H0.474L9.0735 12.0317L0 0H7.5945L12.837 7.02938L18.9 0ZM17.61 19.7666H19.65L6.4845 2.11655H4.2975L17.61 19.7666Z" fill="#101010" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="44" height="44" rx="22" fill="black" />
+      <path d="M14 19L22 27L30 19" stroke="white" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function Specimen({ name, meta, children }) {
   return (
     <article className="ui-specimen">
@@ -63,10 +80,51 @@ export function UIKitPage() {
           </div>
         </section>
 
-        <section className="ui-kit-section container" aria-labelledby="buttons-title">
+        <section className="ui-kit-section container" aria-labelledby="component-text-title">
           <div className="ui-kit-section-heading">
             <span>03</span>
-            <div><h2 id="buttons-title">BUTTONS</h2><p>Use these variants without local size overrides.</p></div>
+            <div><h2 id="component-text-title">COMPONENT TEXT</h2><p>Every text treatment used inside product components.</p></div>
+          </div>
+          <div className="ui-component-type-grid">
+            <Specimen name="Step card" meta="Number 37px · title 39px · body 17px">
+              <div className="fare-step-card ui-step-type-card">
+                <span className="fare-step-number">1</span>
+                <h3>GET A CAR</h3>
+                <p>Start with a free trainee car, then build your real fleet.</p>
+              </div>
+            </Specimen>
+            <Specimen name="Header identity" meta="Brand 28px · ticker 23px">
+              <div className="fare-brand ui-brand-type"><strong>FARE SHARE</strong><span>$TAXI</span></div>
+            </Specimen>
+            <Specimen name="Fleet class" meta="11px · 800 · uppercase">
+              <div className="ui-badge-row">
+                <span className="fare-fleet-class is-economy">ECONOMY</span>
+                <span className="fare-fleet-class is-business">BUSINESS</span>
+                <span className="fare-fleet-class is-legend">LEGENDARY</span>
+              </div>
+            </Specimen>
+            <Specimen name="Treasury stat" meta="Label 20px · value 47px">
+              <div className="fare-stat-card ui-stat-type"><span>FEES COLLECTED</span><strong className="is-accent">$18,482</strong></div>
+            </Specimen>
+            <Specimen name="Leaderboard row" meta="Header 20px · row 28px">
+              <div className="ui-table-type"><div><span>#</span><span>DRIVER</span><span>TOTAL EARNINGS</span></div><p><span>1</span><span>User_4312234</span><strong>24 430$</strong></p></div>
+            </Specimen>
+            <Specimen name="FAQ copy" meta="Question 29px · answer 18px / 24px">
+              <div className="ui-faq-type"><strong>WHAT ARE THE FEES?</strong><p>Every charge is shown before you confirm an action.</p></div>
+            </Specimen>
+            <Specimen name="Footer copy" meta="Heading 26px · link 26px · body 21px">
+              <div className="ui-footer-type"><strong>NAVIGATION</strong><a href="#footer-sample">Fleet</a><p>Build your taxi fleet and collect park fees.</p></div>
+            </Specimen>
+            <Specimen name="Data and mono" meta="Roboto Mono · 18–23px">
+              <div className="ui-mono-type"><span>$NFT</span><strong>0x7d91...af4f2</strong></div>
+            </Specimen>
+          </div>
+        </section>
+
+        <section className="ui-kit-section container" aria-labelledby="buttons-title">
+          <div className="ui-kit-section-heading">
+            <span>04</span>
+            <div><h2 id="buttons-title">BUTTONS & CONTROLS</h2><p>Every interactive treatment used on the landing page.</p></div>
           </div>
           <div className="ui-button-grid">
             <Specimen name="Primary / large" meta="74px height · 28px horizontal padding">
@@ -81,6 +139,18 @@ export function UIKitPage() {
             <Specimen name="Primary / medium" meta="64px height · 28px horizontal padding">
               <button className="fare-connect" type="button">Connect Wallet</button>
             </Specimen>
+            <Specimen name="Leaderboard action" meta="64px height · trailing arrow">
+              <a className="fare-leaderboard-button" href="#leaderboard-sample">View Full Leaderboard <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon color="#FFFFFF" /></span></a>
+            </Specimen>
+            <Specimen name="FAQ control" meta="108px row · 44px icon">
+              <div className="fare-faq-entry ui-faq-control"><button className="fare-faq-item" type="button"><span>CAN I SELL MY CARS?</span><ChevronIcon /></button></div>
+            </Specimen>
+            <Specimen name="Navigation states" meta="64px item · active pill">
+              <nav className="fare-nav ui-nav-control"><a className="is-active" href="#home-sample">HOME</a><a href="#fleet-sample">FLEET</a><a href="#docs-sample">DOCS</a></nav>
+            </Specimen>
+            <Specimen name="Icon action" meta="64 × 64px">
+              <a className="fare-social" href="#social-sample" aria-label="Social button example"><XIcon /></a>
+            </Specimen>
           </div>
           <div className="ui-size-table">
             <div><strong>Large</strong><span>74px</span><span>Primary page actions</span></div>
@@ -91,7 +161,7 @@ export function UIKitPage() {
 
         <section className="ui-kit-section container" aria-labelledby="foundations-title">
           <div className="ui-kit-section-heading">
-            <span>04</span>
+            <span>05</span>
             <div><h2 id="foundations-title">FOUNDATIONS</h2><p>Core color and spacing values.</p></div>
           </div>
           <div className="ui-foundation-grid">

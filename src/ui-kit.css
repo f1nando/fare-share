@@ -26,6 +26,32 @@
 .ui-type-lead { font-size: 26px; font-weight: 700; line-height: 32px; }
 .ui-type-button { font-size: 20px; font-weight: 800; }
 .ui-type-body { font-size: 17px; font-weight: 500; line-height: 24px; }
+.ui-component-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 32px; }
+.ui-component-type-grid .ui-specimen-preview { min-height: 200px; }
+.ui-step-type-card { display: grid; grid-template-columns: 76px 1fr; width: 100%; height: auto; min-height: 126px; align-items: center; padding: 20px 24px; overflow: visible; }
+.ui-step-type-card .fare-step-number { position: relative; top: auto; left: auto; grid-row: 1 / 3; }
+.ui-step-type-card h3 { margin: 0; }
+.ui-step-type-card p { margin: 8px 0 0; }
+.ui-brand-type { gap: 18px; }
+.ui-brand-type strong { font-size: 28px; }
+.ui-brand-type span { font-size: 23px; }
+.ui-badge-row { display: flex; flex-wrap: wrap; gap: 18px; }
+.ui-badge-row .fare-fleet-class { position: relative; top: auto; left: auto; }
+.ui-stat-type { width: min(100%, 430px); }
+.ui-table-type { width: 100%; border: 2px solid #111; border-radius: 18px; overflow: hidden; }
+.ui-table-type > div, .ui-table-type > p { display: grid; grid-template-columns: 54px 1fr 180px; align-items: center; margin: 0; padding: 0 20px; }
+.ui-table-type > div { height: 52px; color: #fff; background: #111; font-size: 20px; font-weight: 700; }
+.ui-table-type > p { height: 78px; font-size: 28px; font-weight: 600; }
+.ui-table-type strong { text-align: right; }
+.ui-faq-type strong { display: block; font-size: 29px; font-weight: 900; }
+.ui-faq-type p { margin: 16px 0 0; color: #555; font-size: 18px; font-weight: 500; line-height: 24px; }
+.ui-footer-type { display: flex; align-items: flex-start; flex-direction: column; }
+.ui-footer-type strong { color: #d9bd00; font-size: 26px; }
+.ui-footer-type a { margin-top: 18px; color: #777; font-size: 26px; text-decoration: none; }
+.ui-footer-type p { margin: 18px 0 0; color: #777; font-size: 21px; line-height: 24px; }
+.ui-mono-type { display: flex; align-items: center; gap: 28px; font-family: 'Roboto Mono', 'Courier New', monospace; }
+.ui-mono-type span { font-size: 23px; }
+.ui-mono-type strong { font-size: 18px; }
 .ui-button-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 32px; }
 .ui-button-grid .ui-specimen-preview { min-height: 154px; }
 .ui-button-grid .fare-button { width: auto; }
@@ -33,6 +59,8 @@
 .ui-button-grid .fare-button-light { min-width: 196px; }
 .ui-button-grid .fare-button-dark { min-width: 374px; }
 .ui-kit-ca .fare-copy-icon { margin-left: 28px; }
+.ui-faq-control { width: 100%; }
+.ui-nav-control { margin: 0; padding: 0; }
 .ui-size-table { display: grid; margin-top: 32px; border: 2px solid #111; border-radius: 24px; background: #fff; overflow: hidden; }
 .ui-size-table > div { display: grid; grid-template-columns: 180px 120px 1fr; align-items: center; min-height: 64px; padding: 0 24px; }
 .ui-size-table > div + div { border-top: 1px solid #bbb; }
@@ -54,7 +82,7 @@
   .ui-kit-section { padding-top: 64px; }
   .ui-kit-section-heading { grid-template-columns: 56px 1fr; }
   .ui-kit-section-heading h2 { font-size: 40px; }
-  .ui-button-grid, .ui-foundation-grid { grid-template-columns: 1fr; }
+  .ui-button-grid, .ui-component-type-grid, .ui-foundation-grid { grid-template-columns: 1fr; }
   .ui-container-demo > div { align-items: flex-start; flex-direction: column; justify-content: center; gap: 8px; }
   .ui-container-demo span { line-height: 20px; }
   .ui-type-hero { font-size: 72px; }
