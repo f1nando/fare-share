@@ -66,7 +66,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 .fare-brand { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 14px; color: #111; text-decoration: none; white-space: nowrap; }
-.fare-brand img { width: 64px; height: 64px; border: 2px solid #111; border-radius: 50%; object-fit: cover; }
+.fare-brand img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 .fare-brand strong { font-size: 28px; font-weight: 900; letter-spacing: -.055em; }
 .fare-brand span { font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 23px; font-weight: 500; letter-spacing: -.07em; }
 
@@ -300,7 +300,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
 .fare-leaderboard-header { height: 64px; color: #fff; background: #111 !important; font-size: 18px; font-weight: 700; }
 .fare-driver-cell { display: flex; align-items: center; gap: 20px; }
-.fare-driver-cell img { display: block; width: 64px; height: 64px; border: 1px solid #111; border-radius: 50%; object-fit: cover; }
+.fare-driver-cell img { display: block; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 
 .fare-faq {
   min-height: 1045px;

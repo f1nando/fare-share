@@ -575,7 +575,7 @@ export function FareShareLanding() {
       <FareShareCityBackground />
       <header className="fare-header container">
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
-          <img src="/brand/fare-driver.webp" alt="" decoding="async" />
+          <img src="/brand/fare-driver.png" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
         </a>
 
@@ -708,7 +708,7 @@ export function FareShareLanding() {
             </div>
             {leaders.map(([position, earnings]) => <div className="fare-leaderboard-row" key={position}>
               <span>{position}</span>
-              <span className="fare-driver-cell"><img src="/brand/fare-driver.webp" alt="" loading="lazy" decoding="async" />User_4312234</span>
+              <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />User_4312234</span>
               <span>12 Cars</span>
               <span>{earnings}</span>
             </div>)}
@@ -750,7 +750,7 @@ export function FareShareLanding() {
         <div className="fare-footer-inner container">
           <div className="fare-footer-about">
             <div className="fare-footer-brand">
-              <img src="/brand/fare-driver.webp" alt="" loading="lazy" decoding="async" />
+              <img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />
               <strong>FARE SHARE</strong>
               <span>$NFT</span>
             </div>
