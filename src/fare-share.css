@@ -480,6 +480,17 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
+  .fare-header { top: 12px; width: calc(100% - 24px); height: 64px; padding: 0 10px; border-radius: 32px; }
+  .fare-brand { gap: 8px; }
+  .fare-brand img { width: 42px; height: 42px; }
+  .fare-brand strong { font-size: 18px; }
+  .fare-header-actions { gap: 8px; }
+  .fare-social, .fare-mobile-menu { width: 42px; height: 42px; }
+  .fare-social svg { width: 19px; height: 18px; }
+  .fare-mobile-menu svg { width: 22px; height: 18px; }
+  .fare-connect { width: 42px; min-width: 42px; height: 42px; padding: 0; }
+  .fare-connect span { display: none; }
+  .fare-wallet-icon { width: 19px; height: 17px; margin-left: 0; }
   .fare-hero { height: 760px; padding: 170px 0 80px; }
   .fare-hero-copy { width: 100%; }
   .fare-hero h1 { font-size: 52px; line-height: .82; text-shadow: 3px 4px 0 #111; }
