@@ -1,7 +1,7 @@
 import { Binary, ObjectId, type Collection } from 'mongodb';
 
 export const MAX_SCENE_IMAGE_BYTES = 8 * 1024 * 1024;
-export const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legend', 'Trainee'] as const;
+export const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legendary', 'Trainee'] as const;
 export type VehicleClass = typeof VEHICLE_CLASSES[number];
 
 export interface DrivingSceneDocument {
@@ -53,6 +53,7 @@ export function sceneSummary(document: Omit<DrivingSceneDocument, 'image'>) {
 
 function parseVehicleClass(value: unknown): VehicleClass {
   if (value === undefined) return 'Economy';
+  if (value === 'Legend') return 'Legendary';
   if (typeof value !== 'string' || !VEHICLE_CLASSES.includes(value as VehicleClass)) {
     throw new DrivingSceneError('Unsupported vehicle class.');
   }

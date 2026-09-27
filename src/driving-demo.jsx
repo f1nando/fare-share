@@ -32,7 +32,7 @@ const BMW_M3_E46_REFERENCE_KEY = 'taxi-driving-demo-bmw-m3-e46-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
-const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legend', 'Trainee'];
+const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legendary', 'Trainee'];
 const DIRECTION_PRESETS = [
   { angle: -135, label: '↖', title: 'Вверх-влево', column: 1, row: 1 },
   { angle: -90, label: '↑', title: 'Вверх', column: 2, row: 1 },
@@ -46,6 +46,11 @@ const DIRECTION_PRESETS = [
 
 function normalizeAngle(angle) {
   return ((angle + 180) % 360 + 360) % 360 - 180;
+}
+
+function normalizeVehicleClass(value) {
+  if (value === 'Legend') return 'Legendary';
+  return VEHICLE_CLASSES.includes(value) ? value : 'Economy';
 }
 
 function normalizeSettings(source) {
@@ -145,7 +150,7 @@ function loadStoredState() {
     return {
       settings,
       lightsOn: stored.lightsOn === true,
-      vehicleClass: VEHICLE_CLASSES.includes(stored.vehicleClass) ? stored.vehicleClass : 'Economy',
+      vehicleClass: normalizeVehicleClass(stored.vehicleClass),
     };
   } catch {
     return { settings: DEFAULTS, lightsOn: false, vehicleClass: 'Economy' };
@@ -228,7 +233,7 @@ function DrivingDemo() {
     setSceneName(scene?.name || 'Локальное демо');
     if (scene) {
       setSettings(normalizeSettings(scene.settings));
-      setVehicleClass(VEHICLE_CLASSES.includes(scene.vehicleClass) ? scene.vehicleClass : 'Economy');
+      setVehicleClass(normalizeVehicleClass(scene.vehicleClass));
       setCompactSpacingPreview(false);
       offsetRef.current = 0;
     }
@@ -313,7 +318,7 @@ function DrivingDemo() {
     if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
     const imported = normalizeSettings(bundle.settings);
     setSettings(imported);
-    if (VEHICLE_CLASSES.includes(bundle.vehicleClass)) setVehicleClass(bundle.vehicleClass);
+    if (bundle.vehicleClass) setVehicleClass(normalizeVehicleClass(bundle.vehicleClass));
     setSceneStatus(message);
   };
 

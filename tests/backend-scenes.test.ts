@@ -33,6 +33,11 @@ test('driving scene input rejects unsupported images and non-numeric settings', 
   );
 });
 
+test('legacy Legend class is normalized to the Legendary card label', () => {
+  const input = parseSceneInput({ name: 'Taxi', settings: {}, vehicleClass: 'Legend' }, false);
+  assert.equal(input.vehicleClass, 'Legendary');
+});
+
 test('scene summary omits image data and exposes a versioned image URL', () => {
   const id = new ObjectId();
   const date = new Date('2026-09-27T12:00:00.000Z');
