@@ -568,7 +568,7 @@ export function FareShareLanding() {
   ];
 
   return (
-    <div className="fare-page">
+    <div className="fare-page fare-landing-page">
       <FareShareCityBackground />
       <FareHeader />
 
