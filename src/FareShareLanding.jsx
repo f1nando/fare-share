@@ -13,11 +13,12 @@ const FLEET_CLASS_BY_SCENE_NAME = new Map([
   ...['Prius', 'NY', 'Camry', 'W211'].map((name) => [name.toLowerCase(), FLEET_CLASSES.comfort]),
   ...['Tesla', 'Bentley', 'G63', 'Rolls Royce'].map((name) => [name.toLowerCase(), FLEET_CLASSES.business]),
   ['rolls', FLEET_CLASSES.business],
-  ...['M3', 'Lambo', 'Chiron', '911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
+  ...['M3E46', 'Lambo', 'Chiron', '911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
+  ['m3', FLEET_CLASSES.legend],
 ]);
 const FALLBACK_SCENE = {
   id: 'local-m3',
-  name: 'M3',
+  name: 'M3E46',
   imageUrl: '/driving-demo/m3.webp',
   settings: {
     markSpacing: 37,
