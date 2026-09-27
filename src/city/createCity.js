@@ -38,7 +38,7 @@ import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { animationVariation, stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
-import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
+import { BUILDING_STRETCH_DURATION, buildingMotion } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
 
 const palette = {
@@ -322,6 +322,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const foliageTranslationMatrix = new THREE.Matrix4();
   const buildingAnimatedMatrix = new THREE.Matrix4();
   const buildingScaleMatrix = new THREE.Matrix4();
+  const buildingRotationMatrix = new THREE.Matrix4();
   const buildingTranslationMatrix = new THREE.Matrix4();
   const clickableVehicles = [];
   const clickableVehiclePool = [];
@@ -556,9 +557,11 @@ export function createCity(container, initialSettings, benchmark = null) {
         buildingStretches.delete(index);
         continue;
       }
-      const scaleY = buildingStretch(elapsed, reducedMotion.matches, stretch.variation.strength);
-      buildingAnimatedMatrix.makeTranslation(stretch.x, stretch.bottom, stretch.z);
-      buildingScaleMatrix.makeScale(1, scaleY, 1);
+      const motion = buildingMotion(elapsed, reducedMotion.matches, stretch.variation);
+      buildingAnimatedMatrix.makeTranslation(stretch.x, stretch.bottom + motion.lift, stretch.z);
+      buildingRotationMatrix.makeRotationZ(motion.tilt);
+      buildingAnimatedMatrix.multiply(buildingRotationMatrix);
+      buildingScaleMatrix.makeScale(motion.scaleXZ, motion.scaleY, motion.scaleXZ);
       buildingAnimatedMatrix.multiply(buildingScaleMatrix);
       buildingTranslationMatrix.makeTranslation(-stretch.x, -stretch.bottom, -stretch.z);
       buildingAnimatedMatrix.multiply(buildingTranslationMatrix).multiply(stretch.base);
