@@ -223,6 +223,21 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-hero-copy { width: min(850px, 100%); }
 }
 
+@media (max-width: 1500px) {
+  .fare-fleet-card-wall { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .fare-fleet-card-column:nth-child(n + 7) { display: none; }
+}
+
+@media (max-width: 1200px) {
+  .fare-fleet-card-wall { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fare-fleet-card-column:nth-child(n + 6) { display: none; }
+}
+
+@media (max-width: 900px) {
+  .fare-fleet-card-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fare-fleet-card-column:nth-child(n + 5) { display: none; }
+}
+
 @media (max-width: 600px) {
   .fare-header { top: 12px; width: calc(100% - 24px); height: 66px; padding: 7px 9px; border-radius: 33px; }
   .fare-brand { gap: 7px; }
@@ -244,13 +259,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-token-symbol { margin-right: 10px; }
   .fare-copy-icon { width: 14px; height: 17px; margin-left: 12px; }
   .fare-fleet { height: 760px; padding: 96px 20px 0; }
-  .fare-fleet-card-wall { inset: -100px -120px; grid-template-columns: repeat(5, minmax(145px, 1fr)); gap: 10px; opacity: .9; }
+  .fare-fleet-card-wall { inset: -100px -56px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; opacity: .9; }
   .fare-fleet-card-track { --card-half-gap: 5px; gap: 10px; }
-  .fare-fleet-card-column:nth-child(n + 6) { display: none; }
+  .fare-fleet-card-column:nth-child(n + 4) { display: none; }
   .fare-fleet-scene-card { border-radius: 10px; }
   .fare-fleet-heading { display: block; }
   .fare-fleet-heading h2 { font-size: 42px; }
   .fare-fleet-heading p { width: min(100%, 340px); margin-top: 22px; font-size: 16px; line-height: 18px; }
   .fare-fleet-heading p br { display: none; }
   .fare-fleet-button { top: auto; bottom: 70px; left: 20px; width: 210px; }
+}
+
+@media (max-width: 420px) {
+  .fare-fleet-card-wall { right: -44px; left: -44px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fare-fleet-card-column:nth-child(n + 3) { display: none; }
 }
