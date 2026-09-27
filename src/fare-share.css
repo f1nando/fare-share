@@ -134,6 +134,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-card-column.is-down .fare-fleet-card-track { animation-name: fare-fleet-column-down; }
 .fare-fleet-scene-card { position: relative; flex: 0 0 auto; aspect-ratio: 1; border: 0; border-radius: 12px; background: #d9d9d7; box-shadow: 0 16px 30px rgb(0 0 0 / 38%); cursor: pointer; overflow: hidden; isolation: isolate; }
 .fare-fleet-scene-card img { -webkit-user-drag: none; user-select: none; }
+.fare-fleet-class { position: absolute; z-index: 5; top: 12px; right: 12px; display: inline-flex; min-height: 28px; align-items: center; padding: 0 12px; border: 2px solid currentColor; border-radius: 999px; background: rgb(17 17 17 / 78%); box-shadow: 0 4px 12px rgb(0 0 0 / 25%); backdrop-filter: blur(7px); font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
+.fare-fleet-class.is-economy { color: #7dff68; }
+.fare-fleet-class.is-comfort { color: #5edcff; }
+.fare-fleet-class.is-business { color: #c9a2ff; }
+.fare-fleet-class.is-legend { color: #ffe72f; }
 .fare-fleet-car { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; will-change: transform; }
 .fare-fleet-road img { position: absolute; width: var(--mark-width); height: auto; opacity: var(--mark-opacity); filter: drop-shadow(0 3px 3px #0002); transform: translate(-50%, -50%) rotate(var(--mark-angle)); transform-origin: center; }

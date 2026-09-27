@@ -2,6 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
+const FLEET_CLASSES = [
+  { name: 'Economy', tone: 'economy' },
+  { name: 'Comfort', tone: 'comfort' },
+  { name: 'Business', tone: 'business' },
+  { name: 'Legend', tone: 'legend' },
+];
 const FALLBACK_SCENE = {
   id: 'local-m3',
   imageUrl: '/driving-demo/m3.webp',
@@ -41,7 +47,7 @@ function createSceneSequence(scenes, count) {
   return sequence;
 }
 
-function FleetSceneCard({ scene }) {
+function FleetSceneCard({ scene, fleetClass }) {
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
@@ -62,6 +68,7 @@ function FleetSceneCard({ scene }) {
 
   return (
     <div className="fare-fleet-scene-card" onClick={blink} onDragStart={(event) => event.preventDefault()}>
+      <span className={`fare-fleet-class is-${fleetClass.tone}`}>{fleetClass.name}</span>
       <img
         className="fare-fleet-car"
         src={imageUrl}
@@ -115,10 +122,17 @@ function FleetCardBackground() {
     return () => controller.abort();
   }, []);
 
+  const classesByScene = useMemo(() => new Map(
+    scenes.map((scene) => [scene.id, randomItem(FLEET_CLASSES)]),
+  ), [scenes]);
+
   const columns = useMemo(() => Array.from({ length: 7 }, (_, columnIndex) => {
-    const cards = createSceneSequence(scenes, 6);
+    const cards = createSceneSequence(scenes, 6).map((scene) => ({
+      scene,
+      fleetClass: classesByScene.get(scene.id),
+    }));
     return { columnIndex, cards: [...cards, ...cards] };
-  }), [scenes]);
+  }), [classesByScene, scenes]);
 
   useEffect(() => () => {
     cancelAnimationFrame(proximityFrameRef.current);
@@ -205,7 +219,7 @@ function FleetCardBackground() {
       {columns.map(({ columnIndex, cards }) => (
         <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
           <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
-            {cards.map((scene, cardIndex) => <FleetSceneCard scene={scene} key={`${scene.id}-${cardIndex}`} />)}
+            {cards.map(({ scene, fleetClass }, cardIndex) => <FleetSceneCard scene={scene} fleetClass={fleetClass} key={`${scene.id}-${cardIndex}`} />)}
           </div>
         </div>
       ))}
