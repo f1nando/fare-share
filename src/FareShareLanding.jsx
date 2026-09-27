@@ -439,7 +439,13 @@ export function FareShareLanding() {
             {steps.map(step => <article className="fare-step-card" key={step.number}>
               <span className="fare-step-number" aria-hidden="true">{step.number}</span>
               {step.sprite
-                ? <div className="fare-step-media fare-step-sprite" style={{ backgroundImage: `url(${step.sprite})` }} aria-hidden="true" />
+                ? <div
+                    className="fare-step-media fare-step-sprite"
+                    style={{ backgroundImage: `url(${step.sprite})` }}
+                    onPointerEnter={(event) => event.currentTarget.getAnimations().forEach((animation) => { animation.playbackRate = .4; })}
+                    onPointerLeave={(event) => event.currentTarget.getAnimations().forEach((animation) => { animation.playbackRate = 1; })}
+                    aria-hidden="true"
+                  />
                 : <video className="fare-step-media" src={step.video} poster={step.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" hidden />}
               <h3>{step.title}</h3>
               <p>{step.text}</p>
