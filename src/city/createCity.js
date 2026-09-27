@@ -37,7 +37,7 @@ import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { animationVariation, stuntType, vehicleStunt } from './vehicleBounce.js';
-import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
+import { FOLIAGE_SWAY_DURATION, claimAnimationStart, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingMotion } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
 
@@ -617,24 +617,19 @@ export function createCity(container, initialSettings, benchmark = null) {
   const activateFoliage = (index, item, targetsInBrush) => {
     const key = `foliage:${index}`;
     targetsInBrush.add(key);
-    if (!claimGestureTarget(gestureTargets, key)) return;
-    const existing = foliageSwings.get(index);
-    let targets = existing?.targets;
-    let pivotY = existing?.pivotY;
-    if (!targets) {
-      const crownMesh = staticBatch.meshes.get('crown'), crownBase = new THREE.Matrix4();
-      crownMesh.getMatrixAt(index, crownBase);
-      targets = [{ mesh: crownMesh, index, base: crownBase, animated: new THREE.Matrix4() }];
-      pivotY = item[1] - item[4];
-      const trunkGroup = staticBatch.items.get('box');
-      const trunkIndex = trunkGroup?.values.slice(0, trunkGroup.count).findIndex(trunk =>
-        trunk[11] === REVEAL.trees && Math.hypot(trunk[0] - item[0], trunk[2] - item[2]) < 0.08) ?? -1;
-      if (trunkIndex >= 0) {
-        const trunkMesh = staticBatch.meshes.get('box'), trunkBase = new THREE.Matrix4();
-        trunkMesh.getMatrixAt(trunkIndex, trunkBase);
-        targets.push({ mesh: trunkMesh, index: trunkIndex, base: trunkBase, animated: new THREE.Matrix4() });
-        pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
-      }
+    if (!claimAnimationStart(gestureTargets, key, foliageSwings.has(index))) return;
+    const crownMesh = staticBatch.meshes.get('crown'), crownBase = new THREE.Matrix4();
+    crownMesh.getMatrixAt(index, crownBase);
+    const targets = [{ mesh: crownMesh, index, base: crownBase, animated: new THREE.Matrix4() }];
+    let pivotY = item[1] - item[4];
+    const trunkGroup = staticBatch.items.get('box');
+    const trunkIndex = trunkGroup?.values.slice(0, trunkGroup.count).findIndex(trunk =>
+      trunk[11] === REVEAL.trees && Math.hypot(trunk[0] - item[0], trunk[2] - item[2]) < 0.08) ?? -1;
+    if (trunkIndex >= 0) {
+      const trunkMesh = staticBatch.meshes.get('box'), trunkBase = new THREE.Matrix4();
+      trunkMesh.getMatrixAt(trunkIndex, trunkBase);
+      targets.push({ mesh: trunkMesh, index: trunkIndex, base: trunkBase, animated: new THREE.Matrix4() });
+      pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
     }
     foliageSwings.set(index, { targets, started: performance.now(), variation: animationVariation(),
       x: item[0], pivotY, z: item[2] });
@@ -642,10 +637,9 @@ export function createCity(container, initialSettings, benchmark = null) {
   const activateBuilding = (index, item, targetsInBrush) => {
     const key = `building:${index}`;
     targetsInBrush.add(key);
-    if (!claimGestureTarget(gestureTargets, key)) return;
-    const existing = buildingStretches.get(index);
-    const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
-    if (!existing) mesh.getMatrixAt(index, base);
+    if (!claimAnimationStart(gestureTargets, key, buildingStretches.has(index))) return;
+    const mesh = staticBatch.meshes.get('building'), base = new THREE.Matrix4();
+    mesh.getMatrixAt(index, base);
     buildingStretches.set(index, { mesh, base, started: performance.now(), variation: animationVariation(),
       x: item[0], bottom: item[1] - item[4] / 2, z: item[2] });
   };
@@ -666,7 +660,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint, radius)) continue;
       targetsInBrush.add(vehicle.key);
       brushVehiclesNow.add(vehicle.key);
-      if (!claimGestureTarget(gestureTargets, vehicle.key)) continue;
+      if (!claimAnimationStart(gestureTargets, vehicle.key, vehicleStunts.has(vehicle.key))) continue;
       vehicleStunts.set(vehicle.key, { started: performance.now(), variation: animationVariation() });
     }
     if (vehiclesOnly) {

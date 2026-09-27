@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from '../src/city/foliageAnimation.js';
+import { FOLIAGE_SWAY_DURATION, claimAnimationStart, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from '../src/city/foliageAnimation.js';
 
 test('clicked foliage sways both ways and returns exactly to rest', () => {
   const samples = Array.from({ length: 80 }, (_, index) => foliageSwayAngle(index * FOLIAGE_SWAY_DURATION / 80));
@@ -27,6 +27,15 @@ test('gesture brush includes every object inside its circular area', () => {
   assert.equal(withinGestureRadius(156, 100, point, radius), true);
   assert.equal(withinGestureRadius(157, 100, point, radius), false);
   assert.equal(withinGestureRadius(150, 150, point, radius), false);
+});
+
+test('an animation in progress cannot be restarted by another brush pass', () => {
+  const touched = new Set(), taxi = {};
+  assert.equal(claimAnimationStart(touched, taxi, true), false);
+  assert.equal(touched.has(taxi), true, 'active object remains claimed until it leaves the brush');
+  assert.equal(claimAnimationStart(touched, taxi, false), false);
+  touched.clear();
+  assert.equal(claimAnimationStart(touched, taxi, false), true);
 });
 
 test('sway direction can be mirrored and reduced-motion stays subtle', () => {

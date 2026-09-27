@@ -16,6 +16,10 @@ export function claimGestureTarget(touched, target) {
   return true;
 }
 
+export function claimAnimationStart(touched, target, isAnimating) {
+  return claimGestureTarget(touched, target) && !isAnimating;
+}
+
 export function withinGestureRadius(screenX, screenY, point, radius) {
   return (screenX - point.x) ** 2 + (screenY - point.y) ** 2 <= radius ** 2;
 }
