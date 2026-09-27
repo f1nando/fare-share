@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VEHICLE_BOUNCE_DURATION, nearestScreenVehicle, stuntType, vehicleBounceLift, vehicleStunt } from '../src/city/vehicleBounce.js';
+import { VEHICLE_BOUNCE_DURATION, animationVariation, nearestScreenVehicle, stuntType, vehicleBounceLift, vehicleStunt } from '../src/city/vehicleBounce.js';
 
 test('vehicle bounce is a visual up-and-down arc with no lasting offset', () => {
   assert.equal(vehicleBounceLift(0), 0);
@@ -26,6 +26,18 @@ test('each vehicle type gets only its requested visual stunt', () => {
   assert.ok(heavy.lift > 0.1);
   assert.ok(vehicleStunt('boat', 200).pitch !== 0);
   assert.ok(vehicleStunt('helicopter', 500).yaw > 3);
+});
+
+test('animation variations change direction, strength and rhythm within safe bounds', () => {
+  const weak = animationVariation(() => 0);
+  const strong = animationVariation(() => 0.999);
+  assert.deepEqual(weak, { direction: -1, strength: 0.65, cycles: 1.5 });
+  assert.equal(strong.direction, 1);
+  assert.ok(strong.strength > 1.34 && strong.strength <= 1.35);
+  assert.equal(strong.cycles, 2.5);
+  const weakHeavy = vehicleStunt('heavy', 180, { direction: 1, strength: 0.65, cycles: 2 });
+  const strongHeavy = vehicleStunt('heavy', 180, { direction: 1, strength: 1.35, cycles: 2 });
+  assert.ok(Math.abs(strongHeavy.roll) > Math.abs(weakHeavy.roll));
 });
 
 test('click selection chooses only a nearby rendered vehicle', () => {

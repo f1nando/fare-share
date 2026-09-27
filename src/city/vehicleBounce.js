@@ -8,25 +8,37 @@ export function vehicleBounceLift(elapsed, reducedMotion = false) {
   return Math.sin(Math.PI * progress) * height;
 }
 
-export function vehicleStunt(type, elapsed, direction = 1, reducedMotion = false) {
+export function animationVariation(random = Math.random) {
+  return {
+    direction: random() < 0.5 ? -1 : 1,
+    strength: 0.65 + random() * 0.7,
+    cycles: 1.5 + Math.floor(random() * 3) * 0.5,
+  };
+}
+
+export function vehicleStunt(type, elapsed, variation = 1, reducedMotion = false) {
+  const options = typeof variation === 'number' ? { direction: variation, strength: 1, cycles: 2 } : variation;
+  const direction = options.direction ?? 1, strength = options.strength ?? 1, cycles = options.cycles ?? 2;
   const duration = STUNT_DURATIONS[type] ?? VEHICLE_BOUNCE_DURATION;
   if (elapsed < 0 || elapsed >= duration) return null;
   const progress = elapsed / duration;
   const turn = progress * progress * (3 - 2 * progress) * Math.PI * 2;
   const envelope = Math.sin(Math.PI * progress);
-  if (reducedMotion) return { lift: envelope * 0.3, pitch: 0, roll: 0, yaw: 0 };
-  if (type === 'motorcycle') return { lift: envelope * 1.35, pitch: turn * direction, roll: 0, yaw: 0 };
-  if (type === 'taxi') return { lift: envelope * 0.8, pitch: 0, roll: turn, yaw: 0 };
+  if (reducedMotion) return { lift: envelope * 0.3 * strength, pitch: 0, roll: 0, yaw: 0 };
+  if (type === 'motorcycle') return { lift: envelope * 1.35 * strength, pitch: turn * direction,
+    roll: Math.sin(progress * Math.PI * 2) * envelope * 0.12 * strength, yaw: 0 };
+  if (type === 'taxi') return { lift: envelope * 0.8 * strength,
+    pitch: Math.sin(progress * Math.PI * cycles) * envelope * 0.08 * strength, roll: turn * direction, yaw: 0 };
   if (type === 'heavy') return {
-    lift: envelope * 0.24,
-    pitch: Math.sin(progress * Math.PI * 4 + Math.PI / 2) * envelope * 0.09,
-    roll: Math.sin(progress * Math.PI * 4) * envelope * 0.3,
+    lift: envelope * 0.24 * strength,
+    pitch: Math.sin(progress * Math.PI * cycles * 2 + Math.PI / 2) * envelope * 0.09 * strength,
+    roll: Math.sin(progress * Math.PI * cycles * 2) * envelope * 0.3 * strength * direction,
     yaw: 0,
   };
-  if (type === 'boat') return { lift: 0, pitch: Math.sin(progress * Math.PI * 4) * envelope * 0.045,
-    roll: Math.sin(progress * Math.PI * 6) * envelope * 0.12, yaw: 0 };
-  if (type === 'helicopter') return { lift: 0, pitch: 0, roll: 0, yaw: turn };
-  return { lift: vehicleBounceLift(elapsed), pitch: 0, roll: 0, yaw: 0 };
+  if (type === 'boat') return { lift: 0, pitch: Math.sin(progress * Math.PI * cycles * 2) * envelope * 0.045 * strength,
+    roll: Math.sin(progress * Math.PI * (cycles + 1) * 2) * envelope * 0.12 * strength * direction, yaw: 0 };
+  if (type === 'helicopter') return { lift: 0, pitch: 0, roll: 0, yaw: turn * direction };
+  return { lift: vehicleBounceLift(elapsed) * strength, pitch: 0, roll: 0, yaw: 0 };
 }
 
 export function stuntType(kind, taxi = false) {

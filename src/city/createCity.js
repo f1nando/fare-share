@@ -36,7 +36,7 @@ import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
-import { stuntType, vehicleStunt } from './vehicleBounce.js';
+import { animationVariation, stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingStretch } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
@@ -507,7 +507,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const effectFor = (key, type) => {
       const stunt = vehicleStunts.get(key);
       if (!stunt) return null;
-      const effect = vehicleStunt(type, timestamp - stunt.started, stunt.direction, reducedMotion.matches);
+      const effect = vehicleStunt(type, timestamp - stunt.started, stunt.variation, reducedMotion.matches);
       if (!effect) vehicleStunts.delete(key);
       return effect;
     };
@@ -534,7 +534,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         foliageSwings.delete(index);
         continue;
       }
-      const angle = foliageSwayAngle(elapsed, swing.direction, reducedMotion.matches);
+      const angle = foliageSwayAngle(elapsed, swing.variation, reducedMotion.matches);
       foliageAnimatedMatrix.makeTranslation(swing.x, swing.pivotY, swing.z);
       foliageRotationMatrix.makeRotationZ(angle);
       foliageAnimatedMatrix.multiply(foliageRotationMatrix);
@@ -556,7 +556,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         buildingStretches.delete(index);
         continue;
       }
-      const scaleY = buildingStretch(elapsed, reducedMotion.matches);
+      const scaleY = buildingStretch(elapsed, reducedMotion.matches, stretch.variation.strength);
       buildingAnimatedMatrix.makeTranslation(stretch.x, stretch.bottom, stretch.z);
       buildingScaleMatrix.makeScale(1, scaleY, 1);
       buildingAnimatedMatrix.multiply(buildingScaleMatrix);
@@ -633,7 +633,7 @@ export function createCity(container, initialSettings, benchmark = null) {
         pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
       }
     }
-    foliageSwings.set(index, { targets, started: performance.now(), direction: Math.random() < 0.5 ? -1 : 1,
+    foliageSwings.set(index, { targets, started: performance.now(), variation: animationVariation(),
       x: item[0], pivotY, z: item[2] });
   };
   const activateBuilding = (index, item, targetsInBrush) => {
@@ -643,7 +643,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const existing = buildingStretches.get(index);
     const mesh = staticBatch.meshes.get('building'), base = existing?.base ?? new THREE.Matrix4();
     if (!existing) mesh.getMatrixAt(index, base);
-    buildingStretches.set(index, { mesh, base, started: performance.now(),
+    buildingStretches.set(index, { mesh, base, started: performance.now(), variation: animationVariation(),
       x: item[0], bottom: item[1] - item[4] / 2, z: item[2] });
   };
   function animateAtPointer(event, vehiclesOnly = false) {
@@ -664,8 +664,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       targetsInBrush.add(vehicle.key);
       brushVehiclesNow.add(vehicle.key);
       if (!claimGestureTarget(gestureTargets, vehicle.key)) continue;
-      vehicleStunts.set(vehicle.key, { started: performance.now(),
-        direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
+      vehicleStunts.set(vehicle.key, { started: performance.now(), variation: animationVariation() });
     }
     if (vehiclesOnly) {
       for (const target of brushVehicleTargets) if (!brushVehiclesNow.has(target)) gestureTargets.delete(target);
