@@ -480,23 +480,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
-  .fare-header { top: 28px; width: calc(100% - 39px); height: 65.5px; padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  .fare-brand { gap: 14.5px; }
-  .fare-brand img { width: 53.5px; height: 53.5px; }
-  .fare-brand strong { font-size: 24px; }
-  .fare-brand .fare-brand-ticker { display: inline; margin-left: 4px; font-size: 20px; }
-  .fare-header-actions { position: absolute; right: 0; gap: 10px; margin-left: 0; }
-  .fare-mobile-menu { display: grid; flex: 0 0 auto; width: 53.5px; height: 53.5px; padding: 0; place-items: center; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 5px 6px 0 #111; }
-  .fare-menu-drawer { width: min(340px, 100%); padding: 24px 20px; }
-  .fare-menu-drawer-header { padding-bottom: 18px; }
-  .fare-menu-drawer-header strong { font-size: 21px; }
-  .fare-menu-close { width: 44px; height: 44px; font-size: 32px; }
-  .fare-menu-nav a { min-height: 57px; padding: 0 14px; font-size: 18px; }
-  .fare-social { display: none; }
-  .fare-connect { flex: 0 0 auto; width: 53.5px; min-width: 53.5px; height: 53.5px; padding: 0; border-radius: 50%; background: #ffe72f; box-shadow: 5px 6px 0 #111; font-size: var(--fare-control-font-mobile); }
-  .fare-connect span { display: none; }
-  .fare-wallet-icon { display: none; }
-  .fare-mobile-wallet-icon { display: block; }
   .fare-hero { height: 760px; padding: 170px 0 80px; }
   .fare-hero-copy { width: 100%; }
   .fare-hero h1 { font-size: 52px; line-height: .82; text-shadow: 3px 4px 0 #111; }
