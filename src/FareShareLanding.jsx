@@ -81,7 +81,7 @@ function FleetCardBackground() {
     return () => controller.abort();
   }, []);
 
-  const columns = useMemo(() => Array.from({ length: 5 }, (_, columnIndex) => {
+  const columns = useMemo(() => Array.from({ length: 7 }, (_, columnIndex) => {
     const cards = createSceneSequence(scenes, 6);
     return { columnIndex, cards: [...cards, ...cards] };
   }), [scenes]);
