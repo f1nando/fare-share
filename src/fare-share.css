@@ -295,7 +295,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-leaderboard-button { --press-x: 7px; --press-y: 8px; position: relative; top: -2px; display: inline-flex; align-items: center; justify-content: space-between; width: 320px; height: var(--fare-control-height-md); padding: 0 var(--fare-control-icon-inset) 0 var(--fare-control-padding-md); border: var(--fare-control-border) solid #111; border-radius: var(--fare-control-radius); color: #111; background: #fff; box-shadow: var(--fare-control-shadow-md); font-size: var(--fare-control-font-md); font-weight: var(--fare-control-font-weight); text-decoration: none; white-space: nowrap; transition: transform var(--fare-control-transition), box-shadow var(--fare-control-transition); }
 .fare-leaderboard-button:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111; }
 .fare-leaderboard-button .fare-round-arrow { width: 46px; height: 46px; margin-left: 12px; }
-.fare-leaderboard { position: absolute; top: 818px; right: 12px; left: 12px; border-radius: 36px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
+.fare-leaderboard { position: absolute; top: 818px; right: 12px; left: 12px; border: 1px solid #111; border-radius: 36px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
 .fare-leaderboard-row { display: grid; grid-template-columns: 94px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr); align-items: center; height: 110px; padding: 0 48px; background: #fff; font-size: 22px; font-weight: 600; }
 .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
 .fare-leaderboard-header { height: 64px; color: #fff; background: #111 !important; font-size: 18px; font-weight: 700; }
