@@ -3,20 +3,25 @@ export function FareShareLanding() {
     <div className="fare-page">
       <header className="fare-header">
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
-          <span className="fare-brand-mark" aria-hidden="true"><b>F</b></span>
-          <span>FARE SHARE</span>
+          <img src="/brand/fare-driver.png" alt="" />
+          <strong>FARE SHARE</strong>
+          <span>$TAXI</span>
         </a>
 
         <nav className="fare-nav" aria-label="Main navigation">
-          <a href="#garage">MY GARAGE</a>
-          <a href="#taxis">TAXIS</a>
-          <a href="#how-it-works">HOW IT WORKS</a>
+          <a className="is-active" href="#top">HOME</a>
+          <a href="#dashboard">DASHBOARD</a>
+          <a href="#taxis">MINT</a>
+          <a href="#garage">GARAGE</a>
+          <a href="#market">MARKET</a>
+          <a href="#trade">TRADE</a>
           <a href="#faq">FAQ</a>
+          <a href="#docs">DOCS</a>
         </nav>
 
         <div className="fare-header-actions">
           <a className="fare-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X">𝕏</a>
-          <button className="fare-connect" type="button">CONNECT WALLET <span aria-hidden="true">▣</span></button>
+          <button className="fare-connect" type="button">Connect Wallet <span className="fare-wallet-icon" aria-hidden="true">▰</span></button>
         </div>
       </header>
 
