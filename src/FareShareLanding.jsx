@@ -572,7 +572,7 @@ export function FareShareLanding() {
   return (
     <div className="fare-page">
       <FareShareCityBackground />
-      <header className="fare-header">
+      <header className="fare-header container">
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
           <img src="/brand/fare-driver.webp" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
@@ -605,6 +605,7 @@ export function FareShareLanding() {
 
       <main id="top">
         <section className="fare-hero" aria-labelledby="fare-hero-title">
+          <div className="container container--hero">
           <div className="fare-hero-copy">
             <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
             <p className="fare-hero-intro">Put your taxis to work and collect park fees in stock tokens.</p>
@@ -628,9 +629,11 @@ export function FareShareLanding() {
               </button>
             </div>
           </div>
+          </div>
         </section>
 
         <section className="fare-how" id="how-it-works" aria-labelledby="fare-how-title">
+          <div className="container">
           <div className="fare-how-heading">
             <h2 id="fare-how-title">SIMPLE. FAIR. CLEAR.</h2>
             <p>Get a car, run one shift, collect revenue, service it when needed.</p>
@@ -660,10 +663,12 @@ export function FareShareLanding() {
           <a className="fare-button fare-button-primary fare-how-button" href="#taxis">
             Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
+          </div>
         </section>
 
         <section className="fare-fleet" id="taxis" aria-labelledby="fare-fleet-title">
           <FleetCardBackground />
+          <div className="container fare-fleet-container">
           <div className="fare-fleet-heading">
             <h2 id="fare-fleet-title">FOUR CARS. ONE RULE.</h2>
             <p>Better classes receive a larger earning share. No twelve-stat<br />RPG spreadsheet.</p>
@@ -672,9 +677,11 @@ export function FareShareLanding() {
           <a className="fare-button fare-button-primary fare-fleet-button" href="#garage">
             Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
+          </div>
         </section>
 
         <section className="fare-treasury" id="dashboard" aria-labelledby="fare-treasury-title">
+          <div className="container fare-treasury-container">
           <div className="fare-treasury-heading">
             <h2 id="fare-treasury-title">PARK TREASURY.</h2>
           </div>
@@ -707,9 +714,11 @@ export function FareShareLanding() {
               <span>{earnings}</span>
             </div>)}
           </div>
+          </div>
         </section>
 
         <section className="fare-faq" id="faq" aria-labelledby="fare-faq-title">
+          <div className="container">
           <h2 id="fare-faq-title">FAQ</h2>
           <div className="fare-faq-list">
             {faqItems.map((item, index) => {
@@ -733,12 +742,13 @@ export function FareShareLanding() {
               </article>;
             })}
           </div>
+          </div>
         </section>
       </main>
 
       <footer className="fare-footer">
         <div className="fare-footer-watermark" aria-hidden="true">FARE SHARE</div>
-        <div className="fare-footer-inner">
+        <div className="fare-footer-inner container">
           <div className="fare-footer-about">
             <div className="fare-footer-brand">
               <img src="/brand/fare-driver.webp" alt="" loading="lazy" decoding="async" />

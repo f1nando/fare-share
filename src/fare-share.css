@@ -25,8 +25,6 @@
   --fare-control-shadow-md: 7px 8px 0 #111;
   --fare-control-shadow-lg: 8px 10px 0 #111;
   --fare-control-transition: .15s ease;
-  --fare-container-width: 1400px;
-  --fare-container-gutter: 16px;
   font-family: 'Inter', Arial, sans-serif;
   color: #111;
   background: #dedede;
@@ -41,6 +39,8 @@ button { font: inherit; cursor: pointer; }
 button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offset: 4px; }
 
 .fare-page { position: relative; min-height: 100%; background: transparent; isolation: isolate; zoom: .825; }
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 12px; }
+.container--hero { max-width: 1700px; }
 .fare-city-background { position: fixed; z-index: 0; inset: 0; overflow: hidden; background: #dedede; pointer-events: none; }
 .fare-city-canvas { position: absolute; inset: 0; }
 .fare-city-canvas canvas { display: block; width: 100%; height: 100%; }
@@ -52,9 +52,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   left: 50%;
   display: flex;
   align-items: center;
-  width: min(var(--fare-container-width), calc(100% - (2 * var(--fare-container-gutter))));
+  width: 100%;
   height: 92px;
-  padding: 14px 24px;
+  padding: 0 12px;
   border: 0;
   border-radius: 46px;
   background: #fff;
@@ -94,10 +94,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   display: flex;
   align-items: flex-start;
   height: 1080px;
-  padding: 281px max(24px, calc((100vw - 1720px) / 2)) 0;
+  padding: 281px 0 0;
   background: transparent;
   overflow: hidden;
 }
+.fare-hero > .container { flex: 0 0 100%; }
 .fare-hero-copy { width: 850px; }
 .fare-hero h1 {
   margin: 0;
@@ -163,7 +164,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 .fare-how {
   height: 918px;
-  padding: 72px max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)) 0;
+  padding: 72px 0 0;
   color: #111;
   background: transparent;
 }
@@ -230,7 +231,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet {
   position: relative;
   height: 1080px;
-  padding: 176px max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)) 0;
+  padding: 176px 0 0;
   color: #fff;
   background: #111;
   overflow: hidden;
@@ -240,6 +241,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-card-column { min-width: 0; overflow: hidden; }
 .fare-fleet-card-track { --card-half-gap: 7px; display: flex; flex-direction: column; gap: 14px; animation: fare-fleet-column-up var(--column-duration) linear var(--column-delay) infinite; will-change: transform; }
 .fare-fleet-card-column.is-down .fare-fleet-card-track { animation-name: fare-fleet-column-down; }
+.fare-fleet-container { position: relative; height: 100%; }
 .fare-fleet-scene-card { position: relative; flex: 0 0 auto; aspect-ratio: 1; border: 0; border-radius: 12px; background: #d9d9d7; box-shadow: 0 16px 30px rgb(0 0 0 / 38%); cursor: pointer; overflow: hidden; isolation: isolate; }
 .fare-fleet-scene-card img { -webkit-user-drag: none; user-select: none; }
 .fare-fleet-class { position: absolute; z-index: 5; top: 12px; left: 12px; display: inline-flex; min-height: 28px; align-items: center; padding: 0 12px; border: 2px solid #111; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
@@ -253,7 +255,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-heading { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) 520px; align-items: flex-start; }
 .fare-fleet-heading h2 { margin: 0; font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.055em; text-shadow: 7px 8px 0 #000; }
 .fare-fleet-heading p { width: 100%; margin: 4px 0 0; font-size: 24px; font-weight: 700; line-height: 25px; }
-.fare-fleet-button { position: absolute; z-index: 2; top: 820px; left: max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)); width: 279px; }
+.fare-fleet-button { position: absolute; z-index: 2; top: 644px; left: 12px; width: 279px; }
 
 @keyframes fare-fleet-column-up { from { transform: translateY(0); } to { transform: translateY(calc(-50% - var(--card-half-gap))); } }
 @keyframes fare-fleet-column-down { from { transform: translateY(calc(-50% - var(--card-half-gap))); } to { transform: translateY(0); } }
@@ -270,10 +272,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-treasury {
   position: relative;
   height: 1620px;
-  padding: 116px max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)) 0;
+  padding: 116px 0 0;
   color: #111;
   background: transparent;
 }
+.fare-treasury-container { position: relative; height: 100%; }
 .fare-treasury-heading { display: grid; grid-template-columns: minmax(0, 1fr) 520px; min-height: 63px; align-items: flex-start; }
 .fare-treasury-heading h2, .fare-leaderboard-heading h3 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 66px; font-weight: 400; line-height: .9; letter-spacing: -.025em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-treasury-heading h2 { letter-spacing: -.03em; }
@@ -284,12 +287,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-stat-card > span { display: block; color: #aaa; font-size: 20px; font-weight: 500; line-height: 24px; }
 .fare-stat-card strong { display: block; margin-top: 10px; font-size: 47px; font-weight: 900; line-height: 47px; letter-spacing: -.025em; }
 .fare-stat-card strong.is-accent { color: #ffe72f; }
-.fare-leaderboard-heading { position: absolute; top: 816px; right: max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)); left: max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)); display: flex; align-items: flex-start; justify-content: space-between; }
+.fare-leaderboard-heading { position: absolute; top: 700px; right: 12px; left: 12px; display: flex; align-items: flex-start; justify-content: space-between; }
 .fare-leaderboard-heading h3 { font-size: 66px; }
 .fare-leaderboard-button { --press-x: 7px; --press-y: 8px; position: relative; top: -2px; display: inline-flex; align-items: center; justify-content: space-between; width: 320px; height: var(--fare-control-height-md); padding: 0 var(--fare-control-icon-inset) 0 var(--fare-control-padding-md); border: var(--fare-control-border) solid #111; border-radius: var(--fare-control-radius); color: #111; background: #fff; box-shadow: var(--fare-control-shadow-md); font-size: var(--fare-control-font-md); font-weight: var(--fare-control-font-weight); text-decoration: none; white-space: nowrap; transition: transform var(--fare-control-transition), box-shadow var(--fare-control-transition); }
 .fare-leaderboard-button:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111; }
 .fare-leaderboard-button .fare-round-arrow { width: 46px; height: 46px; margin-left: 12px; }
-.fare-leaderboard { position: absolute; top: 934px; right: max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)); left: max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)); border-radius: 36px; box-shadow: 0 15px 23px rgb(0 0 0 / 15%); overflow: hidden; }
+.fare-leaderboard { position: absolute; top: 818px; right: 12px; left: 12px; border-radius: 36px; box-shadow: 0 15px 23px rgb(0 0 0 / 15%); overflow: hidden; }
 .fare-leaderboard-row { display: grid; grid-template-columns: 94px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr); align-items: center; height: 110px; padding: 0 48px; background: #fff; font-size: 28px; font-weight: 600; }
 .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
 .fare-leaderboard-header { height: 64px; color: #fff; background: #111 !important; font-size: 20px; font-weight: 700; }
@@ -298,7 +301,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 .fare-faq {
   min-height: 1045px;
-  padding: 100px max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)) 121px;
+  padding: 100px 0 121px;
   color: #111;
   background: transparent;
 }
@@ -323,7 +326,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-faq-entry.is-open .fare-faq-answer p { animation: none; }
 }
 
-.fare-footer { position: relative; height: 529px; padding: 120px max(var(--fare-container-gutter), calc((100vw - var(--fare-container-width)) / 2)) 0; color: #fff; background: #111; overflow: hidden; }
+.fare-footer { position: relative; height: 529px; padding: 120px 0 0; color: #fff; background: #111; overflow: hidden; }
 .fare-footer-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 3fr) repeat(3, minmax(0, 1fr)); }
 .fare-footer-watermark { position: absolute; z-index: 0; top: 271px; right: 0; left: 0; color: #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 365px; font-weight: 400; line-height: .8; text-align: center; white-space: nowrap; -webkit-text-stroke: 3px #181818; text-shadow: 18px 20px 0 #181818; }
 .fare-footer-brand { display: flex; height: 64px; align-items: center; }
@@ -346,7 +349,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @media (max-width: 1000px) {
   .fare-nav { display: none; }
   .fare-header-actions { margin-left: auto; }
-  .fare-hero { padding-right: 40px; padding-left: 40px; }
+  .fare-hero { padding-right: 0; padding-left: 0; }
   .fare-hero-copy { width: min(850px, 100%); }
 }
 
@@ -363,7 +366,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
-  .fare-header { top: 12px; width: calc(100% - 24px); height: 66px; padding: 7px 9px; border-radius: 33px; }
+  .fare-header { top: 12px; width: 100%; height: 66px; padding: 0 12px; border-radius: 33px; }
   .fare-brand { gap: 7px; }
   .fare-brand img { width: 48px; height: 48px; }
   .fare-brand strong { font-size: 15px; }
@@ -371,7 +374,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-social { display: none; }
   .fare-connect { --press-x: 3px; --press-y: 3px; min-width: 0; height: var(--fare-control-height-mobile); padding: 0 var(--fare-control-padding-mobile); box-shadow: 3px 3px 0 #111; font-size: var(--fare-control-font-mobile); }
   .fare-connect span { display: none; }
-  .fare-hero { height: 760px; padding: 170px 20px 80px; }
+  .fare-hero { height: 760px; padding: 170px 0 80px; }
   .fare-hero-copy { width: 100%; }
   .fare-hero h1 { font-size: 52px; line-height: .82; text-shadow: 3px 4px 0 #111; }
   .fare-hero h1 span { white-space: normal; }
@@ -383,7 +386,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-round-arrow { width: 32px; height: 32px; margin-left: 9px; font-size: 19px; }
   .fare-token-symbol { margin-right: 10px; }
   .fare-copy-icon { width: 14px; height: 17px; margin-left: 12px; }
-  .fare-fleet { height: 760px; padding: 96px 20px 0; }
+  .fare-fleet { height: 760px; padding: 96px 0 0; }
   .fare-fleet-card-wall { inset: -100px -56px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; opacity: .9; }
   .fare-fleet-card-track { --card-half-gap: 5px; gap: 10px; }
   .fare-fleet-scene-card { border-radius: 10px; }
@@ -391,7 +394,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-heading h2 { font-size: 42px; }
   .fare-fleet-heading p { width: min(100%, 340px); margin-top: 22px; font-size: 16px; line-height: 18px; }
   .fare-fleet-heading p br { display: none; }
-  .fare-fleet-button { top: auto; bottom: 70px; left: 20px; width: 210px; }
+  .fare-fleet-button { top: auto; bottom: 70px; left: 12px; width: 210px; }
 }
 
 @media (max-width: 420px) {
