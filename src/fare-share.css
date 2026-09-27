@@ -86,8 +86,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   box-shadow: 4px 4px 0 #111;
   transition: transform var(--fare-control-transition), box-shadow var(--fare-control-transition);
 }
-.fare-connect { display: inline-flex; align-items: center; justify-content: center; min-width: 280px; height: var(--fare-control-height-md); padding: 0 var(--fare-control-padding-md); background: #ffe11a; box-shadow: none; font-size: var(--fare-control-font-md); letter-spacing: -.02em; white-space: nowrap; transition: opacity var(--fare-control-transition); }
-.fare-wallet-icon { display: block; flex: 0 0 auto; width: 28px; height: 26px; margin-left: var(--fare-control-gap); }
+.fare-connect { display: inline-flex; align-items: center; justify-content: center; min-width: 240px; height: var(--fare-control-height-md); padding: 0 22px; background: #ffe11a; box-shadow: none; font-size: var(--fare-control-font-md); letter-spacing: -.02em; white-space: nowrap; transition: opacity var(--fare-control-transition); }
+.fare-wallet-icon { display: block; flex: 0 0 auto; width: 24px; height: 21px; margin-left: 12px; }
 .fare-social:hover, .fare-connect:hover { opacity: .78; }
 
 .fare-hero {

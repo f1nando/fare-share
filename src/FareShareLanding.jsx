@@ -577,7 +577,6 @@ export function FareShareLanding() {
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
           <img src="/brand/fare-driver.webp" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
-          <span>$TAXI</span>
         </a>
 
         <nav className="fare-nav" aria-label="Main navigation">
