@@ -27,7 +27,7 @@ const DEFAULTS = {
   carBlackness: 0,
 };
 const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
-const M3_REFERENCE_KEY = 'taxi-driving-demo-m3-reference-v1';
+const M3E46_REFERENCE_KEY = 'taxi-driving-demo-m3e46-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -146,9 +146,9 @@ function loadStoredState() {
   }
 }
 
-function loadM3Reference(fallback) {
+function loadM3E46Reference(fallback) {
   try {
-    const stored = JSON.parse(localStorage.getItem(M3_REFERENCE_KEY));
+    const stored = JSON.parse(localStorage.getItem(M3E46_REFERENCE_KEY));
     if (!stored?.settings) throw new Error('Empty reference');
     return {
       settings: normalizeSettings(stored.settings),
@@ -156,7 +156,7 @@ function loadM3Reference(fallback) {
     };
   } catch {
     const reference = { settings: { ...fallback.settings }, lightsOn: fallback.lightsOn };
-    localStorage.setItem(M3_REFERENCE_KEY, JSON.stringify(reference));
+    localStorage.setItem(M3E46_REFERENCE_KEY, JSON.stringify(reference));
     return reference;
   }
 }
@@ -191,7 +191,7 @@ function FinePositionButtons({ value, onChange }) {
 
 function DrivingDemo() {
   const [initialState] = useState(loadStoredState);
-  const [m3Reference] = useState(() => loadM3Reference(initialState));
+  const [m3e46Reference] = useState(() => loadM3E46Reference(initialState));
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [lightsOn, setLightsOn] = useState(false);
@@ -213,8 +213,8 @@ function DrivingDemo() {
   blacknessRef.current = settings.carBlackness;
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
   const activeScene = scenes.find((scene) => scene.id === activeSceneId);
-  const databaseM3 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'm3');
-  const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/m3.webp';
+  const databaseM3E46 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'm3e46');
+  const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/m3e46.webp';
 
   const selectScene = (scene) => {
     setActiveSceneId(scene?.id || '');
@@ -454,7 +454,7 @@ function DrivingDemo() {
               ref={carCanvasRef}
               className="car-shot"
               role="img"
-              aria-label="Такси BMW M3 на дороге"
+              aria-label="Такси BMW M3E46 на дороге"
               style={{
                 filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
@@ -537,9 +537,9 @@ function DrivingDemo() {
             </div>
             <div className="settings-transfer">
               <button type="button" onClick={() => applySettingsBundle(
-                { settings: databaseM3?.settings || m3Reference.settings },
-                `${databaseM3 ? 'Эталон из сцены M3' : 'Локальный эталон M3'} применён. Нажмите «Сохранить» для записи в MongoDB.`,
-              )}>Применить эталон M3</button>
+                { settings: databaseM3E46?.settings || m3e46Reference.settings },
+                `${databaseM3E46 ? 'Эталон из сцены M3E46' : 'Локальный эталон M3E46'} применён. Нажмите «Сохранить» для записи в MongoDB.`,
+              )}>Применить эталон M3E46</button>
               <button type="button" onClick={exportSettings}>Экспорт JSON</button>
               <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
             </div>
