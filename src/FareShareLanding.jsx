@@ -61,7 +61,7 @@ function FleetSceneCard({ scene }) {
   };
 
   return (
-    <div className="fare-fleet-scene-card" onClick={blink}>
+    <div className="fare-fleet-scene-card" onClick={blink} onDragStart={(event) => event.preventDefault()}>
       <img
         className="fare-fleet-car"
         src={imageUrl}
