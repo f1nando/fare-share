@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createCity } from './city/createCity.js';
+import { loadSettings } from './city/settings.js';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const FLEET_ROAD_SPEED = 19;
@@ -40,6 +42,26 @@ const FALLBACK_SCENE = {
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function FareShareCityBackground() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let city;
+    try {
+      city = createCity(containerRef.current, loadSettings());
+    } catch (error) {
+      console.error('Unable to start the Fare Share city background', error);
+    }
+    return () => city?.dispose();
+  }, []);
+
+  return (
+    <div className="fare-city-background" aria-hidden="true">
+      <div className="fare-city-canvas" ref={containerRef} />
+    </div>
+  );
 }
 
 function getFleetClass(scene) {
@@ -341,6 +363,7 @@ export function FareShareLanding() {
 
   return (
     <div className="fare-page">
+      <FareShareCityBackground />
       <header className="fare-header">
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
           <img src="/brand/fare-driver.png" alt="" />
