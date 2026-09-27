@@ -92,7 +92,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-wallet-icon path { transition: fill var(--fare-control-transition); }
 .fare-social:hover { color: #fff; background: #111; }
 .fare-social:hover svg path { fill: #fff; }
-.fare-connect:hover { border-color: #ab9ff2; color: #fff; background: #ab9ff2; }
+.fare-connect:hover { border-color: #ab9ff2; color: #fff; background: #ab9ff2; opacity: 1; }
 .fare-connect:hover .fare-wallet-icon path { fill: #fff; }
 
 .fare-hero {
