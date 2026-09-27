@@ -123,7 +123,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   position: relative;
   height: 1080px;
   padding: 176px max(24px, calc((100vw - 1720px) / 2)) 0;
-  border-radius: 72px;
   color: #fff;
   background: #111;
   overflow: hidden;
