@@ -186,16 +186,22 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-driver-cell img { display: block; width: 64px; height: 64px; border: 1px solid #111; border-radius: 50%; object-fit: cover; }
 
 .fare-faq {
-  height: 1045px;
-  padding: 100px max(24px, calc((100vw - 1720px) / 2)) 0;
+  min-height: 1045px;
+  padding: 100px max(24px, calc((100vw - 1720px) / 2)) 121px;
   color: #111;
   background: #fff;
 }
 .fare-faq h2 { height: 112px; margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 130px; font-weight: 400; line-height: .8; text-align: center; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-faq-list { display: grid; gap: 24px; margin-top: 66px; }
-.fare-faq-item { --press-x: 8px; --press-y: 9px; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 110px; padding: 0 17px 0 32px; border: 1px solid #111; border-radius: 38px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111, 0 15px 24px rgb(0 0 0 / 12%); font-size: 29px; font-weight: 900; line-height: 1; letter-spacing: -.02em; text-align: left; transition: transform .15s ease, box-shadow .15s ease; }
-.fare-faq-item:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111, 0 0 0 rgb(0 0 0 / 0%); }
-.fare-faq-item svg { display: block; flex: 0 0 auto; width: 44px; height: 44px; }
+.fare-faq-entry { --press-x: 8px; --press-y: 9px; border: 1px solid #111; border-radius: 38px; background: #fff; box-shadow: 8px 9px 0 #111, 0 15px 24px rgb(0 0 0 / 12%); overflow: hidden; transition: transform .15s ease, box-shadow .15s ease; }
+.fare-faq-entry:has(.fare-faq-item:hover) { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111, 0 0 0 rgb(0 0 0 / 0%); }
+.fare-faq-item { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 108px; padding: 0 16px 0 31px; border: 0; color: #111; background: transparent; font-size: 29px; font-weight: 900; line-height: 1; letter-spacing: -.02em; text-align: left; }
+.fare-faq-item svg { display: block; flex: 0 0 auto; width: 44px; height: 44px; transition: transform .35s cubic-bezier(.22, 1, .36, 1); }
+.fare-faq-entry.is-open .fare-faq-item svg { transform: rotate(180deg); }
+.fare-faq-answer { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .35s cubic-bezier(.22, 1, .36, 1), opacity .25s ease; }
+.fare-faq-answer > div { min-height: 0; overflow: hidden; }
+.fare-faq-answer p { margin: 0; padding: 0 88px 28px 31px; color: #555; font-size: 18px; font-weight: 500; line-height: 24px; }
+.fare-faq-entry.is-open .fare-faq-answer { grid-template-rows: 1fr; opacity: 1; }
 
 .fare-footer { position: relative; height: 529px; padding: 120px max(24px, calc((100vw - 1720px) / 2)) 0; color: #fff; background: #111; overflow: hidden; }
 .fare-footer-inner { position: relative; z-index: 1; display: grid; grid-template-columns: 1068px 262px 262px 1fr; }

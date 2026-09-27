@@ -264,6 +264,8 @@ function FaqChevron() {
 }
 
 export function FareShareLanding() {
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
   const steps = [
     {
       number: '1',
@@ -306,11 +308,26 @@ export function FareShareLanding() {
   ];
 
   const faqItems = [
-    'HOW DO IT EARN FROM MY CARS?',
-    'WHAT ARE THE FEES?',
-    'CAN I SELL MY CARS?',
-    'IS THIS A REAL PRODUCT?',
-    'WHERE CAN I READ THE FULL DOCS',
+    {
+      question: 'HOW DO IT EARN FROM MY CARS?',
+      answer: 'Send ready cars on shift. Each completed shift pays park revenue in cash and your selected stock token.',
+    },
+    {
+      question: 'WHAT ARE THE FEES?',
+      answer: 'Fees cover fleet operations and servicing. Every charge is shown before you confirm an action.',
+    },
+    {
+      question: 'CAN I SELL MY CARS?',
+      answer: 'Yes. Eligible cars can be listed on the marketplace or transferred from your garage.',
+    },
+    {
+      question: 'IS THIS A REAL PRODUCT?',
+      answer: 'Yes. Fare Share combines collectible taxi ownership with transparent fleet revenue tracking.',
+    },
+    {
+      question: 'WHERE CAN I READ THE FULL DOCS',
+      answer: 'Open the Docs from the navigation for mechanics, fees, treasury rules, and contract details.',
+    },
   ];
 
   return (
@@ -435,10 +452,26 @@ export function FareShareLanding() {
         <section className="fare-faq" id="faq" aria-labelledby="fare-faq-title">
           <h2 id="fare-faq-title">FAQ</h2>
           <div className="fare-faq-list">
-            {faqItems.map(item => <button className="fare-faq-item" type="button" aria-expanded="false" key={item}>
-              <span>{item}</span>
-              <FaqChevron />
-            </button>)}
+            {faqItems.map((item, index) => {
+              const isOpen = openFaqIndex === index;
+              const answerId = `fare-faq-answer-${index}`;
+
+              return <article className={`fare-faq-entry${isOpen ? ' is-open' : ''}`} key={item.question}>
+                <button
+                  className="fare-faq-item"
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={answerId}
+                  onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                >
+                  <span>{item.question}</span>
+                  <FaqChevron />
+                </button>
+                <div className="fare-faq-answer" id={answerId} aria-hidden={!isOpen}>
+                  <div><p>{item.answer}</p></div>
+                </div>
+              </article>;
+            })}
           </div>
         </section>
       </main>
