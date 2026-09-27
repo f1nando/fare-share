@@ -70,15 +70,16 @@ function FareShareCityBackground() {
       let colorScheme = settings.colorScheme;
       city = createCity(containerRef.current, settings);
 
-      const secondSection = document.querySelector('.fare-how');
-      if (secondSection) {
+      const heroTitle = document.querySelector('#fare-hero-title');
+      if (heroTitle) {
         observer = new IntersectionObserver(([entry]) => {
-          const nextColorScheme = entry.isIntersecting || entry.boundingClientRect.top < 0 ? 'pale' : 'classic';
+          const titleIsAboveViewport = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+          const nextColorScheme = titleIsAboveViewport ? 'pale' : 'classic';
           if (nextColorScheme === colorScheme) return;
           colorScheme = nextColorScheme;
           city?.updateSettings({ ...settings, colorScheme });
         });
-        observer.observe(secondSection);
+        observer.observe(heroTitle);
       }
     } catch (error) {
       console.error('Unable to start the Fare Share city background', error);
