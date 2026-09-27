@@ -118,7 +118,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-card { position: relative; height: 578px; padding: 20px 22px 19px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 10px 10px 0 #111, 0 19px 28px rgb(0 0 0 / 15%); overflow: hidden; }
 .fare-step-media { display: block; width: 100%; height: 429px; border-radius: 22px; object-fit: cover; }
 .fare-step-media[hidden] { display: none; }
-.fare-step-sprite { background-repeat: no-repeat; background-position: 0 0; background-size: 400% 400%; animation: fare-step-sprite-frames 2.56s steps(1, end) infinite; }
+.fare-step-sprite { background-repeat: no-repeat; background-position: 0 0; background-size: 400% 400%; animation: fare-step-sprite-frames 3.2s steps(1, end) infinite; }
 .fare-step-card:nth-child(3) > .fare-step-media { transform: scale(1.06); }
 .fare-step-number { position: absolute; z-index: 1; top: 23px; left: 23px; display: grid; width: 54px; height: 54px; place-items: center; border: 2px solid #111; border-radius: 50%; color: #fff; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 37px; font-weight: 400; line-height: 1; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-step-card h3 { margin: 24px 0 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 39px; font-weight: 400; line-height: .8; letter-spacing: -.02em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
