@@ -1,7 +1,7 @@
-function GetStartedArrow() {
+function GetStartedArrow({ color = '#FFE72F' }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M14.7071 15V1H0.707092M14.7071 1L0.707092 15" stroke="#FFE72F" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14.7071 15V1H0.707092M14.7071 1L0.707092 15" stroke={color} strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -26,6 +26,23 @@ export function FareShareLanding() {
       text: 'Receive daily revenue in cash and your selected stock.',
       image: '/fare-share/how-it-works/collect.png',
     },
+  ];
+
+  const treasuryStats = [
+    { label: 'TRADING / 24H', value: '$482,918', accent: true },
+    { label: 'FEES COLLECTED', value: '$18,482' },
+    { label: 'IN TREASURY', value: '$84,218' },
+    { label: 'PAID TODAY', value: '$12,204' },
+    { label: 'TOKENS BURNED', value: '1.82M' },
+    { label: 'STOCKS PURCHASED', value: '$9,241' },
+  ];
+
+  const leaders = [
+    ['1', '24 430$'],
+    ['2', '16 842$'],
+    ['3', '24 430$'],
+    ['4', '16 842$'],
+    ['5', '24 430$'],
   ];
 
   return (
@@ -110,6 +127,43 @@ export function FareShareLanding() {
           <a className="fare-button fare-button-primary fare-fleet-button" href="#garage">
             Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
+        </section>
+
+        <section className="fare-treasury" id="dashboard" aria-labelledby="fare-treasury-title">
+          <div className="fare-treasury-heading">
+            <h2 id="fare-treasury-title">PARK TREASURY.</h2>
+            <p>The trust page: trading, collected fees, treasury, payouts, token<br />burns and stock inventory.</p>
+          </div>
+
+          <p className="fare-treasury-intro">Own taxi cars, send them on shift, and collect park revenue in cash and stocks.</p>
+
+          <div className="fare-stat-grid">
+            {treasuryStats.map(stat => <article className="fare-stat-card" key={stat.label}>
+              <span>{stat.label}</span>
+              <strong className={stat.accent ? 'is-accent' : undefined}>{stat.value}</strong>
+              <i className="fare-chevron" aria-hidden="true" />
+            </article>)}
+          </div>
+
+          <div className="fare-leaderboard-heading">
+            <h3>LEADERBOARD</h3>
+            <a className="fare-leaderboard-button" href="#leaderboard">
+              View Full Leaderboard
+              <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow color="#FFFFFF" /></span>
+            </a>
+          </div>
+
+          <div className="fare-leaderboard" id="leaderboard">
+            <div className="fare-leaderboard-row fare-leaderboard-header">
+              <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>TOTAL EARNINGS</span>
+            </div>
+            {leaders.map(([position, earnings]) => <div className="fare-leaderboard-row" key={position}>
+              <span>{position}</span>
+              <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" />User_4312234</span>
+              <span>12 Cars</span>
+              <span>{earnings}</span>
+            </div>)}
+          </div>
         </section>
       </main>
     </div>
