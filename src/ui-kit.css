@@ -40,7 +40,7 @@
 .ui-stat-type { width: min(100%, 430px); }
 .ui-table-type { width: 100%; border: 2px solid #111; border-radius: 18px; overflow: hidden; }
 .ui-table-type > div, .ui-table-type > p { display: grid; grid-template-columns: 54px 1fr 180px; align-items: center; margin: 0; padding: 0 20px; }
-.ui-table-type > div { height: 52px; color: #fff; background: #111; font-size: 16px; font-weight: 700; }
+.ui-table-type > div { height: 52px; color: #fff; background: #111; font-size: 18px; font-weight: 700; }
 .ui-table-type > p { height: 78px; font-size: 22px; font-weight: 600; }
 .ui-table-type strong { text-align: right; }
 .ui-faq-type strong { display: block; font-size: 29px; font-weight: 900; }

@@ -106,7 +106,7 @@ export function UIKitPage() {
             <Specimen name="Treasury stat" meta="Label 20px · value 47px">
               <div className="fare-stat-card ui-stat-type"><span>FEES COLLECTED</span><strong className="is-accent">$18,482</strong></div>
             </Specimen>
-            <Specimen name="Leaderboard row" meta="Header 16px · row 22px">
+            <Specimen name="Leaderboard row" meta="Header 18px · row 22px">
               <div className="ui-table-type"><div><span>#</span><span>DRIVER</span><span>TOTAL EARNINGS</span></div><p><span>1</span><span>User_4312234</span><strong>24 430$</strong></p></div>
             </Specimen>
             <Specimen name="FAQ copy" meta="Question 29px · answer 18px / 24px">
