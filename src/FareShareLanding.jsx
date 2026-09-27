@@ -10,9 +10,9 @@ const FLEET_CLASSES = {
 };
 const FLEET_CLASS_BY_SCENE_NAME = new Map([
   ...['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'].map((name) => [name.toLowerCase(), FLEET_CLASSES.economy]),
-  ...['Prius', 'Ford Crown Victoria', 'Camry', 'W211'].map((name) => [name.toLowerCase(), FLEET_CLASSES.comfort]),
-  ...['Tesla', 'Bentley', 'G63', 'Rolls Royce'].map((name) => [name.toLowerCase(), FLEET_CLASSES.business]),
-  ...['M3E46', 'Lambo', 'Chiron', '911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
+  ...['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'].map((name) => [name.toLowerCase(), FLEET_CLASSES.comfort]),
+  ...['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'].map((name) => [name.toLowerCase(), FLEET_CLASSES.business]),
+  ...['M3E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'].map((name) => [name.toLowerCase(), FLEET_CLASSES.legend]),
 ]);
 const FALLBACK_SCENE = {
   id: 'local-m3e46',
