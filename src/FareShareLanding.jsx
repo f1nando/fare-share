@@ -1,3 +1,11 @@
+function GetStartedArrow() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14.7071 15V1H0.707092M14.7071 1L0.707092 15" stroke="#FFE72F" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function FareShareLanding() {
   const steps = [
     {
@@ -54,7 +62,7 @@ export function FareShareLanding() {
             <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
             <p>Put your taxis to work and collect park fees in<br />stock tokens.</p>
             <div className="fare-hero-actions">
-              <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true">↗</span></a>
+              <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
               <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
               <a className="fare-button fare-button-dark" href="#token">
                 <span className="fare-token-symbol">$TAXI</span>
@@ -82,7 +90,7 @@ export function FareShareLanding() {
           </div>
 
           <a className="fare-button fare-button-primary fare-how-button" href="#taxis">
-            Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true">↗</span>
+            Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
         </section>
       </main>
