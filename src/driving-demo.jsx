@@ -431,6 +431,7 @@ function DrivingDemo() {
   const pathX = Math.cos(pathRadians);
   const pathY = Math.sin(pathRadians);
   const spacing = compactSpacingPreview ? 15 : settings.markSpacing;
+  const markY = compactSpacingPreview ? 77 : settings.markY;
   return (
     <main className="driving-demo">
       <header className="demo-header">
@@ -457,7 +458,7 @@ function DrivingDemo() {
                 const slot = index - 16;
                 const x = slot * spacing * pathX;
                 const y = slot * spacing * pathY;
-                return <img key={index} src="/driving-demo/mark.png" style={{ left: `${settings.markX + x}%`, top: `${settings.markY + y}%` }} alt="" />;
+                return <img key={index} src="/driving-demo/mark.png" style={{ left: `${settings.markX + x}%`, top: `${markY + y}%` }} alt="" />;
               })}
             </div>
             {[
@@ -558,7 +559,7 @@ function DrivingDemo() {
               aria-checked={compactSpacingPreview}
               onClick={() => setCompactSpacingPreview((value) => !value)}
             >
-              <span><i />Временно: центры 15%</span>
+              <span><i />Временно: центры 15%, Y 77%</span>
               <b>{compactSpacingPreview ? 'Включено' : 'Выключено'}</b>
             </button>
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
