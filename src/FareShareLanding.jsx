@@ -90,7 +90,7 @@ function FleetCardBackground() {
     <div className="fare-fleet-card-wall" aria-hidden="true">
       {columns.map(({ columnIndex, cards }) => (
         <div className={`fare-fleet-card-column ${columnIndex % 2 ? 'is-down' : 'is-up'}`} key={columnIndex}>
-          <div className="fare-fleet-card-track" style={{ '--column-duration': `${40 + columnIndex * 2.4}s`, '--column-delay': `${-columnIndex * 3.6}s` }}>
+          <div className="fare-fleet-card-track" style={{ '--column-duration': `${60 + columnIndex * 3.6}s`, '--column-delay': `${-columnIndex * 5.4}s` }}>
             {cards.map((scene, cardIndex) => <FleetSceneCard scene={scene} key={`${scene.id}-${cardIndex}`} />)}
           </div>
         </div>
