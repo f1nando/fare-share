@@ -95,14 +95,13 @@ function FleetSceneCard({ scene, fleetClass }) {
       <div className="fare-fleet-road" style={{
         '--mark-width': `${settings.markWidth}%`,
         '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
-        '--mark-opacity': settings.markOpacity / 100,
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
         '--road-cycle-duration': `${settings.markSpacing / FLEET_ROAD_SPEED}s`,
       }}>
         {Array.from({ length: 15 }, (_, index) => {
           const slot = index - 7;
-          return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
+          return <span key={index} style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} />;
         })}
       </div>
       {isHovered && [
