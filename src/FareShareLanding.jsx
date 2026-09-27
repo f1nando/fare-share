@@ -6,7 +6,7 @@ const FLEET_CLASSES = {
   economy: { name: 'Economy', tone: 'economy' },
   comfort: { name: 'Comfort', tone: 'comfort' },
   business: { name: 'Business', tone: 'business' },
-  legend: { name: 'Legend', tone: 'legend' },
+  legend: { name: 'Legendary', tone: 'legend' },
 };
 const FLEET_CLASS_BY_SCENE_NAME = new Map([
   ...['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'].map((name) => [name.toLowerCase(), FLEET_CLASSES.economy]),
