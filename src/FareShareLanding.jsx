@@ -416,7 +416,7 @@ export function FareShareLanding() {
         <section className="fare-hero" aria-labelledby="fare-hero-title">
           <div className="fare-hero-copy">
             <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
-            <p>Put your taxis to work and collect park fees in<br />stock tokens.</p>
+            <p className="fare-hero-intro">Put your taxis to work and collect park fees in stock tokens.</p>
             <div className="fare-hero-actions">
               <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
               <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
