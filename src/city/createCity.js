@@ -37,7 +37,7 @@ import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
-import { FOLIAGE_SWAY_DURATION, foliageSwayAngle } from './foliageAnimation.js';
+import { FOLIAGE_SWAY_DURATION, claimGestureTarget, foliageSwayAngle } from './foliageAnimation.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -549,8 +549,11 @@ export function createCity(container, initialSettings, benchmark = null) {
     catch (error) { workerFailed(error.message); }
   }
   renderer.setAnimationLoop(frame);
-  const bounceVehicle = event => {
-    if (event.button !== 0 || event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
+  let gesturePointer = null;
+  const gestureTargets = new Set();
+  const gesturePoint = { x: 0, y: 0 };
+  const overControl = event => event.target instanceof Element && event.target.closest('button, input, select, textarea, a');
+  const animateAtPointer = event => {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
     for (const vehicle of clickableVehicles) {
@@ -559,9 +562,9 @@ export function createCity(container, initialSettings, benchmark = null) {
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
     }
     const radius = event.pointerType === 'touch' ? 46 : 38;
-    const point = { x: event.clientX, y: event.clientY };
-    const vehicle = nearestScreenVehicle(clickableVehicles, point, radius);
-    let nearestDistance = vehicle ? (vehicle.screenX - point.x) ** 2 + (vehicle.screenY - point.y) ** 2 : radius ** 2;
+    gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
+    const vehicle = nearestScreenVehicle(clickableVehicles, gesturePoint, radius);
+    let nearestDistance = vehicle ? (vehicle.screenX - gesturePoint.x) ** 2 + (vehicle.screenY - gesturePoint.y) ** 2 : radius ** 2;
     let foliage = null;
     const crownGroup = staticBatch.items.get('crown');
     for (let index = 0; index < (crownGroup?.count ?? 0); index++) {
@@ -569,10 +572,11 @@ export function createCity(container, initialSettings, benchmark = null) {
       projectedVehicle.set(item[0], item[1], item[2]).project(camera);
       const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      const distance = (screenX - point.x) ** 2 + (screenY - point.y) ** 2;
+      const distance = (screenX - gesturePoint.x) ** 2 + (screenY - gesturePoint.y) ** 2;
       if (distance < nearestDistance) { nearestDistance = distance; foliage = { index, item }; }
     }
     if (foliage) {
+      if (!claimGestureTarget(gestureTargets, `foliage:${foliage.index}`)) return;
       const existing = foliageSwings.get(foliage.index);
       let targets = existing?.targets;
       let pivotY = existing?.pivotY;
@@ -596,10 +600,32 @@ export function createCity(container, initialSettings, benchmark = null) {
       return;
     }
     if (!vehicle) return;
+    if (!claimGestureTarget(gestureTargets, vehicle.key)) return;
     vehicleStunts.set(vehicle.key, { started: performance.now(),
       direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
   };
-  window.addEventListener('pointerdown', bounceVehicle, true);
+  const beginGesture = event => {
+    if (event.button !== 0 || overControl(event)) return;
+    gesturePointer = event.pointerId;
+    gestureTargets.clear();
+    animateAtPointer(event);
+  };
+  const continueGesture = event => {
+    if (event.pointerId !== gesturePointer) return;
+    if (event.pointerType === 'mouse' && !(event.buttons & 1)) { gesturePointer = null; gestureTargets.clear(); return; }
+    if (overControl(event)) return;
+    const points = event.getCoalescedEvents?.() ?? [event];
+    for (const point of points.length ? points : [event]) animateAtPointer(point);
+  };
+  const endGesture = event => {
+    if (event.pointerId !== gesturePointer) return;
+    gesturePointer = null;
+    gestureTargets.clear();
+  };
+  window.addEventListener('pointerdown', beginGesture, true);
+  window.addEventListener('pointermove', continueGesture, true);
+  window.addEventListener('pointerup', endGesture, true);
+  window.addEventListener('pointercancel', endGesture, true);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
     renderer.setAnimationLoop(document.hidden ? null : frame);
@@ -637,7 +663,10 @@ export function createCity(container, initialSettings, benchmark = null) {
     worker?.dispose();
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
-    window.removeEventListener('pointerdown', bounceVehicle, true);
+    window.removeEventListener('pointerdown', beginGesture, true);
+    window.removeEventListener('pointermove', continueGesture, true);
+    window.removeEventListener('pointerup', endGesture, true);
+    window.removeEventListener('pointercancel', endGesture, true);
     renderer.setAnimationLoop(null);
     reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();
