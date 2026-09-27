@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
-import { fleetColumnCount } from './fleetWall.js';
+import { fleetColumnCount, fleetRoadPlaybackRate } from './fleetWall.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
@@ -110,6 +110,18 @@ function createSceneSequence(scenes, count) {
   return sequence;
 }
 
+function blinkSceneHeadlights(container, settings) {
+  container.querySelectorAll('.fare-fleet-headlight').forEach((light) => {
+    light.getAnimations().forEach((animation) => animation.cancel());
+    light.animate([
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
+      { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .24 },
+      { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .54 },
+      { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
+    ], { duration: 620, easing: 'ease-out' });
+  });
+}
+
 function FleetSceneCard({ scene, fleetClass }) {
   const [isHovered, setIsHovered] = useState(false);
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
@@ -119,22 +131,10 @@ function FleetSceneCard({ scene, fleetClass }) {
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
   const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
 
-  const blink = (event) => {
-    event.currentTarget.querySelectorAll('.fare-fleet-headlight').forEach((light) => {
-      light.getAnimations().forEach((animation) => animation.cancel());
-      light.animate([
-        { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
-        { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .24 },
-        { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .54 },
-        { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
-      ], { duration: 620, easing: 'ease-out' });
-    });
-  };
-
   return (
     <div
       className="fare-fleet-scene-card"
-      onClick={blink}
+      onClick={(event) => blinkSceneHeadlights(event.currentTarget, settings)}
       onPointerEnter={() => setIsHovered(true)}
       onPointerLeave={() => setIsHovered(false)}
       onDragStart={(event) => event.preventDefault()}
@@ -174,16 +174,86 @@ function FleetSceneCard({ scene, fleetClass }) {
 }
 
 function FareStepDrivingScene() {
-  const settings = PORSCHE_STEP_SCENE.settings;
+  const [scene, setScene] = useState(PORSCHE_STEP_SCENE);
+  const roadRef = useRef(null);
+  const boundsRef = useRef(null);
+  const rateFrameRef = useRef(0);
+  const previousRateFrameRef = useRef(0);
+  const targetRateRef = useRef(1);
+  const settings = { ...FALLBACK_SCENE.settings, ...PORSCHE_STEP_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
+  const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_BASE}/api/driving-scenes`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Scene library unavailable')))
+      .then((body) => {
+        const porsche = body.scenes?.find((item) => String(item.name).trim().toLowerCase() === 'porsche 911');
+        if (porsche) setScene(porsche);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  const animateRoadRate = (now) => {
+    rateFrameRef.current = 0;
+    const road = roadRef.current;
+    if (!road) return;
+    const animations = road.getAnimations();
+    if (!animations.length) return;
+    const previous = previousRateFrameRef.current || now - 16;
+    const elapsed = Math.min((now - previous) / 1000, .05);
+    const easing = 1 - Math.exp(-elapsed * 2.8);
+    const currentRate = Number(road.dataset.currentPlaybackRate || animations[0].playbackRate || 1);
+    const difference = targetRateRef.current - currentRate;
+    const nextRate = Math.abs(difference) < .01 ? targetRateRef.current : currentRate + difference * easing;
+    road.dataset.currentPlaybackRate = String(nextRate);
+    animations.forEach((animation) => { animation.playbackRate = nextRate; });
+    previousRateFrameRef.current = now;
+    if (Math.abs(targetRateRef.current - nextRate) >= .01) {
+      rateFrameRef.current = requestAnimationFrame(animateRoadRate);
+    } else previousRateFrameRef.current = 0;
+  };
+
+  const setTargetRoadRate = (playbackRate) => {
+    targetRateRef.current = playbackRate;
+    if (!rateFrameRef.current) {
+      previousRateFrameRef.current = 0;
+      rateFrameRef.current = requestAnimationFrame(animateRoadRate);
+    }
+  };
+
+  const updateRoadRateFromPointer = (event) => {
+    if (!boundsRef.current) boundsRef.current = event.currentTarget.getBoundingClientRect();
+    setTargetRoadRate(fleetRoadPlaybackRate(boundsRef.current, event.clientX, event.clientY));
+  };
+
+  useEffect(() => {
+    const invalidateBounds = () => { boundsRef.current = null; };
+    window.addEventListener('resize', invalidateBounds);
+    window.addEventListener('scroll', invalidateBounds, { passive: true });
+    return () => {
+      window.removeEventListener('resize', invalidateBounds);
+      window.removeEventListener('scroll', invalidateBounds);
+      cancelAnimationFrame(rateFrameRef.current);
+    };
+  }, []);
 
   return (
-    <div className="fare-step-media fare-step-driving" aria-hidden="true">
-      <img className="fare-step-driving-car" src={PORSCHE_STEP_SCENE.imageUrl} alt="" />
-      <div className="fare-fleet-road" style={{
+    <div
+      className="fare-step-media fare-step-driving"
+      aria-hidden="true"
+      onClick={(event) => blinkSceneHeadlights(event.currentTarget, settings)}
+      onPointerEnter={(event) => { boundsRef.current = event.currentTarget.getBoundingClientRect(); }}
+      onPointerMove={updateRoadRateFromPointer}
+      onPointerLeave={() => setTargetRoadRate(1)}
+    >
+      <img className="fare-step-driving-car" src={imageUrl} alt="" />
+      <div className="fare-fleet-road" ref={roadRef} style={{
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
         '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
@@ -191,6 +261,18 @@ function FareStepDrivingScene() {
       }}>
         <RoadMarkStrip className="fare-fleet-road-line" settings={settings} />
       </div>
+      {[
+        ['left', settings.leftX, settings.leftY],
+        ['right', settings.rightX, settings.rightY],
+      ].map(([name, x, y]) => (
+        <img
+          className={`fare-fleet-headlight fare-fleet-headlight-${name}`}
+          src="/driving-demo/blink.webp"
+          alt=""
+          key={name}
+          style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
+        />
+      ))}
     </div>
   );
 }
@@ -337,25 +419,7 @@ function FleetCardBackground() {
       if (now - boundsMeasuredAtRef.current > 500) refreshCardBounds(now);
       for (const { bounds, road } of cardEntriesRef.current) {
         if (!bounds) continue;
-        const distanceX = Math.max(bounds.left - clientX, 0, clientX - bounds.right);
-        const distanceY = Math.max(bounds.top - clientY, 0, clientY - bounds.bottom);
-        const distance = Math.hypot(distanceX, distanceY);
-        const activationDistance = bounds.width * .5;
-        let proximity;
-        if (distance > 0) {
-          proximity = Math.max(0, 1 - distance / activationDistance) * .5;
-        } else {
-          const depthInside = Math.min(
-            clientX - bounds.left,
-            bounds.right - clientX,
-            clientY - bounds.top,
-            bounds.bottom - clientY,
-          );
-          proximity = .5 + Math.min(1, depthInside / (bounds.width * .25)) * .5;
-        }
-        const smoothProximity = proximity ** 3 * (proximity * (proximity * 6 - 15) + 10);
-        const playbackRate = 1 + smoothProximity * 9;
-        if (road) road.dataset.targetPlaybackRate = String(playbackRate);
+        if (road) road.dataset.targetPlaybackRate = String(fleetRoadPlaybackRate(bounds, clientX, clientY));
       }
       startRoadRateTransition();
     });

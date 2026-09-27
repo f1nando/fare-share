@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fleetColumnCount, fleetRoadStrip } from '../src/fleetWall.js';
+import { fleetColumnCount, fleetRoadPlaybackRate, fleetRoadStrip } from '../src/fleetWall.js';
 
 test('fleet wall renders only columns visible at the current breakpoint', () => {
   assert.equal(fleetColumnCount(390), 2);
@@ -16,4 +16,12 @@ test('one SVG strip spans the same fifteen road-mark positions', () => {
   assert.equal(strip.width, 535);
   assert.ok(Math.abs(strip.height - 17 * 56 / 360) < 1e-12);
   assert.equal((strip.width - 17) / 37 + 1, 15);
+});
+
+test('road speed rises smoothly as the pointer approaches a card', () => {
+  const bounds = { left: 100, right: 300, top: 100, bottom: 300, width: 200 };
+  assert.equal(fleetRoadPlaybackRate(bounds, 0, 200), 1);
+  assert.ok(fleetRoadPlaybackRate(bounds, 50, 200) > 1);
+  assert.ok(fleetRoadPlaybackRate(bounds, 100, 200) > fleetRoadPlaybackRate(bounds, 50, 200));
+  assert.equal(fleetRoadPlaybackRate(bounds, 200, 200), 10);
 });
