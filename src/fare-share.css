@@ -125,7 +125,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-driving .fare-fleet-road { z-index: 1; }
 .fare-step-driving .fare-fleet-headlight { z-index: 2; }
 .fare-step-card:nth-child(3) > .fare-step-media { transform: scale(1.06); }
-.fare-step-collect { position: relative; background: radial-gradient(circle at 50% 66%, #fff 0, #fff 38%, #f3f3f3 100%); overflow: hidden; isolation: isolate; }
+.fare-step-collect { position: relative; background: #fff; overflow: hidden; isolation: isolate; }
 .fare-collect-wallet { position: absolute; left: 50%; bottom: 13px; display: block; width: 96%; height: auto; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-wallet-back { z-index: 1; }
 .fare-collect-wallet-front { z-index: 4; }
