@@ -677,7 +677,6 @@ export function FareShareLanding() {
         <section className="fare-treasury" id="dashboard" aria-labelledby="fare-treasury-title">
           <div className="fare-treasury-heading">
             <h2 id="fare-treasury-title">PARK TREASURY.</h2>
-            <p>The trust page: trading, collected fees, treasury, payouts, token<br />burns and stock inventory.</p>
           </div>
 
           <p className="fare-treasury-intro">Own taxi cars, send them on shift, and collect park revenue in cash and stocks.</p>
