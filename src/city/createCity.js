@@ -720,12 +720,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     activeBrushEvent = null;
     gestureTargets.clear();
   };
-  const beginMouseGesture = event => {
-    if (event.button !== 0 || overControl(event)) return;
-    gestureTargets.clear();
-    updateActiveBrush(event);
-    animateAtPointer(event);
-  };
   const continueMouseGesture = event => {
     if (overControl(event)) { activeBrushEvent = null; gestureTargets.clear(); return; }
     updateActiveBrush(event); animateAtPointer(event);
@@ -738,7 +732,6 @@ export function createCity(container, initialSettings, benchmark = null) {
   window.addEventListener('pointermove', continueGesture, true);
   window.addEventListener('pointerup', endGesture, true);
   window.addEventListener('pointercancel', endGesture, true);
-  window.addEventListener('mousedown', beginMouseGesture, true);
   window.addEventListener('mousemove', continueMouseGesture, true);
   document.documentElement.addEventListener('mouseleave', leaveMouseBrush);
   const visibility = () => {
@@ -779,7 +772,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     window.removeEventListener('pointermove', continueGesture, true);
     window.removeEventListener('pointerup', endGesture, true);
     window.removeEventListener('pointercancel', endGesture, true);
-    window.removeEventListener('mousedown', beginMouseGesture, true);
     window.removeEventListener('mousemove', continueMouseGesture, true);
     document.documentElement.removeEventListener('mouseleave', leaveMouseBrush);
     renderer.setAnimationLoop(null);
