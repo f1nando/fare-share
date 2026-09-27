@@ -55,6 +55,7 @@ const server = createServer(async (request, response) => {
         image: new Binary(input.image!.bytes),
         imageMime: input.image!.mime,
         settings: input.settings,
+        vehicleClass: input.vehicleClass,
         lightsOn: input.lightsOn,
         createdAt: now,
         updatedAt: now,
@@ -70,6 +71,7 @@ const server = createServer(async (request, response) => {
       const update: Record<string, unknown> = {
         name: input.name,
         settings: input.settings,
+        vehicleClass: input.vehicleClass,
         lightsOn: input.lightsOn,
         updatedAt: now,
       };

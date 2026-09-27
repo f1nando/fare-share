@@ -32,6 +32,7 @@ const BMW_M3_E46_REFERENCE_KEY = 'taxi-driving-demo-bmw-m3-e46-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
+const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legend', 'Trainee'];
 const DIRECTION_PRESETS = [
   { angle: -135, label: '↖', title: 'Вверх-влево', column: 1, row: 1 },
   { angle: -90, label: '↑', title: 'Вверх', column: 2, row: 1 },
@@ -141,9 +142,13 @@ function loadStoredState() {
       }
     }
     const settings = normalizeSettings(source);
-    return { settings, lightsOn: stored.lightsOn === true };
+    return {
+      settings,
+      lightsOn: stored.lightsOn === true,
+      vehicleClass: VEHICLE_CLASSES.includes(stored.vehicleClass) ? stored.vehicleClass : 'Economy',
+    };
   } catch {
-    return { settings: DEFAULTS, lightsOn: false };
+    return { settings: DEFAULTS, lightsOn: false, vehicleClass: 'Economy' };
   }
 }
 
@@ -196,6 +201,7 @@ function DrivingDemo() {
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
   const [lightsOn, setLightsOn] = useState(false);
+  const [vehicleClass, setVehicleClass] = useState(initialState.vehicleClass);
   const [compactSpacingPreview, setCompactSpacingPreview] = useState(false);
   const [scenes, setScenes] = useState([]);
   const [activeSceneId, setActiveSceneId] = useState('');
@@ -222,6 +228,7 @@ function DrivingDemo() {
     setSceneName(scene?.name || 'Локальное демо');
     if (scene) {
       setSettings(normalizeSettings(scene.settings));
+      setVehicleClass(VEHICLE_CLASSES.includes(scene.vehicleClass) ? scene.vehicleClass : 'Economy');
       setCompactSpacingPreview(false);
       offsetRef.current = 0;
     }
@@ -262,7 +269,7 @@ function DrivingDemo() {
     try {
       const body = await request(`/api/driving-scenes/${activeSceneId}`, {
         method: 'PUT',
-        body: JSON.stringify({ name: sceneName, settings, lightsOn: false }),
+        body: JSON.stringify({ name: sceneName, settings, vehicleClass, lightsOn: false }),
       });
       setScenes((current) => current.map((scene) => scene.id === body.scene.id ? body.scene : scene));
       setSceneStatus('Настройки сцены сохранены в MongoDB.');
@@ -283,6 +290,7 @@ function DrivingDemo() {
           name: file.name.replace(/\.[^.]+$/, '').slice(0, 80) || 'Новая сцена',
           imageDataUrl,
           settings: DEFAULTS,
+          vehicleClass,
           lightsOn: false,
         }),
       });
@@ -305,6 +313,7 @@ function DrivingDemo() {
     if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
     const imported = normalizeSettings(bundle.settings);
     setSettings(imported);
+    if (VEHICLE_CLASSES.includes(bundle.vehicleClass)) setVehicleClass(bundle.vehicleClass);
     setSceneStatus(message);
   };
 
@@ -313,6 +322,7 @@ function DrivingDemo() {
       format: 'taxi-driving-settings',
       version: 1,
       source: sceneName,
+      vehicleClass,
       settings,
     }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(file);
@@ -366,11 +376,11 @@ function DrivingDemo() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SETTINGS_VERSION, settings }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SETTINGS_VERSION, settings, vehicleClass }));
     } catch {
       // The demo remains usable when storage is blocked by the browser.
     }
-  }, [settings]);
+  }, [settings, vehicleClass]);
 
   useEffect(() => {
     let frame;
@@ -509,6 +519,11 @@ function DrivingDemo() {
               <select value={activeSceneId} onChange={(event) => selectScene(scenes.find((scene) => scene.id === event.target.value))}>
                 <option value="">Локальное демо</option>
                 {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
+              </select>
+            </label>
+            <label className="text-control">Класс машины
+              <select value={vehicleClass} onChange={(event) => setVehicleClass(event.target.value)}>
+                {VEHICLE_CLASSES.map((className) => <option key={className} value={className}>{className}</option>)}
               </select>
             </label>
             <label className="text-control">Название<input value={sceneName} maxLength={80} onChange={(event) => setSceneName(event.target.value)} /></label>

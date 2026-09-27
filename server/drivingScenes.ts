@@ -1,6 +1,8 @@
 import { Binary, ObjectId, type Collection } from 'mongodb';
 
 export const MAX_SCENE_IMAGE_BYTES = 8 * 1024 * 1024;
+export const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legend', 'Trainee'] as const;
+export type VehicleClass = typeof VEHICLE_CLASSES[number];
 
 export interface DrivingSceneDocument {
   _id: ObjectId;
@@ -8,6 +10,7 @@ export interface DrivingSceneDocument {
   image: Binary;
   imageMime: 'image/png' | 'image/jpeg' | 'image/webp';
   settings: Record<string, number>;
+  vehicleClass?: VehicleClass;
   lightsOn: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,9 +29,10 @@ export function parseSceneInput(value: unknown, requireImage: boolean) {
   const result: {
     name: string;
     settings: Record<string, number>;
+    vehicleClass: VehicleClass;
     lightsOn: boolean;
     image?: { mime: DrivingSceneDocument['imageMime']; bytes: Buffer };
-  } = { name, settings, lightsOn: input.lightsOn === true };
+  } = { name, settings, vehicleClass: parseVehicleClass(input.vehicleClass), lightsOn: input.lightsOn === true };
   if (typeof input.imageDataUrl === 'string' && input.imageDataUrl) result.image = parseImageDataUrl(input.imageDataUrl);
   if (requireImage && !result.image) throw new DrivingSceneError('Scene image is required.');
   return result;
@@ -39,11 +43,20 @@ export function sceneSummary(document: Omit<DrivingSceneDocument, 'image'>) {
     id: document._id.toHexString(),
     name: document.name,
     settings: document.settings,
+    vehicleClass: document.vehicleClass || 'Economy',
     lightsOn: document.lightsOn,
     imageUrl: `/api/driving-scenes/${document._id.toHexString()}/image?v=${document.updatedAt.getTime()}`,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
   };
+}
+
+function parseVehicleClass(value: unknown): VehicleClass {
+  if (value === undefined) return 'Economy';
+  if (typeof value !== 'string' || !VEHICLE_CLASSES.includes(value as VehicleClass)) {
+    throw new DrivingSceneError('Unsupported vehicle class.');
+  }
+  return value as VehicleClass;
 }
 
 export async function listScenes(collection: Collection<DrivingSceneDocument>) {
