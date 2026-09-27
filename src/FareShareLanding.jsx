@@ -49,12 +49,29 @@ function FareShareCityBackground() {
 
   useEffect(() => {
     let city;
+    let observer;
     try {
-      city = createCity(containerRef.current, loadSettings());
+      const settings = { ...loadSettings(), colorScheme: 'classic' };
+      let colorScheme = settings.colorScheme;
+      city = createCity(containerRef.current, settings);
+
+      const secondSection = document.querySelector('.fare-how');
+      if (secondSection) {
+        observer = new IntersectionObserver(([entry]) => {
+          const nextColorScheme = entry.isIntersecting || entry.boundingClientRect.top < 0 ? 'pale' : 'classic';
+          if (nextColorScheme === colorScheme) return;
+          colorScheme = nextColorScheme;
+          city?.updateSettings({ ...settings, colorScheme });
+        });
+        observer.observe(secondSection);
+      }
     } catch (error) {
       console.error('Unable to start the Fare Share city background', error);
     }
-    return () => city?.dispose();
+    return () => {
+      observer?.disconnect();
+      city?.dispose();
+    };
   }, []);
 
   return (
