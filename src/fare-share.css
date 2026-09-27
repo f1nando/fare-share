@@ -45,7 +45,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-nav a:hover { opacity: .52; }
 .fare-nav .is-active { padding: 0 20px; border-radius: 32px; color: #fff; background: #111; }
 .fare-header-actions { display: flex; align-items: center; flex: 0 0 auto; gap: 16px; }
-.fare-social { display: grid; width: 64px; height: 64px; place-items: center; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 7px 8px 0 #111; text-decoration: none; }
+.fare-social { --press-x: 7px; --press-y: 8px; display: grid; width: 64px; height: 64px; place-items: center; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 7px 8px 0 #111; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
 .fare-social svg { display: block; width: 24px; height: 22px; }
 
 .fare-connect, .fare-button {
@@ -58,9 +58,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   box-shadow: 4px 4px 0 #111;
   transition: transform .15s ease, box-shadow .15s ease;
 }
-.fare-connect { min-width: 280px; height: 64px; padding: 0 26px 0 34px; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-size: 18px; letter-spacing: -.02em; }
+.fare-connect { --press-x: 7px; --press-y: 8px; min-width: 280px; height: 64px; padding: 0 26px 0 34px; background: #ffe11a; box-shadow: 7px 8px 0 #111; font-size: 18px; letter-spacing: -.02em; }
 .fare-wallet-icon { display: block; flex: 0 0 auto; width: 28px; height: 26px; margin-left: 22px; }
-.fare-connect:hover, .fare-button:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #111; }
+.fare-social:hover, .fare-connect:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111; }
 
 .fare-hero {
   display: flex;
@@ -87,7 +87,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-hero h1 span { display: block; white-space: nowrap; }
 .fare-hero-copy > p { max-width: 620px; margin: 60px 0 0; color: #111; font-size: 24px; font-weight: 800; line-height: 28px; }
 .fare-hero-actions { display: flex; align-items: center; gap: 16px; margin-top: 59px; }
-.fare-button { display: inline-flex; align-items: center; justify-content: center; height: 74px; padding: 0 28px; text-decoration: none; white-space: nowrap; box-shadow: 8px 10px 0 #111; font-size: 20px; font-weight: 800; letter-spacing: -.025em; }
+.fare-button { --press-x: 8px; --press-y: 10px; display: inline-flex; align-items: center; justify-content: center; height: 74px; padding: 0 28px; text-decoration: none; white-space: nowrap; box-shadow: 8px 10px 0 #111; font-size: 20px; font-weight: 800; letter-spacing: -.025em; }
+.fare-button:not(.fare-button-dark):hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111; }
 .fare-button-primary { justify-content: space-between; width: 220px; background: #ffe11a; }
 .fare-button-light { width: 196px; background: #fff; }
 .fare-button-dark { justify-content: flex-start; width: 374px; padding: 0 18px 0 30px; color: #fff; background: #111; box-shadow: none; font-weight: 500; }
@@ -151,8 +152,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-chevron { position: absolute; top: 63px; right: 29px; width: 17px; height: 17px; border-right: 3px solid #fff; border-bottom: 3px solid #fff; transform: rotate(45deg); }
 .fare-leaderboard-heading { position: absolute; top: 816px; right: max(24px, calc((100vw - 1720px) / 2)); left: max(24px, calc((100vw - 1720px) / 2)); display: flex; align-items: flex-start; justify-content: space-between; }
 .fare-leaderboard-heading h3 { font-size: 66px; }
-.fare-leaderboard-button { display: inline-flex; align-items: center; justify-content: space-between; width: 320px; height: 64px; padding: 0 10px 0 28px; border: 2px solid #111; border-radius: 34px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111; font-size: 20px; font-weight: 800; text-decoration: none; white-space: nowrap; }
-.fare-leaderboard-heading .fare-leaderboard-button { transform: translateY(-2px); }
+.fare-leaderboard-button { --press-x: 8px; --press-y: 9px; position: relative; top: -2px; display: inline-flex; align-items: center; justify-content: space-between; width: 320px; height: 64px; padding: 0 10px 0 28px; border: 2px solid #111; border-radius: 34px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111; font-size: 20px; font-weight: 800; text-decoration: none; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }
+.fare-leaderboard-button:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111; }
 .fare-leaderboard-button .fare-round-arrow { width: 46px; height: 46px; margin-left: 12px; }
 .fare-leaderboard { position: absolute; top: 934px; right: max(24px, calc((100vw - 1720px) / 2)); left: max(24px, calc((100vw - 1720px) / 2)); border-radius: 36px; box-shadow: 0 15px 23px rgb(0 0 0 / 15%); overflow: hidden; }
 .fare-leaderboard-row { display: grid; grid-template-columns: 94px 537px 537px 1fr; align-items: center; height: 110px; padding: 0 48px; background: #fff; font-size: 28px; font-weight: 600; }
@@ -170,7 +171,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 .fare-faq h2 { height: 112px; margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 130px; font-weight: 400; line-height: .8; text-align: center; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 7px 8px 0 #111; }
 .fare-faq-list { display: grid; gap: 24px; margin-top: 66px; }
-.fare-faq-item { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 110px; padding: 0 17px 0 32px; border: 1px solid #111; border-radius: 38px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111, 0 15px 24px rgb(0 0 0 / 12%); font-size: 29px; font-weight: 900; line-height: 1; letter-spacing: -.02em; text-align: left; }
+.fare-faq-item { --press-x: 8px; --press-y: 9px; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 110px; padding: 0 17px 0 32px; border: 1px solid #111; border-radius: 38px; color: #111; background: #fff; box-shadow: 8px 9px 0 #111, 0 15px 24px rgb(0 0 0 / 12%); font-size: 29px; font-weight: 900; line-height: 1; letter-spacing: -.02em; text-align: left; transition: transform .15s ease, box-shadow .15s ease; }
+.fare-faq-item:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #111, 0 0 0 rgb(0 0 0 / 0%); }
 .fare-faq-item svg { display: block; flex: 0 0 auto; width: 44px; height: 44px; }
 
 .fare-footer { position: relative; height: 529px; padding: 120px max(24px, calc((100vw - 1720px) / 2)) 0; color: #fff; background: #111; overflow: hidden; }
@@ -182,7 +184,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-footer-brand span { margin-left: 17px; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 18px; font-weight: 500; letter-spacing: -.07em; }
 .fare-footer-tagline { margin: 16px 0 0; font-size: 26px; font-weight: 700; line-height: 32px; letter-spacing: -.032em; }
 .fare-footer-copy { margin: 16px 0 0; color: #aaa; font-size: 21px; font-weight: 400; line-height: 21px; }
-.fare-footer-social { display: grid; width: 64px; height: 64px; place-items: center; margin-top: 32px; border-radius: 50%; background: #fff; box-shadow: 7px 8px 0 #000; }
+.fare-footer-social { --press-x: 7px; --press-y: 8px; display: grid; width: 64px; height: 64px; place-items: center; margin-top: 32px; border-radius: 50%; background: #fff; box-shadow: 7px 8px 0 #000; transition: transform .15s ease, box-shadow .15s ease; }
+.fare-footer-social:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #000; }
 .fare-footer-social svg { display: block; width: 24px; height: 22px; }
 .fare-footer-copyright { position: absolute; top: 328px; left: 0; margin: 0; color: #aaa; font-size: 20px; font-weight: 400; line-height: 24px; }
 .fare-footer-column { display: flex; flex-direction: column; align-items: flex-start; }
@@ -205,7 +208,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-brand strong { font-size: 15px; }
   .fare-brand span { display: none; }
   .fare-social { display: none; }
-  .fare-connect { min-width: 0; min-height: 43px; padding: 0 13px; box-shadow: 3px 3px 0 #111; font-size: 10px; }
+  .fare-connect { --press-x: 3px; --press-y: 3px; min-width: 0; min-height: 43px; padding: 0 13px; box-shadow: 3px 3px 0 #111; font-size: 10px; }
   .fare-connect span { display: none; }
   .fare-hero { height: 760px; padding: 170px 20px 80px; }
   .fare-hero-copy { width: 100%; }
@@ -213,7 +216,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-hero h1 span { white-space: normal; }
   .fare-hero-copy > p { max-width: 340px; margin-top: 38px; font-size: 14px; line-height: 1.15; }
   .fare-hero-actions { align-items: flex-start; flex-wrap: wrap; gap: 13px; margin-top: 27px; }
-  .fare-button { width: auto; height: 48px; padding: 0 16px; box-shadow: 3px 4px 0 #111; font-size: 12px; }
+  .fare-button { --press-x: 3px; --press-y: 4px; width: auto; height: 48px; padding: 0 16px; box-shadow: 3px 4px 0 #111; font-size: 12px; }
   .fare-button-dark { box-shadow: none; }
   .fare-round-arrow { width: 32px; height: 32px; margin-left: 9px; font-size: 19px; }
   .fare-token-symbol { margin-right: 10px; }
