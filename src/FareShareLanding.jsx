@@ -202,11 +202,11 @@ function FareStepCollectScene() {
     <div className="fare-step-media fare-step-collect" aria-hidden="true">
       <img className="fare-collect-wallet fare-collect-wallet-back" src={`${assetPath}/wallet-back.png`} alt="" />
       <div className="fare-collect-flying-assets">
-        <img className="fare-collect-asset fare-collect-card fare-collect-card-one" src={`${assetPath}/stock-card.png`} alt="" />
-        <img className="fare-collect-asset fare-collect-card fare-collect-card-two" src={`${assetPath}/stock-card.png`} alt="" />
-        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-one" src={`${assetPath}/coin-1.png`} alt="" />
-        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-two" src={`${assetPath}/coin-2.png`} alt="" />
-        <img className="fare-collect-asset fare-collect-coin fare-collect-coin-three" src={`${assetPath}/coin-3.png`} alt="" />
+        <span className="fare-collect-asset fare-collect-card fare-collect-card-one"><img src={`${assetPath}/stock-card.png`} alt="" /></span>
+        <span className="fare-collect-asset fare-collect-card fare-collect-card-two"><img src={`${assetPath}/stock-card.png`} alt="" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-one"><img src={`${assetPath}/coin-1.png`} alt="" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-two"><img src={`${assetPath}/coin-2.png`} alt="" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-three"><img src={`${assetPath}/coin-3.png`} alt="" /></span>
       </div>
       <img className="fare-collect-wallet fare-collect-wallet-front" src={`${assetPath}/wallet-front.png`} alt="" />
     </div>
