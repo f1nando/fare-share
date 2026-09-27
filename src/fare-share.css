@@ -130,7 +130,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-collect-wallet-back { z-index: 1; }
 .fare-collect-wallet-front { z-index: 4; }
 .fare-collect-flying-assets { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
-.fare-collect-depth-mask { position: absolute; z-index: 3; top: 47%; right: 0; bottom: 0; left: 0; background: #fff; pointer-events: none; }
+.fare-collect-depth-mask { position: absolute; z-index: 3; top: 260px; right: 0; bottom: 0; left: 0; background: #fff; pointer-events: none; }
 .fare-collect-asset { position: absolute; display: block; opacity: 1; animation: fare-collect-flight 4s linear infinite; pointer-events: none; will-change: transform; }
 .fare-collect-asset img { display: block; width: 100%; height: auto; transition: transform .14s ease-out; }
 .fare-collect-card { width: 36%; animation-duration: 7.6s; }
