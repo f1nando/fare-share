@@ -293,7 +293,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   const sunlight = new THREE.DirectionalLight('#ffffff', 2.5);
   sunlight.position.set(-35, 70, -25);
   sunlight.castShadow = true;
-  sunlight.shadow.mapSize.set(2048, 2048);
+  const initialShadowSize = benchmark ? 2048 : qualityProfile.shadowMapSize;
+  sunlight.shadow.mapSize.set(initialShadowSize, initialShadowSize);
   Object.assign(sunlight.shadow.camera, { left: -115, right: 115, top: 115, bottom: -115, near: 1, far: 220 });
   sunlight.shadow.normalBias = 0.07;
   sunlight.shadow.bias = -0.00015;
@@ -314,6 +315,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const fixedSimulation = benchmark?.fixedStep !== false;
   let previousPoses = new WeakMap(), renderAlpha = 1;
   let worker = null, workerFrame = null, workerFailure = null;
+  let activeBrushEvent = null;
   const projectedVehicle = new THREE.Vector3();
   const foliageAnimatedMatrix = new THREE.Matrix4();
   const foliageRotationMatrix = new THREE.Matrix4();
@@ -523,6 +525,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
+    if (activeBrushEvent) animateAtPointer(activeBrushEvent);
     carsBatch.flush();
     for (const [index, swing] of foliageSwings) {
       const elapsed = timestamp - swing.started;
@@ -639,7 +642,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     buildingStretches.set(index, { mesh, base, started: performance.now(),
       x: item[0], bottom: item[1] - item[4] / 2, z: item[2] });
   };
-  const animateAtPointer = event => {
+  function animateAtPointer(event) {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
     const radius = event.pointerType === 'touch' ? 100 : 82;
@@ -669,17 +672,25 @@ export function createCity(container, initialSettings, benchmark = null) {
       const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
       if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateBuilding(index, item);
     }
+  }
+  const updateActiveBrush = event => {
+    activeBrushEvent ??= {};
+    activeBrushEvent.clientX = event.clientX;
+    activeBrushEvent.clientY = event.clientY;
+    activeBrushEvent.pointerType = event.pointerType || 'mouse';
   };
   const beginGesture = event => {
     if (event.pointerType === 'mouse' || event.button !== 0 || overControl(event)) return;
     gesturePointer = event.pointerId;
     gestureTargets.clear();
+    updateActiveBrush(event);
     animateAtPointer(event);
   };
   const continueGesture = event => {
     if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
-    if (overControl(event)) return;
+    if (overControl(event)) { activeBrushEvent = null; return; }
+    updateActiveBrush(event);
     const points = event.getCoalescedEvents?.() ?? [event];
     for (const point of points.length ? points : [event]) animateAtPointer(point);
   };
@@ -687,6 +698,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
     gesturePointer = null;
+    activeBrushEvent = null;
     gestureTargets.clear();
   };
   let mouseGesture = false;
@@ -694,15 +706,18 @@ export function createCity(container, initialSettings, benchmark = null) {
     if (event.button !== 0 || overControl(event)) return;
     mouseGesture = true;
     gestureTargets.clear();
+    updateActiveBrush(event);
     animateAtPointer(event);
   };
   const continueMouseGesture = event => {
     if (!mouseGesture) return;
-    if (!(event.buttons & 1)) { mouseGesture = false; gestureTargets.clear(); return; }
-    if (!overControl(event)) animateAtPointer(event);
+    if (!(event.buttons & 1)) { mouseGesture = false; activeBrushEvent = null; gestureTargets.clear(); return; }
+    if (overControl(event)) { activeBrushEvent = null; return; }
+    updateActiveBrush(event); animateAtPointer(event);
   };
   const endMouseGesture = () => {
     mouseGesture = false;
+    activeBrushEvent = null;
     gestureTargets.clear();
   };
   window.addEventListener('pointerdown', beginGesture, true);
