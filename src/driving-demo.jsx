@@ -102,6 +102,26 @@ function drawCar(canvas, image, blackLayer, blackness) {
   context.globalAlpha = 1;
 }
 
+async function imageFileToWebPDataUrl(file) {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const webp = await new Promise((resolve, reject) => canvas.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Браузер не смог создать WebP.')),
+    'image/webp',
+    .84,
+  ));
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Не удалось подготовить WebP.'));
+    reader.readAsDataURL(webp);
+  });
+}
+
 function loadStoredState() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -174,7 +194,7 @@ function DrivingDemo() {
   const [m3Reference] = useState(() => loadM3Reference(initialState));
   const [settings, setSettings] = useState(initialState.settings);
   const [paused, setPaused] = useState(false);
-  const [lightsOn, setLightsOn] = useState(initialState.lightsOn);
+  const [lightsOn, setLightsOn] = useState(false);
   const [compactSpacingPreview, setCompactSpacingPreview] = useState(false);
   const [scenes, setScenes] = useState([]);
   const [activeSceneId, setActiveSceneId] = useState('');
@@ -201,7 +221,6 @@ function DrivingDemo() {
     setSceneName(scene?.name || 'Локальное демо');
     if (scene) {
       setSettings(normalizeSettings(scene.settings));
-      setLightsOn(scene.lightsOn === true);
       setCompactSpacingPreview(false);
       offsetRef.current = 0;
     }
@@ -242,7 +261,7 @@ function DrivingDemo() {
     try {
       const body = await request(`/api/driving-scenes/${activeSceneId}`, {
         method: 'PUT',
-        body: JSON.stringify({ name: sceneName, settings, lightsOn }),
+        body: JSON.stringify({ name: sceneName, settings, lightsOn: false }),
       });
       setScenes((current) => current.map((scene) => scene.id === body.scene.id ? body.scene : scene));
       setSceneStatus('Настройки сцены сохранены в MongoDB.');
@@ -254,14 +273,9 @@ function DrivingDemo() {
     event.target.value = '';
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) { setSceneStatus('Файл должен быть не больше 8 MB.'); return; }
-    setSceneStatus('Загружаю картинку…');
+    setSceneStatus('Конвертирую картинку в WebP…');
     try {
-      const imageDataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Не удалось прочитать файл.'));
-        reader.readAsDataURL(file);
-      });
+      const imageDataUrl = await imageFileToWebPDataUrl(file);
       const body = await request('/api/driving-scenes', {
         method: 'POST',
         body: JSON.stringify({
@@ -290,7 +304,6 @@ function DrivingDemo() {
     if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
     const imported = normalizeSettings(bundle.settings);
     setSettings(imported);
-    setLightsOn(bundle.lightsOn === true);
     setSceneStatus(message);
   };
 
@@ -300,7 +313,6 @@ function DrivingDemo() {
       version: 1,
       source: sceneName,
       settings,
-      lightsOn,
     }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(file);
     const link = document.createElement('a');
@@ -353,11 +365,11 @@ function DrivingDemo() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SETTINGS_VERSION, settings, lightsOn }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SETTINGS_VERSION, settings }));
     } catch {
       // The demo remains usable when storage is blocked by the browser.
     }
-  }, [settings, lightsOn]);
+  }, [settings]);
 
   useEffect(() => {
     let frame;
@@ -488,6 +500,20 @@ function DrivingDemo() {
             <button onClick={() => setSettings(DEFAULTS)}>Сбросить</button>
           </div>
 
+          <div className="global-light-control">
+            <button
+              className={`lights-toggle ${lightsOn ? 'active' : ''}`}
+              type="button"
+              role="switch"
+              aria-checked={lightsOn}
+              onClick={() => setLightsOn((value) => !value)}
+            >
+              <span><i />Свет фар для всех машин</span>
+              <b>{lightsOn ? 'Включён' : 'Выключен'}</b>
+            </button>
+            <small>Только предпросмотр редактора, в настройки машин не сохраняется.</small>
+          </div>
+
           <fieldset className="scene-library">
             <legend>Библиотека сцен</legend>
             <label className="text-control">Сцена
@@ -511,8 +537,8 @@ function DrivingDemo() {
             </div>
             <div className="settings-transfer">
               <button type="button" onClick={() => applySettingsBundle(
-                { settings: databaseM3?.settings || m3Reference.settings, lightsOn: true },
-                `${databaseM3 ? 'Эталон из сцены M3' : 'Локальный эталон M3'} применён, фары включены для проверки. Нажмите «Сохранить» для записи в MongoDB.`,
+                { settings: databaseM3?.settings || m3Reference.settings },
+                `${databaseM3 ? 'Эталон из сцены M3' : 'Локальный эталон M3'} применён. Нажмите «Сохранить» для записи в MongoDB.`,
               )}>Применить эталон M3</button>
               <button type="button" onClick={exportSettings}>Экспорт JSON</button>
               <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
@@ -597,16 +623,6 @@ function DrivingDemo() {
 
           <fieldset>
             <legend>Фары</legend>
-            <button
-              className={`lights-toggle ${lightsOn ? 'active' : ''}`}
-              type="button"
-              role="switch"
-              aria-checked={lightsOn}
-              onClick={() => setLightsOn((value) => !value)}
-            >
-              <span><i />Постоянный свет</span>
-              <b>{lightsOn ? 'Включён' : 'Выключен'}</b>
-            </button>
             <Range label="Размер блика" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
             <Range label="Скорость вспышки" value={settings.blinkSpeed} min={0.25} max={3} step={0.05} unit="×" onChange={update('blinkSpeed')} />
             <Range label="Макс. непрозрачность" value={settings.blinkOpacity} min={5} max={100} step={5} unit="%" onChange={update('blinkOpacity')} />
