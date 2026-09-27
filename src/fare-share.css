@@ -128,7 +128,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   overflow: hidden;
 }
 .fare-fleet::after { content: ''; position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, #111 0%, rgb(17 17 17 / 72%) 16%, transparent 38%, transparent 62%, rgb(17 17 17 / 72%) 84%, #111 100%); pointer-events: none; }
-.fare-fleet-card-wall { position: absolute; z-index: 0; inset: -180px -8.333vw; display: grid; grid-template-columns: repeat(7, minmax(160px, 1fr)); gap: 14px; opacity: .78; }
+.fare-fleet-card-wall { position: absolute; z-index: 0; inset: -180px -8.333vw; display: grid; grid-template-columns: repeat(7, minmax(160px, 1fr)); gap: 14px; opacity: .78; animation: fare-fleet-wall-drift 90s linear infinite; will-change: transform; }
 .fare-fleet-card-column { min-width: 0; overflow: hidden; }
 .fare-fleet-card-track { --card-half-gap: 7px; display: flex; flex-direction: column; gap: 14px; animation: fare-fleet-column-up var(--column-duration) linear var(--column-delay) infinite; will-change: transform; }
 .fare-fleet-card-column.is-down .fare-fleet-card-track { animation-name: fare-fleet-column-down; }
@@ -144,9 +144,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @keyframes fare-fleet-column-up { from { transform: translateY(0); } to { transform: translateY(calc(-50% - var(--card-half-gap))); } }
 @keyframes fare-fleet-column-down { from { transform: translateY(calc(-50% - var(--card-half-gap))); } to { transform: translateY(0); } }
 @keyframes fare-fleet-road-motion { from { transform: translate(0, 0); } to { transform: translate(var(--road-travel-x), var(--road-travel-y)); } }
+@keyframes fare-fleet-wall-drift { from { transform: translate(3vw, 5vh); } to { transform: translate(-3vw, -5vh); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
+  .fare-fleet-card-wall, .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
 }
 
 .fare-treasury {
