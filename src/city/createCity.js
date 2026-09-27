@@ -36,7 +36,7 @@ import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
-import { VEHICLE_BOUNCE_DURATION, nearestClickableVehicle, vehicleBounceLift } from './vehicleBounce.js';
+import { VEHICLE_BOUNCE_DURATION, nearestScreenVehicle, vehicleBounceLift } from './vehicleBounce.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -302,14 +302,15 @@ export function createCity(container, initialSettings, benchmark = null) {
   const fixedSimulation = benchmark?.fixedStep !== false;
   let previousPoses = new WeakMap(), renderAlpha = 1;
   let worker = null, workerFrame = null, workerFailure = null;
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
+  const projectedVehicle = new THREE.Vector3();
   const clickableVehicles = [];
   const clickableVehiclePool = [];
   const vehicleBounces = new Map();
   const addClickableVehicle = (x, z, key) => {
     const index = clickableVehicles.length;
-    const vehicle = clickableVehiclePool[index] ?? (clickableVehiclePool[index] = { x: 0, z: 0, key: null });
+    const vehicle = clickableVehiclePool[index] ?? (clickableVehiclePool[index] = {
+      x: 0, z: 0, screenX: 0, screenY: 0, key: null,
+    });
     vehicle.x = x; vehicle.z = z; vehicle.key = key;
     clickableVehicles.push(vehicle);
   };
@@ -512,16 +513,20 @@ export function createCity(container, initialSettings, benchmark = null) {
   }
   renderer.setAnimationLoop(frame);
   const bounceVehicle = event => {
+    if (event.button !== 0 || event.target instanceof Element && event.target.closest('button, input, select, textarea, a')) return;
     const rect = renderer.domElement.getBoundingClientRect();
-    pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
-    raycaster.setFromCamera(pointer, camera);
-    const bodies = ['car', 'taxi'].map(kind => carsBatch.meshes.get(kind)).filter(Boolean);
-    const hit = raycaster.intersectObjects(bodies, false)[0];
-    if (!hit) return;
-    const vehicle = nearestClickableVehicle(clickableVehicles, hit.point);
-    if (vehicle) vehicleBounces.set(vehicle.key, performance.now());
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+    for (const vehicle of clickableVehicles) {
+      projectedVehicle.set(vehicle.x, 0.65, vehicle.z).project(camera);
+      vehicle.screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
+      vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
+    }
+    const radius = event.pointerType === 'touch' ? 42 : 30;
+    const vehicle = nearestScreenVehicle(clickableVehicles, { x: event.clientX, y: event.clientY }, radius);
+    if (!vehicle) return;
+    vehicleBounces.set(vehicle.key, performance.now());
   };
-  container.addEventListener('pointerdown', bounceVehicle);
+  window.addEventListener('pointerdown', bounceVehicle, true);
   const visibility = () => {
     previous = 0; simulationClock.reset(); previousPoses = new WeakMap(); renderAlpha = 1;
     renderer.setAnimationLoop(document.hidden ? null : frame);
@@ -559,7 +564,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     worker?.dispose();
     observer.disconnect();
     document.removeEventListener('visibilitychange', visibility);
-    container.removeEventListener('pointerdown', bounceVehicle);
+    window.removeEventListener('pointerdown', bounceVehicle, true);
     renderer.setAnimationLoop(null);
     reveal.finish();
     scenery.dispose(); staticBatch.dispose(); carsBatch.dispose(); hornEffects.dispose(); airTraffic.dispose();

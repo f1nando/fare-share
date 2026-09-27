@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VEHICLE_BOUNCE_DURATION, nearestClickableVehicle, vehicleBounceLift } from '../src/city/vehicleBounce.js';
+import { VEHICLE_BOUNCE_DURATION, nearestScreenVehicle, vehicleBounceLift } from '../src/city/vehicleBounce.js';
 
 test('vehicle bounce is a visual up-and-down arc with no lasting offset', () => {
   assert.equal(vehicleBounceLift(0), 0);
@@ -11,8 +11,8 @@ test('vehicle bounce is a visual up-and-down arc with no lasting offset', () => 
 });
 
 test('click selection chooses only a nearby rendered vehicle', () => {
-  const first = { x: 1, z: 2, key: 'first' };
-  const second = { x: 5, z: 5, key: 'second' };
-  assert.equal(nearestClickableVehicle([first, second], { x: 4.8, y: 1, z: 5.1 }), second);
-  assert.equal(nearestClickableVehicle([first, second], { x: 20, y: 0, z: 20 }), null);
+  const first = { screenX: 100, screenY: 200, key: 'first' };
+  const second = { screenX: 500, screenY: 300, key: 'second' };
+  assert.equal(nearestScreenVehicle([first, second], { x: 492, y: 305 }), second);
+  assert.equal(nearestScreenVehicle([first, second], { x: 700, y: 500 }), null);
 });

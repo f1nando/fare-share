@@ -7,11 +7,11 @@ export function vehicleBounceLift(elapsed, reducedMotion = false) {
   return Math.sin(Math.PI * progress) * height;
 }
 
-export function nearestClickableVehicle(vehicles, point, maxDistance = 3) {
+export function nearestScreenVehicle(vehicles, point, maxDistance = 30) {
   let nearest = null;
   let distanceSquared = maxDistance * maxDistance;
   for (const vehicle of vehicles) {
-    const candidate = (vehicle.x - point.x) ** 2 + (vehicle.z - point.z) ** 2;
+    const candidate = (vehicle.screenX - point.x) ** 2 + (vehicle.screenY - point.y) ** 2;
     if (candidate < distanceSquared) {
       nearest = vehicle;
       distanceSquared = candidate;
