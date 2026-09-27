@@ -115,7 +115,7 @@ export function FareShareLanding() {
                 <span className="fare-token-symbol">$TAXI</span>
                 <span>0x7d91...af4f2</span>
                 <span className="fare-copy-icon" aria-hidden="true" />
-                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true">↗</span>
+                <span className="fare-round-arrow fare-round-arrow-light" aria-hidden="true">тЖЧ</span>
               </a>
             </div>
           </div>
@@ -212,7 +212,7 @@ export function FareShareLanding() {
             <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
             <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
             <a className="fare-footer-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
-            <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
+            <p className="fare-footer-copyright">┬й 2026 Fare Share. All rights reserved.</p>
           </div>
 
           <nav className="fare-footer-column" aria-label="Footer navigation">
