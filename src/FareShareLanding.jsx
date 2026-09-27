@@ -16,6 +16,12 @@ const FALLBACK_SCENE = {
     backgroundHue: 0,
     backgroundSaturation: 100,
     backgroundGrayscale: 0,
+    leftX: 65,
+    leftY: 59,
+    rightX: 83,
+    rightY: 60,
+    blinkSize: 12,
+    blinkOpacity: 100,
   },
 };
 
@@ -42,8 +48,20 @@ function FleetSceneCard({ scene }) {
   const pathY = Math.sin(radians);
   const imageUrl = scene.imageUrl.startsWith('/api/') ? `${API_BASE}${scene.imageUrl}` : scene.imageUrl;
 
+  const blink = (event) => {
+    event.currentTarget.querySelectorAll('.fare-fleet-headlight').forEach((light) => {
+      light.getAnimations().forEach((animation) => animation.cancel());
+      light.animate([
+        { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
+        { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .24 },
+        { opacity: settings.blinkOpacity / 100, transform: 'translate(-50%, -50%) scale(1)', offset: .54 },
+        { opacity: 0, transform: 'translate(-50%, -50%) scale(.4)' },
+      ], { duration: 620, easing: 'ease-out' });
+    });
+  };
+
   return (
-    <div className="fare-fleet-scene-card">
+    <div className="fare-fleet-scene-card" onClick={blink}>
       <img
         className="fare-fleet-car"
         src={imageUrl}
@@ -63,6 +81,18 @@ function FleetSceneCard({ scene }) {
           return <img key={index} src="/driving-demo/mark.webp" style={{ left: `${settings.markX + slot * settings.markSpacing * pathX}%`, top: `${settings.markY + slot * settings.markSpacing * pathY}%` }} alt="" />;
         })}
       </div>
+      {[
+        ['left', settings.leftX, settings.leftY],
+        ['right', settings.rightX, settings.rightY],
+      ].map(([name, x, y]) => (
+        <img
+          className={`fare-fleet-headlight fare-fleet-headlight-${name}`}
+          src="/driving-demo/blink.webp"
+          alt=""
+          key={name}
+          style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
+        />
+      ))}
     </div>
   );
 }
