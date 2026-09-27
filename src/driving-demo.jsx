@@ -9,7 +9,7 @@ const DEFAULTS = {
   markX: 50,
   markY: 84,
   markWidth: 17,
-  markAngle: 0,
+  markAngleOffset: 0,
   markOpacity: 100,
   leftX: 65,
   leftY: 59,
@@ -44,6 +44,18 @@ const DIRECTION_PRESETS = [
 
 function normalizeAngle(angle) {
   return ((angle + 180) % 360 + 360) % 360 - 180;
+}
+
+function normalizeSettings(source) {
+  const migrated = { ...source };
+  if (!Number.isFinite(migrated.markAngleOffset) && Number.isFinite(migrated.markAngle)) {
+    const pathAngle = Number.isFinite(migrated.pathAngle) ? migrated.pathAngle : DEFAULTS.pathAngle;
+    migrated.markAngleOffset = Math.round(normalizeAngle(migrated.markAngle - pathAngle) * 10) / 10;
+  }
+  return Object.fromEntries(Object.entries(DEFAULTS).map(([key, fallback]) => [
+    key,
+    Number.isFinite(migrated[key]) ? migrated[key] : fallback,
+  ]));
 }
 
 function createBlackCarLayer(source) {
@@ -107,12 +119,7 @@ function loadStoredState() {
         if (Number.isFinite(source[key])) source[key] = pixelsToPercent(source[key]);
       }
     }
-    const settings = Object.fromEntries(
-      Object.entries(DEFAULTS).map(([key, fallback]) => [
-        key,
-        Number.isFinite(source[key]) ? source[key] : fallback,
-      ]),
-    );
+    const settings = normalizeSettings(source);
     return { settings, lightsOn: stored.lightsOn === true };
   } catch {
     return { settings: DEFAULTS, lightsOn: false };
@@ -124,10 +131,7 @@ function loadM3Reference(fallback) {
     const stored = JSON.parse(localStorage.getItem(M3_REFERENCE_KEY));
     if (!stored?.settings) throw new Error('Empty reference');
     return {
-      settings: Object.fromEntries(Object.entries(DEFAULTS).map(([key, value]) => [
-        key,
-        Number.isFinite(stored.settings[key]) ? stored.settings[key] : value,
-      ])),
+      settings: normalizeSettings(stored.settings),
       lightsOn: stored.lightsOn === true,
     };
   } catch {
@@ -194,7 +198,7 @@ function DrivingDemo() {
     setActiveSceneId(scene?.id || '');
     setSceneName(scene?.name || 'Локальное демо');
     if (scene) {
-      setSettings({ ...DEFAULTS, ...scene.settings });
+      setSettings(normalizeSettings(scene.settings));
       setLightsOn(scene.lightsOn === true);
       offsetRef.current = 0;
     }
@@ -281,10 +285,7 @@ function DrivingDemo() {
 
   const applySettingsBundle = (bundle, message) => {
     if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
-    const imported = Object.fromEntries(Object.entries(DEFAULTS).map(([key, fallback]) => [
-      key,
-      Number.isFinite(bundle.settings[key]) ? bundle.settings[key] : fallback,
-    ]));
+    const imported = normalizeSettings(bundle.settings);
     setSettings(imported);
     setLightsOn(bundle.lightsOn === true);
     setSceneStatus(message);
@@ -421,7 +422,7 @@ function DrivingDemo() {
 
   const markStyle = {
     '--mark-width': `${settings.markWidth}%`,
-    '--mark-angle': `${settings.pathAngle + settings.markAngle}deg`,
+    '--mark-angle': `${settings.pathAngle + settings.markAngleOffset}deg`,
     '--mark-opacity': settings.markOpacity / 100,
   };
   const pathRadians = settings.pathAngle * Math.PI / 180;
@@ -549,11 +550,11 @@ function DrivingDemo() {
             <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
             <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
             <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
-            <Range label="Доп. поворот элементов" value={settings.markAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngle')} />
+            <Range label="Доп. поворот элементов" value={settings.markAngleOffset} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngleOffset')} />
             <div className="angle-stepper" aria-label="Скорректировать поворот элементов">
-              <button onClick={() => update('markAngle')(Math.max(-180, Math.round((settings.markAngle - 0.1) * 10) / 10))}>−0.1°</button>
-              <span>{settings.markAngle}°</span>
-              <button onClick={() => update('markAngle')(Math.min(180, Math.round((settings.markAngle + 0.1) * 10) / 10))}>+0.1°</button>
+              <button onClick={() => update('markAngleOffset')(Math.max(-180, Math.round((settings.markAngleOffset - 0.1) * 10) / 10))}>−0.1°</button>
+              <span>{settings.markAngleOffset}°</span>
+              <button onClick={() => update('markAngleOffset')(Math.min(180, Math.round((settings.markAngleOffset + 0.1) * 10) / 10))}>+0.1°</button>
             </div>
           </fieldset>
 
