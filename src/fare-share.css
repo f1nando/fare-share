@@ -87,11 +87,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   box-shadow: 4px 4px 0 #111;
   transition: transform var(--fare-control-transition), box-shadow var(--fare-control-transition);
 }
-.fare-connect { display: inline-flex; align-items: center; justify-content: center; min-width: 240px; height: var(--fare-control-height-md); padding: 0 22px; background: #ffe11a; box-shadow: none; font-size: var(--fare-control-font-md); letter-spacing: -.02em; white-space: nowrap; transition: opacity var(--fare-control-transition); }
+.fare-connect { display: inline-flex; align-items: center; justify-content: center; min-width: 240px; height: var(--fare-control-height-md); padding: 0 22px; background: #ffe11a; box-shadow: none; font-size: var(--fare-control-font-md); letter-spacing: -.02em; white-space: nowrap; transition: color var(--fare-control-transition), border-color var(--fare-control-transition), background-color var(--fare-control-transition); }
 .fare-wallet-icon { display: block; flex: 0 0 auto; width: 24px; height: 21px; margin-left: 12px; }
+.fare-wallet-icon path { transition: fill var(--fare-control-transition); }
 .fare-social:hover { color: #fff; background: #111; }
 .fare-social:hover svg path { fill: #fff; }
-.fare-connect:hover { opacity: .78; }
+.fare-connect:hover { border-color: #ab9ff2; color: #fff; background: #ab9ff2; }
+.fare-connect:hover .fare-wallet-icon path { fill: #fff; }
 
 .fare-hero {
   display: flex;
