@@ -117,7 +117,6 @@ function FleetSceneCard({ scene, fleetClass }) {
             left: `${x}%`,
             top: `${y}%`,
             width: `${settings.blinkSize}%`,
-            '--headlight-opacity': settings.blinkOpacity / 100,
           }}
         />
       ))}
