@@ -718,7 +718,6 @@ export function createCity(container, initialSettings, benchmark = null) {
     gestureTargets.clear();
   };
   const continueMouseGesture = event => {
-    if (overControl(event)) { activeBrushEvent = null; gestureTargets.clear(); return; }
     updateActiveBrush(event); animateAtPointer(event);
   };
   const leaveMouseBrush = () => {
