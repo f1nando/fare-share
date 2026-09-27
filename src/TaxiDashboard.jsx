@@ -17,15 +17,15 @@ import {
 } from './protocol/solana.js';
 
 const CLASSES = [
-  { name: 'Economy', count: 1000, weight: 1, price: '$0.01 test price', tone: 'economy', image: '/nft/economy.png' },
-  { name: 'Comfort', count: 300, weight: 3, price: '$0.03 test price', tone: 'comfort', image: '/nft/comfort.png' },
-  { name: 'Business', count: 100, weight: 10, price: '$0.10 test price', tone: 'business', image: '/nft/business.png' },
-  { name: 'Legend', count: 25, weight: 30, price: '$0.30 test price', tone: 'legend', image: '/nft/legend.png' },
+  { name: 'Economy', count: 1000, weight: 1, price: '$0.01 test price', tone: 'economy', image: '/nft/economy.webp' },
+  { name: 'Comfort', count: 300, weight: 3, price: '$0.03 test price', tone: 'comfort', image: '/nft/comfort.webp' },
+  { name: 'Business', count: 100, weight: 10, price: '$0.10 test price', tone: 'business', image: '/nft/business.webp' },
+  { name: 'Legend', count: 25, weight: 30, price: '$0.30 test price', tone: 'legend', image: '/nft/legend.webp' },
 ];
 
 const DEMO_CARS = [
-  { id: '#0042', name: 'Comfort', weight: 3, durability: 64, reward: '3.37 FARE', stocks: '$0.81', image: '/nft/comfort.png' },
-  { id: '#0188', name: 'Economy', weight: 1, durability: 18, reward: '0.94 FARE', stocks: '$0.23', image: '/nft/economy.png' },
+  { id: '#0042', name: 'Comfort', weight: 3, durability: 64, reward: '3.37 FARE', stocks: '$0.81', image: '/nft/comfort.webp' },
+  { id: '#0188', name: 'Economy', weight: 1, durability: 18, reward: '0.94 FARE', stocks: '$0.23', image: '/nft/economy.webp' },
 ];
 
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
@@ -171,7 +171,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
           </div>}
           <div className="car-list">
             {cars.map(car => <article className="car-row" key={car.asset || car.id}>
-              <div className="car-icon"><img src={car.image || CLASS_IMAGE_BY_WEIGHT[car.weight]} alt="" /></div>
+              <div className="car-icon"><img src={car.image || CLASS_IMAGE_BY_WEIGHT[car.weight]} alt="" loading="lazy" decoding="async" /></div>
               <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Weight {car.weight}</span></div>
               <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Durability {car.durability}%</small></div>
               <div className="reward">
@@ -233,7 +233,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
                 : item.count;
               return <article className={`class-card ${item.tone}`} key={item.name}>
                 <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
-                <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} />
+                <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} loading="lazy" decoding="async" />
                 <dl>
                   <div><dt>Price</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
                   <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>

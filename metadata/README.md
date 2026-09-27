@@ -1,6 +1,7 @@
 # NFT metadata
 
-The four class images and the collection cover live in `public/nft/`.
+The original four class images and collection cover live in `original-assets/nft/`.
+Optimized 1024×1024 WebP copies used by the frontend live in `public/nft/` and are not the canonical NFT metadata sources.
 
 Generate the five final JSON files only after the corresponding images have been uploaded to permanent storage:
 

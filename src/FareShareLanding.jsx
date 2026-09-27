@@ -144,6 +144,8 @@ function FleetSceneCard({ scene, fleetClass }) {
         className="fare-fleet-car"
         src={imageUrl}
         alt=""
+        loading="lazy"
+        decoding="async"
       />
       <div className="fare-fleet-road" style={{
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
@@ -252,7 +254,7 @@ function FareStepDrivingScene() {
       onPointerMove={updateRoadRateFromPointer}
       onPointerLeave={() => setTargetRoadRate(1)}
     >
-      <img className="fare-step-driving-car" src={imageUrl} alt="" />
+      <img className="fare-step-driving-car" src={imageUrl} alt="" loading="lazy" decoding="async" />
       <div className="fare-fleet-road" ref={roadRef} style={{
         '--road-travel-x': `${settings.markSpacing * pathX}%`,
         '--road-travel-y': `${settings.markSpacing * pathY}%`,
@@ -282,16 +284,16 @@ function FareStepCollectScene() {
 
   return (
     <div className="fare-step-media fare-step-collect" aria-hidden="true">
-      <img className="fare-collect-wallet fare-collect-wallet-back" src={`${assetPath}/wallet-back.png`} alt="" />
+      <img className="fare-collect-wallet fare-collect-wallet-back" src={`${assetPath}/wallet-back.webp`} alt="" loading="lazy" decoding="async" />
       <div className="fare-collect-flying-assets">
-        <span className="fare-collect-asset fare-collect-card fare-collect-card-one"><img src={`${assetPath}/stock-card.png`} alt="" /></span>
-        <span className="fare-collect-asset fare-collect-card fare-collect-card-two"><img src={`${assetPath}/stock-card.png`} alt="" /></span>
-        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-one"><img src={`${assetPath}/coin-1.png`} alt="" /></span>
-        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-two"><img src={`${assetPath}/coin-2.png`} alt="" /></span>
-        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-three"><img src={`${assetPath}/coin-3.png`} alt="" /></span>
+        <span className="fare-collect-asset fare-collect-card fare-collect-card-one"><img src={`${assetPath}/stock-card.webp`} alt="" loading="lazy" decoding="async" /></span>
+        <span className="fare-collect-asset fare-collect-card fare-collect-card-two"><img src={`${assetPath}/stock-card.webp`} alt="" loading="lazy" decoding="async" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-one"><img src={`${assetPath}/coin-1.webp`} alt="" loading="lazy" decoding="async" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-two"><img src={`${assetPath}/coin-2.webp`} alt="" loading="lazy" decoding="async" /></span>
+        <span className="fare-collect-asset fare-collect-coin fare-collect-coin-three"><img src={`${assetPath}/coin-3.webp`} alt="" loading="lazy" decoding="async" /></span>
       </div>
       <div className="fare-collect-depth-mask" />
-      <img className="fare-collect-wallet fare-collect-wallet-front" src={`${assetPath}/wallet-front.png`} alt="" />
+      <img className="fare-collect-wallet fare-collect-wallet-front" src={`${assetPath}/wallet-front.webp`} alt="" loading="lazy" decoding="async" />
     </div>
   );
 }
@@ -486,7 +488,7 @@ export function FareShareLanding() {
       number: '1',
       title: 'GET A CAR',
       text: 'Start with a free trainee car, then build your real fleet.',
-      sprite: '/fare-share/how-it-works/get-a-car-sprite.png',
+      sprite: '/fare-share/how-it-works/get-a-car-sprite.webp',
     },
     {
       number: '2',
@@ -547,7 +549,7 @@ export function FareShareLanding() {
       <FareShareCityBackground />
       <header className="fare-header">
         <a className="fare-brand" href="#top" aria-label="Fare Share home">
-          <img src="/brand/fare-driver.png" alt="" />
+          <img src="/brand/fare-driver.webp" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
           <span>$TAXI</span>
         </a>
@@ -667,7 +669,7 @@ export function FareShareLanding() {
             </div>
             {leaders.map(([position, earnings]) => <div className="fare-leaderboard-row" key={position}>
               <span>{position}</span>
-              <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" />User_4312234</span>
+              <span className="fare-driver-cell"><img src="/brand/fare-driver.webp" alt="" loading="lazy" decoding="async" />User_4312234</span>
               <span>12 Cars</span>
               <span>{earnings}</span>
             </div>)}
@@ -706,7 +708,7 @@ export function FareShareLanding() {
         <div className="fare-footer-inner">
           <div className="fare-footer-about">
             <div className="fare-footer-brand">
-              <img src="/brand/fare-driver.png" alt="" />
+              <img src="/brand/fare-driver.webp" alt="" loading="lazy" decoding="async" />
               <strong>FARE SHARE</strong>
               <span>$NFT</span>
             </div>
