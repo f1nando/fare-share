@@ -37,6 +37,7 @@ import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { nearestScreenVehicle, stuntType, vehicleStunt } from './vehicleBounce.js';
+import { FOLIAGE_SWAY_DURATION, foliageSwayAngle } from './foliageAnimation.js';
 
 const palette = {
   sidewalk: '#dedede', curb: '#bdbdbd', paving: '#cdcdcd',
@@ -310,9 +311,13 @@ export function createCity(container, initialSettings, benchmark = null) {
   let previousPoses = new WeakMap(), renderAlpha = 1;
   let worker = null, workerFrame = null, workerFailure = null;
   const projectedVehicle = new THREE.Vector3();
+  const foliageAnimatedMatrix = new THREE.Matrix4();
+  const foliageRotationMatrix = new THREE.Matrix4();
+  const foliageTranslationMatrix = new THREE.Matrix4();
   const clickableVehicles = [];
   const clickableVehiclePool = [];
   const vehicleStunts = new Map();
+  const foliageSwings = new Map();
   const addClickableVehicle = (x, y, z, key, type) => {
     const index = clickableVehicles.length;
     const vehicle = clickableVehiclePool[index] ?? (clickableVehiclePool[index] = {
@@ -344,6 +349,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       for (let z = -area.z; z <= area.z; z++) scenery.draw(staticBatch, worldX + x, worldZ + z, worldX, worldZ);
     }
     staticBatch.flush();
+    foliageSwings.clear();
     if (!reveal.done && !reveal.initialized) {
       reveal.waterPresent = [...staticBatch.items.values()].some(group =>
         group.values.slice(0, group.count).some(item => item[11] === REVEAL.water));
@@ -481,6 +487,30 @@ export function createCity(container, initialSettings, benchmark = null) {
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
     carsBatch.flush();
+    for (const [index, swing] of foliageSwings) {
+      const elapsed = timestamp - swing.started;
+      if (elapsed >= FOLIAGE_SWAY_DURATION) {
+        for (const target of swing.targets) {
+          target.mesh.setMatrixAt(target.index, target.base);
+          target.mesh.instanceMatrix.needsUpdate = true;
+        }
+        foliageSwings.delete(index);
+        continue;
+      }
+      const angle = foliageSwayAngle(elapsed, swing.direction, reducedMotion.matches);
+      foliageAnimatedMatrix.makeTranslation(swing.x, swing.pivotY, swing.z);
+      foliageRotationMatrix.makeRotationZ(angle);
+      foliageAnimatedMatrix.multiply(foliageRotationMatrix);
+      foliageRotationMatrix.makeRotationX(angle * 0.45);
+      foliageAnimatedMatrix.multiply(foliageRotationMatrix);
+      foliageTranslationMatrix.makeTranslation(-swing.x, -swing.pivotY, -swing.z);
+      foliageAnimatedMatrix.multiply(foliageTranslationMatrix);
+      for (const target of swing.targets) {
+        target.animated.copy(foliageAnimatedMatrix).multiply(target.base);
+        target.mesh.setMatrixAt(target.index, target.animated);
+        target.mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
     if (!reveal.done) {
       reveal.advance(delta, { paused: settings.paused || document.hidden, reducedMotion: reducedMotion.matches });
       // Horns are pooled transparent sprites with their own animated opacity.
@@ -529,7 +559,42 @@ export function createCity(container, initialSettings, benchmark = null) {
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
     }
     const radius = event.pointerType === 'touch' ? 46 : 38;
-    const vehicle = nearestScreenVehicle(clickableVehicles, { x: event.clientX, y: event.clientY }, radius);
+    const point = { x: event.clientX, y: event.clientY };
+    const vehicle = nearestScreenVehicle(clickableVehicles, point, radius);
+    let nearestDistance = vehicle ? (vehicle.screenX - point.x) ** 2 + (vehicle.screenY - point.y) ** 2 : radius ** 2;
+    let foliage = null;
+    const crownGroup = staticBatch.items.get('crown');
+    for (let index = 0; index < (crownGroup?.count ?? 0); index++) {
+      const item = crownGroup.values[index];
+      projectedVehicle.set(item[0], item[1], item[2]).project(camera);
+      const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
+      const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
+      const distance = (screenX - point.x) ** 2 + (screenY - point.y) ** 2;
+      if (distance < nearestDistance) { nearestDistance = distance; foliage = { index, item }; }
+    }
+    if (foliage) {
+      const existing = foliageSwings.get(foliage.index);
+      let targets = existing?.targets;
+      let pivotY = existing?.pivotY;
+      if (!targets) {
+        const crownMesh = staticBatch.meshes.get('crown'), crownBase = new THREE.Matrix4();
+        crownMesh.getMatrixAt(foliage.index, crownBase);
+        targets = [{ mesh: crownMesh, index: foliage.index, base: crownBase, animated: new THREE.Matrix4() }];
+        pivotY = foliage.item[1] - foliage.item[4];
+        const trunkGroup = staticBatch.items.get('box');
+        const trunkIndex = trunkGroup?.values.slice(0, trunkGroup.count).findIndex(item =>
+          item[11] === REVEAL.trees && Math.hypot(item[0] - foliage.item[0], item[2] - foliage.item[2]) < 0.08) ?? -1;
+        if (trunkIndex >= 0) {
+          const trunkMesh = staticBatch.meshes.get('box'), trunkBase = new THREE.Matrix4();
+          trunkMesh.getMatrixAt(trunkIndex, trunkBase);
+          targets.push({ mesh: trunkMesh, index: trunkIndex, base: trunkBase, animated: new THREE.Matrix4() });
+          pivotY = trunkGroup.values[trunkIndex][1] - trunkGroup.values[trunkIndex][4] / 2;
+        }
+      }
+      foliageSwings.set(foliage.index, { targets, started: performance.now(), direction: Math.random() < 0.5 ? -1 : 1,
+        x: foliage.item[0], pivotY, z: foliage.item[2] });
+      return;
+    }
     if (!vehicle) return;
     vehicleStunts.set(vehicle.key, { started: performance.now(),
       direction: vehicle.type === 'motorcycle' && Math.random() < 0.5 ? -1 : 1 });
