@@ -493,7 +493,7 @@ export function FareShareLanding() {
       setCaCopied(true);
       setCopyAnimationKey(key => key + 1);
       window.clearTimeout(copyResetTimerRef.current);
-      copyResetTimerRef.current = window.setTimeout(() => setCaCopied(false), 1600);
+      copyResetTimerRef.current = window.setTimeout(() => setCaCopied(false), 900);
     } catch (error) {
       console.error('Could not copy token CA', error);
     }
