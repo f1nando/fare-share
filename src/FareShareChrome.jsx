@@ -149,9 +149,9 @@ export function FareFooter({ linkPrefix = '' }) {
         </nav>
         <nav className="fare-footer-column" aria-label="Legal">
           <h2>LEGAL</h2>
-          <a href={`${linkPrefix}#terms`}>Terms</a>
-          <a href={`${linkPrefix}#privacy`}>Privacy</a>
-          <a href={`${linkPrefix}#disclaimer`}>Disclaimer</a>
+          <a href="/terms/">Terms</a>
+          <a href="/privacy/">Privacy</a>
+          <a href="/disclaimer/">Disclaimer</a>
         </nav>
       </div>
     </footer>

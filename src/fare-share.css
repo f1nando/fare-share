@@ -459,6 +459,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-docs-section-title h2 { margin: 0; font-size: 25px; font-weight: 900; letter-spacing: -.045em; }
 .fare-docs-copy-section p { margin: 18px 0 0 42px; color: #555; font-size: 15px; line-height: 22px; }
 .fare-docs-callout { margin: 24px 0 0 42px; padding: 14px 20px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; box-shadow: 3px 4px 0 #111; font-size: 13px; font-weight: 800; text-align: center; }
+.fare-legal-layout { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.fare-legal-meta { margin-top: 12px !important; color: #777 !important; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 12px !important; text-transform: uppercase; }
+.fare-legal-callout { margin: 30px 0 4px; }
 
 .fare-faq-page { background: #dedede; }
 .fare-faq-page .fare-city-background { opacity: .16; filter: grayscale(1); }

@@ -5,6 +5,7 @@ import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.js
 import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
+import { DisclaimerPage, PrivacyPage, TermsPage } from './LegalPage.jsx';
 import { MarketPage } from './MarketPage.jsx';
 import { MintPage } from './MintPage.jsx';
 import { TradePage } from './TradePage.jsx';
@@ -60,6 +61,21 @@ const routes = {
     component: FaqPage,
     activeItem: 'faq',
     title: 'FAQ — Fare Share',
+  },
+  '/terms/': {
+    className: 'fare-docs-page fare-legal-page',
+    component: TermsPage,
+    title: 'Terms of Use — Fare Share',
+  },
+  '/privacy/': {
+    className: 'fare-docs-page fare-legal-page',
+    component: PrivacyPage,
+    title: 'Privacy Notice — Fare Share',
+  },
+  '/disclaimer/': {
+    className: 'fare-docs-page fare-legal-page',
+    component: DisclaimerPage,
+    title: 'Risk Disclaimer — Fare Share',
   },
 };
 
