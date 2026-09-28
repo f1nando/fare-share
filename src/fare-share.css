@@ -563,8 +563,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-hero .fare-round-arrow { width: 40px; height: 40px; margin-left: 10px; font-size: 22px; }
   .fare-hero .fare-token-symbol { margin-right: 14px; }
   .fare-hero .fare-copy-icon { width: 16px; height: 20px; margin-left: auto; }
-  .fare-treasury { padding-bottom: 80px; }
+  .fare-treasury { padding-top: 100px; padding-bottom: 80px; }
   .fare-treasury-heading { grid-template-columns: 1fr; }
+  .fare-treasury-intro { margin-top: 24px; }
   .fare-stat-grid { grid-template-columns: 1fr; }
   .fare-treasury .fare-leaderboard { border-radius: 22px; box-shadow: 5px 6px 0 #111; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { grid-template: 'rank earnings' auto 'driver earnings' auto 'cars earnings' auto / minmax(0, 1fr) auto; gap: 6px 18px; min-height: 112px; padding: 16px 18px; font-size: 15px; line-height: 19px; }
