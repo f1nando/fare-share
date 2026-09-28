@@ -49,6 +49,12 @@ const palette = {
   cars: ['#ffffff', '#f4f4f4', '#e4e4e4', '#cdcdcd', '#a6a6a6', '#838383'],
 };
 
+export function positionCityCamera(camera, focus, offset) {
+  camera.position.copy(focus).add(offset);
+  camera.lookAt(focus);
+  camera.updateMatrixWorld();
+}
+
 export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   const parkLot = parkAt(gx, gz);
   const canal = canalColumn(gx);
@@ -468,8 +474,7 @@ export function createCity(container, initialSettings, benchmark = null) {
       renderer.shadowMap.needsUpdate = true;
       if (benchmark) rebuildMs = performance.now() - rebuildStart;
     }
-    camera.position.copy(focus).add(cameraOffset);
-    camera.lookAt(focus);
+    positionCityCamera(camera, focus, cameraOffset);
 
     carsBatch.reset();
     hornEffects.reset();
@@ -600,7 +605,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const observer = new ResizeObserver(resize);
   observer.observe(container);
   resize();
-  camera.position.copy(focus).add(cameraOffset); camera.lookAt(focus);
+  positionCityCamera(camera, focus, cameraOffset);
   hornEffects.prepare(renderer, camera);
   if (fixedSimulation && benchmark?.worker !== false && typeof Worker !== 'undefined') {
     try { worker = new TrafficWorkerClient(workerConfig(), workerFailed); }
