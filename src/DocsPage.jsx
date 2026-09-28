@@ -8,17 +8,6 @@ const steps = [
   ['04', 'CLAIM ASSETS', 'Collect FARE and available xStocks to your wallet.'],
 ];
 
-const sections = [
-  ['one-minute', '01', 'FARE SHARE IN ONE MINUTE'],
-  ['cars', '02', 'TAXIS, CLASSES & SUPPLY'],
-  ['revenue', '03', 'WHERE REWARDS COME FROM'],
-  ['rewards', '04', 'HOW REWARDS ARE CALCULATED'],
-  ['durability', '05', 'DURABILITY & REPAIRS'],
-  ['ownership', '06', 'OWNERSHIP, CLAIMS & TRANSFERS'],
-  ['trainee', '07', 'TRAINEE CAMPAIGNS'],
-  ['risks', '08', 'FEES, RISKS & TRUST'],
-];
-
 function SectionTitle({ number, children }) {
   return <div className="fare-docs-section-title"><span>{number}</span><h2>{children}</h2></div>;
 }
@@ -39,18 +28,7 @@ export function DocsPage() {
             <a href="#risks">RISKS</a>
           </nav>
 
-          <div className="fare-docs-layout">
-            <aside className="fare-docs-sidebar">
-              <span>ON THIS PAGE</span>
-              <nav aria-label="On this page">
-                {sections.map(([id, number, title], index) => (
-                  <a className={index === 0 ? 'is-active' : undefined} href={`#${id}`} key={id}>
-                    <span>{number}</span>{title}
-                  </a>
-                ))}
-              </nav>
-            </aside>
-
+          <div className="fare-docs-layout" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
             <article className="fare-docs-article" id="overview">
               <header className="fare-docs-article-header">
                 <h1>THE ONCHAIN<br />TAXI PARK</h1>
