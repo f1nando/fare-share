@@ -92,6 +92,9 @@ button:focus-visible { outline: 2px solid #ffd329; outline-offset: 4px; }
 .section-title { display: flex; justify-content: space-between; align-items: end; margin-bottom: 18px; }
 .section-title h2 { margin: 0; font-size: 28px; letter-spacing: -.035em; }
 .ghost-button { padding: 9px 13px; font-size: 11px; }
+.garage-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.garage-actions .primary { border-color: #ffd329; color: #171713; background: #ffd329; font-weight: 800; }
+.garage-actions button:disabled { cursor: not-allowed; opacity: .5; }
 .car-list { display: grid; gap: 9px; }
 .car-row { display: grid; grid-template-columns: 46px 1.2fr 1.5fr 1fr auto; align-items: center; gap: 16px; padding: 15px; border: 1px solid #ffffff10; border-radius: 13px; background: #20201e; }
 .car-icon { width: 43px; height: 43px; border-radius: 11px; background: #ffd32918; overflow: hidden; }.car-icon img { width: 100%; height: 100%; object-fit: cover; }
@@ -157,8 +160,9 @@ button:focus-visible { outline: 2px solid #ffd329; outline-offset: 4px; }
   .pool-strip strong { overflow-wrap: anywhere; font-size: 12px; }
 
   .panel { margin-top: 12px; padding: 18px 15px; border-radius: 19px; box-shadow: 0 14px 44px #0005; }
-  .section-title { margin-bottom: 16px; }
+  .section-title { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
   .section-title h2 { font-size: 25px; }
+  .garage-actions { justify-content: flex-start; }
   .ghost-button { min-height: 40px; padding: 0 14px; }
 
   .car-list { gap: 10px; }

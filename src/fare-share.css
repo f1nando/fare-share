@@ -336,6 +336,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-garage-overview-actions button, .fare-garage-periods button { height: 48px; padding: 0 22px; border: 0; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #000; font-size: 13px; font-weight: 800; }
 .fare-garage-overview-actions button b { margin-left: 16px; padding: 8px 13px; border-radius: 999px; color: #ffe72f; background: #111; }
 .fare-garage-overview-actions button.is-secondary { background: #fff; }
+.fare-garage-overview-actions button:disabled, .fare-garage-actions button:disabled { cursor: not-allowed; opacity: .48; transform: none; box-shadow: 4px 5px 0 #111; }
+.fare-garage-notice { margin: 24px 0 0; padding: 13px 16px; border: 2px solid #111; border-radius: 12px; color: #111; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 14px; font-weight: 700; }
+.fare-garage-signature { display: inline-block; margin-top: 14px; color: #111; font-size: 13px; font-weight: 800; text-decoration: underline; }
 .fare-garage-chart { display: flex; min-width: 0; align-items: flex-end; flex-direction: column; padding-left: 30px; }
 .fare-garage-periods { display: flex; gap: 10px; }
 .fare-garage-periods button { min-width: 64px; padding: 0 18px; background: #fff; }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   activateTrainee,
+  claimAllMachines,
   claimMachine,
   claimTrainee,
   connectWallet,
@@ -11,6 +12,7 @@ import {
   mintMachine,
   networkName,
   repairMachine,
+  repairAllMachines,
   transferMachine,
   formatSolAmount,
   shortAddress,
@@ -60,6 +62,8 @@ export function TaxiDashboard({ simple = false, background = null }) {
   }, [wallet, status.deployed]);
 
   const totalWeight = useMemo(() => CLASSES.reduce((sum, item) => sum + item.count * item.weight, 0), []);
+  const claimableCars = useMemo(() => cars.filter(car => car.rewards?.some(amount => BigInt(amount) > 0n)), [cars]);
+  const repairableCars = useMemo(() => cars.filter(car => car.missingSeconds > 0), [cars]);
 
   async function handleConnect() {
     setNotice('');
@@ -161,9 +165,21 @@ export function TaxiDashboard({ simple = false, background = null }) {
         <section className="panel" aria-labelledby="garage-title">
           <div className="section-title">
             <div><p className="eyebrow">My garage</p><h2 id="garage-title">Cars</h2></div>
-            <button className="ghost-button" disabled={busy === 'refresh'} onClick={() => refreshGarage()}>
-              {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
-            </button>
+            <div className="garage-actions">
+              <button className="ghost-button primary" disabled={Boolean(busy) || protocolPaused || claimableCars.length === 0} onClick={() => runAction(
+                'claim-all',
+                () => claimAllMachines(wallet, claimableCars, status),
+                `Rewards claimed from ${claimableCars.length} car${claimableCars.length === 1 ? '' : 's'}.`,
+              )}>Claim all{claimableCars.length ? ` · ${claimableCars.length}` : ''}</button>
+              <button className="ghost-button" disabled={Boolean(busy) || protocolPaused || repairableCars.length === 0} onClick={() => runAction(
+                'repair-all',
+                () => repairAllMachines(wallet, repairableCars, status),
+                `${repairableCars.length} car${repairableCars.length === 1 ? '' : 's'} restored to 5 days of durability.`,
+              )}>Repair all{repairableCars.length ? ` · ${repairableCars.length}` : ''}</button>
+              <button className="ghost-button" disabled={Boolean(busy)} onClick={() => refreshGarage()}>
+                {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
           </div>
           {simple && <div className="transfer-test-form">
             <label>Devnet transfer recipient<input value={transferRecipient} onChange={event => setTransferRecipient(event.target.value.trim())} placeholder="Second wallet public address" /></label>

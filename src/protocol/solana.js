@@ -7,10 +7,12 @@ import { findAssociatedTokenPda } from '@solana-program/token';
 import { getWallets } from '@wallet-standard/app';
 import {
   base64Bytes,
+  buildClaimAllInstructions,
   buildActivateTraineeInstructions,
   buildClaimInstructions,
   buildClaimTraineeInstructions,
   buildMintMachine,
+  buildRepairAllInstructions,
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
   chooseEventPage,
@@ -409,6 +411,41 @@ export async function claimMachine(connection, machine, knownStatus) {
   });
 }
 
+export async function claimAllMachines(connection, machines, knownStatus) {
+  const claimable = machines.filter(machine => machine.rewards.some(amount => BigInt(amount) > 0n));
+  if (!claimable.length) throw new Error('None of your cars has rewards to claim.');
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const owner = address(connection.account.address);
+  const mints = [status.config.fareMint, ...status.config.stockMints];
+  const mintAccounts = await rpc.getMultipleAccounts(mints, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (mintAccounts.value.some(value => !value)) throw new Error('One of the reward mints is unavailable.');
+  const tokenPrograms = mintAccounts.value.map(value => address(value.owner));
+  const destinationAddresses = await Promise.all(mints.map((mint, index) => (
+    findAssociatedTokenPda({ owner, mint, tokenProgram: tokenPrograms[index] }).then(([result]) => result)
+  )));
+  const destinationAccounts = await rpc.getMultipleAccounts(destinationAddresses, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  const instructions = await buildClaimAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: status.addresses.config,
+    pool: status.addresses.pool,
+    machines: claimable,
+    mints,
+    tokenPrograms,
+    destinationAccountsExist: destinationAccounts.value.map(Boolean),
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions,
+  });
+}
+
 export async function transferMachine(connection, machine, recipient, knownStatus) {
   const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   const owner = address(connection.account.address);
@@ -447,6 +484,36 @@ export async function repairMachine(connection, machine, knownStatus) {
     asset: machine.asset,
     fareTokenProgram: address(mintAccount.value.owner),
     repairCost: machine.repairCost,
+    pageIndex,
+  });
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions,
+  });
+}
+
+export async function repairAllMachines(connection, machines, knownStatus) {
+  const repairable = machines.filter(machine => machine.missingSeconds > 0);
+  if (!repairable.length) throw new Error('All your cars already have full durability.');
+  const status = await refreshStatus(knownStatus);
+  const pageIndex = chooseEventPage(status.queue, repairable.length * 2);
+  const mintAccount = await rpc.getAccountInfo(status.config.fareMint, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!mintAccount.value) throw new Error('FARE mint is unavailable.');
+  const instructions = await buildRepairAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner: address(connection.account.address),
+    configAddress: status.addresses.config,
+    config: status.config,
+    pool: status.addresses.pool,
+    queue: status.addresses.queue,
+    machines: repairable,
+    fareTokenProgram: address(mintAccount.value.owner),
     pageIndex,
   });
   return sendWalletInstructions({

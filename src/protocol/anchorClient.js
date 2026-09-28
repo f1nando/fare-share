@@ -337,6 +337,28 @@ export async function buildClaimInstructions({
   ];
 }
 
+export async function buildClaimAllInstructions({ machines, destinationAccountsExist = [], ...shared }) {
+  if (!Array.isArray(machines) || machines.length === 0) throw new Error('Choose at least one car to claim.');
+  const destinationsReady = Array.from({ length: shared.mints.length }, (_, index) => (
+    Boolean(destinationAccountsExist[index])
+  ));
+  const instructions = [];
+  for (const machine of machines) {
+    const built = await buildClaimInstructions({
+      ...shared,
+      machine: machine.machineAddress,
+      asset: machine.asset,
+      amounts: machine.rewards,
+      destinationAccountsExist: destinationsReady,
+    });
+    instructions.push(...built);
+    machine.rewards.forEach((amount, index) => {
+      if (BigInt(amount) > 0n) destinationsReady[index] = true;
+    });
+  }
+  return instructions;
+}
+
 export function buildTransferCoreAssetInstruction({ owner, asset, collection, newOwner }) {
   return {
     programAddress: MPL_CORE_PROGRAM,
@@ -365,6 +387,7 @@ export async function buildRepairInstructions({
   fareTokenProgram,
   repairCost,
   pageIndex,
+  ownerFareAccountExists = false,
 }) {
   const eventPage = await deriveEventPage(programAddress, pageIndex);
   const [ownerFareAccount] = await findAssociatedTokenPda({
@@ -390,7 +413,7 @@ export async function buildRepairInstructions({
     ],
     data: concatBytes(TAXI_DISCRIMINATORS.repair, Uint8Array.of(pageIndex)),
   };
-  if (BigInt(repairCost) === 0n) return [repair];
+  if (BigInt(repairCost) === 0n || ownerFareAccountExists) return [repair];
   return [
     getCreateAssociatedTokenIdempotentInstruction({
       payer,
@@ -401,6 +424,24 @@ export async function buildRepairInstructions({
     }),
     repair,
   ];
+}
+
+export async function buildRepairAllInstructions({ machines, ...shared }) {
+  if (!Array.isArray(machines) || machines.length === 0) throw new Error('Choose at least one car to repair.');
+  const instructions = [];
+  let ownerFareAccountExists = false;
+  for (const machine of machines) {
+    const built = await buildRepairInstructions({
+      ...shared,
+      machine: machine.machineAddress,
+      asset: machine.asset,
+      repairCost: machine.repairCost,
+      ownerFareAccountExists,
+    });
+    instructions.push(...built);
+    if (BigInt(machine.repairCost) > 0n) ownerFareAccountExists = true;
+  }
+  return instructions;
 }
 
 export async function buildActivateTraineeInstructions({
@@ -535,6 +576,9 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
     transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
   }
   const encoded = getTransactionEncoder().encode(transaction);
+  if (encoded.length > 1232) {
+    throw new Error(`This fleet does not fit into one Solana transaction (${encoded.length}/1232 bytes). No transaction was sent.`);
+  }
   const [result] = await feature.signAndSendTransaction({ transaction: encoded, account, chain });
   const signature = getBase58Decoder().decode(result.signature);
   await waitForFinalizedSignature(rpc, signature);
