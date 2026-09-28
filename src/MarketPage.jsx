@@ -131,7 +131,6 @@ export function MarketPage({ wallet, connectWallet }) {
         </div>
 
         <div className="fare-market-results">
-          <strong>{visibleListings.length} {visibleListings.length === 1 ? 'CAR' : 'CARS'}</strong>
           {(query || vehicleClass !== 'all') && <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>Clear filters</button>}
         </div>
 
