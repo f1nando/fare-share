@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DocsPage } from './DocsPage.jsx';
 import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.jsx';
+import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { MintPage } from './MintPage.jsx';
@@ -46,6 +47,12 @@ const routes = {
     component: DocsPage,
     activeItem: 'docs',
     title: 'Documentation — Fare Share',
+  },
+  '/faq/': {
+    className: 'fare-faq-page',
+    component: FaqPage,
+    activeItem: 'faq',
+    title: 'FAQ — Fare Share',
   },
 };
 

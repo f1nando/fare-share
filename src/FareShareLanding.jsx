@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
 import { fleetColumnCount, fleetRoadPlaybackRate } from './fleetWall.js';
+import { FareFaq } from './FareFaq.jsx';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
 
@@ -514,15 +515,6 @@ function GetStartedArrow({ color = '#FFE72F' }) {
   );
 }
 
-function FaqChevron() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect width="44" height="44" rx="22" fill="black" />
-      <path d="M14 19L22 27L30 19" stroke="white" strokeWidth="2" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 async function copyToClipboard(value) {
   if (navigator.clipboard?.writeText) {
     try {
@@ -544,7 +536,6 @@ async function copyToClipboard(value) {
 }
 
 export function FareShareLanding() {
-  const [openFaqIndex, setOpenFaqIndex] = useState(null);
   const [caCopyState, setCaCopyState] = useState('idle');
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
@@ -607,29 +598,6 @@ export function FareShareLanding() {
     ['3', '24 430$'],
     ['4', '16 842$'],
     ['5', '24 430$'],
-  ];
-
-  const faqItems = [
-    {
-      question: 'HOW DO IT EARN FROM MY CARS?',
-      answer: 'Send ready cars on shift. Each completed shift pays park revenue in cash and your selected stock token.',
-    },
-    {
-      question: 'WHAT ARE THE FEES?',
-      answer: 'Fees cover fleet operations and servicing. Every charge is shown before you confirm an action.',
-    },
-    {
-      question: 'CAN I SELL MY CARS?',
-      answer: 'Yes. Eligible cars can be listed on the marketplace or transferred from your garage.',
-    },
-    {
-      question: 'IS THIS A REAL PRODUCT?',
-      answer: 'Yes. Fare Share combines collectible taxi ownership with transparent fleet revenue tracking.',
-    },
-    {
-      question: 'WHERE CAN I READ THE FULL DOCS',
-      answer: 'Open the Docs from the navigation for mechanics, fees, treasury rules, and contract details.',
-    },
   ];
 
   return (
@@ -747,33 +715,7 @@ export function FareShareLanding() {
           </div>
         </section>
 
-        <section className="fare-faq" id="faq" aria-labelledby="fare-faq-title">
-          <div className="container">
-          <h2 id="fare-faq-title">FAQ</h2>
-          <div className="fare-faq-list">
-            {faqItems.map((item, index) => {
-              const isOpen = openFaqIndex === index;
-              const answerId = `fare-faq-answer-${index}`;
-
-              return <article className={`fare-faq-entry${isOpen ? ' is-open' : ''}`} key={item.question}>
-                <button
-                  className="fare-faq-item"
-                  type="button"
-                  aria-expanded={isOpen}
-                  aria-controls={answerId}
-                  onClick={() => setOpenFaqIndex(isOpen ? null : index)}
-                >
-                  <span>{item.question}</span>
-                  <FaqChevron />
-                </button>
-                <div className="fare-faq-answer" id={answerId} aria-hidden={!isOpen}>
-                  <div><p>{item.answer}</p></div>
-                </div>
-              </article>;
-            })}
-          </div>
-          </div>
-        </section>
+        <FareFaq />
       </main>
     </>
   );

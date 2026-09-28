@@ -412,6 +412,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-docs-copy-section p { margin: 18px 0 0 42px; color: #555; font-size: 15px; line-height: 22px; }
 .fare-docs-callout { margin: 24px 0 0 42px; padding: 14px 20px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; box-shadow: 3px 4px 0 #111; font-size: 13px; font-weight: 800; text-align: center; }
 
+.fare-faq-page { background: #dedede; }
+.fare-faq-page .fare-city-background { opacity: .16; filter: grayscale(1); }
+.fare-faq-page .fare-faq { min-height: 100vh; padding-top: 190px; }
 .fare-faq {
   min-height: 1045px;
   padding: 100px 0 121px;
@@ -611,6 +614,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-heading { display: block; }
   .fare-how-heading h2, .fare-fleet-heading h2, .fare-treasury-heading h2, .fare-leaderboard-heading h3 { font-size: 42px; text-shadow: 3px 4px 0 #111; }
   .fare-faq { min-height: 0; padding: 72px 0 80px; }
+  .fare-faq-page .fare-faq { min-height: 100vh; padding-top: 140px; }
   .fare-faq h2 { height: 62px; font-size: 72px; -webkit-text-stroke-width: 2px; text-shadow: 5px 6px 0 #111; }
   .fare-faq-list { margin-top: 48px; }
   .fare-faq-item { font-size: 25px; }
