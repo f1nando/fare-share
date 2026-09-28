@@ -29,11 +29,26 @@ export function MintPage() {
   const previewScene = selectedClass.scenes[previewSceneIndex] || drivingScenes[0];
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setPreviewSceneIndex(index => (index + 1) % selectedClass.scenes.length);
-    }, 500);
+    let interval;
+    let cancelled = false;
 
-    return () => window.clearInterval(interval);
+    Promise.all(selectedClass.scenes.map(scene => new Promise(resolve => {
+      const image = new Image();
+      image.onload = resolve;
+      image.onerror = resolve;
+      image.src = scene.imageUrl;
+      if (image.complete) resolve();
+    }))).then(() => {
+      if (cancelled) return;
+      interval = window.setInterval(() => {
+        setPreviewSceneIndex(index => (index + 1) % selectedClass.scenes.length);
+      }, 1500);
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, [selectedClassIndex, selectedClass.scenes.length]);
 
   return (
