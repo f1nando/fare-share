@@ -49,7 +49,7 @@ body { color: #111; background: #fff; }
 .trade-amount-box input { width: calc(100% - 86px); min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
 .trade-amount-box input::selection { color: #111; background: #ffe11a; }
 .trade-amount-box b { margin-left: auto; padding: 10px 15px; border: 1.5px solid #111; border-radius: 999px; background: #ffe11a; font-size: 11px; }
-.trade-rate { margin: 22px 0 18px; font-size: 11px; font-weight: 700; }
+.trade-rate { margin: 22px 0 18px; font-size: 15px; font-weight: 700; }
 .trade-rate div { display: flex; justify-content: space-between; margin-top: 6px; }
 .trade-rate dt, .trade-rate dd { margin: 0; }
 .trade-submit { width: 100%; min-height: 52px; margin-top: auto; border: 2px solid #111; border-radius: 999px; background: #ffe11a; box-shadow: 4px 5px 0 #111; font-size: 13px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
@@ -99,7 +99,7 @@ body { color: #111; background: #fff; }
   .trade-amount-box label { top: 11px; left: 16px; font-size: 8px; }
   .trade-amount-box input { width: calc(100% - 72px); font-size: 26px; }
   .trade-amount-box b { padding: 8px 12px; font-size: 9px; }
-  .trade-rate { margin: 14px 0 12px; font-size: 9px; }
+  .trade-rate { margin: 14px 0 12px; font-size: 13px; }
   .trade-board { margin-top: 26px; margin-bottom: 72px; padding: 0 20px; }
   .trade-leaderboard { display: grid; gap: 14px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
   .trade-leaderboard-header { display: none; }
