@@ -125,7 +125,6 @@ export function FareFooter({ linkPrefix = '' }) {
           <div className="fare-footer-brand">
             <img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />
             <strong>FARE SHARE</strong>
-            <span>$NFT</span>
           </div>
           <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
           <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
