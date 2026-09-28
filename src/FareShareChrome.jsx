@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+const MAGIC_EDEN_MARKET_URL = 'https://magiceden.io/marketplace';
+
 function XIcon() {
   return (
     <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -32,7 +34,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'mint', label: 'MINT', href: '/mint/' },
     { id: 'garage', label: 'GARAGE', href: '/garage/' },
     { id: 'leaderboard', label: 'LEADERBOARD', href: '/leaderboard/' },
-    { id: 'market', label: 'MARKET', href: '/market/' },
+    { id: 'market', label: 'MARKET', href: MAGIC_EDEN_MARKET_URL },
     { id: 'trade', label: 'TRADE', href: '/trade/' },
     { id: 'faq', label: 'FAQ', href: '/faq/' },
     { id: 'docs', label: 'DOCS', href: '/docs/' },
@@ -137,7 +139,7 @@ export function FareFooter({ linkPrefix = '' }) {
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href="/mint/">Mint</a>
           <a href="/garage/">Garage</a>
-          <a href="/market/">Market</a>
+          <a href={MAGIC_EDEN_MARKET_URL}>Market</a>
           <a href="/leaderboard/">Leaderboard</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Resources">
