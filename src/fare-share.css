@@ -538,7 +538,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
-  .fare-landing-page > .fare-footer { display: none; }
   .fare-header { top: 16px; width: calc(100% - 40px); height: 64px; padding: 0 10px; border-radius: 32px; }
   .fare-brand { gap: 8px; }
   .fare-brand img { width: 42px; height: 42px; }
