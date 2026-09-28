@@ -28,6 +28,14 @@ test('each vehicle type gets only its requested visual stunt', () => {
   assert.ok(vehicleStunt('helicopter', 500).yaw > 3);
 });
 
+test('a frame preceding the brush event keeps the jump alive until it can play', () => {
+  for (const type of ['car', 'taxi', 'motorcycle', 'heavy', 'boat', 'helicopter']) {
+    assert.deepEqual(vehicleStunt(type, -16), vehicleStunt(type, 0));
+    assert.notDeepEqual(vehicleStunt(type, 200), vehicleStunt(type, 0));
+    assert.equal(vehicleStunt(type, 1200), null);
+  }
+});
+
 test('animation variations change direction, strength and rhythm within safe bounds', () => {
   const weak = animationVariation(() => 0);
   const strong = animationVariation(() => 0.999);

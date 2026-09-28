@@ -20,7 +20,10 @@ export function vehicleStunt(type, elapsed, variation = 1, reducedMotion = false
   const options = typeof variation === 'number' ? { direction: variation, strength: 1, cycles: 2 } : variation;
   const direction = options.direction ?? 1, strength = options.strength ?? 1, cycles = options.cycles ?? 2;
   const duration = STUNT_DURATIONS[type] ?? VEHICLE_BOUNCE_DURATION;
-  if (elapsed < 0 || elapsed >= duration) return null;
+  if (elapsed >= duration) return null;
+  // A frame timestamp can precede the input that scheduled the animation.
+  // Keep it at rest until its start instead of treating it as completed.
+  elapsed = Math.max(0, elapsed);
   const progress = elapsed / duration;
   const turn = progress * progress * (3 - 2 * progress) * Math.PI * 2;
   const envelope = Math.sin(Math.PI * progress);

@@ -171,7 +171,7 @@ function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, bl
   const bridgeLift = liftBridgePose(pose, blockSize);
   pose.x -= originX; pose.z -= originZ;
   const visualType = stuntType(car.kind, car.taxi);
-  onVisible?.(pose.x, 0.65 + (visualEffect?.lift ?? 0), pose.z, selectionKey, visualType);
+  onVisible?.(pose.x, 0.65 + bridgeLift, pose.z, selectionKey, visualType);
   pose.sin = Math.sin(pose.angle); pose.cos = Math.cos(pose.angle);
   const { pitch, roll, lift } = pose;
   if (car.taxi && typeof car.hornAge === 'number') hornEffects?.add(car, pose.x, pose.z, camera, bridgeLift);
@@ -513,7 +513,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const effectFor = (key, type) => {
       const stunt = vehicleStunts.get(key);
       if (!stunt) return null;
-      const effect = vehicleStunt(type, timestamp - stunt.started, stunt.variation, reducedMotion.matches);
+      const effect = vehicleStunt(type, start - stunt.started, stunt.variation, reducedMotion.matches);
       if (!effect) vehicleStunts.delete(key);
       return effect;
     };
