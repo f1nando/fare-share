@@ -21,11 +21,14 @@
 
 ### Gate 2 — изолированная идентичность теста
 
-- [ ] Создать disposable mainnet program keypair вне репозитория.
-- [ ] Создать постоянный recoverable upload-buffer keypair вне репозитория.
-- [ ] Зафиксировать отдельные test-mainnet admin/backend/worker signer и резервную копию upgrade authority.
+- [x] Создать disposable mainnet program keypair вне репозитория: `3EAw6VA99tH6y5nEYuGNDWpBVkXXtKnSxpBtmk95JHMv`.
+- [x] Создать постоянный recoverable upload-buffer keypair вне репозитория: `7ZZcZWkq2JRJPvYYPUBkyGQoQ6oTNw284Byuew29MCKE`.
+- [x] Создать отдельные test-mainnet backend `GkAaxN3mF6ko5qUPfBgstujzmE9kFCYAThDfkGkP74Lz` и worker `9GHXjBfG6qwV7Bwm53EBXh2Z19g6L2wUG6zVTY7hvAtA`.
+- [x] Выбрать authority/payer теста: ранее проверенный recovery-циклом `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`; production authority `2uGK…` тестом не используется.
+- [ ] Подтвердить независимую резервную копию keypair authority и четырёх новых test-mainnet keypair.
 - [ ] Синхронизировать disposable Program ID в `declare_id!`, `Anchor.toml`, `TAXI_PROGRAM_ID` и `VITE_TAXI_PROGRAM_ID` только в изолированной test-mainnet конфигурации.
-- [ ] Подтвердить, что постоянный `9ZLA…6eVv` не существует onchain и его keypair не используется тестом.
+- [x] Подтвердить, что постоянный `9ZLA…6eVv` не существует onchain и его keypair не используется тестом.
+- [ ] Пополнить authority перед deploy: текущий mainnet-баланс `0.33957387 SOL`, что заведомо меньше необходимого пикового rent.
 
 ### Gate 3 — конфигурация и preflight
 
