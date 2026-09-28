@@ -3,12 +3,12 @@ import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
 import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 
 const transactionRows = [
-  ['0x8F2A...91C4', 'BUY', '12.40 SOL', '$1,468.78'],
-  ['User_4312234', 'SELL', '4.82 SOL', '$570.93'],
-  ['0x37B1...AE20', 'BUY', '9.16 SOL', '$1,084.99'],
-  ['User_8804192', 'BUY', '2.75 SOL', '$325.74'],
-  ['0xC994...110B', 'SELL', '17.20 SOL', '$2,037.34'],
-  ['User_1427720', 'BUY', '6.08 SOL', '$720.18'],
+  ['0x8F2A...91C4', 'BUY', '12.40 SOL', '$1,468.78', '5Vf2...K8qP'],
+  ['User_4312234', 'SELL', '4.82 SOL', '$570.93', '3Hn9...P2mR'],
+  ['0x37B1...AE20', 'BUY', '9.16 SOL', '$1,084.99', '8Ks4...W7tN'],
+  ['User_8804192', 'BUY', '2.75 SOL', '$325.74', '2Qa6...M4xL'],
+  ['0xC994...110B', 'SELL', '17.20 SOL', '$2,037.34', '7Rb3...C9jF'],
+  ['User_1427720', 'BUY', '6.08 SOL', '$720.18', '4Ty8...H5sD'],
 ];
 
 const holderRows = [
@@ -163,7 +163,7 @@ function MarketTables() {
   const [tab, setTab] = useState('transactions');
   const isTransactions = tab === 'transactions';
   const rows = isTransactions ? transactionRows : holderRows;
-  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT'] : ['#', 'HOLDER', 'SUPPLY SHARE'];
+  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT', 'SOLSCAN →'] : ['#', 'HOLDER', 'SUPPLY SHARE'];
   return (
     <section className="trade-board">
       <div className="trade-board-tabs" role="tablist" aria-label="Market data">
@@ -177,10 +177,13 @@ function MarketTables() {
         {rows.map((row, index) => (
           <div className="trade-leaderboard-row" role="row" key={`${tab}-${row[0]}-${index}`}>
             <span data-label="#" role="cell">{index + 1}</span>
-            <span className="trade-wallet-cell" data-label={headers[1]} role="cell"><img src="/brand/fare-driver.png" alt="" />{row[0]}</span>
+            <span className={`trade-wallet-cell${isTransactions ? ' is-transaction' : ''}`} data-label={headers[1]} role="cell">
+              {!isTransactions && <img src="/brand/fare-driver.png" alt="" />}{row[0]}
+            </span>
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row[1].toLowerCase()}`}>{row[1]}</span>
               <span data-label={headers[3]} role="cell">{row[2]} · {row[3]}</span>
+              <a className="trade-solscan-link" data-label={headers[4]} role="cell" href={`https://solscan.io/tx/${row[4]}`} target="_blank" rel="noreferrer">View ↗</a>
             </> : <span data-label={headers[2]} role="cell">{row[1]}</span>}
           </div>
         ))}
