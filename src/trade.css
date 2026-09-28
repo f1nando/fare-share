@@ -89,9 +89,7 @@ body { color: #111; background: #fff; }
 .trade-wallet-link:hover { color: #8b7200; }
 .trade-solscan-link { width: fit-content; padding: 8px 13px; border: 2px solid #111; border-radius: 999px; color: #111; background: #fff; font-size: 12px; font-weight: 900; text-decoration: none; transition: color .15s ease, background-color .15s ease; }
 .trade-solscan-link:hover { background: #ffe11a; }
-.trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { display: inline-flex; width: fit-content; min-width: 68px; min-height: 32px; align-items: center; justify-content: center; border: 2px solid #111; border-radius: 999px; font-size: 12px; font-weight: 900; }
-.trade-leaderboard-row .is-buy { background: #ffe11a; }
-.trade-leaderboard-row .is-sell { color: #fff; background: #111; }
+.trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { color: #777; font-size: 12px; font-weight: 900; }
 .trade-leaderboard-row.is-liquidity-pool { background: #ffe11a !important; }
 .trade-leaderboard-row.is-liquidity-pool .trade-wallet-link { display: flex; align-items: flex-start; flex-direction: column; gap: 4px; text-decoration: none; }
 .trade-leaderboard-row.is-liquidity-pool .trade-wallet-link b { font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
@@ -139,8 +137,7 @@ body { color: #111; background: #fff; }
   .trade-leaderboard-row > span:nth-child(4) { grid-area: amount; margin-left: 10px; font-size: 14px; font-weight: 800; white-space: nowrap; }
   .trade-leaderboard-row > .trade-solscan-link { grid-area: solscan; justify-self: end; padding: 6px 10px; font-size: 9px; }
   .trade-wallet-cell { gap: 9px; overflow-wrap: anywhere; }
-  .trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { min-width: 56px; min-height: 26px; color: #111; font-size: 9px; }
-  .trade-leaderboard-row .is-sell { color: #fff; }
+  .trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { color: #777; font-size: 9px; }
   .trade-leaderboard.is-holders .trade-leaderboard-row { grid-template: 'rank wallet share' / 38px minmax(0, 1fr) auto; }
   .trade-leaderboard.is-holders .trade-leaderboard-row > span:nth-child(3) { grid-area: share; color: #111; font-size: 14px; font-weight: 900; }
   .trade-board-tabs button { min-height: 40px; padding: 0 18px; font-size: 18px; }
