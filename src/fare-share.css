@@ -539,7 +539,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-scene-card { border-radius: 10px; }
   .fare-fleet-heading { display: block; }
   .fare-how-heading h2, .fare-fleet-heading h2, .fare-treasury-heading h2, .fare-leaderboard-heading h3 { font-size: 42px; text-shadow: 3px 4px 0 #111; }
-  .fare-fleet-button { top: auto; bottom: 70px; left: 12px; width: 210px; }
+  .fare-fleet-button { top: auto; bottom: 70px; left: 12px; width: min(279px, calc(100% - 24px)); }
   .fare-leaderboard-page-main { padding-top: 150px; padding-bottom: 80px; }
   .fare-leaderboard-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
   .fare-leaderboard-page-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
