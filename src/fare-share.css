@@ -493,6 +493,15 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-leaderboard-heading { position: relative; top: auto; right: auto; left: auto; margin-top: 70px; }
   .fare-leaderboard { position: relative; top: auto; right: auto; left: auto; margin-top: 40px; }
+  .fare-footer { height: auto; min-height: 0; padding: 80px 0 170px; }
+  .fare-footer-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px 24px; }
+  .fare-footer-about { grid-column: 1 / -1; }
+  .fare-footer-copyright { position: static; margin-top: 24px; }
+  .fare-footer-column { transform: none; }
+  .fare-footer-column h2 { margin-bottom: 20px; font-size: 22px; }
+  .fare-footer-column a { font-size: 20px; line-height: 24px; }
+  .fare-footer-column a + a { margin-top: 16px; }
+  .fare-footer-watermark { top: auto; bottom: -4px; }
 }
 
 @media (max-width: 900px) {
