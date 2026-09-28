@@ -488,6 +488,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-button-dark { width: 310px; }
   .fare-round-arrow { width: 42px; height: 42px; }
   .fare-token-symbol { margin-right: 18px; }
+  .fare-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
