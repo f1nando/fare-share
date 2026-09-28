@@ -504,6 +504,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-docs-sidebar { display: none; }
 }
 
+@media (max-width: 750px) {
+  .fare-leaderboard-heading { flex-direction: column; gap: 24px; }
+}
+
 @media (max-width: 650px) {
   .fare-step-grid { grid-template-columns: 1fr; }
   .fare-step-card:nth-child(3) { grid-column: auto; width: 100%; }
@@ -539,7 +543,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-treasury { padding-bottom: 80px; }
   .fare-treasury-heading { grid-template-columns: 1fr; }
   .fare-stat-grid { grid-template-columns: 1fr; }
-  .fare-leaderboard-heading { flex-direction: column; gap: 24px; }
   .fare-fleet { height: 760px; padding: 96px 0 0; }
   .fare-fleet-card-wall { --wall-gap: 10px; --wall-half-gap: 5px; inset: -100px -56px; opacity: .9; }
   .fare-fleet-wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
