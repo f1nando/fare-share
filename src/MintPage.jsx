@@ -91,11 +91,11 @@ export function MintPage() {
                 })}
               </div>
 
-              <div className="fare-mint-quantity-copy"><span>Quantity</span><span>Max 3</span></div>
+              <div className="fare-mint-quantity-copy"><span>Quantity</span></div>
               <div className="fare-mint-quantity">
                 <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(value => Math.max(1, value - 1))}>−</button>
                 <strong>{quantity}</strong>
-                <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(value => Math.min(3, value + 1))}>+</button>
+                <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(value => value + 1)}>+</button>
               </div>
 
               <div className="fare-mint-summary">

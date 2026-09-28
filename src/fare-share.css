@@ -357,7 +357,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-progress { height: 16px; margin-top: 10px; border: 2px solid #111; border-radius: 999px; background: #fff; overflow: hidden; }
 .fare-mint-progress span { display: block; height: 100%; border-right: 2px solid #111; background: #ffe72f; }
 .fare-mint-quantity-copy { margin-top: 28px; }
-.fare-mint-quantity-copy span:last-child { color: #777; }
 .fare-mint-quantity { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 14px; margin-top: 10px; }
 .fare-mint-quantity button { width: 56px; height: 56px; padding: 0; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 31px; font-weight: 400; line-height: 1; transition: transform .15s ease, box-shadow .15s ease; }
 .fare-mint-quantity button:hover { transform: translate(4px, 5px); box-shadow: 0 0 0 #111; }
