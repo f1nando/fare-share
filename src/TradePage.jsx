@@ -242,7 +242,7 @@ export function TradePage({ wallet, connectWallet }) {
           <div className="trade-chart-heading">
             <div className="trade-chart-toolbar">
               <div className="trade-chart-symbol">
-                <span>{symbol} MARKET CAP / USD</span>
+                <span>MCAP</span>
                 <small className={Number(token?.change24h || 0) < 0 ? 'is-negative' : 'is-positive'}>{signedPercent(token?.change24h)} · 24H</small>
                 {token?.mint && <a href={`https://pump.fun/coin/${token.mint}`} target="_blank" rel="noreferrer">Open on PumpFun ↗</a>}
               </div>
