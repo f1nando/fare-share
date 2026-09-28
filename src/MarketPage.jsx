@@ -11,7 +11,13 @@ const CLASS_BY_NAME = new Map([
 ]);
 
 const PRICE_BY_INDEX = [0.82, 0.94, 1.18, 0.76, 1.05, 5.9, 4.25, 1.72, 7.4, 3.85, 1.48, 4.7, 3.35, 1.36, 2.95, 3.65];
-const SELLERS = ['8fK2...xP9m', 'Hq4R...2Ka7', 'D7vx...pL31', 'B5ma...9Qe2', '3UtN...v8Wk'];
+const SELLERS = [
+  'Y6pC9TG4dLCopFYzRVMZS4gyTMxLNMtnydsydS63ELn',
+  'C42ji8Es48xNtt6Q59SyqVUVShcRGUYo2gxxbsp6ipc8',
+  '6pNdUXC7e9Ljxi5SLZkqnwAMuVB5P7J4HMojFWQqA26H',
+  '4hCsoP8bjQ1qEVBMjXs1sSN65khGHLEvzj6WCKaB3NzE',
+  'HSCjmAt6MqfmMrqswa5MACknbRW3fHMpdFaRgS4u5Wjj',
+];
 
 const listings = drivingScenes.map((scene, index) => ({
   ...scene,
@@ -29,6 +35,10 @@ const SORTERS = {
   'price-high': (left, right) => right.price - left.price,
   name: (left, right) => left.name.localeCompare(right.name),
 };
+
+function shortWallet(address) {
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
 
 function SearchIcon() {
   return (
@@ -138,7 +148,12 @@ export function MarketPage({ wallet, connectWallet }) {
                 </div>
                 <div className="fare-market-card-copy">
                   <h2>{listing.name}</h2>
-                  <div className="fare-market-seller"><span>SELLER</span><strong>{listing.seller}</strong></div>
+                  <div className="fare-market-seller">
+                    <span>SELLER</span>
+                    <a href={`https://solscan.io/account/${listing.seller}`} target="_blank" rel="noreferrer" aria-label={`View seller ${listing.seller} on Solscan`}>
+                      {shortWallet(listing.seller)} <b aria-hidden="true">↗</b>
+                    </a>
+                  </div>
                   <div className="fare-market-price-row">
                     <div><span>PRICE</span><strong>{listing.price.toFixed(2)} SOL</strong></div>
                     <button type="button" onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>
