@@ -194,7 +194,11 @@ export function TradePage({ wallet, connectWallet }) {
         <article className="trade-chart-card">
           <div className="trade-chart-heading">
             <div className="trade-chart-toolbar">
-              <div className="trade-chart-symbol"><span>{symbol} / SOL</span><small>{signedPercent(token?.change24h)} · 24H</small></div>
+              <div className="trade-chart-symbol">
+                <span>{symbol} / SOL</span>
+                <small>{signedPercent(token?.change24h)} · 24H</small>
+                {token?.mint && <a href={`https://pump.fun/coin/${token.mint}`} target="_blank" rel="noreferrer">Open on PumpFun ↗</a>}
+              </div>
               <div className="trade-chart-periods" aria-label="Candle interval">
                 {['1m', '5m', '15m', '1h', '4h', '1d'].map(value => (
                   <button className={interval === value ? 'is-active' : ''} type="button" onClick={() => setInterval(value)} key={value}>{value.endsWith('m') ? value : value.toUpperCase()}</button>
