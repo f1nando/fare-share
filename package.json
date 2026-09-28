@@ -34,6 +34,7 @@
     "@solana-program/token": "^0.17.0",
     "@solana/kit": "^8.3.0",
     "@wallet-standard/app": "^1.1.1",
+    "lightweight-charts": "^5.2.1",
     "mongodb": "^6.21.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

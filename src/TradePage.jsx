@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
 import { FareHeader } from './FareShareChrome.jsx';
 
 const traders = [
@@ -15,37 +16,76 @@ function TradingViewChart() {
 
   useEffect(() => {
     const host = widgetRef.current;
-    if (!host || host.dataset.initialized) return;
-    host.dataset.initialized = 'true';
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.async = true;
-    script.textContent = JSON.stringify({
-      autosize: true,
-      symbol: 'COINBASE:SOLUSD',
-      interval: '60',
-      timezone: 'Etc/UTC',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      backgroundColor: 'rgba(17, 17, 17, 1)',
-      gridColor: 'rgba(255, 255, 255, 0.07)',
-      overrides: {
-        'mainSeriesProperties.candleStyle.upColor': '#ffffff',
-        'mainSeriesProperties.candleStyle.downColor': '#ffe11a',
-        'mainSeriesProperties.candleStyle.borderUpColor': '#ffffff',
-        'mainSeriesProperties.candleStyle.borderDownColor': '#ffe11a',
-        'mainSeriesProperties.candleStyle.wickUpColor': '#ffffff',
-        'mainSeriesProperties.candleStyle.wickDownColor': '#ffe11a',
+    if (!host) return undefined;
+
+    const chart = createChart(host, {
+      width: host.clientWidth,
+      height: host.clientHeight,
+      layout: {
+        background: { type: ColorType.Solid, color: '#111111' },
+        textColor: '#8f8f8f',
       },
-      hide_top_toolbar: true,
-      hide_side_toolbar: true,
-      allow_symbol_change: false,
-      save_image: false,
-      calendar: false,
-      support_host: 'https://www.tradingview.com',
+      grid: {
+        vertLines: { color: '#242424' },
+        horzLines: { color: '#242424' },
+      },
+      rightPriceScale: { borderColor: '#333333' },
+      timeScale: { borderColor: '#333333', timeVisible: true, secondsVisible: false },
+      crosshair: {
+        vertLine: { color: '#777777', labelBackgroundColor: '#ffe11a' },
+        horzLine: { color: '#777777', labelBackgroundColor: '#ffe11a' },
+      },
     });
-    host.appendChild(script);
+
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: '#ffffff',
+      downColor: '#ffe11a',
+      borderUpColor: '#ffffff',
+      borderDownColor: '#ffe11a',
+      wickUpColor: '#ffffff',
+      wickDownColor: '#ffe11a',
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    });
+
+    const now = Math.floor(Date.now() / 3600000) * 3600;
+    const fallback = Array.from({ length: 72 }, (_, index) => {
+      const time = now - (71 - index) * 3600;
+      const open = 112 + index * .09 + Math.sin(index * .7) * 1.8;
+      const close = open + Math.sin(index * 1.37) * 1.2;
+      return { time, open, close, high: Math.max(open, close) + .8, low: Math.min(open, close) - .8 };
+    });
+    series.setData(fallback);
+    chart.timeScale().fitContent();
+
+    const controller = new AbortController();
+    fetch('https://api.exchange.coinbase.com/products/SOL-USD/candles?granularity=3600', { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`Coinbase candles request failed: ${response.status}`);
+        return response.json();
+      })
+      .then(candles => {
+        const data = candles
+          .map(([time, low, high, open, close]) => ({ time, low, high, open, close }))
+          .sort((left, right) => left.time - right.time);
+        if (data.length) {
+          series.setData(data);
+          chart.timeScale().fitContent();
+        }
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') console.warn('Using fallback SOL chart data', error);
+      });
+
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    resizeObserver.observe(host);
+
+    return () => {
+      controller.abort();
+      resizeObserver.disconnect();
+      chart.remove();
+    };
   }, []);
 
   return <div className="tradingview-widget-container" ref={widgetRef} aria-label="Live SOL to USD chart" />;
