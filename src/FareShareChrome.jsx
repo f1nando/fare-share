@@ -119,7 +119,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
 export function FareFooter({ linkPrefix = '' }) {
   return (
     <footer className="fare-footer">
-      <div className="fare-footer-watermark" aria-hidden="true">FARE SHARE</div>
+      <div className="fare-footer-watermark" aria-hidden="true"><span>FARE</span>{' '}<span>SHARE</span></div>
       <div className="fare-footer-inner container">
         <div className="fare-footer-about">
           <div className="fare-footer-brand">
