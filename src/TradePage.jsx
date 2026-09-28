@@ -12,12 +12,12 @@ const transactionRows = [
 ];
 
 const holderRows = [
-  ['0x8F2A...91C4', '82,400.000 SOL', '$9,760,280'],
-  ['User_4312234', '21,870.450 SOL', '$2,591,550'],
-  ['0x37B1...AE20', '16,909.125 SOL', '$2,004,080'],
-  ['User_8804192', '12,445.900 SOL', '$1,474,240'],
-  ['0xC994...110B', '9,860.225 SOL', '$1,168,100'],
-  ['User_1427720', '7,104.880 SOL', '$841,570'],
+  ['0x8F2A...91C4', '6.21%'],
+  ['User_4312234', '3.12%'],
+  ['0x37B1...AE20', '2.84%'],
+  ['User_8804192', '2.18%'],
+  ['0xC994...110B', '1.72%'],
+  ['User_1427720', '1.31%'],
 ];
 
 function TradingViewChart() {
@@ -31,15 +31,15 @@ function TradingViewChart() {
       width: host.clientWidth,
       height: host.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: '#ffffff' },
-        textColor: '#666666',
+        background: { type: ColorType.Solid, color: '#111111' },
+        textColor: '#8f8f8f',
       },
       grid: {
-        vertLines: { color: '#e8e8e8' },
-        horzLines: { color: '#e8e8e8' },
+        vertLines: { color: '#242424' },
+        horzLines: { color: '#242424' },
       },
-      rightPriceScale: { borderColor: '#111111' },
-      timeScale: { borderColor: '#111111', timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: '#333333' },
+      timeScale: { borderColor: '#333333', timeVisible: true, secondsVisible: false },
       crosshair: {
         vertLine: { color: '#777777', labelBackgroundColor: '#111111' },
         horzLine: { color: '#777777', labelBackgroundColor: '#111111' },
@@ -47,12 +47,12 @@ function TradingViewChart() {
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#ffe11a',
-      downColor: '#111111',
-      borderUpColor: '#ffe11a',
-      borderDownColor: '#111111',
-      wickUpColor: '#ffe11a',
-      wickDownColor: '#111111',
+      upColor: '#d7d7d7',
+      downColor: '#ffe11a',
+      borderUpColor: '#d7d7d7',
+      borderDownColor: '#ffe11a',
+      wickUpColor: '#d7d7d7',
+      wickDownColor: '#ffe11a',
       priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
     });
 
@@ -148,14 +148,14 @@ function MarketTables() {
   const [tab, setTab] = useState('transactions');
   const isTransactions = tab === 'transactions';
   const rows = isTransactions ? transactionRows : holderRows;
-  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT'] : ['#', 'HOLDER', 'BALANCE', 'VALUE'];
+  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT'] : ['#', 'HOLDER', 'SUPPLY SHARE'];
   return (
     <section className="trade-board">
       <div className="trade-board-tabs" role="tablist" aria-label="Market data">
         <button className={tab === 'transactions' ? 'is-active' : ''} type="button" onClick={() => setTab('transactions')}>Transactions</button>
         <button className={tab === 'holders' ? 'is-active' : ''} type="button" onClick={() => setTab('holders')}>Holders</button>
       </div>
-      <div className="trade-leaderboard" role="table" aria-label={isTransactions ? 'Recent transactions' : 'Largest holders'}>
+      <div className={`trade-leaderboard${isTransactions ? '' : ' is-holders'}`} role="table" aria-label={isTransactions ? 'Recent transactions' : 'Largest holders'}>
         <div className="trade-leaderboard-row trade-leaderboard-header" role="row">
           {headers.map(header => <span role="columnheader" key={header}>{header}</span>)}
         </div>
@@ -163,8 +163,10 @@ function MarketTables() {
           <div className="trade-leaderboard-row" role="row" key={`${tab}-${row[0]}-${index}`}>
             <span data-label="#" role="cell">{index + 1}</span>
             <span className="trade-wallet-cell" data-label={headers[1]} role="cell"><img src="/brand/fare-driver.png" alt="" />{row[0]}</span>
-            <span data-label={headers[2]} role="cell" className={isTransactions ? `is-${row[1].toLowerCase()}` : undefined}>{row[1]}</span>
-            <span data-label={headers[3]} role="cell">{isTransactions ? `${row[2]} · ${row[3]}` : row[2]}</span>
+            {isTransactions ? <>
+              <span data-label={headers[2]} role="cell" className={`is-${row[1].toLowerCase()}`}>{row[1]}</span>
+              <span data-label={headers[3]} role="cell">{row[2]} · {row[3]}</span>
+            </> : <span data-label={headers[2]} role="cell">{row[1]}</span>}
           </div>
         ))}
       </div>
