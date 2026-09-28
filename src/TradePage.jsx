@@ -138,18 +138,22 @@ function TradeForm({ token, wallet, connectWallet }) {
         <button className={side === 'sell' ? 'is-active' : ''} type="button" onClick={() => setSide('sell')}>SELL</button>
       </div>
       <div className="trade-amount-box">
-        <label htmlFor="trade-pay-amount">YOU PAY</label>
+        <div className="trade-amount-heading">
+          <label htmlFor="trade-pay-amount">YOU PAY</label>
+          <b>{payToken}</b>
+        </div>
         <input id="trade-pay-amount" type="text" inputMode="decimal" value={payAmount} onChange={event => setPayAmount(cleanAmount(event.target.value))} aria-label={`Amount to pay in ${payToken}`} />
-        <b>{payToken}</b>
       </div>
       <div className="trade-quick-actions" aria-label={`${payToken} balance shortcuts`}>
         <button type="button" disabled={balanceBusy} onClick={() => selectBalancePortion(.5)}>HALF</button>
         <button type="button" disabled={balanceBusy} onClick={() => selectBalancePortion(1)}>MAX</button>
       </div>
       <div className="trade-amount-box">
-        <label htmlFor="trade-receive-amount">YOU RECEIVE</label>
+        <div className="trade-amount-heading">
+          <label htmlFor="trade-receive-amount">YOU RECEIVE</label>
+          <b>{receiveToken}</b>
+        </div>
         <input id="trade-receive-amount" type="text" value={quote ? formatToken(quote.outputAmount) : '—'} readOnly aria-label={`Amount to receive in ${receiveToken}`} />
-        <b>{receiveToken}</b>
       </div>
       <dl className="trade-rate">
         <div><dt>Route</dt><dd>{quote?.route?.join(' → ') || token?.routeLabel || 'Checking…'}</dd></div>
