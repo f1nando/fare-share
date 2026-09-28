@@ -29,7 +29,6 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigationItems = [
     { id: 'home', label: 'HOME', href: `${linkPrefix}#top` },
-    { id: 'dashboard', label: 'DASHBOARD', href: `${linkPrefix}#dashboard` },
     { id: 'mint', label: 'MINT', href: '/mint/' },
     { id: 'garage', label: 'GARAGE', href: '/garage/' },
     { id: 'market', label: 'MARKET', href: `${linkPrefix}#market` },
