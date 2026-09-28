@@ -217,13 +217,6 @@ export function TradePage({ wallet, connectWallet }) {
                 ))}
               </div>
             </div>
-            {latestCandle && <div className="trade-chart-ohlc">
-              <span>O <b>{formatChartValue(latestCandle.open)}</b></span>
-              <span>H <b>{formatChartValue(latestCandle.high)}</b></span>
-              <span>L <b>{formatChartValue(latestCandle.low)}</b></span>
-              <span>C <b>{formatChartValue(latestCandle.close)}</b></span>
-              <span>VOL <b>{formatChartValue(latestCandle.volume)}</b></span>
-            </div>}
             <div className="trade-chart-price-row">
               <strong>{formatChartValue(latestCandle?.close || token?.marketCapUsd || 0)}</strong>
               <p>Token price <b>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : '—'}</b><br />24H volume <b>{formatNumber(token?.volume24hSol || 0, 2)} SOL</b></p>
