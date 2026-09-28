@@ -26,7 +26,6 @@ export function MintPage() {
   const [selectedClassIndex, setSelectedClassIndex] = useState(0);
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
   const selectedClass = MINT_CLASSES[selectedClassIndex];
-  const previewScene = selectedClass.scenes[previewSceneIndex] || drivingScenes[0];
 
   useEffect(() => {
     let interval;
@@ -65,7 +64,16 @@ export function MintPage() {
 
           <div className="fare-mint-layout">
             <div className="fare-mint-preview">
-              <FareStepDrivingScene scene={previewScene} />
+              <div className="fare-mint-preview-scenes">
+                {MINT_CLASSES.flatMap((item, classIndex) => item.scenes.map((scene, sceneIndex) => {
+                  const isActive = classIndex === selectedClassIndex && sceneIndex === previewSceneIndex;
+                  return (
+                    <div className={`fare-mint-preview-scene${isActive ? ' is-active' : ''}`} key={scene.id || scene.name}>
+                      <FareStepDrivingScene scene={scene} />
+                    </div>
+                  );
+                }))}
+              </div>
               <span className={`fare-fleet-class is-${selectedClass.tone}`}>{selectedClass.name.toUpperCase()}</span>
             </div>
 

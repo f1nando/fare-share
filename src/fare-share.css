@@ -342,7 +342,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-intro > p { max-width: 680px; margin: 0 0 3px; padding: 13px 18px; border-left: 8px solid #111; background: #fff; font-size: 20px; font-weight: 700; line-height: 25px; }
 .fare-mint-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-top: 54px; }
 .fare-mint-preview { position: relative; height: 650px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; overflow: hidden; }
-.fare-mint-preview > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 29px; }
+.fare-mint-preview-scenes, .fare-mint-preview-scene { position: absolute; inset: 0; }
+.fare-mint-preview-scene { z-index: 0; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+.fare-mint-preview-scene.is-active { z-index: 1; opacity: 1; pointer-events: auto; }
+.fare-mint-preview-scene:not(.is-active) .fare-fleet-road { animation-play-state: paused; }
+.fare-mint-preview-scene > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 29px; }
 .fare-mint-preview > .fare-fleet-class { top: 18px; left: 18px; }
 .fare-mint-panel { min-height: 650px; padding: 38px 36px 30px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; }
 .fare-mint-panel h2 { margin: 0 0 28px; font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
