@@ -30,7 +30,9 @@ body { color: #111; background: #fff; }
 .trade-chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .trade-chart-symbol { display: flex; align-items: center; gap: 14px; }
 .trade-chart-heading span { display: block; color: #ffe11a; }
-.trade-chart-heading small { color: #0dde8d; font-size: 12px; font-weight: 800; }
+.trade-chart-heading small { font-size: 12px; font-weight: 800; }
+.trade-chart-heading small.is-positive { color: #0dde8d; }
+.trade-chart-heading small.is-negative { color: #ff6470; }
 .trade-chart-symbol a { color: #fff; font-size: 11px; font-weight: 800; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .trade-chart-symbol a:hover { color: #ffe11a; }
 .trade-chart-periods { display: flex; align-items: center; gap: 4px; }
