@@ -37,7 +37,7 @@ import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
 import { animationVariation, stuntType, vehicleBrushPadding, vehicleStunt } from './vehicleBounce.js';
-import { FOLIAGE_SWAY_DURATION, claimAnimationStart, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
+import { FOLIAGE_SWAY_DURATION, claimAnimationStart, foliageSwayAngle, shouldStartBrushAnimation, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingMotion } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
 
@@ -651,7 +651,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   function animateAtPointer(event, vehiclesOnly = false) {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
-      activeBrushEvent = null; gestureTargets.clear(); return;
+      activeBrushEvent = null; gestureTargets.clear(); brushVehicleTargets.clear(); return;
     }
     const radius = event.pointerType === 'touch' ? 72 : 56;
     const targetsInBrush = brushTargetsNow;
@@ -664,13 +664,11 @@ export function createCity(container, initialSettings, benchmark = null) {
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
       if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint,
         radius + vehicleBrushPadding(vehicle.type))) continue;
-      targetsInBrush.add(vehicle.key);
       brushVehiclesNow.add(vehicle.key);
-      if (!claimAnimationStart(gestureTargets, vehicle.key, vehicleStunts.has(vehicle.key))) continue;
+      if (!shouldStartBrushAnimation(brushVehicleTargets.has(vehicle.key), vehicleStunts.has(vehicle.key))) continue;
       vehicleStunts.set(vehicle.key, { started: performance.now(), variation: animationVariation() });
     }
     if (vehiclesOnly) {
-      for (const target of brushVehicleTargets) if (!brushVehiclesNow.has(target)) gestureTargets.delete(target);
       brushVehicleTargets.clear();
       for (const target of brushVehiclesNow) brushVehicleTargets.add(target);
       return;
@@ -711,7 +709,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const continueGesture = event => {
     if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
-    if (overControl(event)) { activeBrushEvent = null; return; }
+    if (overControl(event)) { activeBrushEvent = null; brushVehicleTargets.clear(); return; }
     updateActiveBrush(event);
     const points = event.getCoalescedEvents?.() ?? [event];
     for (const point of points.length ? points : [event]) animateAtPointer(point);
@@ -722,6 +720,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     gesturePointer = null;
     activeBrushEvent = null;
     gestureTargets.clear();
+    brushVehicleTargets.clear();
   };
   const continueMouseGesture = event => {
     updateActiveBrush(event); animateAtPointer(event);
@@ -729,6 +728,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const leaveMouseBrush = () => {
     activeBrushEvent = null;
     gestureTargets.clear();
+    brushVehicleTargets.clear();
   };
   window.addEventListener('pointerdown', beginGesture, true);
   window.addEventListener('pointermove', continueGesture, true);

@@ -20,6 +20,10 @@ export function claimAnimationStart(touched, target, isAnimating) {
   return claimGestureTarget(touched, target) && !isAnimating;
 }
 
+export function shouldStartBrushAnimation(wasInside, isAnimating) {
+  return !wasInside && !isAnimating;
+}
+
 export function withinGestureRadius(screenX, screenY, point, radius) {
   return (screenX - point.x) ** 2 + (screenY - point.y) ** 2 <= radius ** 2;
 }
