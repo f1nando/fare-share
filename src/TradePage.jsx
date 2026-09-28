@@ -100,19 +100,11 @@ function TradingViewChart() {
   return <div className="tradingview-widget-shell"><div className="tradingview-widget-container" ref={widgetRef} aria-label="Live SOL to USD chart" /></div>;
 }
 
-function SwapIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 3v15m0 0-4-4m4 4 4-4M17 21V6m0 0-4 4m4-4 4 4" />
-    </svg>
-  );
-}
-
 function TradeForm() {
   const [side, setSide] = useState('buy');
-  const [flipped, setFlipped] = useState(false);
   const [payAmount, setPayAmount] = useState('100');
   const [receiveAmount, setReceiveAmount] = useState('0.8442');
+  const flipped = side === 'sell';
   const payToken = flipped ? 'SOL' : 'USD';
   const receiveToken = flipped ? 'USD' : 'SOL';
   const rate = 118.45;
@@ -133,8 +125,9 @@ function TradeForm() {
     setPayAmount(next === '' ? '' : formatAmount(flipped ? number / rate : number * rate, flipped ? 4 : 2));
   };
 
-  const flipTokens = () => {
-    setFlipped(value => !value);
+  const selectSide = nextSide => {
+    if (nextSide === side) return;
+    setSide(nextSide);
     setPayAmount(receiveAmount);
     setReceiveAmount(payAmount);
   };
@@ -142,17 +135,14 @@ function TradeForm() {
   return (
     <section className="trade-swap" aria-label="SOL trade form">
       <div className={`trade-side-tabs${side === 'sell' ? ' is-sell' : ''}`} role="tablist" aria-label="Trade side">
-        <button className={side === 'buy' ? 'is-active' : ''} type="button" onClick={() => setSide('buy')}>BUY</button>
-        <button className={side === 'sell' ? 'is-active' : ''} type="button" onClick={() => setSide('sell')}>SELL</button>
+        <button className={side === 'buy' ? 'is-active' : ''} type="button" onClick={() => selectSide('buy')}>BUY</button>
+        <button className={side === 'sell' ? 'is-active' : ''} type="button" onClick={() => selectSide('sell')}>SELL</button>
       </div>
 
       <div className="trade-amount-box">
         <label htmlFor="trade-pay-amount">YOU PAY</label>
         <input id="trade-pay-amount" type="text" inputMode="decimal" value={payAmount} onChange={event => updatePayAmount(event.target.value)} aria-label={`Amount to pay in ${payToken}`} />
         <b>{payToken}</b>
-      </div>
-      <div className="trade-flip-row">
-        <button type="button" aria-label="Swap pay and receive tokens" onClick={flipTokens}><SwapIcon /></button>
       </div>
       <div className="trade-amount-box">
         <label htmlFor="trade-receive-amount">YOU RECEIVE</label>

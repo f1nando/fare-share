@@ -50,10 +50,6 @@ body { color: #111; background: #fff; }
 .trade-amount-box input { width: calc(100% - 86px); min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
 .trade-amount-box input::selection { color: #111; background: #ffe11a; }
 .trade-amount-box b { margin-left: auto; padding: 10px 15px; border: 1.5px solid #111; border-radius: 999px; background: #ffe11a; font-size: 11px; }
-.trade-flip-row { position: relative; display: grid; height: 42px; place-items: center; }
-.trade-flip-row::before { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: #111; }
-.trade-flip-row button { z-index: 1; display: grid; width: 38px; height: 38px; padding: 0; place-items: center; border: 0; border-radius: 50%; color: #fff; background: #111; }
-.trade-flip-row svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .trade-rate { margin: 22px 0 18px; font-size: 11px; font-weight: 700; }
 .trade-rate div { display: flex; justify-content: space-between; margin-top: 6px; }
 .trade-rate dt, .trade-rate dd { margin: 0; }
