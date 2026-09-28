@@ -57,7 +57,7 @@ body { color: #111; background: #fff; }
 
 .trade-board { width: 100%; max-width: 1400px; margin: 34px auto 120px; padding: 0 12px; }
 .trade-board-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.trade-board-tabs button { min-height: 52px; padding: 0 30px; border: 2px solid #111; border-radius: 999px; background: #fff; box-shadow: 3px 4px 0 #111; font-size: 14px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
+.trade-board-tabs button { min-height: 52px; padding: 0 30px; border: 2px solid #111; border-radius: 999px; background: #fff; box-shadow: 3px 4px 0 #111; font-size: 20px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
 .trade-board-tabs .is-active { background: #ffe11a; }
 .trade-board-tabs button:hover { transform: translate(3px, 4px); box-shadow: none; }
 .trade-leaderboard { border: 1px solid #111; border-radius: 28px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
@@ -115,7 +115,7 @@ body { color: #111; background: #fff; }
   .trade-leaderboard-row .is-sell { color: #fff; }
   .trade-leaderboard.is-holders .trade-leaderboard-row { grid-template: 'rank wallet share' / 38px minmax(0, 1fr) auto; }
   .trade-leaderboard.is-holders .trade-leaderboard-row > span:nth-child(3) { grid-area: share; color: #111; font-size: 14px; font-weight: 900; }
-  .trade-board-tabs button { min-height: 40px; padding: 0 18px; font-size: 11px; }
+  .trade-board-tabs button { min-height: 40px; padding: 0 18px; font-size: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
