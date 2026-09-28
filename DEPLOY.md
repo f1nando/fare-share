@@ -11,7 +11,7 @@
 - worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
 - `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
 
-Для первой mainnet-публикации admin/deployer должен иметь примерно `6 SOL`: release-профиль `opt-level = "z"`, ограниченная heap-очередь и минимальные проверенные CPI к Metaplex/SPL уменьшают SBF до 558 456 байт без stack warning в коде Taxi Park. При deploy одновременно финансируются известный нам upload buffer и upgradeable ProgramData. Пиковая потребность — примерно `5,677 SOL`; rent временного buffer возвращается после успешного deploy, а в ProgramData остаётся примерно `2,838 SOL`. Пока upgrade authority сохранён, этот депозит не потерян: его можно вернуть, навсегда закрыв программу.
+Для первой mainnet-публикации admin/deployer должен иметь примерно `6 SOL`: release-профиль `opt-level = "z"`, ограниченная heap-очередь и минимальные проверенные CPI к Metaplex/SPL уменьшают SBF до 558 456 байт без stack warning в коде Taxi Park. При deploy одновременно финансируются известный нам upload buffer и upgradeable ProgramData. Пиковая потребность — примерно `5,677 SOL`; rent временного buffer возвращается после успешного deploy, а в ProgramData остаётся примерно `2,838 SOL`. Пока upgrade authority сохранён, депозит ProgramData можно вернуть, навсегда закрыв программу; небольшой исполняемый Program account остаётся невозвратным loader-v3 tombstone.
 
 ## 1. Сначала зафиксировать Program ID
 
@@ -36,8 +36,10 @@
 
 ### Возврат Devnet SOL
 
-Devnet upgrade authority не отзывается. Поэтому rent программы и ProgramData можно
-вернуть deployer, если тестовое развёртывание окончательно закрывается. Для текущего
+Devnet upgrade authority не отзывается. Поэтому rent ProgramData можно вернуть
+deployer, если тестовое развёртывание окончательно закрывается. Небольшой rent
+исполняемого Program account остаётся в необратимом loader-v3 tombstone и не
+возвращается штатной командой Solana. Для текущего
 Devnet доступны read-only аудит и защищённый recovery:
 
 ```sh
@@ -50,7 +52,7 @@ bash scripts/recover-devnet-sol.sh
 upgrade authority и локальные keypair. Скрипт запрещает необратимое закрытие, пока
 в SOL- или token-vault остаются средства: сначала нужно поставить протокол на паузу
 и вывести их командами `rescue-sol` / `rescue-token`. После проверки он возвращает
-баланс worker и закрывает программу в пользу deployer. Rent обычных PDA, коллекции,
+баланс worker и закрывает ProgramData в пользу deployer. Rent обычных PDA, коллекции,
 mint и token account (сейчас около `0.0443 SOL`) текущая версия контракта не закрывает.
 
 Команду с `--execute` нельзя запускать для обычного rollback: закрытие программы
@@ -139,7 +141,7 @@ admin, и никогда не передаёт `--final`.
 
 Локальный genesis использовал более высокую ставку rent: buffer удержал
 `3,88800216 SOL`, ProgramData вместе с program account — `3,88805784 SOL`.
-Оба депозита полностью вернулись плательщику; итоговая разница составила только
-`0,00670144 SOL` сетевых комиссий всех тестовых транзакций. Mainnet-команда
+Rent buffer и ProgramData возвращается плательщику, но rent исполняемого Program
+account штатная loader-v3 команда оставляет в необратимом tombstone. Mainnet-команда
 `solana rent` для актуального размера по-прежнему показывает соответственно
 `2,83779468 SOL` и `2,83783532 SOL`.

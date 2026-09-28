@@ -50,11 +50,14 @@ const tokenAmounts = tokenVaults.map(account => {
   if (data.length < 72) throw new Error('Invalid SPL token vault data');
   return data.readBigUInt64LE(64);
 });
-const programRecoverable = program.lamports + programData.lamports;
+// Loader v3 closes and drains ProgramData, but intentionally leaves the small
+// executable Program account behind as an unrecoverable tombstone.
+const programRecoverable = programData.lamports;
 
 console.log(`DEPLOYER_SOL=${sol(deployer.lamports)}`);
 console.log(`WORKER_RECOVERABLE_SOL=${sol(worker.lamports)}`);
 console.log(`PROGRAM_RECOVERABLE_SOL=${sol(programRecoverable)}`);
+console.log(`PROGRAM_TOMBSTONE_SOL=${sol(program.lamports)}`);
 console.log(`FEE_VAULT_RECOVERABLE_SOL=${sol(feeVaultRecoverable)}`);
 console.log(`TOKEN_VAULT_RAW_AMOUNTS=${tokenAmounts.join(',')}`);
 console.log(`IMMEDIATELY_RECOVERABLE_SOL=${sol(worker.lamports + programRecoverable + feeVaultRecoverable)}`);

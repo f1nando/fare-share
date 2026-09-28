@@ -55,6 +55,7 @@ solana transfer "$DEPLOYER" ALL \
 
 solana program close "$PROGRAM_ID" \
   --url "$RPC_URL" \
+  --keypair "$DEPLOYER_KEYPAIR" \
   --authority "$DEPLOYER_KEYPAIR" \
   --recipient "$DEPLOYER" \
   --commitment finalized \
