@@ -158,19 +158,23 @@ function MarketTables({ trades, holders, symbol }) {
           {headers.map(header => <span role="columnheader" key={header}>{header}</span>)}
         </div>
         {!rows.length && <div className="trade-empty">Waiting for indexed mainnet data…</div>}
-        {rows.map((row, index) => (
-          <div className="trade-leaderboard-row" role="row" key={isTransactions ? row.signature : row.owner}>
-            <span data-label="#" role="cell">{index + 1}</span>
+        {rows.map((row, index) => {
+          const isLiquidityPool = !isTransactions && row.kind === 'liquidity_pool';
+          const rank = isTransactions ? index + 1 : rows.slice(0, index + 1).filter(item => item.kind !== 'liquidity_pool').length;
+          return <div className={`trade-leaderboard-row${isLiquidityPool ? ' is-liquidity-pool' : ''}`} role="row" key={isTransactions ? row.signature : row.owner}>
+            <span data-label="#" role="cell">{isLiquidityPool ? '' : rank}</span>
             <span className="trade-wallet-cell is-address" data-label={headers[1]} role="cell">
-              <a className="trade-wallet-link" href={`https://solscan.io/account/${encodeURIComponent(isTransactions ? row.wallet : row.owner)}`} target="_blank" rel="noreferrer">{shortAddress(isTransactions ? row.wallet : row.owner)}</a>
+              <a className="trade-wallet-link" href={`https://solscan.io/account/${encodeURIComponent(isTransactions ? row.wallet : row.owner)}`} target="_blank" rel="noreferrer">
+                {isLiquidityPool ? <><b>PUMP.FUN LIQUIDITY POOL</b><small>{shortAddress(row.owner)}</small></> : shortAddress(isTransactions ? row.wallet : row.owner)}
+              </a>
             </span>
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row.side}`}>{row.side.toUpperCase()}</span>
               <span data-label={headers[3]} role="cell">{formatTradeAmount(row.tokenAmount)} {symbol} · {formatTradeAmount(row.solAmount)} SOL</span>
               <a className="trade-solscan-link" data-label={headers[4]} role="cell" href={`https://solscan.io/tx/${row.signature}`} target="_blank" rel="noreferrer">View ↗</a>
-            </> : <span data-label={headers[2]} role="cell">{formatNumber(row.supplyShare, 4)}%</span>}
+            </> : <span data-label={headers[2]} role="cell">{formatNumber(isLiquidityPool ? row.supplyLeftPercent : row.supplyShare, 4)}%{isLiquidityPool && <small> SUPPLY LEFT</small>}</span>}
           </div>
-        ))}
+        })}
       </div>
     </section>
   );

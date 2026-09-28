@@ -53,6 +53,8 @@ export interface TradeStateDocument {
   supplyRaw: string;
   stage: TradeStage;
   bondingCurve?: string;
+  bondingCurveRemainingRaw?: string;
+  bondingCurveRemainingPercent?: number;
   routeLabel?: string;
   routePriceSol?: number;
   tradingAvailable: boolean;
@@ -189,9 +191,30 @@ export class TradeService {
   }
 
   async listHolders(limit = 100, skip = 0) {
-    const rows = await this.database.tradeHolders.find({ mint: String(this.mint), balance: { $gt: 0 } })
+    const poolOwner = this.state.stage === 'bonding_curve' ? this.state.bondingCurve : undefined;
+    const filter = {
+      mint: String(this.mint),
+      balance: { $gt: 0 },
+      ...(poolOwner ? { owner: { $ne: poolOwner } } : {}),
+    };
+    const rows = await this.database.tradeHolders.find(filter)
       .sort({ balance: -1 }).skip(Math.max(skip, 0)).limit(Math.min(Math.max(limit, 1), 250)).toArray();
-    return { holders: rows, total: await this.database.tradeHolders.countDocuments({ mint: String(this.mint), balance: { $gt: 0 } }) };
+    const holders: Array<Record<string, unknown>> = rows.map(row => ({ ...row }));
+    if (poolOwner && skip === 0) {
+      const stored = await this.database.tradeHolders.findOne({ mint: String(this.mint), owner: poolOwner });
+      const remainingRaw = this.state.bondingCurveRemainingRaw || stored?.balanceRaw || '0';
+      holders.unshift({
+        ...(stored || {
+          mint: String(this.mint), owner: poolOwner, snapshotId: 'on-chain', updatedSlot: this.state.lastTradeSlot, updatedAt: this.state.updatedAt,
+          balanceRaw: remainingRaw, balance: Number(remainingRaw) / 10 ** this.state.decimals, supplyShare: this.state.bondingCurveRemainingPercent || 0,
+        }),
+        kind: 'liquidity_pool',
+        supplyLeftRaw: remainingRaw,
+        supplyLeft: Number(remainingRaw) / 10 ** this.state.decimals,
+        supplyLeftPercent: this.state.bondingCurveRemainingPercent ?? stored?.supplyShare ?? 0,
+      });
+    }
+    return { holders, total: await this.database.tradeHolders.countDocuments(filter) + (poolOwner ? 1 : 0) };
   }
 
   async candles(interval: string, requestedLimit = 300) {
@@ -343,6 +366,7 @@ export class TradeService {
       const bytes = encoded ? Buffer.from(encoded, 'base64') : Buffer.alloc(0);
       const curveExists = bytes.length > 48;
       const complete = curveExists && bytes[48] === 1;
+      const curveRemainingRaw = curveExists ? bytes.readBigUInt64LE(24).toString() : undefined;
       const route = await this.jupiterQuote(String(WSOL_MINT), String(this.mint), '1000000', 500).catch(() => null);
       const labels = route ? routeLabels(route) : [];
       const routeOutput = route ? Number(String(route.outAmount || '0')) / 10 ** Number(tokenInfo.decimals ?? supplyValue.decimals ?? this.state.decimals) : 0;
@@ -362,6 +386,10 @@ export class TradeService {
         supplyRaw: String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw),
         stage,
         bondingCurve: curveExists ? String(bondingCurve) : undefined,
+        bondingCurveRemainingRaw: curveRemainingRaw,
+        bondingCurveRemainingPercent: curveRemainingRaw && BigInt(String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw)) > 0n
+          ? Number(BigInt(curveRemainingRaw) * 1_000_000n / BigInt(String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw))) / 10_000
+          : undefined,
         routeLabel: labels.join(' → ') || undefined,
         routePriceSol,
         tradingAvailable: Boolean(route),
@@ -611,8 +639,8 @@ export class TradeService {
   }
 
   private publicState() {
-    const { mint, name, symbol, decimals, supplyRaw, stage, bondingCurve, routeLabel, tradingAvailable, lastTradeSlot, lastHolderSlot, solUsd, updatedAt } = this.state;
-    return { mint, name, symbol, decimals, supplyRaw, stage, bondingCurve, routeLabel, tradingAvailable, lastTradeSlot, lastHolderSlot, solUsd, updatedAt };
+    const { mint, name, symbol, decimals, supplyRaw, stage, bondingCurve, bondingCurveRemainingRaw, bondingCurveRemainingPercent, routeLabel, tradingAvailable, lastTradeSlot, lastHolderSlot, solUsd, updatedAt } = this.state;
+    return { mint, name, symbol, decimals, supplyRaw, stage, bondingCurve, bondingCurveRemainingRaw, bondingCurveRemainingPercent, routeLabel, tradingAvailable, lastTradeSlot, lastHolderSlot, solUsd, updatedAt };
   }
 
   private emit(type: string, data: unknown) {

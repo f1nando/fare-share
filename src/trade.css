@@ -84,6 +84,12 @@ body { color: #111; background: #fff; }
 .trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { display: inline-flex; width: fit-content; min-width: 68px; min-height: 32px; align-items: center; justify-content: center; border: 2px solid #111; border-radius: 999px; font-size: 12px; font-weight: 900; }
 .trade-leaderboard-row .is-buy { background: #ffe11a; }
 .trade-leaderboard-row .is-sell { color: #fff; background: #111; }
+.trade-leaderboard-row.is-liquidity-pool { background: #ffe11a !important; }
+.trade-leaderboard-row.is-liquidity-pool .trade-wallet-link { display: flex; align-items: flex-start; flex-direction: column; gap: 4px; text-decoration: none; }
+.trade-leaderboard-row.is-liquidity-pool .trade-wallet-link b { font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+.trade-leaderboard-row.is-liquidity-pool .trade-wallet-link small { color: #655900; font-size: 10px; }
+.trade-leaderboard-row.is-liquidity-pool > span:last-child { font-size: 20px; font-weight: 900; text-align: right; }
+.trade-leaderboard-row.is-liquidity-pool > span:last-child small { display: block; font-size: 9px; }
 .trade-empty { padding: 40px; background: #fff; color: #666; font-size: 14px; font-weight: 700; text-align: center; }
 
 @media (max-width: 1100px) {
