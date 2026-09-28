@@ -55,10 +55,10 @@ body { color: #111; background: #fff; }
 .trade-side-tabs .is-active { color: #fff; }
 .trade-amount-box { position: relative; display: flex; min-height: 124px; align-items: center; margin-top: 20px; padding: 56px 22px 14px; border: 2px solid #111; border-radius: 22px; box-shadow: 5px 6px 0 #111; }
 .trade-amount-heading { position: absolute; top: 12px; right: 22px; left: 22px; display: flex; align-items: baseline; justify-content: space-between; }
-.trade-amount-box label { font-size: 10px; font-weight: 800; }
+.trade-amount-box label { color: #111; font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
 .trade-amount-box input { flex: 1; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
 .trade-amount-box input::selection { color: #111; background: #ffe11a; }
-.trade-amount-box b { color: #111; font-size: 34px; font-weight: 800; letter-spacing: -.05em; opacity: .5; }
+.trade-amount-box b { color: #111; font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
 .trade-quick-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }
 .trade-quick-actions button { min-width: 58px; height: 28px; padding: 0 12px; border: 1.5px solid #111; border-radius: 999px; color: #fff; background: #111; font-size: 9px; font-weight: 900; }
 .trade-quick-actions button:hover { color: #111; background: #ffe11a; }
@@ -127,9 +127,9 @@ body { color: #111; background: #fff; }
   .tradingview-widget-container { width: 100%; height: 100%; zoom: 1; }
   .trade-amount-box { min-height: 100px; margin-top: 14px; padding: 45px 16px 12px; border-radius: 16px; box-shadow: 3px 4px 0 #111; }
   .trade-amount-heading { top: 9px; right: 16px; left: 16px; }
-  .trade-amount-box label { font-size: 8px; }
+  .trade-amount-box label { font-size: 17px; }
   .trade-amount-box input { font-size: 26px; }
-  .trade-amount-box b { font-size: 26px; }
+  .trade-amount-box b { font-size: 17px; }
   .trade-rate { margin: 14px 0 12px; font-size: 13px; }
   .trade-board { margin-top: 26px; margin-bottom: 72px; padding: 0 20px; }
   .trade-leaderboard { display: grid; gap: 14px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
