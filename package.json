@@ -16,6 +16,7 @@
     "worker": "node --env-file-if-exists=.env --import tsx scripts/run-worker.ts",
     "protocol:initialize": "node --env-file-if-exists=.env --import tsx scripts/initialize-protocol.ts",
     "protocol:addresses": "node --env-file-if-exists=.env --import tsx scripts/show-protocol-addresses.ts",
+    "protocol:claim-lookup-addresses": "node --env-file-if-exists=.env scripts/show-claim-lookup-addresses.mjs",
     "protocol:audit-devnet-recovery": "node --env-file-if-exists=.env.devnet scripts/audit-devnet-recovery.mjs",
     "protocol:admin": "node --env-file-if-exists=.env --import tsx scripts/admin.ts",
     "protocol:benchmark": "node --env-file-if-exists=.env --import tsx scripts/benchmark-reward-batch.ts",

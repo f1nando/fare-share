@@ -32,7 +32,20 @@
 4. Заполнить `$FARE` mint, четыре неизменяемых xStocks mint, devnet/test metadata URI, цены и остальные значения `.env`.
 5. Выполнить `npm run protocol:preflight`.
 6. Опубликовать программу в devnet с подготовленным program keypair и временной upgrade authority, затем выполнить `npm run protocol:initialize`.
-7. Запустить backend и worker, после чего проверить сценарии F0/F0a из `docs/SCENARIO-TESTS.md`: сбор до graduation, PumpSwap WSOL после graduation, swaps, расчёт, claim, ремонт и стажёра.
+7. Создать protocol Address Lookup Table, добавить адреса из `npm run protocol:claim-lookup-addresses` и записать её адрес в `VITE_TAXI_LOOKUP_TABLE`. Без ALT атомарный Claim ограничен четырьмя машинами, с ALT — десятью.
+8. Запустить backend и worker, после чего проверить сценарии F0/F0a из `docs/SCENARIO-TESTS.md`: сбор до graduation, PumpSwap WSOL после graduation, swaps, расчёт, claim, ремонт и стажёра.
+
+ALT создаётся и наполняется тем же явно указанным authority/payer и в той же сети, что и программа:
+
+```sh
+solana address-lookup-table create -u devnet --authority <AUTHORITY_PUBKEY> --payer <PAYER_KEYPAIR>
+solana address-lookup-table extend -u devnet <LOOKUP_TABLE_ADDRESS> \
+  --authority <AUTHORITY_KEYPAIR> --payer <PAYER_KEYPAIR> \
+  --addresses "$(npm run --silent protocol:claim-lookup-addresses)"
+solana address-lookup-table get -u devnet <LOOKUP_TABLE_ADDRESS>
+```
+
+После `extend` нужно дождаться следующего slot до browser smoke. ALT не замораживается заранее: это сохраняет возможность обратно совместимо добавить новый постоянный адрес при upgrade программы.
 
 ### Возврат Devnet SOL
 
@@ -76,7 +89,8 @@ solana program deploy -u devnet \
 5. Выполнить `npm run protocol:addresses`, создать основной `$FARE` с полученным `pumpCreator` и записать mint в `.env`.
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.
 7. Выполнить `protocol:initialize`.
-8. Проверить vault, collection, все mint и реальные минимальные денежные сценарии. Только после этого вручную вызвать `start-sale`.
+8. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
+9. Проверить vault, collection, все mint и реальные минимальные денежные сценарии, включая Claim десяти машин. Только после этого вручную вызвать `start-sale`.
 
 ## 4. Сохранить upgrade authority и возможность вернуть rent
 

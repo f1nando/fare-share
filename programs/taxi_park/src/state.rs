@@ -11,6 +11,7 @@ pub const MAX_DURABILITY_SECONDS: i64 = 5 * 24 * 60 * 60;
 pub const MAX_QUEUE_PAGES: usize = 80;
 pub const EVENTS_PER_PAGE: usize = 128;
 pub const MAX_BATCH_EVENTS: u8 = 20;
+pub const MAX_CLAIM_MACHINES: u8 = 10;
 pub const MAX_METADATA_URI_LEN: usize = 200;
 pub const MAX_COLLECTION_NAME_LEN: usize = 64;
 pub const TRAINEE_MIN_DURATION_MINUTES: u16 = 60;

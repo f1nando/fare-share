@@ -1421,6 +1421,128 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn claim_many<'info>(
+        ctx: Context<'_, '_, 'info, 'info, ClaimMany<'info>>,
+        machine_count: u8,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(
+            machine_count > 0 && machine_count <= MAX_CLAIM_MACHINES,
+            TaxiError::InvalidClaimBatch
+        );
+        let machine_count = usize::from(machine_count);
+        let reward_offset = machine_count
+            .checked_mul(2)
+            .ok_or(TaxiError::MathOverflow)?;
+        require!(
+            ctx.remaining_accounts.len() == reward_offset + ASSET_COUNT * 4,
+            TaxiError::InvalidClaimAccounts
+        );
+
+        for first in 0..machine_count {
+            for second in (first + 1)..machine_count {
+                require_keys_neq!(
+                    ctx.remaining_accounts[first * 2].key(),
+                    ctx.remaining_accounts[second * 2].key(),
+                    TaxiError::InvalidClaimBatch
+                );
+            }
+        }
+
+        let mut totals = [0_u64; ASSET_COUNT];
+        for machine_index in 0..machine_count {
+            let machine_info = &ctx.remaining_accounts[machine_index * 2];
+            let asset_info = &ctx.remaining_accounts[machine_index * 2 + 1];
+            require!(machine_info.is_writable, TaxiError::MachineAccountNotWritable);
+            let mut machine = Account::<Machine>::try_from(machine_info)?;
+            require!(!machine.closed, TaxiError::MachineClosed);
+            require_keys_eq!(machine.asset, asset_info.key(), TaxiError::InvalidMachineEvent);
+            let expected_machine = Pubkey::find_program_address(
+                &[b"machine", machine.asset.as_ref()],
+                ctx.program_id,
+            )
+            .0;
+            require_keys_eq!(
+                expected_machine,
+                machine_info.key(),
+                TaxiError::InvalidMachineEvent
+            );
+            metaplex_core::assert_asset(
+                asset_info,
+                &ctx.accounts.owner.key(),
+                &ctx.accounts.config.collection,
+            )?;
+            machine.settle(&ctx.accounts.pool, true)?;
+            let amounts = machine.claimable;
+            for (index, amount) in amounts.into_iter().enumerate() {
+                totals[index] = totals[index]
+                    .checked_add(amount)
+                    .ok_or(TaxiError::MathOverflow)?;
+                machine.claimable[index] = 0;
+            }
+            machine.exit(ctx.program_id)?;
+            emit!(RewardsClaimed {
+                asset: asset_info.key(),
+                owner: ctx.accounts.owner.key(),
+                amounts
+            });
+        }
+
+        let config_info = ctx.accounts.config.to_account_info();
+        let bump = [ctx.accounts.config.bump];
+        let signer_seeds: &[&[u8]] = &[b"config", &bump];
+        for (index, amount) in totals.into_iter().enumerate() {
+            let offset = reward_offset + index * 4;
+            let mint_info = &ctx.remaining_accounts[offset];
+            let vault_info = &ctx.remaining_accounts[offset + 1];
+            let destination_info = &ctx.remaining_accounts[offset + 2];
+            let token_program_info = &ctx.remaining_accounts[offset + 3];
+            require_keys_eq!(
+                ctx.accounts.config.asset_mint(index)?,
+                mint_info.key(),
+                TaxiError::InvalidRewardMint
+            );
+            token::assert_program(token_program_info)?;
+            let mint = token::mint_view(mint_info, token_program_info.key)?;
+            let vault = token::account_view(vault_info, token_program_info.key)?;
+            require_keys_eq!(vault.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
+            require_keys_eq!(
+                vault.owner,
+                ctx.accounts.config.key(),
+                TaxiError::InvalidTokenAccount
+            );
+            if amount > 0 {
+                let destination = token::account_view(destination_info, token_program_info.key)?;
+                require_keys_eq!(
+                    destination.mint,
+                    mint_info.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                require_keys_eq!(
+                    destination.owner,
+                    ctx.accounts.owner.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                token::transfer_checked(
+                    token::TransferCheckedAccounts {
+                        program: token_program_info,
+                        source: vault_info,
+                        mint: mint_info,
+                        destination: destination_info,
+                        authority: &config_info,
+                    },
+                    amount,
+                    mint.decimals,
+                    &[signer_seeds],
+                )?;
+            }
+            ctx.accounts.pool.obligations[index] = ctx.accounts.pool.obligations[index]
+                .checked_sub(amount)
+                .ok_or(TaxiError::MathOverflow)?;
+        }
+        Ok(())
+    }
+
     pub fn calculate_rewards<'info>(
         ctx: Context<'_, '_, 'info, 'info, CalculateRewards<'info>>,
         limit: u8,
@@ -1936,6 +2058,16 @@ pub struct Claim<'info> {
     /// CHECK: Core owner, asset owner and collection are validated by metaplex_core::assert_asset.
     #[account(address = machine.asset)]
     pub asset: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimMany<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
 }
 
 fn verify_swap_plan_signature(

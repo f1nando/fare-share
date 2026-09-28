@@ -3,6 +3,7 @@ import {
   address,
   appendTransactionMessageInstructions,
   compileTransaction,
+  compressTransactionMessageUsingAddressLookupTables,
   createNoopSigner,
   createTransactionMessage,
   generateKeyPairSigner,
@@ -17,6 +18,7 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
   findAssociatedTokenPda,
   getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token';
@@ -25,12 +27,13 @@ export const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 export const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 export const ED25519_PROGRAM = address('Ed25519SigVerify111111111111111111111111111');
 export const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
-export const MAX_CLAIM_MACHINES_PER_TRANSACTION = 3;
+export const MAX_CLAIM_MACHINES_PER_TRANSACTION = 10;
 export const MAX_REPAIR_MACHINES_PER_TRANSACTION = 8;
 
 export const TAXI_DISCRIMINATORS = Object.freeze({
   mintMachine: Uint8Array.from([163, 170, 168, 54, 183, 79, 113, 45]),
   claim: Uint8Array.from([62, 198, 214, 193, 213, 159, 108, 210]),
+  claimMany: Uint8Array.from([239, 76, 176, 190, 112, 53, 176, 100]),
   repair: Uint8Array.from([97, 230, 48, 23, 128, 133, 201, 192]),
   activateTrainee: Uint8Array.from([192, 95, 221, 239, 185, 89, 60, 75]),
   claimTrainee: Uint8Array.from([65, 255, 2, 105, 62, 175, 216, 215]),
@@ -344,24 +347,76 @@ export async function buildClaimAllInstructions({ machines, destinationAccountsE
   if (machines.length > MAX_CLAIM_MACHINES_PER_TRANSACTION) {
     throw new Error(`Claim supports at most ${MAX_CLAIM_MACHINES_PER_TRANSACTION} cars per transaction.`);
   }
-  const destinationsReady = Array.from({ length: shared.mints.length }, (_, index) => (
-    Boolean(destinationAccountsExist[index])
-  ));
-  const instructions = [];
-  for (const machine of machines) {
-    const built = await buildClaimInstructions({
-      ...shared,
-      machine: machine.machineAddress,
-      asset: machine.asset,
-      amounts: machine.rewards,
-      destinationAccountsExist: destinationsReady,
-    });
-    instructions.push(...built);
-    machine.rewards.forEach((amount, index) => {
-      if (BigInt(amount) > 0n) destinationsReady[index] = true;
-    });
+  if (new Set(machines.map(machine => String(machine.machineAddress))).size !== machines.length) {
+    throw new Error('Each car can appear only once in a claim transaction.');
   }
-  return instructions;
+  const payer = createNoopSigner(address(shared.owner));
+  const setup = [];
+  const rewardAccounts = [];
+  for (let index = 0; index < shared.mints.length; index += 1) {
+    const mint = address(shared.mints[index]);
+    const tokenProgram = address(shared.tokenPrograms[index]);
+    const [vault] = await findAssociatedTokenPda({ owner: shared.configAddress, mint, tokenProgram });
+    const [destination] = await findAssociatedTokenPda({ owner: shared.owner, mint, tokenProgram });
+    if (!destinationAccountsExist[index]) {
+      setup.push(getCreateAssociatedTokenIdempotentInstruction({
+        payer,
+        ata: destination,
+        owner: shared.owner,
+        mint,
+        tokenProgram,
+      }));
+    }
+    rewardAccounts.push(
+      meta(mint, AccountRole.READONLY),
+      meta(vault, AccountRole.WRITABLE),
+      meta(destination, AccountRole.WRITABLE),
+      meta(tokenProgram, AccountRole.READONLY),
+    );
+  }
+  return [
+    ...setup,
+    {
+      programAddress: shared.programAddress,
+      accounts: [
+        meta(shared.owner, AccountRole.WRITABLE_SIGNER),
+        meta(shared.configAddress, AccountRole.READONLY),
+        meta(shared.pool, AccountRole.WRITABLE),
+        ...machines.flatMap(machine => [
+          meta(machine.machineAddress, AccountRole.WRITABLE),
+          meta(machine.asset, AccountRole.READONLY),
+        ]),
+        ...rewardAccounts,
+      ],
+      data: concatBytes(TAXI_DISCRIMINATORS.claimMany, Uint8Array.of(machines.length)),
+    },
+  ];
+}
+
+export function decodeAddressLookupTable(bytes) {
+  if (bytes.length < 56 || (bytes.length - 56) % 32 !== 0) throw new Error('Invalid address lookup table account.');
+  const addresses = [];
+  for (let offset = 56; offset < bytes.length; offset += 32) {
+    addresses.push(addressDecoder.decode(bytes.subarray(offset, offset + 32)));
+  }
+  return addresses;
+}
+
+export async function claimLookupTableAddresses({ programAddress, configAddress, pool, mints, tokenPrograms }) {
+  const values = [
+    programAddress,
+    configAddress,
+    pool,
+    SYSTEM_PROGRAM,
+    ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
+  ];
+  for (let index = 0; index < mints.length; index += 1) {
+    const mint = address(mints[index]);
+    const tokenProgram = address(tokenPrograms[index]);
+    const [vault] = await findAssociatedTokenPda({ owner: configAddress, mint, tokenProgram });
+    values.push(mint, vault, tokenProgram);
+  }
+  return [...new Set(values.map(String))].map(address);
 }
 
 export function buildTransferCoreAssetInstruction({ owner, asset, collection, newOwner }) {
@@ -569,7 +624,7 @@ export async function buildClaimTraineeInstructions({
   ];
 }
 
-export async function sendWalletInstructions({ rpc, wallet, account, chain, instructions, additionalSigners = [] }) {
+export async function sendWalletInstructions({ rpc, wallet, account, chain, instructions, additionalSigners = [], lookupTables = {} }) {
   const feature = wallet.features['solana:signAndSendTransaction'];
   if (!feature) throw new Error('Phantom does not support transaction signing through Wallet Standard.');
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
@@ -578,6 +633,7 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
     transaction => setTransactionMessageFeePayer(address(account.address), transaction),
     transaction => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, transaction),
     transaction => appendTransactionMessageInstructions(instructions, transaction),
+    transaction => compressTransactionMessageUsingAddressLookupTables(transaction, lookupTables),
   );
   let transaction = compileTransaction(message);
   if (additionalSigners.length) {

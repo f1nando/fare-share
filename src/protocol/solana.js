@@ -17,6 +17,7 @@ import {
   buildTransferCoreAssetInstruction,
   chooseEventPage,
   decodeConfiguration,
+  decodeAddressLookupTable,
   decodeEventQueue,
   decodeMachine,
   decodeRewardPool,
@@ -24,8 +25,8 @@ import {
   decodeTraineeBucket,
   deriveTraineeAddresses,
   deriveTaxiAddresses,
-  MAX_CLAIM_MACHINES_PER_TRANSACTION,
-  MAX_REPAIR_MACHINES_PER_TRANSACTION,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION as MAX_REPAIR_MACHINES_ONCHAIN,
   sendWalletInstructions,
 } from './anchorClient.js';
 import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } from './requestLimits.js';
@@ -46,8 +47,11 @@ const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 const XSTOCKS_API_URL = 'https://api.xstocks.fi/api/v2/public/assets';
+const LOOKUP_TABLE_ADDRESS = env.VITE_TAXI_LOOKUP_TABLE ? address(env.VITE_TAXI_LOOKUP_TABLE) : null;
+let lookupTablePromise;
 
-export { MAX_CLAIM_MACHINES_PER_TRANSACTION, MAX_REPAIR_MACHINES_PER_TRANSACTION };
+export const MAX_CLAIM_MACHINES_PER_TRANSACTION = LOOKUP_TABLE_ADDRESS ? MAX_CLAIM_MACHINES_ONCHAIN : 4;
+export const MAX_REPAIR_MACHINES_PER_TRANSACTION = MAX_REPAIR_MACHINES_ONCHAIN;
 
 export function resolveSolanaChain(configuredChain, rpcUrl) {
   if (configuredChain === 'solana:devnet' || configuredChain === 'solana:mainnet') return configuredChain;
@@ -441,12 +445,14 @@ export async function claimAllMachines(connection, machines, knownStatus) {
     tokenPrograms,
     destinationAccountsExist: destinationAccounts.value.map(Boolean),
   });
+  const lookupTables = await loadProtocolLookupTable();
   return sendWalletInstructions({
     rpc,
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
     instructions,
+    lookupTables,
   });
 }
 
@@ -527,6 +533,18 @@ export async function repairAllMachines(connection, machines, knownStatus) {
     chain: SOLANA_CHAIN,
     instructions,
   });
+}
+
+async function loadProtocolLookupTable() {
+  if (!LOOKUP_TABLE_ADDRESS) return {};
+  lookupTablePromise ||= rpc.getAccountInfo(LOOKUP_TABLE_ADDRESS, {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send().then(response => {
+    if (!response.value) throw new Error('The configured claim lookup table does not exist.');
+    return { [LOOKUP_TABLE_ADDRESS]: decodeAddressLookupTable(accountBytes(response.value)) };
+  });
+  return lookupTablePromise;
 }
 
 export async function connectWallet() {

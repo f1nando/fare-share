@@ -80,6 +80,8 @@ pub enum TaxiError {
     EventPageCapacity,
     #[msg("Claim requires five mint/vault/destination/token-program groups")]
     InvalidClaimAccounts,
+    #[msg("Claim batch must contain between one and ten unique machines")]
+    InvalidClaimBatch,
     #[msg("Unsupported or mismatched SPL Token Program")]
     InvalidTokenProgram,
     #[msg("Token account mint or authority is invalid")]

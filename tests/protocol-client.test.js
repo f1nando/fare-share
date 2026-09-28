@@ -5,6 +5,7 @@ import {
   address,
   appendTransactionMessageInstructions,
   compileTransaction,
+  compressTransactionMessageUsingAddressLookupTables,
   createTransactionMessage,
   generateKeyPairSigner,
   getTransactionEncoder,
@@ -23,6 +24,8 @@ import {
   formatSolAmount,
   loadDASAssets,
   loadMultipleAccounts,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION,
   networkName,
   protocolAddresses,
   resolveSolanaChain,
@@ -33,14 +36,14 @@ import {
   buildActivateTraineeInstructions,
   buildClaimAllInstructions,
   buildClaimInstructions,
+  claimLookupTableAddresses,
   buildRepairAllInstructions,
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeEventQueue,
-  MAX_CLAIM_MACHINES_PER_TRANSACTION,
-  MAX_REPAIR_MACHINES_PER_TRANSACTION,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
   waitForFinalizedSignature,
 } from '../src/protocol/anchorClient.js';
@@ -80,6 +83,7 @@ test('every wallet instruction uses the current Anchor discriminator', () => {
   const names = {
     mintMachine: 'mint_machine',
     claim: 'claim',
+    claimMany: 'claim_many',
     repair: 'repair',
     activateTrainee: 'activate_trainee',
     claimTrainee: 'claim_trainee',
@@ -283,11 +287,11 @@ test('claim skips redundant token account creation when destinations already exi
   assert.deepEqual([...instructions[0].data], [...TAXI_DISCRIMINATORS.claim]);
 });
 
-test('claim batch reuses token account setup and fits three cars in one transaction', async () => {
-  const signers = await Promise.all(Array.from({ length: 14 }, () => generateKeyPairSigner()));
+test('claim batch aggregates transfers and fits four cars without a lookup table', async () => {
+  const signers = await Promise.all(Array.from({ length: 16 }, () => generateKeyPairSigner()));
   const [owner, config, pool, ...rest] = signers.map(signer => signer.address);
   const mints = rest.slice(0, 5);
-  const [machineA, assetA, machineB, assetB, machineC, assetC] = rest.slice(5);
+  const [machineA, assetA, machineB, assetB, machineC, assetC, machineD, assetD] = rest.slice(5);
   const instructions = await buildClaimAllInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -299,13 +303,14 @@ test('claim batch reuses token account setup and fits three cars in one transact
       { machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) },
       { machineAddress: machineB, asset: assetB, rewards: Array(5).fill(1n) },
       { machineAddress: machineC, asset: assetC, rewards: Array(5).fill(1n) },
+      { machineAddress: machineD, asset: assetD, rewards: Array(5).fill(1n) },
     ],
   });
-  assert.equal(MAX_CLAIM_MACHINES_PER_TRANSACTION, 3);
-  assert.equal(instructions.length, 8, 'five ATA creates plus three claims');
-  assert.equal(instructions.filter(instruction => (
-    Buffer.from(instruction.data || []).equals(Buffer.from(TAXI_DISCRIMINATORS.claim))
-  )).length, 3);
+  assert.equal(MAX_CLAIM_MACHINES_PER_TRANSACTION, 4);
+  assert.equal(MAX_CLAIM_MACHINES_ONCHAIN, 10);
+  assert.equal(instructions.length, 6, 'five ATA creates plus one aggregated claim');
+  assert.deepEqual([...instructions.at(-1).data.slice(0, 8)], [...TAXI_DISCRIMINATORS.claimMany]);
+  assert.equal(instructions.at(-1).data[8], 4);
   const message = pipe(
     createTransactionMessage({ version: 0 }),
     transaction => setTransactionMessageFeePayer(owner, transaction),
@@ -316,7 +321,7 @@ test('claim batch reuses token account setup and fits three cars in one transact
     transaction => appendTransactionMessageInstructions(instructions, transaction),
   );
   const bytes = getTransactionEncoder().encode(compileTransaction(message));
-  assert.ok(bytes.length <= 1232, `three-car claim transaction is ${bytes.length} bytes`);
+  assert.ok(bytes.length <= 1232, `four-car claim transaction is ${bytes.length} bytes`);
   await assert.rejects(() => buildClaimAllInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -324,8 +329,60 @@ test('claim batch reuses token account setup and fits three cars in one transact
     pool,
     mints,
     tokenPrograms: Array(5).fill(TOKEN_PROGRAM),
-    machines: Array(4).fill({ machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) }),
-  }), /at most 3 cars/);
+    machines: Array(11).fill({ machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) }),
+  }), /at most 10 cars/);
+  await assert.rejects(() => buildClaimAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    mints,
+    tokenPrograms: Array(5).fill(TOKEN_PROGRAM),
+    machines: Array(2).fill({ machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) }),
+  }), /only once/);
+});
+
+test('claim batch fits ten cars with the configured protocol lookup table', async () => {
+  const signers = await Promise.all(Array.from({ length: 29 }, () => generateKeyPairSigner()));
+  const [owner, config, pool, lookupTable, ...rest] = signers.map(signer => signer.address);
+  const mints = rest.slice(0, 5);
+  const machineAccounts = rest.slice(5);
+  const tokenPrograms = [TOKEN_PROGRAM, ...Array(4).fill(TOKEN_2022_PROGRAM)];
+  const machines = Array.from({ length: 10 }, (_, index) => ({
+    machineAddress: machineAccounts[index * 2],
+    asset: machineAccounts[index * 2 + 1],
+    rewards: Array(5).fill(1n),
+  }));
+  const instructions = await buildClaimAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    mints,
+    tokenPrograms,
+    machines,
+  });
+  const lookupAddresses = await claimLookupTableAddresses({
+    programAddress: PROGRAM_ID,
+    configAddress: config,
+    pool,
+    mints,
+    tokenPrograms,
+  });
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(instructions, transaction),
+    transaction => compressTransactionMessageUsingAddressLookupTables(transaction, {
+      [lookupTable]: lookupAddresses,
+    }),
+  );
+  const bytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(bytes.length <= 1232, `ten-car lookup-table claim is ${bytes.length} bytes`);
 });
 
 test('Core transfer keeps the asset account and changes only its owner', async () => {
