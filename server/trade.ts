@@ -72,10 +72,43 @@ interface CachedQuote {
   side: 'buy' | 'sell';
 }
 
+export interface TradeCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export class TradeError extends Error {
   constructor(message: string, readonly status = 400) {
     super(message);
   }
+}
+
+export function fillTradeCandles(buckets: Map<number, TradeCandle>, seconds: number, end: number) {
+  const firstTime = buckets.keys().next().value as number | undefined;
+  if (firstTime === undefined) return [];
+  const candles: TradeCandle[] = [];
+  let previousClose: number | undefined;
+  for (let time = firstTime; time <= end; time += seconds) {
+    const observed = buckets.get(time);
+    if (observed) {
+      const open = previousClose ?? observed.open;
+      const candle = {
+        ...observed,
+        open,
+        high: Math.max(observed.high, open),
+        low: Math.min(observed.low, open),
+      };
+      candles.push(candle);
+      previousClose = candle.close;
+    } else if (previousClose !== undefined) {
+      candles.push({ time, open: previousClose, high: previousClose, low: previousClose, close: previousClose, volume: 0 });
+    }
+  }
+  return candles;
 }
 
 export class TradeService {
@@ -235,7 +268,7 @@ export class TradeService {
     const accepted = trades.filter(trade => trade.priceSol >= lowerPrice && trade.priceSol <= upperPrice);
     const supply = Number(this.state.supplyRaw || '0') / 10 ** this.state.decimals;
     const marketCapMultiplier = supply > 0 && this.state.solUsd ? supply * this.state.solUsd : 1;
-    const buckets = new Map<number, { time: number; open: number; high: number; low: number; close: number; volume: number }>();
+    const buckets = new Map<number, TradeCandle>();
     for (const trade of accepted) {
       const time = Math.floor(trade.blockTime.getTime() / 1_000 / seconds) * seconds;
       const price = trade.priceSol * marketCapMultiplier;
@@ -250,18 +283,8 @@ export class TradeService {
         buckets.set(time, { time, open: price, high: price, low: price, close: price, volume });
       }
     }
-    const observed = [...buckets.values()];
-    const candles: typeof observed = [];
-    if (observed.length) {
-      let previous = observed[0];
-      const end = Math.floor(Date.now() / 1_000 / seconds) * seconds;
-      for (let time = previous.time; time <= end; time += seconds) {
-        const candle = buckets.get(time);
-        if (candle) previous = candle;
-        else previous = { time, open: previous.close, high: previous.close, low: previous.close, close: previous.close, volume: 0 };
-        candles.push(previous);
-      }
-    }
+    const end = Math.floor(Date.now() / 1_000 / seconds) * seconds;
+    const candles = fillTradeCandles(buckets, seconds, end);
     return { interval, unit: marketCapMultiplier === 1 ? 'priceSol' : 'marketCapUsd', candles: candles.slice(-limit) };
   }
 

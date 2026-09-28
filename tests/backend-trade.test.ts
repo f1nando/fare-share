@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseTradeTransaction } from '../server/trade.js';
+import { fillTradeCandles, parseTradeTransaction } from '../server/trade.js';
 
 const MINT = 'HcRLc9VDgjLeK154xDawfb1dmVJ98DoSqcwTHGqiDeJR';
 const WALLET = '11111111111111111111111111111111';
@@ -42,6 +42,14 @@ test('trade parser ignores ordinary token transfers and rent changes', () => {
   });
   value.meta.logMessages = ['Program log: Instruction: TransferChecked'];
   assert.equal(parseTradeTransaction(value, MINT, 6), null);
+});
+
+test('a single trade opens its candle at the previous close', () => {
+  const candles = fillTradeCandles(new Map([
+    [0, { time: 0, open: 100, high: 100, low: 100, close: 100, volume: 1 }],
+    [300, { time: 300, open: 110, high: 110, low: 110, close: 110, volume: 2 }],
+  ]), 300, 300);
+  assert.deepEqual(candles[1], { time: 300, open: 100, high: 110, low: 100, close: 110, volume: 2 });
 });
 
 function transaction(input: { preLamports: number; postLamports: number; preTokens: string; postTokens: string }) {
