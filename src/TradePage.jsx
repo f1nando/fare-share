@@ -97,7 +97,7 @@ function TradingViewChart() {
     };
   }, []);
 
-  return <div className="tradingview-widget-container" ref={widgetRef} aria-label="Live SOL to USD chart" />;
+  return <div className="tradingview-widget-shell"><div className="tradingview-widget-container" ref={widgetRef} aria-label="Live SOL to USD chart" /></div>;
 }
 
 function SwapIcon() {

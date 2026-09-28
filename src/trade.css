@@ -35,7 +35,8 @@ body { color: #111; background: #fff; }
 .trade-chart-heading strong { display: block; font-size: 52px; line-height: .9; letter-spacing: -.055em; }
 .trade-chart-heading p { margin: 0; color: #aaa; font-size: 12px; font-weight: 600; line-height: 1.4; text-align: right; }
 .trade-chart-heading p b { color: #fff; font-size: 14px; }
-.tradingview-widget-container { flex: 1; min-height: 400px; }
+.tradingview-widget-shell { position: relative; flex: 1; min-height: 400px; overflow: hidden; }
+.tradingview-widget-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; zoom: 1.212121; }
 .tradingview-widget-container iframe { display: block; width: 100% !important; height: 100% !important; }
 
 .trade-swap { display: flex; min-height: 560px; flex-direction: column; padding: 24px; background: #fff; }
@@ -91,7 +92,8 @@ body { color: #111; background: #fff; }
   .trade-chart-heading { min-height: 118px; padding: 22px 18px 14px; }
   .trade-chart-heading strong { font-size: 38px; }
   .trade-chart-heading p { font-size: 10px; }
-  .tradingview-widget-container { min-height: 315px; }
+  .tradingview-widget-shell { min-height: 315px; }
+  .tradingview-widget-container { width: 100%; height: 100%; zoom: 1; }
   .trade-amount-box { min-height: 84px; margin-top: 14px; padding: 30px 16px 12px; border-radius: 16px; box-shadow: 3px 4px 0 #111; }
   .trade-amount-box span { top: 11px; left: 16px; font-size: 8px; }
   .trade-amount-box strong { font-size: 26px; }
