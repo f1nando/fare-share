@@ -195,7 +195,7 @@ export function TradePage() {
       <FareHeader linkPrefix="/" activeItem="trade" />
       <main>
         <section className="trade-intro container">
-          <div><span>$SOL TOKEN</span><h1>TRADE</h1></div>
+          <h1>TRADE</h1>
         </section>
 
         <section className="trade-workspace container">
