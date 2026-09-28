@@ -289,7 +289,7 @@ export class TradeService {
     this.syncingState = true;
     try {
       const [metadata, supply, bondingCurve, solUsd] = await Promise.all([
-        this.rpc('getAsset', [{ id: String(this.mint), displayOptions: { showFungible: true } }]).catch(() => null),
+        this.rpc('getAsset', { id: String(this.mint), displayOptions: { showFungible: true } }).catch(() => null),
         this.rpc('getTokenSupply', [String(this.mint), { commitment: 'confirmed' }]),
         derivePumpBondingCurve(this.mint),
         this.loadSolUsd().catch(() => this.state.solUsd),
@@ -345,7 +345,7 @@ export class TradeService {
       let cursor: string | undefined;
       let indexedSlot = 0;
       do {
-        const result = asRecord(await this.rpc('getTokenAccounts', [{ mint: String(this.mint), limit: 1_000, ...(cursor ? { cursor } : {}) }]));
+        const result = asRecord(await this.rpc('getTokenAccounts', { mint: String(this.mint), limit: 1_000, ...(cursor ? { cursor } : {}) }));
         indexedSlot = Number(result.last_indexed_slot || indexedSlot);
         const page = Array.isArray(result.token_accounts) ? result.token_accounts.map(asRecord) : [];
         accounts.push(...page);
@@ -541,7 +541,7 @@ export class TradeService {
     };
   }
 
-  private async rpc(method: string, params: unknown[]) {
+  private async rpc(method: string, params: unknown) {
     const queue = method === 'getTokenAccounts' || method === 'getAsset' ? requestQueues.solanaDas : requestQueues.solanaRpc;
     return runRateLimitedAttempts({
       queue,
