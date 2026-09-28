@@ -185,8 +185,11 @@ export function TradePage() {
         <section className="trade-workspace container">
           <article className="trade-chart-card">
             <div className="trade-chart-heading">
-              <div><span>SOL / USD</span><strong>$118.45</strong><small>↗ 3.38% · 24H</small></div>
-              <p>24H volume<br /><b>$3.62M</b></p>
+              <div className="trade-chart-symbol"><span>SOL / USD</span><small>↗ 3.38% · 24H</small></div>
+              <div className="trade-chart-price-row">
+                <strong>$118.45</strong>
+                <p>24H volume<br /><b>$3.62M</b></p>
+              </div>
             </div>
             <TradingViewChart />
           </article>
