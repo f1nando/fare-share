@@ -196,7 +196,6 @@ export function TradePage() {
       <main>
         <section className="trade-intro container">
           <div><span>$SOL TOKEN</span><h1>TRADE</h1></div>
-          <p>Trade Solana with a live market chart.<br />Track price action and swap tokens in one place.</p>
         </section>
 
         <section className="trade-workspace container">
