@@ -77,40 +77,47 @@ export function MarketPage({ wallet, connectWallet }) {
           <p>Find your next taxi. Every car is ready to join your fleet.</p>
         </header>
 
-        <div className="fare-market-summary" aria-label="Marketplace summary">
-          <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
-          <div><strong>0.76 SOL</strong><span>FLOOR PRICE</span></div>
-          <div><strong>41.2 SOL</strong><span>TOTAL VOLUME</span></div>
-        </div>
+        <div className="fare-market-console">
+          <div className="fare-market-console-top">
+            <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE MARKET</span></div>
+            <div className="fare-market-summary" aria-label="Marketplace summary">
+              <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
+              <div><strong>0.76 <small>SOL</small></strong><span>FLOOR PRICE</span></div>
+              <div><strong>41.2 <small>SOL</small></strong><span>TOTAL VOLUME</span></div>
+            </div>
+          </div>
 
-        <div className="fare-market-toolbar">
-          <label className="fare-market-search">
-            <span className="sr-only">Search cars</span>
-            <SearchIcon />
-            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by model or NFT #" type="search" />
-          </label>
+          <div className="fare-market-toolbar">
+            <label className="fare-market-search">
+              <span>FIND YOUR TAXI</span>
+              <SearchIcon />
+              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Model name or NFT #" type="search" />
+            </label>
 
-          <label className="fare-market-select">
-            <span>CLASS</span>
-            <select value={vehicleClass} onChange={event => setVehicleClass(event.target.value)}>
-              <option value="all">All classes</option>
-              <option value="economy">Economy</option>
-              <option value="comfort">Comfort</option>
-              <option value="business">Business</option>
-              <option value="legend">Legend</option>
-            </select>
-          </label>
+            <fieldset className="fare-market-classes">
+              <legend>CHOOSE CLASS</legend>
+              {[
+                ['all', 'All'],
+                ['economy', 'Economy'],
+                ['comfort', 'Comfort'],
+                ['business', 'Business'],
+                ['legend', 'Legend'],
+              ].map(([value, label]) => (
+                <button className={vehicleClass === value ? 'is-active' : ''} type="button" aria-pressed={vehicleClass === value} onClick={() => setVehicleClass(value)} key={value}>{label}</button>
+              ))}
+            </fieldset>
 
-          <label className="fare-market-select">
-            <span>SORT BY</span>
-            <select value={sort} onChange={event => setSort(event.target.value)}>
-              <option value="featured">Featured</option>
-              <option value="newest">Newest</option>
-              <option value="price-low">Price: low to high</option>
-              <option value="price-high">Price: high to low</option>
-              <option value="name">Name: A–Z</option>
-            </select>
-          </label>
+            <label className="fare-market-select">
+              <span>SORT CARS</span>
+              <select value={sort} onChange={event => setSort(event.target.value)}>
+                <option value="featured">Featured first</option>
+                <option value="newest">Newest first</option>
+                <option value="price-low">Price: low to high</option>
+                <option value="price-high">Price: high to low</option>
+                <option value="name">Name: A–Z</option>
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className="fare-market-results">
