@@ -567,12 +567,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-treasury-heading { grid-template-columns: 1fr; }
   .fare-stat-grid { grid-template-columns: 1fr; }
   .fare-treasury .fare-leaderboard { border-radius: 22px; box-shadow: 5px 6px 0 #111; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { gap: 16px 12px; min-height: 128px; padding: 16px 18px; font-size: 16px; line-height: 20px; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { margin-bottom: 5px; font-size: 9px; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1),
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { font-size: 18px; font-weight: 800; }
-  .fare-treasury .fare-driver-cell { gap: 6px 9px; overflow-wrap: anywhere; }
-  .fare-treasury .fare-driver-cell img { width: 38px; height: 38px; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { grid-template: 'rank earnings' auto 'driver earnings' auto 'cars earnings' auto / minmax(0, 1fr) auto; gap: 6px 18px; min-height: 112px; padding: 16px 18px; font-size: 15px; line-height: 19px; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { display: none; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1) { font-size: 17px; font-weight: 900; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3) { justify-self: start; color: #666; font-size: 13px; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { justify-self: end; font-size: 19px; font-weight: 900; white-space: nowrap; }
+  .fare-treasury .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
+  .fare-treasury .fare-driver-cell img { display: none; }
   .fare-fleet { height: 760px; padding: 96px 0 0; }
   .fare-fleet-card-wall { --wall-gap: 10px; --wall-half-gap: 5px; inset: -100px -56px; opacity: .9; }
   .fare-fleet-wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
