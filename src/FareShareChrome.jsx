@@ -135,10 +135,10 @@ export function FareFooter({ linkPrefix = '' }) {
         <nav className="fare-footer-column" aria-label="Footer navigation">
           <h2>NAVIGATION</h2>
           <a href={`${linkPrefix}#top`}>Home</a>
-          <a href={`${linkPrefix}#taxis`}>Fleet</a>
+          <a href="/mint/">Mint</a>
           <a href="/garage/">Garage</a>
           <a href="/market/">Market</a>
-          <a href={`${linkPrefix}#shift`}>Shift</a>
+          <a href="/leaderboard/">Leaderboard</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Resources">
           <h2>RESOURCES</h2>
