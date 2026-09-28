@@ -67,6 +67,8 @@ body { color: #111; background: #fff; }
 .trade-leaderboard-header { min-height: 58px; color: #fff; background: #111 !important; font-size: 14px; font-weight: 700; }
 .trade-wallet-cell { display: flex; min-width: 0; align-items: center; gap: 18px; font-weight: 700; }
 .trade-wallet-cell.is-address { gap: 0; }
+.trade-wallet-link { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.trade-wallet-link:hover { color: #8b7200; }
 .trade-solscan-link { width: fit-content; padding: 8px 13px; border: 2px solid #111; border-radius: 999px; color: #111; background: #fff; font-size: 12px; font-weight: 900; text-decoration: none; transition: color .15s ease, background-color .15s ease; }
 .trade-solscan-link:hover { background: #ffe11a; }
 .trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { display: inline-flex; width: fit-content; min-width: 68px; min-height: 32px; align-items: center; justify-content: center; border: 2px solid #111; border-radius: 999px; font-size: 12px; font-weight: 900; }

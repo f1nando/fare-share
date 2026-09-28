@@ -177,7 +177,9 @@ function MarketTables() {
         {rows.map((row, index) => (
           <div className="trade-leaderboard-row" role="row" key={`${tab}-${row[0]}-${index}`}>
             <span data-label="#" role="cell">{index + 1}</span>
-            <span className="trade-wallet-cell is-address" data-label={headers[1]} role="cell">{row[0]}</span>
+            <span className="trade-wallet-cell is-address" data-label={headers[1]} role="cell">
+              <a className="trade-wallet-link" href={`https://solscan.io/account/${encodeURIComponent(row[0])}`} target="_blank" rel="noreferrer">{row[0]}</a>
+            </span>
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row[1].toLowerCase()}`}>{row[1]}</span>
               <span data-label={headers[3]} role="cell">{row[2]} · {row[3]}</span>
