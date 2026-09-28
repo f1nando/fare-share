@@ -463,6 +463,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-how { height: auto; padding-bottom: 90px; }
   .fare-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-step-card:nth-child(3) { grid-column: 1 / -1; justify-self: center; width: calc((100% - 24px) / 2); }
+  .fare-step-card:nth-child(3) .fare-collect-wallet { width: min(82%, 360px); }
 }
 
 @media (max-width: 1500px) {
