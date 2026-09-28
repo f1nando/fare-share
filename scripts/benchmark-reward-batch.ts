@@ -22,6 +22,7 @@ import {
   type Address,
   type Instruction,
 } from '@solana/kit';
+import { requestQueues } from '../server/requestLimits.js';
 
 const PROGRAM_ID = address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
@@ -108,7 +109,9 @@ async function simulate(manifestPath: string) {
   const signer = await createKeyPairSignerFromBytes(Uint8Array.from(manifest.payerSecret));
   const rpcUrl = process.env.SOLANA_RPC_URL || 'http://127.0.0.1:8899';
   const rpc = createSolanaRpc(rpcUrl);
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'processed' }).send();
+  const { value: latestBlockhash } = await requestQueues.solanaRpc.schedule(
+    () => rpc.getLatestBlockhash({ commitment: 'processed' }).send(),
+  );
   const computeInstruction: Instruction = {
     programAddress: COMPUTE_BUDGET_PROGRAM,
     accounts: [],
@@ -150,9 +153,10 @@ async function simulate(manifestPath: string) {
   const compiled = compileTransaction(message);
   const signed = await partiallySignTransaction([signer.keyPair], compiled);
   const wire = getTransactionEncoder().encode(signed);
-  const result = await rpc.simulateTransaction(getBase64EncodedWireTransaction(signed), {
-    commitment: 'processed', encoding: 'base64', sigVerify: true,
-  }).send();
+  const result = await requestQueues.solanaRpc.schedule(() => rpc.simulateTransaction(
+    getBase64EncodedWireTransaction(signed),
+    { commitment: 'processed', encoding: 'base64', sigVerify: true },
+  ).send());
   console.log(JSON.stringify({
     kind: manifest.kind,
     count: manifest.count,

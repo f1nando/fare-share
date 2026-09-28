@@ -1,9 +1,9 @@
 import {
   appendTransactionMessageInstructions,
+  blockhash,
   compressTransactionMessageUsingAddressLookupTables,
   compileTransaction,
   createKeyPairSignerFromBytes,
-  createSolanaRpc,
   createTransactionMessage,
   getBase64EncodedWireTransaction,
   partiallySignTransaction,
@@ -14,6 +14,7 @@ import {
   type KeyPairSigner,
   type AddressesByLookupTableAddress,
 } from '@solana/kit';
+import { solanaRpcCall, solanaSendTransactionCall } from './solanaRpc.js';
 
 export async function createWorkerSigner(secret: Uint8Array) {
   return createKeyPairSignerFromBytes(secret);
@@ -26,8 +27,13 @@ export async function sendInstructions(
   additionalSigners: KeyPairSigner[] = [],
   lookupTables: AddressesByLookupTableAddress = {},
 ) {
-  const rpc = createSolanaRpc(rpcUrl);
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
+  const { value: rawLatestBlockhash } = await solanaRpcCall<{
+    value: { blockhash: string; lastValidBlockHeight: number };
+  }>(rpcUrl, 'getLatestBlockhash', [{ commitment: 'finalized' }]);
+  const latestBlockhash = {
+    blockhash: blockhash(rawLatestBlockhash.blockhash),
+    lastValidBlockHeight: BigInt(rawLatestBlockhash.lastValidBlockHeight),
+  };
   const message = pipe(
     createTransactionMessage({ version: 0 }),
     transaction => setTransactionMessageFeePayerSigner(signer, transaction),
@@ -41,19 +47,22 @@ export async function sendInstructions(
     compiled,
   );
   const encoded = getBase64EncodedWireTransaction(signed);
-  const signature = await rpc.sendTransaction(encoded, {
+  const signature = await solanaSendTransactionCall<string>(rpcUrl, [encoded, {
     encoding: 'base64',
-    maxRetries: 3n,
+    maxRetries: 3,
     preflightCommitment: 'finalized',
-  }).send();
-  await waitForFinalized(rpc, signature);
+  }]);
+  await waitForFinalized(rpcUrl, signature);
   return signature;
 }
 
-async function waitForFinalized(rpc: ReturnType<typeof createSolanaRpc>, signature: string) {
+async function waitForFinalized(rpcUrl: string, signature: string) {
   const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
-    const result = await rpc.getSignatureStatuses([signature as never], { searchTransactionHistory: true }).send();
+    const result = await solanaRpcCall<{ value: Array<{
+      err: unknown;
+      confirmationStatus?: string | null;
+    } | null> }>(rpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
     const status = result.value[0];
     if (status?.err) throw new Error(`Solana transaction ${signature} failed: ${JSON.stringify(status.err)}`);
     if (status?.confirmationStatus === 'finalized') return;

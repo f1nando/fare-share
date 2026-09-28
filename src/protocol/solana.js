@@ -1,6 +1,5 @@
 import {
   address,
-  createSolanaRpc,
   getProgramDerivedAddress,
   getUtf8Encoder,
 } from '@solana/kit';
@@ -25,6 +24,7 @@ import {
   deriveTaxiAddresses,
   sendWalletInstructions,
 } from './anchorClient.js';
+import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } from './requestLimits.js';
 
 const env = import.meta.env ?? {};
 
@@ -36,7 +36,7 @@ export const SOLANA_CHAIN = resolveSolanaChain(env.VITE_SOLANA_CHAIN, RPC_URL);
 
 const DAS_URL = env.VITE_SOLANA_DAS_URL || RPC_URL;
 const BACKEND_URL = String(env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-const rpc = createSolanaRpc(RPC_URL);
+const rpc = createRateLimitedSolanaRpc(RPC_URL);
 const utf8 = getUtf8Encoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
@@ -145,7 +145,7 @@ export async function loadProtocolStatus() {
 
 export async function loadOwnedTrainees(owner, knownStatus) {
   const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
-  const response = await fetch(RPC_URL, {
+  const response = await rateLimitedRpcFetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -329,7 +329,7 @@ async function loadStockMultipliers(chainUnixTime) {
 }
 
 async function loadFinalizedChainTime() {
-  const slotResponse = await fetch(RPC_URL, {
+  const slotResponse = await rateLimitedRpcFetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 'fare-clock-slot', method: 'getSlot', params: [{ commitment: 'finalized' }] }),
@@ -337,7 +337,7 @@ async function loadFinalizedChainTime() {
   if (!slotResponse.ok) throw new Error(`Solana RPC getSlot: HTTP ${slotResponse.status}`);
   const slotBody = await slotResponse.json();
   if (slotBody.error || !Number.isSafeInteger(slotBody.result)) throw new Error('Solana RPC did not return a finalized slot');
-  const timeResponse = await fetch(RPC_URL, {
+  const timeResponse = await rateLimitedRpcFetch(RPC_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 'fare-clock-time', method: 'getBlockTime', params: [slotBody.result] }),
@@ -505,7 +505,7 @@ export async function loadDASAssets(owner, collection, fetchImplementation = fet
     const matches = [];
     const limit = 1000;
     for (let page = 1; page <= 100; page += 1) {
-      const response = await fetchImplementation(DAS_URL, {
+      const response = await rateLimitedDasFetch(DAS_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -514,7 +514,7 @@ export async function loadDASAssets(owner, collection, fetchImplementation = fet
           method: 'getAssetsByOwner',
           params: { ownerAddress: String(owner), page, limit },
         }),
-      });
+      }, fetchImplementation);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const body = await response.json();
       if (body.error) throw new Error(body.error.message || 'DAS request failed');

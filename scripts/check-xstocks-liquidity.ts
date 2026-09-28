@@ -21,11 +21,12 @@ for (const [symbol, outputMint] of Object.entries(XSTOCKS)) {
     restrictIntermediateTokens: 'true',
   });
   try {
-    const response = await fetch(`https://lite-api.jup.ag/swap/v1/quote?${query}`, {
+    const response = await jupiterRequest(`https://lite-api.jup.ag/swap/v1/quote?${query}`, {
       headers: { accept: 'application/json' },
-      signal: AbortSignal.timeout(15_000),
+    }, {
+      requestTimeoutMs: 15_000,
+      operation: '/quote',
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${(await response.text()).slice(0, 200)}`);
     const quote = await response.json() as {
       inAmount?: string;
       outAmount?: string;
@@ -46,3 +47,4 @@ for (const [symbol, outputMint] of Object.entries(XSTOCKS)) {
 }
 
 if (failed) process.exitCode = 1;
+import { jupiterRequest } from '../server/jupiterHttp.js';

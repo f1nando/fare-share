@@ -2,7 +2,6 @@ import {
   appendTransactionMessageInstructions,
   compileTransaction,
   createKeyPairSignerFromBytes,
-  createSolanaRpc,
   createTransactionMessage,
   getBase64EncodedWireTransaction,
   partiallySignTransaction,
@@ -12,6 +11,7 @@ import {
   address,
 } from '@solana/kit';
 import { readFileSync } from 'node:fs';
+import { createRateLimitedSolanaRpc } from './request-limits.mjs';
 
 const [programId, rpcArgument] = process.argv.slice(2);
 if (!programId) throw new Error('Program ID is required');
@@ -22,7 +22,7 @@ const rpcUrl = rpcArgument || process.env.SOLANA_RPC_URL || 'https://api.mainnet
 const signer = await createKeyPairSignerFromBytes(
   Uint8Array.from(JSON.parse(secret)),
 );
-const rpc = createSolanaRpc(rpcUrl);
+const rpc = createRateLimitedSolanaRpc(rpcUrl);
 const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
 const message = pipe(
   createTransactionMessage({ version: 0 }),

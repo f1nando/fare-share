@@ -5,6 +5,7 @@ import {
   getUtf8Encoder,
   type Address,
 } from '@solana/kit';
+import { solanaRpcCall } from './solanaRpc.js';
 
 const utf8 = getUtf8Encoder();
 const addressDecoder = getAddressDecoder();
@@ -36,14 +37,14 @@ export async function loadProtocolClock(rpcUrl: string, programId: Address): Pro
     programAddress: programId,
     seeds: [utf8.encode('config')],
   });
-  const accountResult = await rpc(rpcUrl, 'getAccountInfo', [configAddress, {
+  const accountResult = await solanaRpcCall<{ value: { data: [string, string] } | null }>(rpcUrl, 'getAccountInfo', [configAddress, {
     commitment: 'finalized',
     encoding: 'base64',
-  }]) as { value: { data: [string, string] } | null };
+  }]);
   if (!accountResult.value) throw new Error('Taxi configuration account is not deployed');
   const state = decodeClockFields(Buffer.from(accountResult.value.data[0], 'base64'));
-  const slotResult = await rpc(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]) as number;
-  const blockTime = await rpc(rpcUrl, 'getBlockTime', [slotResult]) as number | null;
+  const slotResult = await solanaRpcCall<number>(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
+  const blockTime = await solanaRpcCall<number | null>(rpcUrl, 'getBlockTime', [slotResult]);
   if (blockTime === null) throw new Error('Finalized Solana block time is unavailable');
   const chainNow = BigInt(blockTime);
   const frozenNow = state.pausedAt === 0n ? chainNow : state.pausedAt;
@@ -97,19 +98,6 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
     pausedAt,
     totalPausedSeconds,
   };
-}
-
-async function rpc(url: string, method: string, params: unknown[]): Promise<unknown> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`Solana RPC ${method} failed with HTTP ${response.status}`);
-  const payload = await response.json() as { result?: unknown; error?: { message?: string } };
-  if (payload.error) throw new Error(`Solana RPC ${method}: ${payload.error.message || 'unknown error'}`);
-  return payload.result;
 }
 
 class Reader {

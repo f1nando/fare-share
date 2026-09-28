@@ -64,6 +64,13 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     }
     return parts;
   };
+  const requestLimit = (name: string, maximum: number) => {
+    const raw = required(name);
+    const parsed = Number(raw);
+    if (raw && (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum)) {
+      errors.push(`${name}: нужно целое значение от 1 до ${maximum}`);
+    }
+  };
 
   validUrl('MONGODB_URI', ['mongodb:', 'mongodb+srv:']);
   validUrl('SOLANA_RPC_URL', ['http:', 'https:']);
@@ -71,6 +78,13 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   validUrl('VITE_SOLANA_DAS_URL', ['http:', 'https:']);
   validUrl('VITE_BACKEND_URL', ['http:', 'https:']);
   validUrl('ALLOWED_ORIGIN', ['http:', 'https:']);
+  requestLimit('JUPITER_REQUESTS_PER_SECOND', 5);
+  requestLimit('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 20);
+  requestLimit('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 2);
+  requestLimit('SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10);
+  requestLimit('VITE_SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 20);
+  requestLimit('VITE_SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 2);
+  requestLimit('VITE_SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10);
   const frontendChain = required('VITE_SOLANA_CHAIN');
   if (frontendChain && frontendChain !== 'solana:devnet' && frontendChain !== 'solana:mainnet') {
     errors.push('VITE_SOLANA_CHAIN: допустимы только solana:devnet или solana:mainnet');

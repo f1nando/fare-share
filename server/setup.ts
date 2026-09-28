@@ -11,6 +11,7 @@ import {
   type KeyPairSigner,
 } from '@solana/kit';
 import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
+import { solanaRpcCall } from './solanaRpc.js';
 import { parseBackendSigner } from './signing.js';
 import { sendInstructions } from './transaction.js';
 
@@ -153,13 +154,9 @@ function concat(...parts: readonly Uint8Array[]) {
 function meta(value: Address, role: AccountRole) { return { address: value, role }; }
 
 async function getAccount(rpcUrl: string, account: Address) {
-  const response = await fetch(rpcUrl, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAccountInfo', params: [account, { commitment: 'finalized', encoding: 'base64' }] }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`Solana RPC failed with HTTP ${response.status}`);
-  const payload = await response.json() as { result?: { value: { owner: string } | null }; error?: { message?: string } };
-  if (payload.error) throw new Error(`Solana RPC: ${payload.error.message || 'unknown error'}`);
-  return payload.result?.value || null;
+  const result = await solanaRpcCall<{ value: { owner: string } | null }>(rpcUrl, 'getAccountInfo', [
+    account,
+    { commitment: 'finalized', encoding: 'base64' },
+  ], { timeoutMs: 10_000 });
+  return result.value;
 }

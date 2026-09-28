@@ -20,6 +20,27 @@ npm run protocol:preflight
 
 Проверка доступности: `GET /api/health`.
 
+## Общие лимиты Helius и Jupiter
+
+Проект использует долю общих Developer-подписок и ограничивает исходящие запросы внутри каждого процесса:
+
+```env
+JUPITER_REQUESTS_PER_SECOND=5
+SOLANA_RPC_MAX_REQUESTS_PER_SECOND=20
+SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND=2
+SOLANA_DAS_MAX_REQUESTS_PER_SECOND=10
+```
+
+- Все Jupiter `/quote` и `/build` проходят через одну FIFO-очередь с интервалом не менее 200 мс. Безопасный retry снова встаёт в конец той же очереди. Запрос, который ждал более 10 секунд, отменяется до обращения к Jupiter.
+- Standard Solana RPC (`getAccountInfo`, `getMultipleAccounts`, `getProgramAccounts`, balances, block time, simulation и status polling) использует отдельную общую FIFO-очередь с пределом 20 запросов/с.
+- `sendTransaction` не входит в standard RPC: для него используется отдельная очередь с согласованным пределом 2 отправки/с. После сетевого timeout результат считается неоднозначным, автоматическая повторная отправка запрещена; следующий worker cycle сначала заново читает finalized on-chain состояние.
+- DAS `getAssetsByOwner` не входит в standard RPC и ограничен отдельной очередью 10 запросов/с.
+- Ошибка одного запроса не останавливает очередь. Каждая явная retry-попытка занимает новый слот.
+
+Эти лимиты действуют **на один Node.js-процесс или одну вкладку frontend**. Два backend/worker процесса с одинаковым значением `20` способны вместе создать до `40 RPC RPS`; несколько вкладок аналогично умножают frontend-лимит. При нескольких production-инстансах значения необходимо делить между ними так, чтобы сумма проекта не превышала `Jupiter 5 RPS`, `standard RPC 20 RPS`, `sendTransaction 2 RPS` и `DAS 10 RPS`. Для нескольких постоянно масштабируемых инстансов потребуется внешний общий rate limiter; текущие in-process очереди не координируются между машинами.
+
+Frontend использует зеркальные `VITE_SOLANA_*_MAX_REQUESTS_PER_SECOND` настройки. Production Helius URL и API-ключи нельзя коммитить или выводить в логи.
+
 ## Библиотека сцен движения
 
 Страница `/driving-demo.html` читает сцены из `GET /api/driving-scenes`. Картинка, название и индивидуальные параметры разметки/фар хранятся в MongoDB-коллекции `driving_scenes`; PNG, JPEG и WebP ограничены размером 8 MB. Библиотека предназначена только для локальной работы: все её endpoints принимают запросы исключительно с loopback-адресов `127.0.0.1` и `::1`. Пароль или токен не требуется.

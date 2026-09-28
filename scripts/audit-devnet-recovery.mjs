@@ -17,7 +17,7 @@ const addresses = {
 };
 
 async function rpc(method, params) {
-  const response = await fetch(rpcUrl, {
+  const response = await rateLimitedRpcFetch(rpcUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 'devnet-recovery-audit', method, params }),
@@ -75,3 +75,4 @@ if (process.argv.includes('--require-empty-vaults')) {
 function sol(lamports) {
   return (lamports / 1_000_000_000).toFixed(9);
 }
+import { rateLimitedRpcFetch } from './request-limits.mjs';

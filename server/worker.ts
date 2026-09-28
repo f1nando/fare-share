@@ -36,6 +36,7 @@ import {
 import { parseBackendSigner, parseSecretBytes, type BackendSigner } from './signing.js';
 import { decodeWorkerConfiguration, loadProtocolClock } from './solanaState.js';
 import { createWorkerSigner, sendInstructions } from './transaction.js';
+import { solanaRpcCall } from './solanaRpc.js';
 import {
   buildPumpAmmFeeCollection,
   buildPumpBondingFeeCollection,
@@ -673,13 +674,5 @@ function decodeFeeReserves(bytes: Uint8Array) {
 }
 
 async function rpcCall(url: string, method: string, params: unknown[]) {
-  const response = await fetch(url, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) throw new Error(`Solana RPC ${method} failed with HTTP ${response.status}`);
-  const payload = await response.json() as { result?: unknown; error?: { message?: string } };
-  if (payload.error) throw new Error(`Solana RPC ${method}: ${payload.error.message || 'unknown error'}`);
-  return payload.result;
+  return solanaRpcCall<unknown>(url, method, params);
 }

@@ -8,6 +8,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 import type { BackendSigner } from './signing.js';
+import { jupiterRequest } from './jupiterHttp.js';
 
 const SWAP_DOMAIN = Uint8Array.from(Buffer.from('TAXI_SWAP_V1'));
 const ED25519_PROGRAM = address('Ed25519SigVerify111111111111111111111111111');
@@ -75,7 +76,6 @@ export interface JupiterRoute {
 }
 
 export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<JupiterRoute> {
-  const fetcher = input.fetchImplementation || fetch;
   const query = new URLSearchParams({
     inputMint: String(input.inputMint),
     outputMint: String(input.outputMint),
@@ -89,13 +89,12 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
   });
   const headers: Record<string, string> = { accept: 'application/json' };
   if (input.apiKey) headers['x-api-key'] = input.apiKey;
-  const response = await fetcher(`${input.apiBaseUrl || 'https://api.jup.ag/swap/v2'}/build?${query}`, {
+  const response = await jupiterRequest(`${input.apiBaseUrl || 'https://api.jup.ag/swap/v2'}/build?${query}`, {
     headers,
-    signal: AbortSignal.timeout(12_000),
+  }, {
+    fetchImplementation: input.fetchImplementation,
+    operation: '/build',
   });
-  if (!response.ok) {
-    throw new Error(`Jupiter /build failed with HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`);
-  }
   const build = await response.json() as BuildResponse;
   if (build.error) throw new Error(`Jupiter /build failed: ${build.error}`);
   validateBuildResponse(build, input);

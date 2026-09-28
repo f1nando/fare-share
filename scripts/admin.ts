@@ -10,6 +10,7 @@ import {
 import { parseSecretBytes } from '../server/signing.js';
 import { protocolAddresses } from '../server/setup.js';
 import { sendInstructions } from '../server/transaction.js';
+import { solanaRpcCall } from '../server/solanaRpc.js';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -118,18 +119,10 @@ function usage(): never {
 }
 
 async function mintOwner(url: string, mint: ReturnType<typeof address>) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0', id: 1, method: 'getAccountInfo',
-      params: [mint, { commitment: 'finalized', encoding: 'base64' }],
-    }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`Solana RPC failed with HTTP ${response.status}`);
-  const payload = await response.json() as { result?: { value?: { owner?: string } | null }; error?: { message?: string } };
-  if (payload.error) throw new Error(`Solana RPC: ${payload.error.message || 'unknown error'}`);
-  if (!payload.result?.value?.owner) throw new Error(`Mint ${mint} does not exist`);
-  return address(payload.result.value.owner);
+  const result = await solanaRpcCall<{ value?: { owner?: string } | null }>(url, 'getAccountInfo', [
+    mint,
+    { commitment: 'finalized', encoding: 'base64' },
+  ], { timeoutMs: 10_000 });
+  if (!result.value?.owner) throw new Error(`Mint ${mint} does not exist`);
+  return address(result.value.owner);
 }
