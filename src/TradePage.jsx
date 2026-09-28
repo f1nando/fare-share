@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CandlestickSeries, ColorType, createChart, HistogramSeries } from 'lightweight-charts';
+import { CandlestickSeries, ColorType, createChart, HistogramSeries, LineStyle } from 'lightweight-charts';
 import {
   executeTrade,
   loadCandles,
@@ -20,17 +20,18 @@ function LiveTradeChart({ candles, symbol }) {
       width: host.clientWidth,
       height: host.clientHeight,
       layout: { background: { type: ColorType.Solid, color: '#111111' }, textColor: '#8f8f8f' },
-      grid: { vertLines: { color: '#242424' }, horzLines: { color: '#242424' } },
-      rightPriceScale: { borderColor: '#333333' },
-      timeScale: { borderColor: '#333333', timeVisible: true, secondsVisible: false },
+      grid: { vertLines: { color: '#202020' }, horzLines: { color: '#202020' } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: .08, bottom: .22 } },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 7, minBarSpacing: 3 },
       crosshair: {
-        vertLine: { color: '#777777', labelBackgroundColor: '#111111' },
-        horzLine: { color: '#777777', labelBackgroundColor: '#111111' },
+        vertLine: { color: '#666', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#262626' },
+        horzLine: { color: '#666', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#262626' },
       },
     });
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#d7d7d7', downColor: '#ffe11a', borderUpColor: '#d7d7d7', borderDownColor: '#ffe11a',
-      wickUpColor: '#d7d7d7', wickDownColor: '#ffe11a',
+      upColor: '#25d989', downColor: '#ff6470', borderUpColor: '#25d989', borderDownColor: '#ff6470',
+      wickUpColor: '#25d989', wickDownColor: '#ff6470',
+      priceLineColor: '#25d989', priceLineStyle: LineStyle.Dashed,
       priceFormat: { type: 'custom', minMove: 1, formatter: formatChartValue },
     });
     if (candles.length) {
@@ -39,11 +40,11 @@ function LiveTradeChart({ candles, symbol }) {
         priceFormat: { type: 'volume' },
         priceScaleId: '',
       });
-      volumeSeries.priceScale().applyOptions({ scaleMargins: { top: .78, bottom: 0 } });
+      volumeSeries.priceScale().applyOptions({ scaleMargins: { top: .76, bottom: 0 } });
       volumeSeries.setData(candles.map(candle => ({
         time: candle.time,
         value: candle.volume,
-        color: candle.close >= candle.open ? 'rgb(13 222 141 / 38%)' : 'rgb(255 225 26 / 34%)',
+        color: candle.close >= candle.open ? 'rgb(37 217 137 / 48%)' : 'rgb(255 100 112 / 45%)',
       })));
       chart.timeScale().fitContent();
     }
@@ -180,7 +181,7 @@ export function TradePage({ wallet, connectWallet }) {
   const [trades, setTrades] = useState([]);
   const [holders, setHolders] = useState([]);
   const [candles, setCandles] = useState([]);
-  const [interval, setInterval] = useState('1h');
+  const [interval, setInterval] = useState('5m');
 
   const refreshToken = useCallback(() => loadTradeToken().then(setToken).catch(error => console.warn(error.message)), []);
   const refreshTrades = useCallback(() => loadTrades().then(value => setTrades(value.trades)).catch(error => console.warn(error.message)), []);
@@ -197,6 +198,7 @@ export function TradePage({ wallet, connectWallet }) {
   }, [refreshCandles, refreshHolders, refreshToken, refreshTrades]);
 
   const symbol = token?.symbol || 'FARE';
+  const latestCandle = [...candles].reverse().find(candle => candle.volume > 0) || candles.at(-1);
   return (
     <main id="top">
       <section className="trade-intro container"><h1>TRADE</h1></section>
@@ -215,9 +217,16 @@ export function TradePage({ wallet, connectWallet }) {
                 ))}
               </div>
             </div>
+            {latestCandle && <div className="trade-chart-ohlc">
+              <span>O <b>{formatChartValue(latestCandle.open)}</b></span>
+              <span>H <b>{formatChartValue(latestCandle.high)}</b></span>
+              <span>L <b>{formatChartValue(latestCandle.low)}</b></span>
+              <span>C <b>{formatChartValue(latestCandle.close)}</b></span>
+              <span>VOL <b>{formatChartValue(latestCandle.volume)}</b></span>
+            </div>}
             <div className="trade-chart-price-row">
-              <strong>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : <><CompactPrice value={token?.priceSol || 0} /> SOL</>}</strong>
-              <p>24H volume<br /><b>{formatNumber(token?.volume24hSol || 0, 2)} SOL</b></p>
+              <strong>{formatChartValue(latestCandle?.close || token?.marketCapUsd || 0)}</strong>
+              <p>Token price <b>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : '—'}</b><br />24H volume <b>{formatNumber(token?.volume24hSol || 0, 2)} SOL</b></p>
             </div>
           </div>
           <LiveTradeChart candles={candles} symbol={symbol} />
