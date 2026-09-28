@@ -396,7 +396,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-docs-sidebar a.is-active { grid-template-columns: 34px 1fr 8px; }
 .fare-docs-sidebar a span { color: #777; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 11px; }
 .fare-docs-sidebar a.is-active span { color: #fff; }
-.fare-docs-article { padding: 34px 32px 42px; border-radius: 28px; background: #fff; box-shadow: 0 12px 26px rgb(0 0 0 / 13%); }
+.fare-docs-article { padding: 34px 32px 42px; border-radius: 28px; background: #fff; box-shadow: 7px 8px 0 #111; }
 .fare-docs-article-header { display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: start; gap: 34px; }
 .fare-docs-article-header h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 58px; font-weight: 400; line-height: .76; letter-spacing: -.025em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 5px 6px 0 #111; }
 .fare-docs-article-header p { margin: 4px 0 0; color: #555; font-size: 17px; line-height: 23px; }
