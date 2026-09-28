@@ -15,7 +15,7 @@ export async function loadTrades(limit = 50) {
   return request(`/api/trade/trades?limit=${limit}`);
 }
 
-export async function loadHolders(limit = 100) {
+export async function loadHolders(limit = 50) {
   return request(`/api/trade/holders?limit=${limit}`);
 }
 

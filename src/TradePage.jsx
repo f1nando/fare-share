@@ -166,9 +166,14 @@ function TradeForm({ token, wallet, connectWallet }) {
 
 function MarketTables({ trades, holders, symbol }) {
   const [tab, setTab] = useState('transactions');
+  const [now, setNow] = useState(Date.now());
   const isTransactions = tab === 'transactions';
-  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT', 'SOLSCAN →'] : ['#', 'HOLDER', 'SUPPLY SHARE'];
+  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT', 'TIME →'] : ['#', 'HOLDER', 'SUPPLY SHARE'];
   const rows = isTransactions ? trades : holders;
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
   return (
     <section className="trade-board">
       <div className="trade-board-tabs" role="tablist" aria-label="Market data">
@@ -193,7 +198,7 @@ function MarketTables({ trades, holders, symbol }) {
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row.side}`}>{row.side.toUpperCase()}</span>
               <span data-label={headers[3]} role="cell">{formatTradeAmount(row.tokenAmount)} {symbol} · {formatTradeAmount(row.solAmount)} SOL</span>
-              <a className="trade-solscan-link" data-label={headers[4]} role="cell" href={`https://solscan.io/tx/${row.signature}`} target="_blank" rel="noreferrer">View ↗</a>
+              <a className="trade-solscan-link" data-label={headers[4]} role="cell" href={`https://solscan.io/tx/${row.signature}`} target="_blank" rel="noreferrer">{formatRelativeTime(row.blockTime, now)} ↗</a>
             </> : <span data-label={headers[2]} role="cell">{formatNumber(isLiquidityPool ? row.supplyLeftPercent : row.supplyShare, 4)}%{isLiquidityPool && <small> SUPPLY LEFT</small>}</span>}
           </div>
         })}
@@ -278,6 +283,17 @@ function formatTradeAmount(value) {
   const factor = 10 ** decimalPlaces;
   const truncated = Math.trunc(number * factor) / factor;
   return truncated.toLocaleString('en-US', { maximumFractionDigits: decimalPlaces });
+}
+
+function formatRelativeTime(value, now) {
+  const seconds = Math.max(0, Math.floor((now - new Date(value).getTime()) / 1_000));
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`;
 }
 
 function formatInputAmount(value, decimals) {

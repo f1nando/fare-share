@@ -190,15 +190,18 @@ export class TradeService {
     return { trades: rows, nextCursor: rows.at(-1)?.blockTime.toISOString() || null };
   }
 
-  async listHolders(limit = 100, skip = 0) {
+  async listHolders(limit = 50, skip = 0) {
     const poolOwner = this.state.stage === 'bonding_curve' ? this.state.bondingCurve : undefined;
+    const requestedLimit = Math.min(Math.max(limit, 1), 250);
+    const regularLimit = poolOwner && skip === 0 ? requestedLimit - 1 : requestedLimit;
     const filter = {
       mint: String(this.mint),
       balance: { $gt: 0 },
       ...(poolOwner ? { owner: { $ne: poolOwner } } : {}),
     };
-    const rows = await this.database.tradeHolders.find(filter)
-      .sort({ balance: -1 }).skip(Math.max(skip, 0)).limit(Math.min(Math.max(limit, 1), 250)).toArray();
+    const rows = regularLimit > 0
+      ? await this.database.tradeHolders.find(filter).sort({ balance: -1 }).skip(Math.max(skip, 0)).limit(regularLimit).toArray()
+      : [];
     const holders: Array<Record<string, unknown>> = rows.map(row => ({ ...row }));
     if (poolOwner && skip === 0) {
       const stored = await this.database.tradeHolders.findOne({ mint: String(this.mint), owner: poolOwner });

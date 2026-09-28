@@ -49,7 +49,7 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && url.pathname === '/api/trade/holders') {
       requireTrade(trade);
-      json(response, 200, await trade.listHolders(numberParam(url, 'limit', 100), numberParam(url, 'skip', 0)));
+      json(response, 200, await trade.listHolders(numberParam(url, 'limit', 50), numberParam(url, 'skip', 0)));
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/trade/candles') {
