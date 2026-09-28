@@ -77,7 +77,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
         </nav>
 
         <div className="fare-header-actions">
-          <a className="fare-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
+          <a className="fare-social" href="https://x.com/taxiempire" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
           <button className="fare-connect" type="button">
             <span>Connect Wallet</span>
             <svg className="fare-wallet-icon" width="107" height="93" viewBox="0 0 107 93" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -128,7 +128,7 @@ export function FareFooter({ linkPrefix = '' }) {
           </div>
           <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
           <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
-          <a className="fare-footer-social" href="https://x.com" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
+          <a className="fare-footer-social" href="https://x.com/taxiempire" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
           <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
         </div>
 

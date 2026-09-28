@@ -163,7 +163,7 @@ export function UIKitPage() {
               <nav className="fare-nav ui-nav-control"><a className="is-active" href="#home-sample">HOME</a><a href="#fleet-sample">FLEET</a><a href="#docs-sample">DOCS</a></nav>
             </Specimen>
             <Specimen name="Icon action" meta="64 × 64px">
-              <a className="fare-social" href="#social-sample" aria-label="Social button example"><XIcon /></a>
+              <a className="fare-social" href="https://x.com/taxiempire" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
             </Specimen>
           </div>
           <div className="ui-size-table">
