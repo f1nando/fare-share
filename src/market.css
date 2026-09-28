@@ -13,10 +13,10 @@
 .fare-market-summary > div + div { border-left: 1px solid #4c4c4c; }
 .fare-market-summary strong { color: #ffe72f; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 32px; font-weight: 500; line-height: 1; }
 .fare-market-summary strong small { color: #fff; font-size: 13px; font-weight: 700; }
-.fare-market-summary span { margin-top: 10px; color: #aaa; font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.fare-market-summary span { margin-top: 10px; color: #aaa; font-size: 12px; font-weight: 900; letter-spacing: .08em; }
 .fare-market-toolbar { display: grid; grid-template-columns: minmax(300px, 1.1fr) minmax(420px, 1.5fr) 220px; align-items: end; gap: 24px; padding: 26px 28px 28px; }
 .fare-market-search, .fare-market-select { position: relative; display: flex; align-items: flex-start; flex-direction: column; gap: 9px; }
-.fare-market-search > span, .fare-market-select > span, .fare-market-classes legend { color: #111; font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.fare-market-search > span, .fare-market-select > span, .fare-market-classes legend { color: #111; font-size: 12px; font-weight: 900; letter-spacing: .08em; }
 .fare-market-search svg { position: absolute; z-index: 1; bottom: 17px; left: 20px; width: 22px; height: 22px; fill: none; stroke: #111; stroke-width: 2.2; pointer-events: none; }
 .fare-market-search input, .fare-market-select select { width: 100%; height: 58px; border: 2px solid #111; border-radius: 999px; color: #111; background: #f1f1f1; font: inherit; font-size: 14px; font-weight: 800; outline: none; }
 .fare-market-search input { padding: 0 20px 0 54px; }
@@ -78,12 +78,13 @@
   .fare-market-summary > div + div { border-left: 1px solid #4c4c4c; }
   .fare-market-summary strong { font-size: 25px; }
   .fare-market-summary strong small { display: block; margin-top: 4px; font-size: 9px; }
-  .fare-market-summary span { margin-top: 7px; font-size: 8px; line-height: 11px; }
+  .fare-market-summary span { margin-top: 7px; font-size: 10px; line-height: 12px; }
   .fare-market-toolbar { grid-template-columns: 1fr; gap: 20px; padding: 20px 14px 22px; }
   .fare-market-select { grid-column: auto; }
   .fare-market-classes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .fare-market-classes button { height: 40px; border-radius: 999px; font-size: 12px; }
   .fare-market-search input, .fare-market-select select { height: 54px; border-radius: 999px; }
+  .fare-market-search > span, .fare-market-select > span, .fare-market-classes legend { font-size: 11px; }
   .fare-market-search svg { bottom: 15px; }
   .fare-market-results { min-height: 62px; }
   .fare-market-grid { grid-template-columns: 1fr; gap: 20px; }
