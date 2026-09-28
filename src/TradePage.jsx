@@ -177,9 +177,7 @@ function MarketTables() {
         {rows.map((row, index) => (
           <div className="trade-leaderboard-row" role="row" key={`${tab}-${row[0]}-${index}`}>
             <span data-label="#" role="cell">{index + 1}</span>
-            <span className={`trade-wallet-cell${isTransactions ? ' is-transaction' : ''}`} data-label={headers[1]} role="cell">
-              {!isTransactions && <img src="/brand/fare-driver.png" alt="" />}{row[0]}
-            </span>
+            <span className="trade-wallet-cell is-address" data-label={headers[1]} role="cell">{row[0]}</span>
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row[1].toLowerCase()}`}>{row[1]}</span>
               <span data-label={headers[3]} role="cell">{row[2]} · {row[3]}</span>
