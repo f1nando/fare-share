@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
@@ -13,6 +13,23 @@ const MINT_CLASSES = [
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
 }));
 
+function previewReducer(state, action) {
+  if (action.type === 'select-class') {
+    return {
+      previous: state.current,
+      current: { classIndex: action.classIndex, sceneIndex: 0 },
+    };
+  }
+
+  return {
+    previous: state.current,
+    current: {
+      ...state.current,
+      sceneIndex: (state.current.sceneIndex + 1) % action.sceneCount,
+    },
+  };
+}
+
 function ArrowIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -24,8 +41,12 @@ function ArrowIcon() {
 export function MintPage() {
   const previewRef = useRef(null);
   const [quantity, setQuantity] = useState(2);
-  const [selectedClassIndex, setSelectedClassIndex] = useState(0);
-  const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
+  const [preview, dispatchPreview] = useReducer(previewReducer, {
+    current: { classIndex: 0, sceneIndex: 0 },
+    previous: null,
+  });
+  const selectedClassIndex = preview.current.classIndex;
+  const previewSceneIndex = preview.current.sceneIndex;
   const selectedClass = MINT_CLASSES[selectedClassIndex];
 
   useEffect(() => {
@@ -41,7 +62,7 @@ export function MintPage() {
     }))).then(() => {
       if (cancelled) return;
       interval = window.setInterval(() => {
-        setPreviewSceneIndex(index => (index + 1) % selectedClass.scenes.length);
+        dispatchPreview({ type: 'advance', sceneCount: selectedClass.scenes.length });
       }, 1500);
     });
 
@@ -74,8 +95,9 @@ export function MintPage() {
               <div className="fare-mint-preview-scenes">
                 {MINT_CLASSES.flatMap((item, classIndex) => item.scenes.map((scene, sceneIndex) => {
                   const isActive = classIndex === selectedClassIndex && sceneIndex === previewSceneIndex;
+                  const isPrevious = classIndex === preview.previous?.classIndex && sceneIndex === preview.previous?.sceneIndex;
                   return (
-                    <div className={`fare-mint-preview-scene${isActive ? ' is-active' : ''}`} key={scene.id || scene.name}>
+                    <div className={`fare-mint-preview-scene${isPrevious ? ' is-previous' : ''}${isActive ? ' is-active' : ''}`} key={scene.id || scene.name}>
                       <FareStepDrivingScene scene={scene} />
                     </div>
                   );
@@ -99,8 +121,7 @@ export function MintPage() {
                         type="button"
                         aria-pressed={isSelected}
                         onClick={() => {
-                          setSelectedClassIndex(index);
-                          setPreviewSceneIndex(0);
+                          dispatchPreview({ type: 'select-class', classIndex: index });
                         }}
                       >
                         {item.name}
