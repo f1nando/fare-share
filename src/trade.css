@@ -57,7 +57,7 @@ body { color: #111; background: #fff; }
 .trade-submit { width: 100%; min-height: 52px; margin-top: auto; border: 2px solid #111; border-radius: 999px; background: #ffe11a; box-shadow: 4px 5px 0 #111; font-size: 13px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
 .trade-submit:hover { transform: translate(4px, 5px); box-shadow: none; }
 
-.trade-board { width: 100%; max-width: 1400px; margin: 34px auto 0; padding: 0 12px; }
+.trade-board { width: 100%; max-width: 1400px; margin: 34px auto 120px; padding: 0 12px; }
 .trade-board-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .trade-board-tabs button { min-height: 42px; padding: 0 22px; border: 2px solid #111; border-radius: 999px; background: #fff; box-shadow: 3px 4px 0 #111; font-size: 12px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
 .trade-board-tabs .is-active { background: #ffe11a; }
@@ -99,7 +99,7 @@ body { color: #111; background: #fff; }
   .trade-amount-box strong { font-size: 26px; }
   .trade-amount-box b { padding: 8px 12px; font-size: 9px; }
   .trade-rate { margin: 14px 0 12px; font-size: 9px; }
-  .trade-board { margin-top: 26px; padding: 0 20px; }
+  .trade-board { margin-top: 26px; margin-bottom: 72px; padding: 0 20px; }
   .trade-leaderboard { display: grid; gap: 14px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
   .trade-leaderboard-header { display: none; }
   .trade-leaderboard-row { grid-template: 'rank wallet amount' auto 'rank type amount' auto / 38px minmax(0, 1fr) auto; gap: 5px 10px; min-height: 96px; padding: 14px 16px; border: 2px solid #111; border-radius: 18px; box-shadow: 4px 5px 0 #111; font-size: 13px; }
