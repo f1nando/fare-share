@@ -14,6 +14,14 @@ function ExpandIcon() {
   );
 }
 
+function ArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M14.707 15V1H.707M14.707 1L.707 15" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function MintPage() {
   const [quantity, setQuantity] = useState(2);
   const [previewExpanded, setPreviewExpanded] = useState(false);
@@ -36,6 +44,7 @@ export function MintPage() {
           <div className="fare-mint-layout">
             <div className={`fare-mint-preview${previewExpanded ? ' is-expanded' : ''}`}>
               <FareStepDrivingScene scene={mintCar} />
+              <span className="fare-fleet-class is-economy">ECONOMY</span>
               <button type="button" aria-label={previewExpanded ? 'Close expanded car preview' : 'Expand car preview'} onClick={() => setPreviewExpanded(value => !value)}><ExpandIcon /></button>
             </div>
 
@@ -58,7 +67,10 @@ export function MintPage() {
                 <div className="is-total"><span>Total</span><strong>${quantity * UNIT_PRICE}</strong></div>
               </div>
 
-              <button className="fare-mint-submit" type="button">Mint taxi NFT</button>
+              <button className="fare-mint-submit" type="button">
+                <span>Mint taxi NFT</span>
+                <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
+              </button>
               <p className="fare-mint-note">The minted car appears in your garage and starts working automatically with a full tank.</p>
             </div>
           </div>
