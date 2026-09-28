@@ -39,6 +39,7 @@ import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './di
 import { animationVariation, stuntType, vehicleBrushPadding, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimAnimationStart, foliageSwayAngle, shouldStartBrushAnimation, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingMotion } from './buildingAnimation.js';
+import { withinBuildingBrush } from './buildingBrush.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
 
 const palette = {
@@ -684,10 +685,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     const buildingGroup = staticBatch.items.get('building');
     for (let index = 0; index < (buildingGroup?.count ?? 0); index++) {
       const item = buildingGroup.values[index];
-      projectedVehicle.set(item[0], item[1], item[2]).project(camera);
-      const screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
-      const screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      if (withinGestureRadius(screenX, screenY, gesturePoint, radius)) activateBuilding(index, item, targetsInBrush);
+      if (withinBuildingBrush(item, camera, rect, gesturePoint, radius)) activateBuilding(index, item, targetsInBrush);
     }
     for (const target of gestureTargets) if (!targetsInBrush.has(target)) gestureTargets.delete(target);
     brushVehicleTargets.clear();
