@@ -23,6 +23,16 @@ function SectionTitle({ number, children }) {
 
 export function DocsPage() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [isMobileHeader, setIsMobileHeader] = useState(false);
+
+  useEffect(() => {
+    const breakpoint = window.matchMedia('(max-width: 600px)');
+    const updateHeaderOffset = () => setIsMobileHeader(breakpoint.matches);
+
+    updateHeaderOffset();
+    breakpoint.addEventListener('change', updateHeaderOffset);
+    return () => breakpoint.removeEventListener('change', updateHeaderOffset);
+  }, []);
 
   useEffect(() => {
     const updateActiveTab = () => {
@@ -58,7 +68,7 @@ export function DocsPage() {
           <nav
             className="fare-docs-tabs"
             aria-label="Documentation sections"
-            style={{ position: 'sticky', top: '118px', zIndex: 2 }}
+            style={{ position: 'sticky', top: isMobileHeader ? '88px' : '118px', zIndex: 2 }}
           >
             {tabs.map((tab) => (
               <a
