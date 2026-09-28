@@ -140,7 +140,9 @@ function FleetSceneCard({ scene, fleetClass }) {
     <div
       className="fare-fleet-scene-card"
       onClick={(event) => blinkSceneHeadlights(event.currentTarget, settings)}
-      onPointerEnter={() => setIsHovered(true)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === 'mouse') setIsHovered(true);
+      }}
       onPointerLeave={() => setIsHovered(false)}
       onDragStart={(event) => event.preventDefault()}
     >
@@ -296,6 +298,7 @@ function FleetCardBackground() {
   const wallRef = useRef(null);
   const wallVisibleRef = useRef(false);
   const cardEntriesRef = useRef([]);
+  const cardVisibilityObserverRef = useRef(null);
   const boundsMeasuredAtRef = useRef(0);
   const proximityFrameRef = useRef(0);
   const rateFrameRef = useRef(0);
@@ -320,15 +323,49 @@ function FleetCardBackground() {
       road: card.querySelector('.fare-fleet-road'),
       bounds: null,
     }));
+    cardEntriesRef.current.forEach(({ road }) => road?.getAnimations().forEach((animation) => animation.pause()));
+    cardVisibilityObserverRef.current?.disconnect();
+    cardEntriesRef.current.forEach(({ card }) => cardVisibilityObserverRef.current?.observe(card));
     boundsMeasuredAtRef.current = 0;
   };
 
   const refreshCardBounds = (now = performance.now()) => {
-    for (const entry of cardEntriesRef.current) entry.bounds = entry.card.getBoundingClientRect();
+    for (const entry of cardEntriesRef.current) {
+      entry.bounds = entry.card.classList.contains('is-road-active')
+        ? entry.card.getBoundingClientRect()
+        : null;
+    }
     boundsMeasuredAtRef.current = now;
   };
 
   useEffect(collectCards, [visibleColumns]);
+
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      cardEntriesRef.current.forEach(({ card, road }) => {
+        card.classList.toggle('is-road-active', !reduceMotion);
+        if (!reduceMotion) road?.getAnimations().forEach((animation) => animation.play());
+      });
+      return undefined;
+    }
+
+    cardVisibilityObserverRef.current = new IntersectionObserver((entries) => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      entries.forEach((entry) => {
+        const isActive = entry.isIntersecting && !reduceMotion;
+        entry.target.classList.toggle('is-road-active', isActive);
+        entry.target.querySelector('.fare-fleet-road')?.getAnimations()
+          .forEach((animation) => isActive ? animation.play() : animation.pause());
+      });
+    }, { rootMargin: '120px 0px' });
+    collectCards();
+
+    return () => {
+      cardVisibilityObserverRef.current?.disconnect();
+      cardVisibilityObserverRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let frame = 0;
@@ -370,7 +407,7 @@ function FleetCardBackground() {
     let needsAnotherFrame = false;
 
     for (const { road } of cardEntriesRef.current) {
-      if (!road) continue;
+      if (!road?.dataset.targetPlaybackRate) continue;
       const targetRate = Number(road.dataset.targetPlaybackRate || 1);
       const animations = road.getAnimations();
       if (!animations.length) continue;
@@ -416,14 +453,29 @@ function FleetCardBackground() {
     startRoadRateTransition();
   };
 
+  const handlePointerMove = (event) => {
+    if (event.pointerType !== 'mouse') return;
+    setRoadPlaybackRates(event.clientX, event.clientY);
+  };
+
+  const handlePointerEnter = (event) => {
+    if (event.pointerType !== 'mouse') return;
+    refreshCardBounds();
+  };
+
+  const handlePointerLeave = (event) => {
+    if (event.pointerType !== 'mouse') return;
+    resetRoadPlaybackRates();
+  };
+
   return (
     <div
       className="fare-fleet-card-wall is-paused"
       ref={wallRef}
       aria-hidden="true"
-      onPointerMove={(event) => setRoadPlaybackRates(event.clientX, event.clientY)}
-      onPointerEnter={() => refreshCardBounds()}
-      onPointerLeave={resetRoadPlaybackRates}
+      onPointerMove={handlePointerMove}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     >
       <div className="fare-fleet-wall-track">
         {[0, 1].map(copyIndex => <div className="fare-fleet-wall-grid" key={copyIndex}>
