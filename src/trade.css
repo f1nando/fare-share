@@ -56,19 +56,18 @@ body { color: #111; background: #fff; }
 
 .trade-board { width: 100%; max-width: 1400px; margin: 34px auto 0; padding: 0 12px; }
 .trade-board-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.trade-board-tabs button { min-height: 38px; padding: 0 18px; border: 2px solid #111; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 900; }
+.trade-board-tabs button { min-height: 42px; padding: 0 22px; border: 2px solid #111; border-radius: 999px; background: #fff; box-shadow: 3px 4px 0 #111; font-size: 12px; font-weight: 900; transition: transform .15s ease, box-shadow .15s ease; }
 .trade-board-tabs .is-active { background: #ffe11a; }
-.trade-table-wrap { border: 2px solid #111; border-radius: 20px; overflow: hidden; box-shadow: 7px 8px 0 #111; background: #fff; }
-.trade-table-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.trade-table-wrap th { padding: 15px 18px; color: #fff; background: #111; font-size: 10px; text-align: left; }
-.trade-table-wrap td { height: 58px; padding: 8px 18px; border-bottom: 1px solid #ddd; font-weight: 600; }
-.trade-table-wrap tr:nth-child(even) td { background: #f1f1f1; }
-.trade-table-wrap tbody tr:last-child td { border-bottom: 0; }
-.trade-table-wrap td:nth-child(2) { display: flex; align-items: center; gap: 10px; }
-.trade-table-wrap td img { width: 34px; height: 34px; border-radius: 50%; }
-.trade-table-wrap td:last-child { display: flex; align-items: center; gap: 12px; }
-.trade-table-wrap td i { display: block; width: 130px; height: 8px; border: 1px solid #111; border-radius: 999px; overflow: hidden; }
-.trade-table-wrap td em { display: block; min-width: 8px; height: 100%; border-radius: inherit; background: #ffe11a; }
+.trade-board-tabs button:hover { transform: translate(3px, 4px); box-shadow: none; }
+.trade-leaderboard { border: 1px solid #111; border-radius: 28px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
+.trade-leaderboard-row { display: grid; grid-template-columns: 80px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr); align-items: center; min-height: 92px; padding: 0 42px; background: #fff; font-size: 18px; font-weight: 600; }
+.trade-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
+.trade-leaderboard-header { min-height: 58px; color: #fff; background: #111 !important; font-size: 14px; font-weight: 700; }
+.trade-wallet-cell { display: flex; min-width: 0; align-items: center; gap: 18px; font-weight: 700; }
+.trade-wallet-cell img { display: block; width: 54px; height: 54px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; }
+.trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { display: inline-flex; width: fit-content; min-width: 68px; min-height: 32px; align-items: center; justify-content: center; border: 2px solid #111; border-radius: 999px; font-size: 12px; font-weight: 900; }
+.trade-leaderboard-row .is-buy { background: #ffe11a; }
+.trade-leaderboard-row .is-sell { color: #fff; background: #111; }
 
 @media (max-width: 1100px) {
   .trade-page { padding-top: 112px; }
@@ -95,9 +94,18 @@ body { color: #111; background: #fff; }
   .trade-amount-box strong { font-size: 26px; }
   .trade-amount-box b { padding: 8px 12px; font-size: 9px; }
   .trade-rate { margin: 14px 0 12px; font-size: 9px; }
-  .trade-board { margin-top: 26px; padding: 0 20px; overflow: hidden; }
-  .trade-table-wrap { overflow-x: auto; border-radius: 14px; box-shadow: 4px 5px 0 #111; }
-  .trade-table-wrap table { min-width: 760px; font-size: 11px; }
-  .trade-table-wrap td { height: 52px; padding: 7px 12px; }
+  .trade-board { margin-top: 26px; padding: 0 20px; }
+  .trade-leaderboard { display: grid; gap: 14px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  .trade-leaderboard-header { display: none; }
+  .trade-leaderboard-row { grid-template: 'rank wallet amount' auto 'rank type amount' auto / 38px minmax(0, 1fr) auto; gap: 5px 10px; min-height: 96px; padding: 14px 16px; border: 2px solid #111; border-radius: 18px; box-shadow: 4px 5px 0 #111; font-size: 13px; }
+  .trade-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
+  .trade-leaderboard-row > span:nth-child(1) { grid-area: rank; font-size: 17px; font-weight: 900; }
+  .trade-leaderboard-row > span:nth-child(2) { grid-area: wallet; }
+  .trade-leaderboard-row > span:nth-child(3) { grid-area: type; color: #666; font-size: 11px; }
+  .trade-leaderboard-row > span:nth-child(4) { grid-area: amount; margin-left: 10px; font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .trade-wallet-cell { gap: 9px; overflow-wrap: anywhere; }
+  .trade-wallet-cell img { width: 44px; height: 44px; }
+  .trade-leaderboard-row .is-buy, .trade-leaderboard-row .is-sell { min-width: 56px; min-height: 26px; color: #111; font-size: 9px; }
+  .trade-leaderboard-row .is-sell { color: #fff; }
   .trade-board-tabs button { min-height: 32px; padding: 0 13px; font-size: 9px; }
 }

@@ -2,13 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
 import { FareHeader } from './FareShareChrome.jsx';
 
-const traders = [
-  ['0x8F2A...91C4', '82,400.000 SOL', '$6,938,080', '6.21%'],
-  ['User_4312234', '21,870.450 SOL', '$1,842,677', '3.12%'],
-  ['0x37B1...AE20', '16,909.125 SOL', '$1,423,641', '2.84%'],
-  ['User_8804192', '12,445.900 SOL', '$1,048,341', '2.18%'],
-  ['0xC994...110B', '9,860.225 SOL', '$830,814', '1.72%'],
-  ['User_1427720', '7,104.880 SOL', '$598,631', '1.31%'],
+const transactionRows = [
+  ['0x8F2A...91C4', 'BUY', '12.40 SOL', '$1,468.78'],
+  ['User_4312234', 'SELL', '4.82 SOL', '$570.93'],
+  ['0x37B1...AE20', 'BUY', '9.16 SOL', '$1,084.99'],
+  ['User_8804192', 'BUY', '2.75 SOL', '$325.74'],
+  ['0xC994...110B', 'SELL', '17.20 SOL', '$2,037.34'],
+  ['User_1427720', 'BUY', '6.08 SOL', '$720.18'],
+];
+
+const holderRows = [
+  ['0x8F2A...91C4', '82,400.000 SOL', '$9,760,280'],
+  ['User_4312234', '21,870.450 SOL', '$2,591,550'],
+  ['0x37B1...AE20', '16,909.125 SOL', '$2,004,080'],
+  ['User_8804192', '12,445.900 SOL', '$1,474,240'],
+  ['0xC994...110B', '9,860.225 SOL', '$1,168,100'],
+  ['User_1427720', '7,104.880 SOL', '$841,570'],
 ];
 
 function TradingViewChart() {
@@ -135,27 +144,29 @@ function TradeForm() {
   );
 }
 
-function TradersTable() {
-  const [tab, setTab] = useState('top');
-  const rows = tab === 'top' ? traders : traders.slice().reverse();
+function MarketTables() {
+  const [tab, setTab] = useState('transactions');
+  const isTransactions = tab === 'transactions';
+  const rows = isTransactions ? transactionRows : holderRows;
+  const headers = isTransactions ? ['#', 'TRADER', 'TYPE', 'AMOUNT'] : ['#', 'HOLDER', 'BALANCE', 'VALUE'];
   return (
     <section className="trade-board">
-      <div className="trade-board-tabs">
-        <button className={tab === 'top' ? 'is-active' : ''} type="button" onClick={() => setTab('top')}>Top Traders</button>
+      <div className="trade-board-tabs" role="tablist" aria-label="Market data">
         <button className={tab === 'transactions' ? 'is-active' : ''} type="button" onClick={() => setTab('transactions')}>Transactions</button>
+        <button className={tab === 'holders' ? 'is-active' : ''} type="button" onClick={() => setTab('holders')}>Holders</button>
       </div>
-      <div className="trade-table-wrap">
-        <table>
-          <thead><tr><th>#</th><th>TRADER</th><th>BALANCE</th><th>VALUE</th><th>Supply share</th></tr></thead>
-          <tbody>{rows.map((row, index) => (
-            <tr key={row[0]}>
-              <td>{index + 1}</td>
-              <td><img src="/brand/fare-driver.png" alt="" /><b>{row[0]}</b></td>
-              <td>{row[1]}</td><td>{row[2]}</td>
-              <td><span>{row[3]}</span><i><em style={{ width: row[3] }} /></i></td>
-            </tr>
-          ))}</tbody>
-        </table>
+      <div className="trade-leaderboard" role="table" aria-label={isTransactions ? 'Recent transactions' : 'Largest holders'}>
+        <div className="trade-leaderboard-row trade-leaderboard-header" role="row">
+          {headers.map(header => <span role="columnheader" key={header}>{header}</span>)}
+        </div>
+        {rows.map((row, index) => (
+          <div className="trade-leaderboard-row" role="row" key={`${tab}-${row[0]}-${index}`}>
+            <span data-label="#" role="cell">{index + 1}</span>
+            <span className="trade-wallet-cell" data-label={headers[1]} role="cell"><img src="/brand/fare-driver.png" alt="" />{row[0]}</span>
+            <span data-label={headers[2]} role="cell" className={isTransactions ? `is-${row[1].toLowerCase()}` : undefined}>{row[1]}</span>
+            <span data-label={headers[3]} role="cell">{isTransactions ? `${row[2]} · ${row[3]}` : row[2]}</span>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -181,7 +192,7 @@ export function TradePage() {
           </article>
           <TradeForm />
         </section>
-        <TradersTable />
+        <MarketTables />
       </main>
     </div>
   );
