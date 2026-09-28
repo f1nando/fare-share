@@ -333,7 +333,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-garage-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .9; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }
 .fare-garage-heading p { max-width: 430px; margin: 0 0 8px; padding: 13px 16px; border-left: 8px solid #111; background: #fff; font-size: 22px; font-weight: 700; line-height: 27px; }
 .fare-garage-overview { margin-top: 70px; }
-.fare-garage-overview-main { display: grid; grid-template-columns: minmax(390px, .9fr) minmax(0, 1.1fr); min-height: 310px; padding: 30px 28px 24px; border-radius: 31px; color: #fff; background: #111; box-shadow: 7px 8px 0 #777; }
+.fare-garage-overview-main { display: grid; grid-template-columns: minmax(390px, .9fr) minmax(0, 1.1fr); min-height: 310px; padding: 30px 28px 24px; border-radius: 31px; color: #fff; background: #111; box-shadow: 7px 8px 0 #ffe72f; }
 .fare-garage-overview-copy { display: flex; align-items: flex-start; flex-direction: column; }
 .fare-garage-overview-copy > span { color: #ffe72f; font-size: 13px; font-weight: 800; text-transform: uppercase; }
 .fare-garage-overview-copy > strong { margin-top: 22px; font-size: 62px; font-weight: 900; line-height: .9; letter-spacing: -.04em; }
