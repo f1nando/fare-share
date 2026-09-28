@@ -56,7 +56,7 @@ body { color: #111; background: #fff; }
 .trade-amount-box { position: relative; display: flex; min-height: 124px; align-items: center; margin-top: 20px; padding: 56px 22px 14px; border: 2px solid #111; border-radius: 22px; box-shadow: 5px 6px 0 #111; }
 .trade-amount-heading { position: absolute; top: 12px; right: 22px; left: 22px; display: flex; align-items: baseline; justify-content: space-between; }
 .trade-amount-box label { color: #111; font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
-.trade-amount-box input { flex: 1; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
+.trade-amount-box input { flex: 1; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 36px), transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 36px), transparent 100%); }
 .trade-amount-box input::selection { color: #111; background: #ffe11a; }
 .trade-amount-box b { color: #111; font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
 .trade-quick-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }
