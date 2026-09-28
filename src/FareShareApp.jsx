@@ -5,6 +5,7 @@ import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.js
 import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
+import { MarketPage } from './MarketPage.jsx';
 import { MintPage } from './MintPage.jsx';
 import { TradePage } from './TradePage.jsx';
 import { connectTradeWallet } from './tradeApi.js';
@@ -29,6 +30,12 @@ const routes = {
     component: GaragePage,
     activeItem: 'garage',
     title: 'Garage — Fare Share',
+  },
+  '/market/': {
+    className: 'fare-market-page',
+    component: MarketPage,
+    activeItem: 'market',
+    title: 'Market — Fare Share',
   },
   '/leaderboard/': {
     className: 'fare-leaderboard-page',

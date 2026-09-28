@@ -32,7 +32,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'mint', label: 'MINT', href: '/mint/' },
     { id: 'garage', label: 'GARAGE', href: '/garage/' },
     { id: 'leaderboard', label: 'LEADERBOARD', href: '/leaderboard/' },
-    { id: 'market', label: 'MARKET', href: `${linkPrefix}#market` },
+    { id: 'market', label: 'MARKET', href: '/market/' },
     { id: 'trade', label: 'TRADE', href: '/trade/' },
     { id: 'faq', label: 'FAQ', href: '/faq/' },
     { id: 'docs', label: 'DOCS', href: '/docs/' },
@@ -137,6 +137,7 @@ export function FareFooter({ linkPrefix = '' }) {
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href={`${linkPrefix}#taxis`}>Fleet</a>
           <a href="/garage/">Garage</a>
+          <a href="/market/">Market</a>
           <a href={`${linkPrefix}#shift`}>Shift</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Resources">
