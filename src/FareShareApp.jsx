@@ -6,6 +6,8 @@ import { GaragePage } from './GaragePage.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { MintPage } from './MintPage.jsx';
 import { TradePage } from './TradePage.jsx';
+import { connectTradeWallet } from './tradeApi.js';
+import { shortAddress } from './protocol/solana.js';
 import './trade.css';
 
 const routes = {
@@ -58,6 +60,7 @@ function readLocation() {
 
 export function FareShareApp() {
   const [location, setLocation] = useState(readLocation);
+  const [wallet, setWallet] = useState(null);
   const pathname = location.split('#')[0];
   const route = routes[pathname] || routes['/fare-share/'];
   const Page = route.component;
@@ -100,11 +103,18 @@ export function FareShareApp() {
 
   const shellClassName = useMemo(() => `fare-page ${route.className}`, [route.className]);
 
+  async function handleConnectWallet() {
+    if (wallet) return wallet;
+    const connected = await connectTradeWallet();
+    setWallet(connected);
+    return connected;
+  }
+
   return (
     <div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix="/fare-share/" activeItem={route.activeItem} />
-      <Page />
+      <FareHeader linkPrefix="/fare-share/" activeItem={route.activeItem} onConnectWallet={() => handleConnectWallet().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <Page wallet={wallet} connectWallet={handleConnectWallet} />
       <FareFooter linkPrefix="/fare-share/" />
     </div>
   );

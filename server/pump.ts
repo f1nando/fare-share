@@ -30,6 +30,10 @@ export interface PumpFeeAddresses {
   ammEventAuthority: Address;
 }
 
+export async function derivePumpBondingCurve(mint: Address): Promise<Address> {
+  return pda(PUMP_PROGRAM, 'bonding-curve', mint);
+}
+
 export async function derivePumpFeeAddresses(creator: Address): Promise<PumpFeeAddresses> {
   const [
     creatorWsolAta,

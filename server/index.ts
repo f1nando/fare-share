@@ -4,10 +4,12 @@ import { loadServerConfig } from './config.js';
 import { connectDatabase } from './database.js';
 import { createVoucherService, VoucherError } from './voucherService.js';
 import { DrivingSceneError, listScenes, parseSceneInput, sceneSummary, type DrivingSceneDocument } from './drivingScenes.js';
+import { createTradeService, TradeError } from './trade.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
 const issueVoucher = createVoucherService(config, database);
+const trade = createTradeService(config, database);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -33,6 +35,47 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
       json(response, 200, { scenes: await listScenes(database.drivingScenes) });
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/trade/token') {
+      requireTrade(trade);
+      json(response, 200, await trade.tokenSnapshot());
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/trade/trades') {
+      requireTrade(trade);
+      json(response, 200, await trade.listTrades(numberParam(url, 'limit', 50), url.searchParams.get('before') || undefined));
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/trade/holders') {
+      requireTrade(trade);
+      json(response, 200, await trade.listHolders(numberParam(url, 'limit', 100), numberParam(url, 'skip', 0)));
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/trade/candles') {
+      requireTrade(trade);
+      json(response, 200, await trade.candles(url.searchParams.get('interval') || '1h', numberParam(url, 'limit', 300)));
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/trade/stream') {
+      requireTrade(trade);
+      trade.openStream(response);
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/trade/quote') {
+      requireTrade(trade);
+      json(response, 200, await trade.createQuote(await readJson(request)));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/trade/build') {
+      requireTrade(trade);
+      json(response, 200, await trade.buildSwap(await readJson(request)));
+      return;
+    }
+    const tradeStatusRoute = /^\/api\/trade\/status\/([^/]+)$/.exec(url.pathname);
+    if (request.method === 'GET' && tradeStatusRoute) {
+      requireTrade(trade);
+      json(response, 200, await trade.signatureStatus(decodeURIComponent(tradeStatusRoute[1])));
       return;
     }
     const sceneRoute = /^\/api\/driving-scenes\/([a-f0-9]{24})(?:\/(image))?$/.exec(url.pathname);
@@ -96,7 +139,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }
@@ -142,7 +185,20 @@ function json(response: ServerResponse, status: number, value: unknown) {
 
 async function shutdown() {
   server.close();
+  trade?.stop();
   await database.client.close();
 }
 process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);
+
+function requireTrade(value: typeof trade): asserts value is NonNullable<typeof trade> {
+  if (!value) throw new TradeError('Trade service is not configured.', 503);
+}
+
+function numberParam(url: URL, name: string, fallback: number) {
+  const raw = url.searchParams.get(name);
+  if (raw === null) return fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) throw new TradeError(`${name} must be an integer.`);
+  return value;
+}

@@ -1,6 +1,6 @@
 # Backend Taxi Park
 
-Backend не является источником истины для денег и начислений. Финансовое состояние находится в Solana PDA; MongoDB хранит только стажёрские кампании, журнал выданных ваучеров, rate limit и служебные настройки.
+Backend не является источником истины для денег и начислений. Финансовое состояние находится в Solana PDA; MongoDB хранит стажёрские кампании, журнал выданных ваучеров, rate limit, служебные настройки и восстанавливаемый индекс публичных trade-данных.
 
 ## Локальный запуск
 
@@ -19,6 +19,27 @@ npm run protocol:preflight
 Она проверяет обязательные адреса, разные server keypair, официальный порядок четырёх xStocks mint, ненулевые цены, постоянные metadata URI, а также совпадение `TAXI_PROGRAM_ID` во frontend, `Anchor.toml` и Rust `declare_id!`. Ошибки нужно исправить до публикации программы и `protocol:initialize`.
 
 Проверка доступности: `GET /api/health`.
+
+## Live trade API
+
+Для `/trade/` backend индексирует заданный `TRADE_MINT` на mainnet через Helius, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. Нужны `HELIUS_API_KEY`, `JUPITER_API_KEY` и `TRADE_MINT`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
+
+Основные endpoints:
+
+```text
+GET  /api/trade/token
+GET  /api/trade/trades
+GET  /api/trade/holders
+GET  /api/trade/candles?interval=1h
+GET  /api/trade/stream
+POST /api/trade/quote
+POST /api/trade/build
+GET  /api/trade/status/:signature
+```
+
+Indexer автоматически читает Pump.fun bonding curve и доступный Jupiter-маршрут. Состояния: `bonding_curve`, `migrating`, `pumpswap`, `external` и `unknown`. Транзакцию строит backend, но подписывает и отправляет только кошелёк пользователя через Wallet Standard. Пользовательские private key и seed phrase backend не получает.
+
+Новые сделки приходят через Helius `transactionSubscribe`; проверка каждые `TRADE_POLL_INTERVAL_MS` (по умолчанию 2 секунды) закрывает разрывы WebSocket. Холдеры полностью сверяются раз в `TRADE_HOLDER_REFRESH_MS` (30 секунд), а стадия и SOL/USD — раз в `TRADE_STATE_REFRESH_MS` (15 секунд). После перезапуска индексатор продолжает с сохранённого slot и идемпотентно дополняет историю по уникальному `mint + signature`.
 
 ## Общие лимиты Helius и Jupiter
 
