@@ -21,7 +21,7 @@ body { color: #111; background: #fff; }
 
 .trade-intro { display: flex; align-items: end; justify-content: space-between; min-height: 180px; padding-top: 32px; padding-bottom: 62px; }
 .trade-chart-heading span { font-size: 12px; font-weight: 800; }
-.trade-intro h1 { margin: 4px 0 0; font-family: 'Intro Friday', Impact, sans-serif; font-size: 66px; font-weight: 400; line-height: .86; letter-spacing: -.025em; transform: translateY(-96px); }
+.trade-intro h1 { margin: 4px 0 0; font-family: 'Intro Friday', Impact, sans-serif; font-size: 66px; font-weight: 400; line-height: .86; letter-spacing: -.025em; transform: translateY(-72px); }
 
 .trade-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: stretch; }
 .trade-chart-card, .trade-swap { border: 2px solid #111; border-radius: 28px; box-shadow: 9px 10px 0 #111; overflow: hidden; }
@@ -104,7 +104,7 @@ body { color: #111; background: #fff; }
   .trade-page { padding-top: 112px; }
   .trade-workspace { grid-template-columns: minmax(0, 1fr) 340px; }
   .trade-intro { min-height: 150px; }
-  .trade-intro h1 { transform: translateY(-42px); }
+  .trade-intro h1 { transform: translateY(-24px); }
 }
 
 @media (max-width: 760px) {
@@ -112,7 +112,7 @@ body { color: #111; background: #fff; }
   .trade-page::before { height: 500px; }
   .trade-page .container { padding-right: 20px; padding-left: 20px; }
   .trade-intro { display: block; min-height: 190px; padding-top: 30px; padding-bottom: 20px; }
-  .trade-intro h1 { font-size: 42px; transform: translateY(-30px); }
+  .trade-intro h1 { font-size: 42px; transform: translateY(-16px); }
   .trade-workspace { display: flex; flex-direction: column; gap: 22px; }
   .trade-swap { order: 1; min-height: 470px; padding: 14px; border-radius: 20px; box-shadow: 6px 7px 0 #111; }
   .trade-chart-card { order: 2; min-height: 440px; border-radius: 20px; box-shadow: 6px 7px 0 #111; }
