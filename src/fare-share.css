@@ -744,23 +744,26 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-mint-submit { height: 54px; }
   .fare-docs-main { padding-top: 126px; padding-bottom: 60px; }
   .fare-docs-tabs { width: 100%; justify-content: flex-start; gap: 4px; padding: 5px; overflow-x: auto; }
-  .fare-docs-tabs a { height: 38px; padding: 0 13px; font-size: 10px; }
+  .fare-docs-tabs a { height: 40px; padding: 0 14px; font-size: 12px; }
   .fare-docs-layout { margin-top: 20px; }
   .fare-docs-article { padding: 24px 18px 30px; border-radius: 22px; }
   .fare-docs-article-header { grid-template-columns: 1fr; gap: 20px; }
   .fare-docs-article-header h2 { font-size: 46px; text-shadow: 4px 5px 0 #111; }
-  .fare-docs-article-header p { font-size: 14px; line-height: 19px; }
+  .fare-docs-article-header p { font-size: 16px; line-height: 23px; }
   .fare-docs-steps { grid-template-columns: 1fr; gap: 10px; margin-top: 24px; }
   .fare-docs-steps > div { min-height: 66px; border-radius: 16px; }
+  .fare-docs-steps strong { font-size: 16px; }
+  .fare-docs-steps span { font-size: 14px; line-height: 20px; }
   .fare-docs-section-title { grid-template-columns: 32px 1fr; }
-  .fare-docs-section-title h2 { font-size: 21px; }
-  .fare-docs-copy-section p { margin-left: 32px; font-size: 13px; line-height: 19px; }
-  .fare-docs-callout { margin-left: 32px; border-radius: 18px; font-size: 11px; line-height: 15px; }
+  .fare-docs-section-title h2 { font-size: 24px; }
+  .fare-docs-copy-section p { margin-left: 32px; font-size: 16px; line-height: 24px; }
+  .fare-docs-callout { margin-left: 32px; border-radius: 18px; font-size: 14px; line-height: 20px; }
   .fare-leaderboard-page-main, .fare-garage-main, .fare-mint-main, .fare-docs-main { padding-top: 140px; }
   .fare-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
   .fare-page-heading .fare-page-title.is-short, .fare-page-heading .fare-page-title.is-long, .fare-docs-page-heading .fare-page-title.is-short { font-size: 52px; line-height: .82; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
   .fare-page-heading > p, .fare-docs-page-heading > p { width: min(360px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
   .fare-docs-page-heading { margin-bottom: 28px; }
+  .fare-docs-page-heading > p { font-size: 16px; line-height: 22px; }
   .fare-mint-intro > div > span { margin: 0; }
   .fare-faq-page .fare-faq { padding-top: 140px; }
   .fare-faq-page .fare-faq .fare-page-title { height: auto; font-size: 52px; line-height: .82; text-align: left; }
