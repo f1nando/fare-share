@@ -33,6 +33,17 @@ test('trade parser derives a sell and restores the fee to received SOL', () => {
   assert.equal(trade.solAmountLamports, '200005000');
 });
 
+test('trade parser ignores ordinary token transfers and rent changes', () => {
+  const value = transaction({
+    preLamports: 1_000_000_000,
+    postLamports: 997_955_720,
+    preTokens: '100000000',
+    postTokens: '99999999',
+  });
+  value.meta.logMessages = ['Program log: Instruction: TransferChecked'];
+  assert.equal(parseTradeTransaction(value, MINT, 6), null);
+});
+
 function transaction(input: { preLamports: number; postLamports: number; preTokens: string; postTokens: string }) {
   return {
     slot: 123,
@@ -43,6 +54,7 @@ function transaction(input: { preLamports: number; postLamports: number; preToke
     },
     meta: {
       fee: 5_000,
+      logMessages: [`Program log: Instruction: ${BigInt(input.postTokens) > BigInt(input.preTokens) ? 'Buy' : 'Sell'}`],
       preBalances: [input.preLamports],
       postBalances: [input.postLamports],
       preTokenBalances: [{ accountIndex: 0, mint: MINT, owner: WALLET, uiTokenAmount: { amount: input.preTokens, decimals: 6 } }],

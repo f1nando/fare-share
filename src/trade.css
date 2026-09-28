@@ -27,11 +27,16 @@ body { color: #111; background: #fff; }
 .trade-chart-card, .trade-swap { border: 2px solid #111; border-radius: 28px; box-shadow: 9px 10px 0 #111; overflow: hidden; }
 .trade-chart-card { display: flex; min-height: 560px; flex-direction: column; color: #fff; background: #111; }
 .trade-chart-heading { display: flex; min-height: 104px; flex-direction: column; justify-content: flex-end; padding: 14px 30px 12px; }
+.trade-chart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .trade-chart-symbol { display: flex; align-items: center; gap: 14px; }
 .trade-chart-heading span { display: block; color: #ffe11a; }
 .trade-chart-heading small { color: #0dde8d; font-size: 12px; font-weight: 800; }
+.trade-chart-periods { display: flex; align-items: center; gap: 4px; }
+.trade-chart-periods button { min-width: 32px; height: 24px; padding: 0 7px; border: 1px solid #444; border-radius: 999px; color: #aaa; background: transparent; font-size: 9px; font-weight: 900; }
+.trade-chart-periods button:hover, .trade-chart-periods .is-active { border-color: #ffe11a; color: #111; background: #ffe11a; }
 .trade-chart-price-row { display: flex; align-items: flex-start; justify-content: space-between; margin-top: 10px; }
 .trade-chart-heading strong { display: block; font-size: 52px; line-height: .9; letter-spacing: -.055em; }
+.trade-chart-heading strong sub { position: relative; bottom: -.12em; margin: 0 1px; font-size: 45%; line-height: 0; vertical-align: baseline; }
 .trade-chart-heading p { margin: 0; color: #aaa; font-size: 12px; font-weight: 600; line-height: 1.4; text-align: right; }
 .trade-chart-heading p b { color: #fff; font-size: 14px; }
 .tradingview-widget-shell { position: relative; flex: 1; min-height: 400px; overflow: hidden; }
@@ -96,6 +101,9 @@ body { color: #111; background: #fff; }
   .trade-swap { order: 1; min-height: 470px; padding: 14px; border-radius: 20px; box-shadow: 6px 7px 0 #111; }
   .trade-chart-card { order: 2; min-height: 440px; border-radius: 20px; box-shadow: 6px 7px 0 #111; }
   .trade-chart-heading { min-height: 94px; padding: 12px 18px 10px; }
+  .trade-chart-toolbar { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .trade-chart-periods { width: 100%; justify-content: space-between; }
+  .trade-chart-periods button { min-width: 0; flex: 1; padding: 0 4px; }
   .trade-chart-heading strong { font-size: 38px; }
   .trade-chart-heading p { font-size: 10px; }
   .tradingview-widget-shell { min-height: 315px; }

@@ -31,7 +31,7 @@ function LiveTradeChart({ candles, symbol }) {
     const series = chart.addSeries(CandlestickSeries, {
       upColor: '#d7d7d7', downColor: '#ffe11a', borderUpColor: '#d7d7d7', borderDownColor: '#ffe11a',
       wickUpColor: '#d7d7d7', wickDownColor: '#ffe11a',
-      priceFormat: { type: 'price', precision: 9, minMove: .000000001 },
+      priceFormat: { type: 'custom', minMove: .000000001, formatter: compactPriceText },
     });
     if (candles.length) {
       series.setData(candles);
@@ -170,11 +170,12 @@ export function TradePage({ wallet, connectWallet }) {
   const [trades, setTrades] = useState([]);
   const [holders, setHolders] = useState([]);
   const [candles, setCandles] = useState([]);
+  const [interval, setInterval] = useState('1h');
 
   const refreshToken = useCallback(() => loadTradeToken().then(setToken).catch(error => console.warn(error.message)), []);
   const refreshTrades = useCallback(() => loadTrades().then(value => setTrades(value.trades)).catch(error => console.warn(error.message)), []);
   const refreshHolders = useCallback(() => loadHolders().then(value => setHolders(value.holders)).catch(error => console.warn(error.message)), []);
-  const refreshCandles = useCallback(() => loadCandles('1h').then(value => setCandles(value.candles)).catch(error => console.warn(error.message)), []);
+  const refreshCandles = useCallback(() => loadCandles(interval).then(value => setCandles(value.candles)).catch(error => console.warn(error.message)), [interval]);
 
   useEffect(() => {
     void Promise.all([refreshToken(), refreshTrades(), refreshHolders(), refreshCandles()]);
@@ -192,9 +193,16 @@ export function TradePage({ wallet, connectWallet }) {
       <section className="trade-workspace container">
         <article className="trade-chart-card">
           <div className="trade-chart-heading">
-            <div className="trade-chart-symbol"><span>{symbol} / SOL</span><small>{signedPercent(token?.change24h)} · 24H</small></div>
+            <div className="trade-chart-toolbar">
+              <div className="trade-chart-symbol"><span>{symbol} / SOL</span><small>{signedPercent(token?.change24h)} · 24H</small></div>
+              <div className="trade-chart-periods" aria-label="Candle interval">
+                {['1m', '5m', '15m', '1h', '4h', '1d'].map(value => (
+                  <button className={interval === value ? 'is-active' : ''} type="button" onClick={() => setInterval(value)} key={value}>{value.endsWith('m') ? value : value.toUpperCase()}</button>
+                ))}
+              </div>
+            </div>
             <div className="trade-chart-price-row">
-              <strong>{token?.priceUsd ? `$${formatPrice(token.priceUsd)}` : `${formatPrice(token?.priceSol || 0)} SOL`}</strong>
+              <strong>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : <><CompactPrice value={token?.priceSol || 0} /> SOL</>}</strong>
               <p>24H volume<br /><b>{formatNumber(token?.volume24hSol || 0, 2)} SOL</b></p>
             </div>
           </div>
@@ -223,6 +231,34 @@ function formatToken(value) {
 function formatPrice(value) {
   const number = Number(value || 0);
   return number >= 1 ? formatNumber(number, 4) : number.toPrecision(4).replace(/(?:\.0+|(?:(\.\d*?)0+))$/, '$1');
+}
+
+function CompactPrice({ value, prefix = '' }) {
+  const parts = compactPriceParts(value);
+  if (!parts.compact) return <>{prefix}{parts.text}</>;
+  return <>{prefix}0.0<sub>{parts.hiddenZeros}</sub>{parts.significant}</>;
+}
+
+function compactPriceText(value) {
+  const parts = compactPriceParts(value);
+  return parts.compact ? `0.0${toSubscript(parts.hiddenZeros)}${parts.significant}` : parts.text;
+}
+
+function compactPriceParts(value) {
+  const number = Math.abs(Number(value || 0));
+  if (!number || number >= .001) return { compact: false, text: formatPrice(number) };
+  const leadingZeros = Math.max(1, Math.floor(-Math.log10(number)));
+  const hiddenZeros = Math.max(0, leadingZeros - 1);
+  const significant = (number * 10 ** (leadingZeros + 1)).toPrecision(4)
+    .replace(/(\.\d*?[1-9])0+$/, '$1')
+    .replace(/\.0+$/, '')
+    .replace('.', '');
+  return { compact: true, hiddenZeros, significant };
+}
+
+function toSubscript(value) {
+  const digits = '₀₁₂₃₄₅₆₇₈₉';
+  return String(value).replace(/\d/g, digit => digits[Number(digit)]);
 }
 
 function signedPercent(value) {

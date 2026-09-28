@@ -12,6 +12,7 @@ import { requestQueues, runRateLimitedAttempts } from './requestLimits.js';
 const JUPITER_SWAP_URL = 'https://api.jup.ag/swap/v1';
 const JUPITER_PRICE_URL = 'https://api.jup.ag/price/v3';
 const LAMPORTS_PER_SOL = 1_000_000_000;
+const TRADE_INDEX_VERSION = 5;
 
 export type TradeStage = 'bonding_curve' | 'migrating' | 'pumpswap' | 'external' | 'unknown';
 
@@ -45,6 +46,7 @@ export interface TradeHolderDocument {
 
 export interface TradeStateDocument {
   mint: string;
+  indexVersion: number;
   name: string;
   symbol: string;
   decimals: number;
@@ -52,6 +54,7 @@ export interface TradeStateDocument {
   stage: TradeStage;
   bondingCurve?: string;
   routeLabel?: string;
+  routePriceSol?: number;
   tradingAvailable: boolean;
   lastTradeSlot: number;
   lastHolderSlot: number;
@@ -83,6 +86,7 @@ export class TradeService {
   private syncingTrades = false;
   private syncingHolders = false;
   private syncingState = false;
+  private bootstrapping = true;
   private providerRetryAt = 0;
   private lastFailureLogAt = 0;
   private socket?: WebSocket;
@@ -98,6 +102,7 @@ export class TradeService {
       : config.solanaRpcUrl;
     this.state = {
       mint: String(this.mint),
+      indexVersion: TRADE_INDEX_VERSION,
       name: 'Fare Share',
       symbol: 'FARE',
       decimals: 6,
@@ -129,10 +134,23 @@ export class TradeService {
   }
 
   private async bootstrap() {
-    const saved = await this.database.tradeState.findOne({ mint: String(this.mint) });
-    if (saved) this.state = saved;
-    await Promise.allSettled([this.refreshState(), this.refreshHolders()]);
-    await this.backfillTrades();
+    try {
+      const saved = await this.database.tradeState.findOne({ mint: String(this.mint) });
+      if (saved?.indexVersion === TRADE_INDEX_VERSION) {
+        this.state = saved;
+      } else if (saved) {
+        await this.database.tradeTransactions.deleteMany({ mint: String(this.mint) });
+        this.state = { ...saved, indexVersion: TRADE_INDEX_VERSION, lastTradeSlot: 0, updatedAt: new Date() };
+        await this.database.tradeState.updateOne(
+          { mint: String(this.mint) },
+          { $set: { indexVersion: TRADE_INDEX_VERSION, lastTradeSlot: 0, updatedAt: new Date() } },
+        );
+      }
+      await Promise.allSettled([this.refreshState(), this.refreshHolders()]);
+      await this.backfillTrades();
+    } finally {
+      this.bootstrapping = false;
+    }
   }
 
   async tokenSnapshot() {
@@ -307,6 +325,8 @@ export class TradeService {
       const complete = curveExists && bytes[48] === 1;
       const route = await this.jupiterQuote(String(WSOL_MINT), String(this.mint), '1000000', 500).catch(() => null);
       const labels = route ? routeLabels(route) : [];
+      const routeOutput = route ? Number(String(route.outAmount || '0')) / 10 ** Number(tokenInfo.decimals ?? supplyValue.decimals ?? this.state.decimals) : 0;
+      const routePriceSol = routeOutput > 0 ? .001 / routeOutput : undefined;
       const pumpRoute = labels.some(label => label.toLowerCase().includes('pump'));
       let stage: TradeStage = 'unknown';
       if (curveExists && !complete) stage = 'bonding_curve';
@@ -323,6 +343,7 @@ export class TradeService {
         stage,
         bondingCurve: curveExists ? String(bondingCurve) : undefined,
         routeLabel: labels.join(' → ') || undefined,
+        routePriceSol,
         tradingAvailable: Boolean(route),
         solUsd,
         updatedAt: new Date(),
@@ -394,7 +415,10 @@ export class TradeService {
       let maxSlot = this.state.lastTradeSlot;
       do {
         const result = await this.loadTransactions({ sortOrder: 'desc', limit: 1_000, paginationToken });
-        const documents = result.data.map(value => parseTradeTransaction(value, String(this.mint), this.state.decimals, this.state.solUsd)).filter(isTrade);
+        const documents = result.data
+          .map(value => parseTradeTransaction(value, String(this.mint), this.state.decimals, this.state.solUsd))
+          .filter(isTrade)
+          .filter(value => isPlausibleTrade(value, this.state.routePriceSol));
         await this.upsertTrades(documents);
         for (const document of documents) maxSlot = Math.max(maxSlot, document.slot);
         paginationToken = result.paginationToken;
@@ -409,14 +433,17 @@ export class TradeService {
   }
 
   private async syncRecentTrades() {
-    if (this.syncingTrades || this.stopped || !this.providerReady()) return;
+    if (this.syncingTrades || this.bootstrapping || this.stopped || !this.providerReady()) return;
     this.syncingTrades = true;
     try {
       const result = await this.loadTransactions({
-        sortOrder: 'asc', limit: 1_000,
+        sortOrder: 'asc', limit: 1_000, commitment: 'confirmed',
         ...(this.state.lastTradeSlot ? { filters: { slot: { gt: this.state.lastTradeSlot }, status: 'succeeded', tokenAccounts: 'balanceChanged' } } : {}),
       });
-      const documents = result.data.map(value => parseTradeTransaction(value, String(this.mint), this.state.decimals, this.state.solUsd)).filter(isTrade);
+      const documents = result.data
+        .map(value => parseTradeTransaction(value, String(this.mint), this.state.decimals, this.state.solUsd))
+        .filter(isTrade)
+        .filter(value => isPlausibleTrade(value, this.state.routePriceSol));
       await this.upsertTrades(documents);
       const maxSlot = documents.reduce((slot, value) => Math.max(slot, value.slot), this.state.lastTradeSlot);
       await this.setLastTradeSlot(maxSlot);
@@ -472,7 +499,7 @@ export class TradeService {
         transaction: wrapped.transaction,
         meta: wrapped.meta,
       }, String(this.mint), this.state.decimals, this.state.solUsd);
-      if (!document) return;
+      if (!document || !isPlausibleTrade(document, this.state.routePriceSol)) return;
       document.status = 'confirmed';
       await this.upsertTrades([document]);
       await this.setLastTradeSlot(document.slot);
@@ -486,6 +513,7 @@ export class TradeService {
     const filters = asRecord(options.filters);
     const result = asRecord(await this.rpc('getTransactionsForAddress', [String(this.mint), {
       transactionDetails: 'full',
+      commitment: options.commitment || 'finalized',
       sortOrder: options.sortOrder || 'desc',
       limit: options.limit || 1_000,
       ...(options.paginationToken ? { paginationToken: options.paginationToken } : {}),
@@ -602,6 +630,8 @@ export function parseTradeTransaction(value: JsonRecord, mint: string, decimals:
   const message = asRecord(transaction.message);
   const meta = asRecord(value.meta || transaction.meta);
   if (meta.err) return null;
+  const logs = Array.isArray(meta.logMessages) ? meta.logMessages.map(String).join('\n') : '';
+  if (!/Instruction:\s*(?:Buy|Sell|Swap|Swap2|Route|SharedAccountsRoute|ExactOut)\b/i.test(logs)) return null;
   const accountKeys = Array.isArray(message.accountKeys)
     ? message.accountKeys.map(item => typeof item === 'string' ? item : String(asRecord(item).pubkey || ''))
     : [];
@@ -677,4 +707,10 @@ function asRecord(value: unknown): JsonRecord {
 
 function isTrade(value: TradeTransactionDocument | null): value is TradeTransactionDocument {
   return value !== null;
+}
+
+function isPlausibleTrade(value: TradeTransactionDocument, referencePrice?: number) {
+  if (value.solAmount < .00005 || value.tokenAmount < .001) return false;
+  if (!referencePrice || !Number.isFinite(referencePrice)) return true;
+  return value.priceSol >= referencePrice / 5 && value.priceSol <= referencePrice * 5;
 }
