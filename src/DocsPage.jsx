@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
-import { FareShareCityBackground } from './FareShareLanding.jsx';
 
 const steps = [
   ['01', 'MINT A TAXI', 'Choose a class and mint one permanent NFT.'],
@@ -59,10 +57,7 @@ export function DocsPage() {
   }, []);
 
   return (
-    <div className="fare-page fare-docs-page">
-      <FareShareCityBackground />
-      <FareHeader linkPrefix="/fare-share/" activeItem="docs" />
-
+    <>
       <main className="fare-docs-main" id="top">
         <div className="container">
           <nav
@@ -160,8 +155,6 @@ export function DocsPage() {
           </div>
         </div>
       </main>
-
-      <FareFooter linkPrefix="/fare-share/" />
-    </div>
+    </>
   );
 }

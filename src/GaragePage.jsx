@@ -1,15 +1,11 @@
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
-import { FareShareCityBackground, FareStepDrivingScene } from './FareShareLanding.jsx';
+import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
 const garageCars = drivingScenes.slice(0, 9);
 
 export function GaragePage() {
   return (
-    <div className="fare-page fare-garage-page">
-      <FareShareCityBackground />
-      <FareHeader linkPrefix="/fare-share/" activeItem="garage" />
-
+    <>
       <main className="fare-garage-main" id="top">
         <section className="container fare-garage-section" id="garage" aria-labelledby="garage-page-title">
           <div className="fare-garage-heading">
@@ -29,8 +25,6 @@ export function GaragePage() {
           </div>
         </section>
       </main>
-
-      <FareFooter linkPrefix="/fare-share/" />
-    </div>
+    </>
   );
 }

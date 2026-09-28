@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 
 const transactionRows = [
   ['0x8F2A...91C4', 'BUY', '12.40 SOL', '$1,468.78', '5Vf2...K8qP'],
@@ -194,9 +193,8 @@ function MarketTables() {
 
 export function TradePage() {
   return (
-    <div className="fare-page trade-page" id="top">
-      <FareHeader linkPrefix="/" activeItem="trade" />
-      <main>
+    <>
+      <main id="top">
         <section className="trade-intro container">
           <h1>TRADE</h1>
         </section>
@@ -216,7 +214,6 @@ export function TradePage() {
         </section>
         <MarketTables />
       </main>
-      <FareFooter linkPrefix="/" />
-    </div>
+    </>
   );
 }

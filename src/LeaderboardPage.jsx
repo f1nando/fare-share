@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
-import { FareShareCityBackground } from './FareShareLanding.jsx';
 
 const leaders = [
   ['User_4312234', 12, '24 430$'],
@@ -38,10 +36,7 @@ export function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="fare-page fare-leaderboard-page">
-      <FareShareCityBackground />
-      <FareHeader linkPrefix="/fare-share/" />
-
+    <>
       <main className="fare-leaderboard-page-main" id="top">
         <section className="container fare-leaderboard-page-section" aria-labelledby="leaderboard-page-title">
           <div className="fare-leaderboard-page-heading">
@@ -72,7 +67,6 @@ export function LeaderboardPage() {
         <span>24 430$</span>
       </div>
 
-      <FareFooter linkPrefix="/fare-share/" />
-    </div>
+    </>
   );
 }

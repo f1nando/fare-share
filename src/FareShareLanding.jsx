@@ -3,7 +3,6 @@ import { createCity } from './city/createCity.js';
 import { loadSettings } from './city/settings.js';
 import { fleetColumnCount, fleetRoadPlaybackRate } from './fleetWall.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 import drivingScenes from './drivingScenes.json';
 
 const FLEET_ROAD_SPEED = 19;
@@ -61,39 +60,53 @@ function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-export function FareShareCityBackground() {
+export function FareShareCityBackground({ colorScheme = 'classic', followHero = true }) {
   const containerRef = useRef(null);
+  const cityRef = useRef(null);
+  const settingsRef = useRef(null);
 
   useEffect(() => {
-    let city;
-    let observer;
     try {
-      const settings = { ...loadSettings(), colorScheme: 'classic' };
-      let colorScheme = settings.colorScheme;
-      city = createCity(containerRef.current, settings);
-
-      const heroTitle = document.querySelector('#fare-hero-title');
-      if (heroTitle) {
-        observer = new IntersectionObserver(([entry]) => {
-          const titleIsAboveViewport = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
-          const nextColorScheme = titleIsAboveViewport ? 'pale' : 'classic';
-          if (nextColorScheme === colorScheme) return;
-          colorScheme = nextColorScheme;
-          city?.updateSettings({ ...settings, colorScheme });
-        });
-        observer.observe(heroTitle);
-      }
+      const settings = { ...loadSettings(), colorScheme };
+      settingsRef.current = settings;
+      cityRef.current = createCity(containerRef.current, settings);
     } catch (error) {
       console.error('Unable to start the Fare Share city background', error);
     }
     return () => {
-      observer?.disconnect();
-      city?.dispose();
+      cityRef.current?.dispose();
+      cityRef.current = null;
+      settingsRef.current = null;
     };
   }, []);
 
+  useEffect(() => {
+    if (!cityRef.current || !settingsRef.current) return undefined;
+
+    let currentColorScheme = settingsRef.current.colorScheme;
+    const updateColorScheme = (nextColorScheme) => {
+      if (nextColorScheme === currentColorScheme) return;
+      currentColorScheme = nextColorScheme;
+      settingsRef.current = { ...settingsRef.current, colorScheme: nextColorScheme };
+      cityRef.current?.updateSettings(settingsRef.current);
+    };
+
+    updateColorScheme(colorScheme);
+    if (!followHero) return undefined;
+
+    const heroTitle = document.querySelector('#fare-hero-title');
+    if (!heroTitle) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      const titleIsAboveViewport = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+      updateColorScheme(titleIsAboveViewport ? 'pale' : 'classic');
+    });
+    observer.observe(heroTitle);
+    return () => observer.disconnect();
+  }, [colorScheme, followHero]);
+
   return (
-    <div className="fare-city-background" aria-hidden="true">
+    <div className="fare-city-background" style={{ opacity: 1, filter: 'none' }} aria-hidden="true">
       <div className="fare-city-canvas" ref={containerRef} />
     </div>
   );
@@ -620,10 +633,7 @@ export function FareShareLanding() {
   ];
 
   return (
-    <div className="fare-page fare-landing-page">
-      <FareShareCityBackground />
-      <FareHeader />
-
+    <>
       <main id="top">
         <section className="fare-hero" aria-labelledby="fare-hero-title">
           <div className="container container--hero">
@@ -765,8 +775,6 @@ export function FareShareLanding() {
           </div>
         </section>
       </main>
-
-      <FareFooter />
-    </div>
+    </>
   );
 }

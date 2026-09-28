@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
-import { FareShareCityBackground, FareStepDrivingScene } from './FareShareLanding.jsx';
+import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
 const mintCar = drivingScenes.find(car => car.name === 'Chevrolet Caprice') || drivingScenes[0];
@@ -18,10 +17,7 @@ export function MintPage() {
   const [quantity, setQuantity] = useState(2);
 
   return (
-    <div className="fare-page fare-mint-page">
-      <FareShareCityBackground />
-      <FareHeader linkPrefix="/fare-share/" activeItem="mint" />
-
+    <>
       <main className="fare-mint-main" id="top">
         <section className="container fare-mint-section" aria-labelledby="mint-page-title">
           <div className="fare-mint-intro">
@@ -66,8 +62,6 @@ export function MintPage() {
           </div>
         </section>
       </main>
-
-      <FareFooter linkPrefix="/fare-share/" />
-    </div>
+    </>
   );
 }
