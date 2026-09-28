@@ -499,6 +499,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-docs-sidebar { display: none; }
 }
 
+@media (max-width: 650px) {
+  .fare-step-grid { grid-template-columns: 1fr; }
+  .fare-step-card:nth-child(3) { grid-column: auto; width: 100%; }
+}
+
 @media (max-width: 600px) {
   .fare-landing-page .fare-fleet,
   .fare-landing-page .fare-treasury,
