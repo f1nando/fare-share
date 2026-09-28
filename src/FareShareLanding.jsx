@@ -676,10 +676,10 @@ export function FareShareLanding() {
               <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>TOTAL EARNINGS</span>
             </div>
             {leaders.map(([position, earnings]) => <div className="fare-leaderboard-row" key={position}>
-              <span>{position}</span>
-              <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />User_4312234</span>
-              <span>12 Cars</span>
-              <span>{earnings}</span>
+              <span data-label="#">{position}</span>
+              <span className="fare-driver-cell" data-label="DRIVER"><img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />User_4312234</span>
+              <span data-label="CARS OWNED">12 Cars</span>
+              <span data-label="TOTAL EARNINGS">{earnings}</span>
             </div>)}
           </div>
           </div>
