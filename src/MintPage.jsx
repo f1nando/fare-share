@@ -40,6 +40,7 @@ function ArrowIcon() {
 export function MintPage() {
   const previewRef = useRef(null);
   const [quantity, setQuantity] = useState(2);
+  const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const [preview, dispatchPreview] = useReducer(previewReducer, {
     current: { classIndex: 0, sceneIndex: 0 },
     previous: null,
@@ -49,6 +50,8 @@ export function MintPage() {
   const selectedClass = MINT_CLASSES[selectedClassIndex];
 
   useEffect(() => {
+    if (isPreviewHovered) return undefined;
+
     let interval;
     let cancelled = false;
 
@@ -69,7 +72,7 @@ export function MintPage() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [selectedClassIndex, selectedClass.scenes.length]);
+  }, [isPreviewHovered, selectedClassIndex, selectedClass.scenes.length]);
 
   useLayoutEffect(() => {
     previewRef.current?.querySelectorAll('.fare-mint-preview-scene:not(.is-active) .fare-fleet-headlight').forEach(light => {
@@ -90,7 +93,12 @@ export function MintPage() {
           </div>
 
           <div className="fare-mint-layout">
-            <div className="fare-mint-preview" ref={previewRef}>
+            <div
+              className="fare-mint-preview"
+              ref={previewRef}
+              onMouseEnter={() => setIsPreviewHovered(true)}
+              onMouseLeave={() => setIsPreviewHovered(false)}
+            >
               <div className="fare-mint-preview-scenes">
                 {MINT_CLASSES.flatMap((item, classIndex) => item.scenes.map((scene, sceneIndex) => {
                   const isActive = classIndex === selectedClassIndex && sceneIndex === previewSceneIndex;
