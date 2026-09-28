@@ -505,9 +505,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 800px) {
-  .fare-treasury .fare-leaderboard { display: grid; gap: 14px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  .fare-treasury .fare-leaderboard { display: block; border: 1px solid #111; border-radius: 30px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
   .fare-treasury .fare-leaderboard-header { display: none; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { display: grid; grid-template: 'rank driver' auto 'cars earnings' auto / minmax(90px, .45fr) minmax(0, 1fr); gap: 20px 24px; height: auto; min-height: 150px; padding: 20px 24px; border: 2px solid #111; border-radius: 24px; background: #fff; box-shadow: 4px 5px 0 #111; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { display: grid; grid-template: 'rank driver' auto 'cars earnings' auto / minmax(90px, .45fr) minmax(0, 1fr); gap: 20px 24px; height: auto; min-height: 150px; padding: 20px 24px; border: 0; border-radius: 0; background: #fff; box-shadow: none; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header):nth-child(odd) { background: #f1f1f1; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span { min-width: 0; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { content: attr(data-label); display: block; margin-bottom: 7px; color: #777; font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1) { grid-area: rank; }
