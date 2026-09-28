@@ -26,6 +26,7 @@ const leaders = [
 export function LeaderboardPage() {
   const currentDriverRef = useRef(null);
   const [currentDriverVisible, setCurrentDriverVisible] = useState(true);
+  const [footerVisible, setFooterVisible] = useState(false);
 
   useEffect(() => {
     const row = currentDriverRef.current;
@@ -34,6 +35,16 @@ export function LeaderboardPage() {
     observer.observe(row);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const footer = document.querySelector('.fare-footer');
+    if (!footer) return undefined;
+    const observer = new IntersectionObserver(([entry]) => setFooterVisible(entry.isIntersecting));
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
+  const dockHidden = currentDriverVisible || footerVisible;
 
   return (
     <>
@@ -60,7 +71,7 @@ export function LeaderboardPage() {
         </section>
       </main>
 
-      <div className={`fare-current-driver-dock${currentDriverVisible ? ' is-hidden' : ''}`} aria-hidden={currentDriverVisible}>
+      <div className={`fare-current-driver-dock${dockHidden ? ' is-hidden' : ''}`} aria-hidden={dockHidden}>
         <span>1</span>
         <span className="fare-driver-cell"><img src="/brand/fare-driver.png" alt="" decoding="async" /><span className="fare-driver-name">User_4312234<strong className="fare-you-badge">YOU</strong></span></span>
         <span>12 Cars</span>
