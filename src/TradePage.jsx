@@ -31,28 +31,28 @@ function TradingViewChart() {
       width: host.clientWidth,
       height: host.clientHeight,
       layout: {
-        background: { type: ColorType.Solid, color: '#111111' },
-        textColor: '#8f8f8f',
+        background: { type: ColorType.Solid, color: '#ffffff' },
+        textColor: '#666666',
       },
       grid: {
-        vertLines: { color: '#242424' },
-        horzLines: { color: '#242424' },
+        vertLines: { color: '#e8e8e8' },
+        horzLines: { color: '#e8e8e8' },
       },
-      rightPriceScale: { borderColor: '#333333' },
-      timeScale: { borderColor: '#333333', timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: '#111111' },
+      timeScale: { borderColor: '#111111', timeVisible: true, secondsVisible: false },
       crosshair: {
-        vertLine: { color: '#777777', labelBackgroundColor: '#ffe11a' },
-        horzLine: { color: '#777777', labelBackgroundColor: '#ffe11a' },
+        vertLine: { color: '#777777', labelBackgroundColor: '#111111' },
+        horzLine: { color: '#777777', labelBackgroundColor: '#111111' },
       },
     });
 
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#ffffff',
-      downColor: '#ffe11a',
-      borderUpColor: '#ffffff',
-      borderDownColor: '#ffe11a',
-      wickUpColor: '#ffffff',
-      wickDownColor: '#ffe11a',
+      upColor: '#ffe11a',
+      downColor: '#111111',
+      borderUpColor: '#ffe11a',
+      borderDownColor: '#111111',
+      wickUpColor: '#ffe11a',
+      wickDownColor: '#111111',
       priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
     });
 
