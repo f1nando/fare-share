@@ -13,6 +13,7 @@ const JUPITER_SWAP_URL = 'https://api.jup.ag/swap/v1';
 const JUPITER_PRICE_URL = 'https://api.jup.ag/price/v3';
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const TRADE_INDEX_VERSION = 5;
+const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
 export type TradeStage = 'bonding_curve' | 'migrating' | 'pumpswap' | 'external' | 'unknown';
 
@@ -238,7 +239,8 @@ export class TradeService {
     const holders: Array<Record<string, unknown>> = rows.map(row => ({ ...row }));
     if (poolOwner && skip === 0) {
       const stored = await this.database.tradeHolders.findOne({ mint: String(this.mint), owner: poolOwner });
-      const remainingRaw = this.state.bondingCurveRemainingRaw || stored?.balanceRaw || '0';
+      const remainingRaw = stored?.balanceRaw || this.state.bondingCurveRemainingRaw || '0';
+      const remainingPercent = stored?.supplyShare ?? this.state.bondingCurveRemainingPercent ?? 0;
       holders.unshift({
         ...(stored || {
           mint: String(this.mint), owner: poolOwner, snapshotId: 'on-chain', updatedSlot: this.state.lastTradeSlot, updatedAt: this.state.updatedAt,
@@ -247,7 +249,7 @@ export class TradeService {
         kind: 'liquidity_pool',
         supplyLeftRaw: remainingRaw,
         supplyLeft: Number(remainingRaw) / 10 ** this.state.decimals,
-        supplyLeftPercent: this.state.bondingCurveRemainingPercent ?? stored?.supplyShare ?? 0,
+        supplyLeftPercent: remainingPercent,
       });
     }
     return { holders, total: await this.database.tradeHolders.countDocuments(filter) + (poolOwner ? 1 : 0) };
@@ -462,20 +464,38 @@ export class TradeService {
     this.syncingHolders = true;
     try {
       const accounts: JsonRecord[] = [];
-      let cursor: string | undefined;
       let indexedSlot = 0;
-      do {
-        const result = asRecord(await this.rpc('getTokenAccounts', { mint: String(this.mint), limit: 1_000, ...(cursor ? { cursor } : {}) }));
-        indexedSlot = Number(result.last_indexed_slot || indexedSlot);
-        const page = Array.isArray(result.token_accounts) ? result.token_accounts.map(asRecord) : [];
-        accounts.push(...page);
-        cursor = typeof result.cursor === 'string' && result.cursor ? result.cursor : undefined;
-      } while (cursor && accounts.length < 250_000);
       const balances = new Map<string, bigint>();
-      for (const account of accounts) {
-        const owner = String(account.owner || '');
-        const amount = BigInt(String(account.amount || '0'));
-        if (owner && amount > 0n) balances.set(owner, (balances.get(owner) || 0n) + amount);
+      const mintAccountResult = asRecord(await this.rpc('getAccountInfo', [String(this.mint), { encoding: 'base64', commitment: 'confirmed' }]));
+      const mintAccount = mintAccountResult.value ? asRecord(mintAccountResult.value) : {};
+      const tokenProgram = String(mintAccount.owner || '');
+      if (tokenProgram === TOKEN_2022_PROGRAM) {
+        const result = asRecord(await this.rpc('getProgramAccounts', [tokenProgram, {
+          encoding: 'jsonParsed', commitment: 'confirmed', withContext: true,
+          filters: [{ memcmp: { offset: 0, bytes: String(this.mint) } }],
+        }]));
+        indexedSlot = Number(asRecord(result.context).slot || 0);
+        accounts.push(...(Array.isArray(result.value) ? result.value.map(asRecord) : []));
+        for (const entry of accounts) {
+          const info = asRecord(asRecord(asRecord(asRecord(entry.account).data).parsed).info);
+          const owner = String(info.owner || '');
+          const amount = BigInt(String(asRecord(info.tokenAmount).amount || '0'));
+          if (owner && amount > 0n) balances.set(owner, (balances.get(owner) || 0n) + amount);
+        }
+      } else {
+        let cursor: string | undefined;
+        do {
+          const result = asRecord(await this.rpc('getTokenAccounts', { mint: String(this.mint), limit: 1_000, ...(cursor ? { cursor } : {}) }));
+          indexedSlot = Number(result.last_indexed_slot || indexedSlot);
+          const page = Array.isArray(result.token_accounts) ? result.token_accounts.map(asRecord) : [];
+          accounts.push(...page);
+          cursor = typeof result.cursor === 'string' && result.cursor ? result.cursor : undefined;
+        } while (cursor && accounts.length < 250_000);
+        for (const account of accounts) {
+          const owner = String(account.owner || '');
+          const amount = BigInt(String(account.amount || '0'));
+          if (owner && amount > 0n) balances.set(owner, (balances.get(owner) || 0n) + amount);
+        }
       }
       const snapshotId = randomUUID();
       const now = new Date();
