@@ -327,11 +327,23 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-garage-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .9; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }
 .fare-garage-heading p { max-width: 430px; margin: 0 0 8px; padding: 13px 16px; border-left: 8px solid #111; background: #fff; font-size: 22px; font-weight: 700; line-height: 27px; }
 .fare-garage-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; margin-top: 70px; }
-.fare-garage-card { height: 610px; }
+.fare-garage-card { height: 790px; }
 .fare-garage-card > .fare-step-media { transform: none; }
 .fare-garage-card h2 { margin: 24px 0 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 39px; font-weight: 400; line-height: .8; letter-spacing: -.02em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 4px 4px 0 #111; }
-.fare-garage-card p { max-width: 391px; margin: 22px 0 0; font-size: 20px; font-weight: 500; line-height: 22px; }
 .fare-garage-number { width: 82px; border-radius: 24px; font-size: 23px; }
+.fare-garage-class { top: 28px; right: 28px; left: auto; text-transform: uppercase; }
+.fare-garage-durability-copy { display: flex; align-items: center; justify-content: space-between; margin-top: 23px; font-size: 14px; font-weight: 700; }
+.fare-garage-durability-copy strong { font-family: 'Roboto Mono', 'Courier New', monospace; }
+.fare-garage-durability { height: 12px; margin-top: 9px; border: 2px solid #111; border-radius: 999px; background: #fff; overflow: hidden; }
+.fare-garage-durability span { display: block; height: 100%; border-right: 2px solid #111; background: #ffe72f; }
+.fare-garage-earned { display: grid; grid-template: 'label amount' auto 'label stocks' auto / 1fr auto; align-items: end; gap: 4px 12px; margin-top: 20px; }
+.fare-garage-earned > span { grid-area: label; align-self: start; font-size: 14px; font-weight: 700; }
+.fare-garage-earned strong { grid-area: amount; font-size: 20px; font-weight: 900; }
+.fare-garage-earned small { grid-area: stocks; color: #666; font-size: 11px; text-align: right; }
+.fare-garage-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+.fare-garage-actions button { height: 48px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 14px; font-weight: 800; transition: transform .15s ease, box-shadow .15s ease; }
+.fare-garage-actions button.is-secondary { background: #fff; }
+.fare-garage-actions button:hover { transform: translate(4px, 5px); box-shadow: 0 0 0 #111; }
 
 .fare-mint-page { background: #dedede; }
 .fare-mint-page .fare-city-background { opacity: .16; filter: grayscale(1); }
