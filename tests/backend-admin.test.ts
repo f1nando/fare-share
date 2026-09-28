@@ -5,7 +5,6 @@ import { AccountRole, address, getAddressEncoder } from '@solana/kit';
 import {
   buildRescueSolInstruction,
   buildRescueTokenInstruction,
-  buildCreditDevnetRewardsInstruction,
   buildSimpleAdminInstruction,
 } from '../server/admin.js';
 
@@ -31,23 +30,6 @@ test('simple admin commands encode Anchor discriminators and arguments', () => {
   assert.deepEqual([0, 1, 2, 3].map(index => (
     new DataView(prices.data!.buffer, prices.data!.byteOffset).getBigUint64(8 + index * 8, true)
   )), [1n, 2n, 3n, 4n]);
-});
-
-test('devnet reward credit encodes five amounts and the reward pool account', () => {
-  const credit = buildCreditDevnetRewardsInstruction(
-    PROGRAM, ADMIN, CONFIG, VALUE, PROGRAM, [1n, 2n, 3n, 4n, 5n], 6n,
-  );
-  assert.deepEqual(credit.accounts?.map(account => account.role), [
-    AccountRole.READONLY_SIGNER,
-    AccountRole.READONLY,
-    AccountRole.WRITABLE,
-    AccountRole.WRITABLE,
-  ]);
-  assert.deepEqual(Buffer.from(credit.data!.slice(0, 8)), discriminator('credit_devnet_rewards'));
-  assert.deepEqual(Array.from({ length: 5 }, (_, index) => (
-    new DataView(credit.data!.buffer, credit.data!.byteOffset).getBigUint64(8 + index * 8, true)
-  )), [1n, 2n, 3n, 4n, 5n]);
-  assert.equal(new DataView(credit.data!.buffer, credit.data!.byteOffset).getBigUint64(48, true), 6n);
 });
 
 test('rescue commands use paused-contract account order and raw u64 amount', () => {

@@ -56,29 +56,6 @@ export function buildRescueSolInstruction(
   };
 }
 
-export function buildCreditDevnetRewardsInstruction(
-  programId: Address,
-  admin: Address,
-  config: Address,
-  pool: Address,
-  traineePool: Address,
-  amounts: [bigint, bigint, bigint, bigint, bigint],
-  traineeFareAmount: bigint,
-): Instruction {
-  if (traineeFareAmount === 0n && amounts.every(amount => amount === 0n)) throw new Error('At least one reward amount must be positive');
-  if (traineeFareAmount < 0n || amounts.some(amount => amount < 0n)) throw new Error('Reward amounts cannot be negative');
-  return {
-    programAddress: programId,
-    accounts: [
-      meta(admin, AccountRole.READONLY_SIGNER),
-      meta(config, AccountRole.READONLY),
-      meta(pool, AccountRole.WRITABLE),
-      meta(traineePool, AccountRole.WRITABLE),
-    ],
-    data: concat(discriminator('credit_devnet_rewards'), ...amounts.map(u64), u64(traineeFareAmount)),
-  };
-}
-
 export function buildRescueTokenInstruction(input: {
   programId: Address;
   admin: Address;

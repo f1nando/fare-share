@@ -79,6 +79,8 @@ solana program deploy -u devnet \
 
 ## 3. Mainnet
 
+Перед любым тестовым mainnet-развёртыванием пройти отдельный пошаговый checklist: [`docs/MAINNET-TEST-CHECKLIST.md`](docs/MAINNET-TEST-CHECKLIST.md). Тест микроцен выполняется только на disposable Program ID и отдельной Collection.
+
 1. Подготовить окончательные четыре изображения/metadata JSON и загрузить их в Arweave через Irys.
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
 3. Зафиксировать точные mint-цены в lamports по согласованным долларовым ориентирам.
