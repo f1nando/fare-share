@@ -2,12 +2,11 @@ import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
-const UNIT_PRICE = 240;
 const MINT_CLASSES = [
-  { name: 'Economy', tone: 'economy', supply: 1000, minted: 680, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
-  { name: 'Comfort', tone: 'comfort', supply: 300, minted: 112, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
-  { name: 'Business', tone: 'business', supply: 100, minted: 35, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
-  { name: 'Legend', tone: 'legend', supply: 25, minted: 8, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
+  { name: 'Economy', tone: 'economy', weight: 1, priceSol: 0.5, supply: 1000, minted: 680, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', tone: 'comfort', weight: 3, priceSol: 1.2, supply: 300, minted: 112, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', tone: 'business', weight: 10, priceSol: 3.3, supply: 100, minted: 35, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', tone: 'legend', weight: 30, priceSol: 7.9, supply: 25, minted: 8, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ].map(item => ({
   ...item,
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
@@ -151,8 +150,9 @@ export function MintPage() {
 
               <div className="fare-mint-summary">
                 <div><span>Class</span><strong>{selectedClass.name}</strong></div>
+                <div><span>Mint price</span><strong>{selectedClass.priceSol.toFixed(1)} SOL</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
-                <div className="is-total"><span>Total</span><strong>${quantity * UNIT_PRICE}</strong></div>
+                <div className="is-total"><span>Total</span><strong>{(quantity * selectedClass.priceSol).toFixed(1)} SOL</strong></div>
               </div>
 
               <button className="fare-mint-submit" type="button">
