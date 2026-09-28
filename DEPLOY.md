@@ -89,6 +89,75 @@ Upgrade authority после smoke-тестов **не отзывается**. �
 депозит программы. Само закрытие программы также необратимо и не является частью
 обычного deploy или обновления.
 
+### Обязательная гарантия сохранности mainnet rent
+
+Это блокирующее требование релиза, а не рекомендация. Боевой deployment обязан
+повторять уже проверенный mainnet lifecycle: `deploy → проверка → работа → pause →
+освобождение vault → close → возврат ProgramData rent`.
+
+**Mainnet deploy запрещён**, пока одновременно не выполнены все условия:
+
+1. Upgrade authority остаётся у зафиксированного admin/deployer
+   `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`; локальный keypair проверен,
+   имеет защищённую резервную копию и не зависит от единственного сервера.
+2. В deploy-команде явно указан этот upgrade authority и отсутствует `--final`.
+3. Upload buffer создаётся постоянным известным keypair вне репозитория. При любом
+   обрыве известна точная команда его закрытия и возврата rent тому же deployer.
+4. После deploy проверены Program ID, ProgramData address, upgrade authority,
+   размер и SHA-256 выгруженного ELF. Оставшийся buffer закрыт, его баланс возвращён.
+5. До перевода основной суммы подготовлен mainnet recovery dry-run, который жёстко
+   проверяет mainnet genesis, Program ID, ProgramData, authority, recipient и все
+   локальные signer. Подстановка адресов или сети через небезопасные defaults запрещена.
+6. Recovery-аудит отдельно показывает: возвращаемый ProgramData rent, невозвратный
+   Program tombstone, balances всех SOL/token vault и ожидаемый итоговый баланс.
+
+Для текущего SBF ожидается, что rent upload buffer `2,83779468 SOL` возвращается
+после deploy, а `2,83783532 SOL` ProgramData возвращается только при окончательном
+закрытии. `0,00083312 SOL` исполняемого Program account останется в loader-v3
+tombstone и считается заранее известной невозвратной стоимостью. Комиссии также
+невозвратны. Эти суммы перед реальным deploy обязательно пересчитываются по точному
+размеру финального бинарника и текущей mainnet rent rate.
+
+### Строгий порядок окончательного закрытия mainnet
+
+Закрытие допустимо только по отдельной явной команде владельца и выполняется строго
+в таком порядке:
+
+1. Остановить backend/worker и любые процессы, способные отправлять транзакции.
+2. Поставить протокол на паузу и подтвердить on-chain pause.
+3. Зафиксировать balances, обязательства и список всех SOL/token vault.
+4. Выполнить разрешённые `rescue-sol` / `rescue-token` на заранее проверенные
+   адреса получателей.
+5. Повторный аудит обязан подтвердить нулевой доступный SOL в fee vault и нулевые
+   raw amounts во всех token vault. Любое ненулевое значение блокирует close.
+6. Повторно проверить mainnet genesis, точный Program ID, ProgramData, authority,
+   deployer keypair и recipient. Authority, fee payer и recipient передаются в CLI
+   явно; reliance на default signer запрещён.
+7. Записать баланс deployer до операции, закрыть программу, дождаться `finalized`,
+   затем подтвердить отсутствие ProgramData и статус `Program ... has been closed`.
+8. Сверить изменение баланса с ожидаемым ProgramData rent за вычетом комиссий и
+   сохранить signature закрытия в release notes.
+
+Запрещено закрывать программу ради rollback, при работающих сервисах, при ненулевых
+vault, при несовпадении хотя бы одного адреса или без доступной резервной копии
+authority keypair. После close тот же Program ID использовать повторно нельзя.
+
+### Подтверждение на настоящем mainnet
+
+Минимальная программа прошла полный цикл на mainnet-beta 2026-09-28:
+
+- payer/authority/recipient: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`;
+- Program ID: `56acKgFW1Tn9vzcsBysWiYNjQYBzTySdLfZzUk1NCctp`;
+- deploy: `LQdRRs59P5FsUMk48vfLfHWbfrcfs71zJLqxZNZzo1iBoSiun7UWECpE2uNXsmGTDnaucNk6o39SyYxyc5oej26`;
+- успешный вызов: `57BdjJuNgo1PwEBzfHUTFygF2uqvgiiYRSjmwtQhR59GWGhbF2RvTj5CH24gL4u6vLFK1iR5ur45GQbvjtn9m9am`;
+- close: `4e1EiSGvaghfasDpoKPPABJG5BQ8hWK8bKyj9FfDMu8m7HhukM8den2gACXdpxQvQdRazcA4Jy2HkGCWUG8d7drC`;
+- возвращено из ProgramData: `0,11410188 SOL`;
+- полный невозвратный расход: `0,00097812 SOL`, из них `0,00083312 SOL` —
+  loader-v3 tombstone, остальное — комиссии.
+
+Тест доказывает сам механизм Solana, но не заменяет перечисленные выше проверки
+точных production-адресов и balances перед закрытием боевой программы.
+
 ## 5. Что не входит в автоматический deploy
 
 - создание или финансирование production-кошельков;
