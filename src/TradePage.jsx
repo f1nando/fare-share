@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
+import { CandlestickSeries, ColorType, createChart, HistogramSeries } from 'lightweight-charts';
 import {
   executeTrade,
   loadCandles,
@@ -31,10 +31,20 @@ function LiveTradeChart({ candles, symbol }) {
     const series = chart.addSeries(CandlestickSeries, {
       upColor: '#d7d7d7', downColor: '#ffe11a', borderUpColor: '#d7d7d7', borderDownColor: '#ffe11a',
       wickUpColor: '#d7d7d7', wickDownColor: '#ffe11a',
-      priceFormat: { type: 'custom', minMove: .000000001, formatter: compactPriceText },
+      priceFormat: { type: 'custom', minMove: 1, formatter: formatChartValue },
     });
     if (candles.length) {
       series.setData(candles);
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        priceFormat: { type: 'volume' },
+        priceScaleId: '',
+      });
+      volumeSeries.priceScale().applyOptions({ scaleMargins: { top: .78, bottom: 0 } });
+      volumeSeries.setData(candles.map(candle => ({
+        time: candle.time,
+        value: candle.volume,
+        color: candle.close >= candle.open ? 'rgb(13 222 141 / 38%)' : 'rgb(255 225 26 / 34%)',
+      })));
       chart.timeScale().fitContent();
     }
     const resizeObserver = new ResizeObserver(([entry]) => chart.applyOptions({ width: entry.contentRect.width, height: entry.contentRect.height }));
@@ -195,7 +205,7 @@ export function TradePage({ wallet, connectWallet }) {
           <div className="trade-chart-heading">
             <div className="trade-chart-toolbar">
               <div className="trade-chart-symbol">
-                <span>{symbol} / SOL</span>
+                <span>{symbol} MARKET CAP / USD</span>
                 <small>{signedPercent(token?.change24h)} · 24H</small>
                 {token?.mint && <a href={`https://pump.fun/coin/${token.mint}`} target="_blank" rel="noreferrer">Open on PumpFun ↗</a>}
               </div>
@@ -256,6 +266,14 @@ function CompactPrice({ value, prefix = '' }) {
 function compactPriceText(value) {
   const parts = compactPriceParts(value);
   return parts.compact ? `0.0${toSubscript(parts.hiddenZeros)}${parts.significant}` : parts.text;
+}
+
+function formatChartValue(value) {
+  const number = Number(value || 0);
+  if (number >= 1_000_000_000) return `$${formatNumber(number / 1_000_000_000, 2)}B`;
+  if (number >= 1_000_000) return `$${formatNumber(number / 1_000_000, 2)}M`;
+  if (number >= 1_000) return `$${formatNumber(number / 1_000, 2)}K`;
+  return `$${compactPriceText(number)}`;
 }
 
 function compactPriceParts(value) {
