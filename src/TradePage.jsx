@@ -111,8 +111,33 @@ function SwapIcon() {
 function TradeForm() {
   const [side, setSide] = useState('buy');
   const [flipped, setFlipped] = useState(false);
-  const pay = flipped ? { amount: '1.00', token: 'SOL' } : { amount: '100', token: 'USD' };
-  const receive = flipped ? { amount: '118.45', token: 'USD' } : { amount: '0.8442', token: 'SOL' };
+  const [payAmount, setPayAmount] = useState('100');
+  const [receiveAmount, setReceiveAmount] = useState('0.8442');
+  const payToken = flipped ? 'SOL' : 'USD';
+  const receiveToken = flipped ? 'USD' : 'SOL';
+  const rate = 118.45;
+  const cleanAmount = value => value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+  const formatAmount = (value, decimals) => Number.isFinite(value) ? value.toFixed(decimals).replace(/\.?0+$/, '') : '';
+
+  const updatePayAmount = value => {
+    const next = cleanAmount(value);
+    setPayAmount(next);
+    const number = Number(next);
+    setReceiveAmount(next === '' ? '' : formatAmount(flipped ? number * rate : number / rate, flipped ? 2 : 4));
+  };
+
+  const updateReceiveAmount = value => {
+    const next = cleanAmount(value);
+    setReceiveAmount(next);
+    const number = Number(next);
+    setPayAmount(next === '' ? '' : formatAmount(flipped ? number / rate : number * rate, flipped ? 4 : 2));
+  };
+
+  const flipTokens = () => {
+    setFlipped(value => !value);
+    setPayAmount(receiveAmount);
+    setReceiveAmount(payAmount);
+  };
 
   return (
     <section className="trade-swap" aria-label="SOL trade form">
@@ -122,17 +147,17 @@ function TradeForm() {
       </div>
 
       <div className="trade-amount-box">
-        <span>YOU PAY</span>
-        <strong>{pay.amount}</strong>
-        <b>{pay.token}</b>
+        <label htmlFor="trade-pay-amount">YOU PAY</label>
+        <input id="trade-pay-amount" type="text" inputMode="decimal" value={payAmount} onChange={event => updatePayAmount(event.target.value)} aria-label={`Amount to pay in ${payToken}`} />
+        <b>{payToken}</b>
       </div>
       <div className="trade-flip-row">
-        <button type="button" aria-label="Swap pay and receive tokens" onClick={() => setFlipped(value => !value)}><SwapIcon /></button>
+        <button type="button" aria-label="Swap pay and receive tokens" onClick={flipTokens}><SwapIcon /></button>
       </div>
       <div className="trade-amount-box">
-        <span>YOU RECEIVE</span>
-        <strong>{receive.amount}</strong>
-        <b>{receive.token}</b>
+        <label htmlFor="trade-receive-amount">YOU RECEIVE</label>
+        <input id="trade-receive-amount" type="text" inputMode="decimal" value={receiveAmount} onChange={event => updateReceiveAmount(event.target.value)} aria-label={`Amount to receive in ${receiveToken}`} />
+        <b>{receiveToken}</b>
       </div>
 
       <dl className="trade-rate">
