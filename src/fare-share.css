@@ -595,31 +595,25 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-docs-sidebar { display: none; }
 }
 
-@media (max-width: 800px) {
-  .fare-treasury .fare-leaderboard { display: block; border: 1px solid #111; border-radius: 30px; box-shadow: 8px 9px 0 #111; overflow: hidden; }
+@media (max-width: 700px) {
+  .fare-treasury .fare-leaderboard { display: block; margin-top: 32px; border: 1px solid #111; border-radius: 22px; box-shadow: 5px 6px 0 #111; overflow: hidden; }
   .fare-treasury .fare-leaderboard-header { display: none; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { display: grid; grid-template: 'driver rank cars' auto 'earnings earnings earnings' auto / minmax(0, 1fr) auto auto; align-items: center; gap: 22px 18px; height: auto; min-height: 150px; padding: 20px 24px; border: 0; border-radius: 0; background: #fff; box-shadow: none; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { display: grid; grid-template: 'rank driver earnings' auto 'cars cars earnings' auto / auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; height: auto; min-height: 112px; padding: 16px 18px; border: 0; border-radius: 0; background: #fff; box-shadow: none; font-size: 15px; line-height: 19px; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header):nth-child(odd) { background: #f1f1f1; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span { min-width: 0; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { content: attr(data-label); display: block; margin-bottom: 7px; color: #777; font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { display: none; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1) { grid-area: rank; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(2) { grid-area: driver; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3) { grid-area: cars; }
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { grid-area: earnings; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1),
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3),
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { display: flex; align-items: center; gap: 7px; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1)::before,
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3)::before,
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4)::before { margin-bottom: 0; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3) { justify-self: end; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { justify-self: center; }
-  .fare-treasury .fare-driver-cell { flex-wrap: nowrap; gap: 12px; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1) { font-size: 17px; font-weight: 900; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3) { justify-self: start; color: #111; font-size: 16px; font-weight: 800; }
+  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { justify-self: end; font-size: 19px; font-weight: 900; white-space: nowrap; }
+  .fare-treasury .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
   .fare-treasury .fare-driver-cell::before { display: none; }
-  .fare-treasury .fare-driver-cell img { width: 44px; height: 44px; }
 }
 
-@media (max-width: 750px) {
+@media (max-width: 700px) {
   .fare-leaderboard-heading { flex-direction: column; gap: 24px; }
 }
 
@@ -657,16 +651,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-treasury-heading { grid-template-columns: 1fr; }
   .fare-treasury-intro { margin-top: 24px; }
   .fare-stat-grid { grid-template-columns: 1fr; }
-  .fare-treasury .fare-leaderboard { border-radius: 22px; box-shadow: 5px 6px 0 #111; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) { grid-template: 'rank driver earnings' auto 'cars cars earnings' auto / auto minmax(0, 1fr) auto; gap: 2px 10px; min-height: 112px; padding: 16px 18px; font-size: 15px; line-height: 19px; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span::before { display: none; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(1) { font-size: 17px; font-weight: 900; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(3) { justify-self: start; color: #111; font-size: 16px; font-weight: 800; }
-  .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { justify-self: end; font-size: 19px; font-weight: 900; white-space: nowrap; }
-  .fare-treasury .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
-  .fare-treasury .fare-driver-cell img { display: none; }
   .fare-leaderboard-heading { margin-top: 56px; }
-  .fare-treasury .fare-leaderboard { margin-top: 32px; }
   .fare-fleet { height: 760px; padding: 96px 0 0; }
   .fare-fleet-card-wall { --wall-gap: 10px; --wall-half-gap: 5px; inset: -100px -56px; opacity: .9; }
   .fare-fleet-wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
