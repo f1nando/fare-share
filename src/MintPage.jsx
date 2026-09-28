@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
@@ -22,6 +22,7 @@ function ArrowIcon() {
 }
 
 export function MintPage() {
+  const previewRef = useRef(null);
   const [quantity, setQuantity] = useState(2);
   const [selectedClassIndex, setSelectedClassIndex] = useState(0);
   const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
@@ -50,6 +51,12 @@ export function MintPage() {
     };
   }, [selectedClassIndex, selectedClass.scenes.length]);
 
+  useLayoutEffect(() => {
+    previewRef.current?.querySelectorAll('.fare-mint-preview-scene:not(.is-active) .fare-fleet-headlight').forEach(light => {
+      light.getAnimations().forEach(animation => animation.cancel());
+    });
+  }, [selectedClassIndex, previewSceneIndex]);
+
   return (
     <>
       <main className="fare-mint-main" id="top">
@@ -63,7 +70,7 @@ export function MintPage() {
           </div>
 
           <div className="fare-mint-layout">
-            <div className="fare-mint-preview">
+            <div className="fare-mint-preview" ref={previewRef}>
               <div className="fare-mint-preview-scenes">
                 {MINT_CLASSES.flatMap((item, classIndex) => item.scenes.map((scene, sceneIndex) => {
                   const isActive = classIndex === selectedClassIndex && sceneIndex === previewSceneIndex;
