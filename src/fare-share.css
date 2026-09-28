@@ -193,12 +193,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-driving .fare-fleet-road { z-index: 1; }
 .fare-step-driving .fare-fleet-headlight { z-index: 2; }
 .fare-step-card:nth-child(3) > .fare-step-media { transform: scale(1.06); }
-.fare-step-collect { position: relative; background: #fff; overflow: hidden; isolation: isolate; }
-.fare-collect-wallet { position: absolute; left: 50%; bottom: 13px; display: block; width: 96%; height: auto; transform: translateX(-50%); pointer-events: none; }
+.fare-step-collect { --fare-wallet-width: 96%; position: relative; background: #fff; overflow: hidden; isolation: isolate; }
+.fare-collect-wallet { position: absolute; left: 50%; bottom: 13px; display: block; width: var(--fare-wallet-width); height: auto; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-wallet-back { z-index: 1; }
 .fare-collect-wallet-front { z-index: 4; }
 .fare-collect-flying-assets { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
-.fare-collect-depth-mask { position: absolute; z-index: 3; top: 260px; right: 0; bottom: 0; left: 0; background: #fff; pointer-events: none; }
+.fare-collect-depth-mask { position: absolute; z-index: 3; bottom: 13px; left: 50%; width: var(--fare-wallet-width); aspect-ratio: 842 / 319; background: #fff; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-asset { position: absolute; display: block; opacity: 1; animation: fare-collect-flight 4s linear infinite; pointer-events: none; will-change: transform; }
 .fare-collect-asset img { display: block; width: 100%; height: auto; transition: transform .14s ease-out; }
 .fare-collect-card { width: 36%; animation-duration: 7.6s; }
@@ -463,7 +463,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-how { height: auto; padding-bottom: 90px; }
   .fare-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-step-card:nth-child(3) { grid-column: 1 / -1; justify-self: center; width: calc((100% - 24px) / 2); }
-  .fare-step-card:nth-child(3) .fare-collect-wallet { width: min(96%, 384px); }
+  .fare-step-card:nth-child(3) .fare-step-collect { --fare-wallet-width: min(96%, 384px); }
 }
 
 @media (max-width: 1500px) {
