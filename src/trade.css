@@ -1,6 +1,6 @@
 :root { background: #fff; }
 body { color: #111; background: #fff; }
-.trade-page { min-height: 100vh; padding: 136px 0 80px; background: #fff; }
+.trade-page { min-height: 100vh; padding: 136px 0 0; background: #fff; }
 .trade-page::before {
   content: '';
   position: absolute;
@@ -80,7 +80,7 @@ body { color: #111; background: #fff; }
 }
 
 @media (max-width: 760px) {
-  .trade-page { padding: 94px 0 50px; zoom: 1; }
+  .trade-page { padding: 94px 0 0; zoom: 1; }
   .trade-page::before { height: 500px; }
   .trade-page .container { padding-right: 20px; padding-left: 20px; }
   .trade-intro { display: block; min-height: 190px; padding-top: 30px; padding-bottom: 20px; }
