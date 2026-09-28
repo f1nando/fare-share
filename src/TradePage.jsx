@@ -141,7 +141,7 @@ function TradeForm() {
 
   return (
     <section className="trade-swap" aria-label="SOL trade form">
-      <div className="trade-side-tabs" role="tablist" aria-label="Trade side">
+      <div className={`trade-side-tabs${side === 'sell' ? ' is-sell' : ''}`} role="tablist" aria-label="Trade side">
         <button className={side === 'buy' ? 'is-active' : ''} type="button" onClick={() => setSide('buy')}>BUY</button>
         <button className={side === 'sell' ? 'is-active' : ''} type="button" onClick={() => setSide('sell')}>SELL</button>
       </div>

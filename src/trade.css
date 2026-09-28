@@ -40,9 +40,11 @@ body { color: #111; background: #fff; }
 .tradingview-widget-container iframe { display: block; width: 100% !important; height: 100% !important; }
 
 .trade-swap { display: flex; min-height: 560px; flex-direction: column; padding: 24px; background: #fff; }
-.trade-side-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border: 2px solid #111; border-radius: 999px; }
-.trade-side-tabs button { height: 42px; border: 0; border-radius: 999px; background: transparent; font-size: 12px; font-weight: 900; }
-.trade-side-tabs .is-active { color: #fff; background: #111; }
+.trade-side-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border: 2px solid #111; border-radius: 999px; overflow: hidden; }
+.trade-side-tabs::before { content: ''; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; background: #111; transform: translateX(0); transition: transform .28s cubic-bezier(.22, 1, .36, 1); }
+.trade-side-tabs.is-sell::before { transform: translateX(100%); }
+.trade-side-tabs button { position: relative; z-index: 1; height: 42px; border: 0; border-radius: 999px; color: #111; background: transparent; font-size: 12px; font-weight: 900; transition: color .2s ease; }
+.trade-side-tabs .is-active { color: #fff; }
 .trade-amount-box { position: relative; display: flex; min-height: 112px; align-items: center; margin-top: 20px; padding: 34px 22px 16px; border: 2px solid #111; border-radius: 22px; box-shadow: 5px 6px 0 #111; }
 .trade-amount-box label { position: absolute; top: 14px; left: 22px; font-size: 10px; font-weight: 800; }
 .trade-amount-box input { width: calc(100% - 86px); min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
@@ -116,4 +118,8 @@ body { color: #111; background: #fff; }
   .trade-leaderboard.is-holders .trade-leaderboard-row { grid-template: 'rank wallet share' / 38px minmax(0, 1fr) auto; }
   .trade-leaderboard.is-holders .trade-leaderboard-row > span:nth-child(3) { grid-area: share; color: #111; font-size: 14px; font-weight: 900; }
   .trade-board-tabs button { min-height: 32px; padding: 0 13px; font-size: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trade-side-tabs::before, .trade-side-tabs button { transition: none; }
 }
