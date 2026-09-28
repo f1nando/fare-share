@@ -24,6 +24,8 @@ import {
   decodeTraineeBucket,
   deriveTraineeAddresses,
   deriveTaxiAddresses,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION,
   sendWalletInstructions,
 } from './anchorClient.js';
 import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } from './requestLimits.js';
@@ -44,6 +46,8 @@ const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 const XSTOCKS_API_URL = 'https://api.xstocks.fi/api/v2/public/assets';
+
+export { MAX_CLAIM_MACHINES_PER_TRANSACTION, MAX_REPAIR_MACHINES_PER_TRANSACTION };
 
 export function resolveSolanaChain(configuredChain, rpcUrl) {
   if (configuredChain === 'solana:devnet' || configuredChain === 'solana:mainnet') return configuredChain;

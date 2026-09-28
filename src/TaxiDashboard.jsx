@@ -9,6 +9,8 @@ import {
   loadOwnedMachines,
   loadOwnedTrainees,
   loadProtocolStatus,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION,
   mintMachine,
   networkName,
   repairMachine,
@@ -64,6 +66,8 @@ export function TaxiDashboard({ simple = false, background = null }) {
   const totalWeight = useMemo(() => CLASSES.reduce((sum, item) => sum + item.count * item.weight, 0), []);
   const claimableCars = useMemo(() => cars.filter(car => car.rewards?.some(amount => BigInt(amount) > 0n)), [cars]);
   const repairableCars = useMemo(() => cars.filter(car => car.missingSeconds > 0), [cars]);
+  const claimBatch = claimableCars.slice(0, MAX_CLAIM_MACHINES_PER_TRANSACTION);
+  const repairBatch = repairableCars.slice(0, MAX_REPAIR_MACHINES_PER_TRANSACTION);
 
   async function handleConnect() {
     setNotice('');
@@ -166,21 +170,24 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <div className="section-title">
             <div><p className="eyebrow">My garage</p><h2 id="garage-title">Cars</h2></div>
             <div className="garage-actions">
-              <button className="ghost-button primary" disabled={Boolean(busy) || protocolPaused || claimableCars.length === 0} onClick={() => runAction(
+              <button className="ghost-button primary" disabled={Boolean(busy) || protocolPaused || claimBatch.length === 0} onClick={() => runAction(
                 'claim-all',
-                () => claimAllMachines(wallet, claimableCars, status),
-                `Rewards claimed from ${claimableCars.length} car${claimableCars.length === 1 ? '' : 's'}.`,
-              )}>Claim all{claimableCars.length ? ` · ${claimableCars.length}` : ''}</button>
-              <button className="ghost-button" disabled={Boolean(busy) || protocolPaused || repairableCars.length === 0} onClick={() => runAction(
+                () => claimAllMachines(wallet, claimBatch, status),
+                `Rewards claimed from ${claimBatch.length} car${claimBatch.length === 1 ? '' : 's'}.`,
+              )}>Claim {claimBatch.length < claimableCars.length ? `${claimBatch.length} of ${claimableCars.length}` : 'all'}{claimBatch.length === claimableCars.length && claimBatch.length ? ` · ${claimBatch.length}` : ''}</button>
+              <button className="ghost-button" disabled={Boolean(busy) || protocolPaused || repairBatch.length === 0} onClick={() => runAction(
                 'repair-all',
-                () => repairAllMachines(wallet, repairableCars, status),
-                `${repairableCars.length} car${repairableCars.length === 1 ? '' : 's'} restored to 5 days of durability.`,
-              )}>Repair all{repairableCars.length ? ` · ${repairableCars.length}` : ''}</button>
+                () => repairAllMachines(wallet, repairBatch, status),
+                `${repairBatch.length} car${repairBatch.length === 1 ? '' : 's'} restored to 5 days of durability.`,
+              )}>Repair {repairBatch.length < repairableCars.length ? `${repairBatch.length} of ${repairableCars.length}` : 'all'}{repairBatch.length === repairableCars.length && repairBatch.length ? ` · ${repairBatch.length}` : ''}</button>
               <button className="ghost-button" disabled={Boolean(busy)} onClick={() => refreshGarage()}>
                 {busy === 'refresh' ? 'Refreshing…' : 'Refresh'}
               </button>
             </div>
           </div>
+          {(claimableCars.length > claimBatch.length || repairableCars.length > repairBatch.length) && <p className="demo-note">
+            One Solana transaction handles up to {MAX_CLAIM_MACHINES_PER_TRANSACTION} claims or {MAX_REPAIR_MACHINES_PER_TRANSACTION} repairs. Repeat the action for the remaining cars.
+          </p>}
           {simple && <div className="transfer-test-form">
             <label>Devnet transfer recipient<input value={transferRecipient} onChange={event => setTransferRecipient(event.target.value.trim())} placeholder="Second wallet public address" /></label>
             <small>Transfers the selected Core NFT with its existing Machine state. Public address only.</small>

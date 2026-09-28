@@ -39,6 +39,8 @@ import {
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeEventQueue,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION,
   TAXI_DISCRIMINATORS,
   waitForFinalizedSignature,
 } from '../src/protocol/anchorClient.js';
@@ -281,11 +283,11 @@ test('claim skips redundant token account creation when destinations already exi
   assert.deepEqual([...instructions[0].data], [...TAXI_DISCRIMINATORS.claim]);
 });
 
-test('claim all reuses token account setup and fits two cars in one transaction', async () => {
-  const signers = await Promise.all(Array.from({ length: 12 }, () => generateKeyPairSigner()));
+test('claim batch reuses token account setup and fits three cars in one transaction', async () => {
+  const signers = await Promise.all(Array.from({ length: 14 }, () => generateKeyPairSigner()));
   const [owner, config, pool, ...rest] = signers.map(signer => signer.address);
   const mints = rest.slice(0, 5);
-  const [machineA, assetA, machineB, assetB] = rest.slice(5);
+  const [machineA, assetA, machineB, assetB, machineC, assetC] = rest.slice(5);
   const instructions = await buildClaimAllInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -296,12 +298,14 @@ test('claim all reuses token account setup and fits two cars in one transaction'
     machines: [
       { machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) },
       { machineAddress: machineB, asset: assetB, rewards: Array(5).fill(1n) },
+      { machineAddress: machineC, asset: assetC, rewards: Array(5).fill(1n) },
     ],
   });
-  assert.equal(instructions.length, 7, 'five ATA creates plus two claims');
+  assert.equal(MAX_CLAIM_MACHINES_PER_TRANSACTION, 3);
+  assert.equal(instructions.length, 8, 'five ATA creates plus three claims');
   assert.equal(instructions.filter(instruction => (
     Buffer.from(instruction.data || []).equals(Buffer.from(TAXI_DISCRIMINATORS.claim))
-  )).length, 2);
+  )).length, 3);
   const message = pipe(
     createTransactionMessage({ version: 0 }),
     transaction => setTransactionMessageFeePayer(owner, transaction),
@@ -312,7 +316,16 @@ test('claim all reuses token account setup and fits two cars in one transaction'
     transaction => appendTransactionMessageInstructions(instructions, transaction),
   );
   const bytes = getTransactionEncoder().encode(compileTransaction(message));
-  assert.ok(bytes.length <= 1232, `two-car claim transaction is ${bytes.length} bytes`);
+  assert.ok(bytes.length <= 1232, `three-car claim transaction is ${bytes.length} bytes`);
+  await assert.rejects(() => buildClaimAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress: config,
+    pool,
+    mints,
+    tokenPrograms: Array(5).fill(TOKEN_PROGRAM),
+    machines: Array(4).fill({ machineAddress: machineA, asset: assetA, rewards: Array(5).fill(1n) }),
+  }), /at most 3 cars/);
 });
 
 test('Core transfer keeps the asset account and changes only its owner', async () => {
@@ -347,9 +360,14 @@ test('free repair does not create a FARE token account while paid repair can cre
   assert.equal((await buildRepairInstructions({ ...input, repairCost: 1n })).length, 2);
 });
 
-test('repair all creates the owner FARE account at most once', async () => {
-  const signers = await Promise.all(Array.from({ length: 9 }, () => generateKeyPairSigner()));
-  const [owner, configAddress, pool, queue, fareMint, machineA, assetA, machineB, assetB] = signers.map(signer => signer.address);
+test('repair batch creates the owner FARE account once and fits eight cars', async () => {
+  const signers = await Promise.all(Array.from({ length: 21 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, pool, queue, fareMint, ...machineAccounts] = signers.map(signer => signer.address);
+  const machines = Array.from({ length: MAX_REPAIR_MACHINES_PER_TRANSACTION }, (_, index) => ({
+    machineAddress: machineAccounts[index * 2],
+    asset: machineAccounts[index * 2 + 1],
+    repairCost: BigInt(index + 1),
+  }));
   const instructions = await buildRepairAllInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -359,15 +377,34 @@ test('repair all creates the owner FARE account at most once', async () => {
     queue,
     fareTokenProgram: TOKEN_PROGRAM,
     pageIndex: 0,
-    machines: [
-      { machineAddress: machineA, asset: assetA, repairCost: 1n },
-      { machineAddress: machineB, asset: assetB, repairCost: 2n },
-    ],
+    machines,
   });
-  assert.equal(instructions.length, 3, 'one ATA create plus two repairs');
+  assert.equal(instructions.length, 9, 'one ATA create plus eight repairs');
   assert.equal(instructions.filter(instruction => (
     Buffer.from(instruction.data || []).subarray(0, 8).equals(Buffer.from(TAXI_DISCRIMINATORS.repair))
-  )).length, 2);
+  )).length, 8);
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(instructions, transaction),
+  );
+  const bytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(bytes.length <= 1232, `eight-car repair transaction is ${bytes.length} bytes`);
+  await assert.rejects(() => buildRepairAllInstructions({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress,
+    config: { fareMint },
+    pool,
+    queue,
+    fareTokenProgram: TOKEN_PROGRAM,
+    pageIndex: 0,
+    machines: [...machines, machines[0]],
+  }), /at most 8 cars/);
 });
 
 test('trainee claim creates a FARE token account only for a positive reward', async () => {

@@ -7,6 +7,8 @@ import {
   explorerTransaction,
   loadOwnedMachines,
   loadProtocolStatus,
+  MAX_CLAIM_MACHINES_PER_TRANSACTION,
+  MAX_REPAIR_MACHINES_PER_TRANSACTION,
   repairAllMachines,
   repairMachine,
 } from './protocol/solana.js';
@@ -78,6 +80,8 @@ export function GaragePage({ wallet }) {
     machine.rewards.some(amount => BigInt(amount) > 0n)
   )), [machines]);
   const repairable = useMemo(() => machines.filter(machine => machine.missingSeconds > 0), [machines]);
+  const claimBatch = claimable.slice(0, MAX_CLAIM_MACHINES_PER_TRANSACTION);
+  const repairBatch = repairable.slice(0, MAX_REPAIR_MACHINES_PER_TRANSACTION);
   const displayedCars = wallet && status?.deployed
     ? machines.map((machine, index) => ({
       id: machine.asset,
@@ -124,6 +128,13 @@ export function GaragePage({ wallet }) {
 
           {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
           {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
+          {(claimable.length > claimBatch.length || repairable.length > repairBatch.length) && (
+            <p className="fare-garage-batch-warning" role="note">
+              Solana safely fits up to {MAX_CLAIM_MACHINES_PER_TRANSACTION} claims or {MAX_REPAIR_MACHINES_PER_TRANSACTION} repairs per transaction.
+              {claimable.length > claimBatch.length ? ` Claim ${claimBatch.length} of ${claimable.length}, then repeat for the remaining ${claimable.length - claimBatch.length}.` : ''}
+              {repairable.length > repairBatch.length ? ` Repair ${repairBatch.length} of ${repairable.length}, then repeat for the remaining ${repairable.length - repairBatch.length}.` : ''}
+            </p>
+          )}
 
           <section className="fare-garage-overview" aria-label="Fleet earnings overview">
             <div className="fare-garage-overview-main">
@@ -132,16 +143,16 @@ export function GaragePage({ wallet }) {
                 <strong>{wallet && status?.deployed ? `${claimable.length} claimable car${claimable.length === 1 ? '' : 's'}` : '219.53 FARE'}</strong>
                 <p>{wallet && status?.deployed ? 'All rewards shown below are read from finalized Solana accounts.' : '+$12.48 today · $54.94 earned in stocks'}</p>
                 <div className="fare-garage-overview-actions">
-                  <button type="button" disabled={Boolean(busy) || paused || claimable.length === 0} onClick={() => runAction(
+                  <button type="button" disabled={Boolean(busy) || paused || claimBatch.length === 0} onClick={() => runAction(
                     'claim-all',
-                    () => claimAllMachines(wallet, claimable, status),
-                    `Rewards claimed from ${claimable.length} car${claimable.length === 1 ? '' : 's'}.`,
-                  )}>Claim all{claimable.length ? <b>{claimable.length}</b> : null}</button>
-                  <button className="is-secondary" type="button" disabled={Boolean(busy) || paused || repairable.length === 0} onClick={() => runAction(
+                    () => claimAllMachines(wallet, claimBatch, status),
+                    `Rewards claimed from ${claimBatch.length} car${claimBatch.length === 1 ? '' : 's'}.`,
+                  )}>Claim {claimBatch.length < claimable.length ? `${claimBatch.length} of ${claimable.length}` : 'all'}{claimBatch.length === claimable.length && claimBatch.length ? <b>{claimBatch.length}</b> : null}</button>
+                  <button className="is-secondary" type="button" disabled={Boolean(busy) || paused || repairBatch.length === 0} onClick={() => runAction(
                     'repair-all',
-                    () => repairAllMachines(wallet, repairable, status),
-                    `${repairable.length} car${repairable.length === 1 ? '' : 's'} repaired.`,
-                  )}>Repair all{repairable.length ? ` · ${repairable.length}` : ''}</button>
+                    () => repairAllMachines(wallet, repairBatch, status),
+                    `${repairBatch.length} car${repairBatch.length === 1 ? '' : 's'} repaired.`,
+                  )}>Repair {repairBatch.length < repairable.length ? `${repairBatch.length} of ${repairable.length}` : 'all'}{repairBatch.length === repairable.length && repairBatch.length ? ` · ${repairBatch.length}` : ''}</button>
                 </div>
               </div>
 

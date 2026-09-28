@@ -338,6 +338,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-garage-overview-actions button.is-secondary { background: #fff; }
 .fare-garage-overview-actions button:disabled, .fare-garage-actions button:disabled { cursor: not-allowed; opacity: .48; transform: none; box-shadow: 4px 5px 0 #111; }
 .fare-garage-notice { margin: 24px 0 0; padding: 13px 16px; border: 2px solid #111; border-radius: 12px; color: #111; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 14px; font-weight: 700; }
+.fare-garage-batch-warning { margin: 16px 0 0; padding: 12px 15px; border: 2px solid #111; border-radius: 12px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 13px; font-weight: 800; line-height: 18px; }
 .fare-garage-signature { display: inline-block; margin-top: 14px; color: #111; font-size: 13px; font-weight: 800; text-decoration: underline; }
 .fare-garage-chart { display: flex; min-width: 0; align-items: flex-end; flex-direction: column; padding-left: 30px; }
 .fare-garage-periods { display: flex; gap: 10px; }

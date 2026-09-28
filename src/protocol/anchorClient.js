@@ -25,6 +25,8 @@ export const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 export const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 export const ED25519_PROGRAM = address('Ed25519SigVerify111111111111111111111111111');
 export const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
+export const MAX_CLAIM_MACHINES_PER_TRANSACTION = 3;
+export const MAX_REPAIR_MACHINES_PER_TRANSACTION = 8;
 
 export const TAXI_DISCRIMINATORS = Object.freeze({
   mintMachine: Uint8Array.from([163, 170, 168, 54, 183, 79, 113, 45]),
@@ -339,6 +341,9 @@ export async function buildClaimInstructions({
 
 export async function buildClaimAllInstructions({ machines, destinationAccountsExist = [], ...shared }) {
   if (!Array.isArray(machines) || machines.length === 0) throw new Error('Choose at least one car to claim.');
+  if (machines.length > MAX_CLAIM_MACHINES_PER_TRANSACTION) {
+    throw new Error(`Claim supports at most ${MAX_CLAIM_MACHINES_PER_TRANSACTION} cars per transaction.`);
+  }
   const destinationsReady = Array.from({ length: shared.mints.length }, (_, index) => (
     Boolean(destinationAccountsExist[index])
   ));
@@ -428,6 +433,9 @@ export async function buildRepairInstructions({
 
 export async function buildRepairAllInstructions({ machines, ...shared }) {
   if (!Array.isArray(machines) || machines.length === 0) throw new Error('Choose at least one car to repair.');
+  if (machines.length > MAX_REPAIR_MACHINES_PER_TRANSACTION) {
+    throw new Error(`Repair supports at most ${MAX_REPAIR_MACHINES_PER_TRANSACTION} cars per transaction.`);
+  }
   const instructions = [];
   let ownerFareAccountExists = false;
   for (const machine of machines) {
