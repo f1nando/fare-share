@@ -600,3 +600,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-fleet-card-wall { right: -44px; left: -44px; }
   .fare-fleet-wall-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+@media (max-width: 400px) {
+  .fare-step-card { height: auto; }
+  .fare-step-media { height: auto; aspect-ratio: 100 / 92; }
+  .fare-step-sprite { width: 100%; }
+}
