@@ -611,6 +611,23 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-treasury .fare-leaderboard-row:not(.fare-leaderboard-header) > span:nth-child(4) { justify-self: end; font-size: 19px; font-weight: 900; white-space: nowrap; }
   .fare-treasury .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
   .fare-treasury .fare-driver-cell::before { display: none; }
+  .fare-leaderboard-full { display: block; margin-top: 42px; border: 1px solid #111; border-radius: 22px; box-shadow: 5px 6px 0 #111; overflow: hidden; }
+  .fare-leaderboard-full .fare-leaderboard-header { display: none; }
+  .fare-leaderboard-full .fare-leaderboard-row { display: grid; grid-template: 'rank driver earnings' auto 'cars cars earnings' auto / auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; min-width: 0; height: auto; min-height: 112px; padding: 16px 18px; border: 0; border-radius: 0; background: #fff; box-shadow: none; font-size: 15px; line-height: 19px; }
+  .fare-leaderboard-full .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
+  .fare-leaderboard-full .fare-leaderboard-row.is-current-driver { background: #fff7bd; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(1) { grid-area: rank; font-size: 17px; font-weight: 900; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(2) { grid-area: driver; min-width: 0; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(3) { grid-area: cars; justify-self: start; color: #111; font-size: 16px; font-weight: 800; }
+  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(4) { grid-area: earnings; justify-self: end; font-size: 19px; font-weight: 900; white-space: nowrap; }
+  .fare-leaderboard-full .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
+  .fare-leaderboard-full .fare-driver-name { gap: 7px; }
+  .fare-leaderboard-full .fare-you-badge { min-width: 38px; height: 22px; padding: 0 7px; font-size: 9px; }
+  .fare-current-driver-dock { right: 12px; bottom: 16px; left: 12px; grid-template-columns: 42px minmax(0, 1fr) auto; width: calc(100% - 24px); height: 76px; padding: 0 16px; border-radius: 20px; box-shadow: 5px 6px 0 #111; font-size: 14px; }
+  .fare-current-driver-dock > :nth-child(3) { display: none; }
+  .fare-current-driver-dock .fare-driver-cell { gap: 0; overflow-wrap: anywhere; }
+  .fare-current-driver-dock .fare-driver-name { gap: 7px; }
+  .fare-current-driver-dock .fare-you-badge { min-width: 38px; height: 22px; padding: 0 7px; font-size: 9px; }
 }
 
 @media (max-width: 700px) {
@@ -690,25 +707,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-leaderboard-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
   .fare-leaderboard-page-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
   .fare-leaderboard-page-heading p { width: min(340px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
-  .fare-leaderboard-full { display: grid; gap: 14px; margin-top: 42px; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
-  .fare-leaderboard-full .fare-leaderboard-row { display: grid; grid-template: 'rank driver earnings' auto 'rank cars earnings' auto / 42px minmax(0, 1fr) auto; min-width: 0; height: auto; min-height: 92px; padding: 14px 18px; border: 2px solid #111; border-radius: 20px; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 15px; }
-  .fare-leaderboard-full .fare-leaderboard-header { display: none; }
-  .fare-leaderboard-full .fare-leaderboard-row:nth-child(odd) { background: #f1f1f1; }
-  .fare-leaderboard-full .fare-leaderboard-row.is-current-driver { background: #fff7bd; }
-  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(1) { grid-area: rank; align-self: center; font-size: 18px; font-weight: 900; }
-  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(2) { grid-area: driver; }
-  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(3) { grid-area: cars; align-self: start; color: #666; font-size: 12px; }
-  .fare-leaderboard-full .fare-leaderboard-row > :nth-child(4) { grid-area: earnings; align-self: center; margin-left: 14px; font-size: 17px; font-weight: 800; white-space: nowrap; }
-  .fare-leaderboard-full .fare-driver-cell { gap: 10px; font-weight: 700; }
-  .fare-leaderboard-full .fare-driver-cell img { width: 48px; height: 48px; }
-  .fare-leaderboard-full .fare-driver-name { gap: 7px; }
-  .fare-leaderboard-full .fare-you-badge { min-width: 38px; height: 22px; padding: 0 7px; font-size: 9px; }
-  .fare-current-driver-dock { right: 12px; bottom: 16px; left: 12px; grid-template-columns: 42px minmax(0, 1fr) auto; width: calc(100% - 24px); height: 76px; padding: 0 16px; border-radius: 20px; box-shadow: 5px 6px 0 #111; font-size: 14px; }
-  .fare-current-driver-dock > :nth-child(3) { display: none; }
-  .fare-current-driver-dock .fare-driver-cell { gap: 10px; }
-  .fare-current-driver-dock .fare-driver-cell img { width: 44px; height: 44px; }
-  .fare-current-driver-dock .fare-driver-name { gap: 7px; }
-  .fare-current-driver-dock .fare-you-badge { min-width: 38px; height: 22px; padding: 0 7px; font-size: 9px; }
   .fare-garage-main { padding-top: 150px; padding-bottom: 80px; }
   .fare-garage-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
   .fare-garage-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
