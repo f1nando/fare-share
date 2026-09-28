@@ -84,10 +84,10 @@ export function MintPage() {
     <>
       <main className="fare-mint-main" id="top">
         <section className="container fare-mint-section" aria-labelledby="mint-page-title">
-          <div className="fare-mint-intro">
+          <div className="fare-mint-intro fare-page-heading">
             <div>
               <span>GENESIS TAXI COLLECTION</span>
-              <h1 id="mint-page-title">MINT YOUR TAXI</h1>
+              <h1 className="fare-page-title is-long" id="mint-page-title">MINT YOUR TAXI</h1>
             </div>
             <p>Choose a class, mint the NFT and put the car to work immediately. After that, you only need to keep it fueled.</p>
           </div>

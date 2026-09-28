@@ -50,8 +50,8 @@ export function LeaderboardPage() {
     <>
       <main className="fare-leaderboard-page-main" id="top">
         <section className="container fare-leaderboard-page-section" aria-labelledby="leaderboard-page-title">
-          <div className="fare-leaderboard-page-heading">
-            <h1 id="leaderboard-page-title">LEADERBOARD</h1>
+          <div className="fare-leaderboard-page-heading fare-page-heading">
+            <h1 className="fare-page-title is-long" id="leaderboard-page-title">LEADERBOARD</h1>
             <p>Top drivers ranked by total fleet earnings.</p>
           </div>
 

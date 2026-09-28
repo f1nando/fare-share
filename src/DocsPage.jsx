@@ -60,6 +60,10 @@ export function DocsPage() {
     <>
       <main className="fare-docs-main" id="top">
         <div className="container">
+          <header className="fare-docs-page-heading fare-page-heading">
+            <h1 className="fare-page-title is-short">DOCS</h1>
+            <p>How the onchain taxi park works.</p>
+          </header>
           <nav
             className="fare-docs-tabs"
             aria-label="Documentation sections"
@@ -80,7 +84,7 @@ export function DocsPage() {
           <div className="fare-docs-layout" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
             <article className="fare-docs-article" id="overview">
               <header className="fare-docs-article-header">
-                <h1>THE ONCHAIN<br />TAXI PARK</h1>
+                <h2>THE ONCHAIN<br />TAXI PARK</h2>
                 <p>Fare Share is a Solana taxi park made of ownable NFT cars. Active cars share rewards created from actual protocol fees. Returns are variable, no fixed APY is promised, and every owner keeps control of their NFT and claimed assets.</p>
               </header>
 

@@ -236,7 +236,10 @@ export function TradePage({ wallet, connectWallet }) {
   const latestCandle = [...candles].reverse().find(candle => candle.volume > 0) || candles.at(-1);
   return (
     <main id="top">
-      <section className="trade-intro container"><h1>TRADE</h1></section>
+      <section className="trade-intro fare-page-heading container" aria-labelledby="trade-page-title">
+        <h1 className="fare-page-title is-short" id="trade-page-title">TRADE</h1>
+        <p>Buy and sell FARE with live market data.</p>
+      </section>
       <section className="trade-workspace container">
         <article className="trade-chart-card">
           <div className="trade-chart-heading">

@@ -1,7 +1,7 @@
 .fare-market-main { position: relative; z-index: 1; min-height: 100vh; padding: 190px 0 120px; }
 .fare-market-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
-.fare-market-heading > div { display: flex; align-items: flex-start; flex-direction: column; }
-.fare-market-kicker { display: inline-flex; min-height: 34px; align-items: center; margin-bottom: 18px; padding: 0 15px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; font-size: 13px; font-weight: 900; letter-spacing: .04em; }
+.fare-market-heading > div { position: relative; display: flex; align-items: flex-start; flex-direction: column; }
+.fare-market-kicker { position: absolute; bottom: calc(100% + 18px); display: inline-flex; min-height: 34px; align-items: center; margin: 0; padding: 0 15px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; font-size: 13px; font-weight: 900; letter-spacing: .04em; }
 .fare-market-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .8; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }
 .fare-market-heading p { max-width: 460px; margin: 0 0 3px; padding: 13px 16px; border-left: 8px solid #111; background: #fff; font-size: 22px; font-weight: 700; line-height: 27px; }
 .fare-market-console { margin-top: 62px; border: 2px solid #111; border-radius: 30px; background: #fff; box-shadow: 8px 9px 0 #111; overflow: hidden; }
@@ -66,7 +66,7 @@
 @media (max-width: 600px) {
   .fare-market-main { padding-top: 140px; padding-bottom: 80px; }
   .fare-market-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
-  .fare-market-kicker { min-height: 30px; margin-bottom: 14px; font-size: 11px; }
+  .fare-market-kicker { min-height: 30px; font-size: 11px; }
   .fare-market-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
   .fare-market-heading p { width: min(360px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
   .fare-market-console { margin-top: 40px; border-radius: 22px; box-shadow: 5px 6px 0 #111; }

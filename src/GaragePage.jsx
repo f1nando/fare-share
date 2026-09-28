@@ -121,8 +121,8 @@ export function GaragePage({ wallet }) {
     <>
       <main className="fare-garage-main" id="top">
         <section className="container fare-garage-section" id="garage" aria-labelledby="garage-page-title">
-          <div className="fare-garage-heading">
-            <h1 id="garage-page-title">GARAGE</h1>
+          <div className="fare-garage-heading fare-page-heading">
+            <h1 className="fare-page-title is-short" id="garage-page-title">GARAGE</h1>
             <p>{wallet ? 'Your onchain taxi fleet, ready to run the next shift.' : 'Connect Phantom to load your onchain taxi fleet.'}</p>
           </div>
 

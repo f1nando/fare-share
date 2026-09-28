@@ -32,13 +32,13 @@ function FaqChevron() {
   );
 }
 
-export function FareFaq({ id = 'faq', titleId = 'fare-faq-title', answerIdPrefix = 'fare-faq-answer' }) {
+export function FareFaq({ id = 'faq', titleId = 'fare-faq-title', titleClassName, titleTag: TitleTag = 'h2', answerIdPrefix = 'fare-faq-answer' }) {
   const [openIndex, setOpenIndex] = useState(null);
 
   return (
     <section className="fare-faq" id={id} aria-labelledby={titleId}>
       <div className="container">
-        <h2 id={titleId}>FAQ</h2>
+        <TitleTag className={titleClassName} id={titleId}>FAQ</TitleTag>
         <div className="fare-faq-list">
           {FARE_FAQ_ITEMS.map((item, index) => {
             const isOpen = openIndex === index;

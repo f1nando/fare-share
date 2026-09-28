@@ -69,10 +69,10 @@ export function MarketPage({ wallet, connectWallet }) {
   return (
     <main className="fare-market-main" id="top">
       <section className="container fare-market-section" aria-labelledby="market-page-title">
-        <header className="fare-market-heading">
+        <header className="fare-market-heading fare-page-heading">
           <div>
             <span className="fare-market-kicker">OFFICIAL COLLECTION</span>
-            <h1 id="market-page-title">MARKET</h1>
+            <h1 className="fare-page-title is-short" id="market-page-title">MARKET</h1>
           </div>
           <p>Find your next taxi. Every car is ready to join your fleet.</p>
         </header>
