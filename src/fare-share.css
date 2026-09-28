@@ -495,7 +495,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 }
 
 @media (max-width: 600px) {
-  .fare-landing-page .fare-how,
   .fare-landing-page .fare-fleet,
   .fare-landing-page .fare-treasury,
   .fare-landing-page .fare-faq,
