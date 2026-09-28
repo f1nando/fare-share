@@ -65,7 +65,7 @@ export function MintPage() {
       if (cancelled) return;
       interval = window.setInterval(() => {
         dispatchPreview({ type: 'advance', sceneCount: selectedClass.scenes.length });
-      }, 1500);
+      }, 1000);
     });
 
     return () => {
