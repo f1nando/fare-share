@@ -6,14 +6,6 @@ import drivingScenes from './drivingScenes.json';
 const mintCar = drivingScenes.find(car => car.name === 'Chevrolet Caprice') || drivingScenes[0];
 const UNIT_PRICE = 240;
 
-function ExpandIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M8 3H3V8M16 3H21V8M21 16V21H16M8 21H3V16M3 8L9 2M15 2L21 8M21 16L15 22M9 22L3 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ArrowIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -24,7 +16,6 @@ function ArrowIcon() {
 
 export function MintPage() {
   const [quantity, setQuantity] = useState(2);
-  const [previewExpanded, setPreviewExpanded] = useState(false);
 
   return (
     <div className="fare-page fare-mint-page">
@@ -42,10 +33,9 @@ export function MintPage() {
           </div>
 
           <div className="fare-mint-layout">
-            <div className={`fare-mint-preview${previewExpanded ? ' is-expanded' : ''}`}>
+            <div className="fare-mint-preview">
               <FareStepDrivingScene scene={mintCar} />
               <span className="fare-fleet-class is-economy">ECONOMY</span>
-              <button type="button" aria-label={previewExpanded ? 'Close expanded car preview' : 'Expand car preview'} onClick={() => setPreviewExpanded(value => !value)}><ExpandIcon /></button>
             </div>
 
             <div className="fare-mint-panel">

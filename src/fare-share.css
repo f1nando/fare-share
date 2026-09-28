@@ -340,12 +340,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-intro h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 70px; font-weight: 400; line-height: .82; letter-spacing: -.025em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 6px 7px 0 #111; }
 .fare-mint-intro > p { max-width: 680px; margin: 0 0 3px; padding: 13px 18px; border-left: 8px solid #111; background: #fff; font-size: 26px; font-weight: 700; line-height: 32px; }
 .fare-mint-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-top: 54px; }
-.fare-mint-preview { position: relative; height: 650px; padding: 14px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; overflow: hidden; }
-.fare-mint-preview > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 20px; }
-.fare-mint-preview > .fare-fleet-class { top: 28px; left: 28px; }
-.fare-mint-preview > button { position: absolute; z-index: 4; top: 28px; right: 28px; display: grid; width: 48px; height: 48px; padding: 0; place-items: center; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 4px 5px 0 #111; transition: transform .15s ease, box-shadow .15s ease; }
-.fare-mint-preview > button:hover { transform: translate(4px, 5px); box-shadow: 0 0 0 #111; }
-.fare-mint-preview.is-expanded { position: fixed; z-index: 6; inset: 24px; width: auto; height: auto; box-shadow: 0 0 0 100vmax rgb(17 17 17 / 70%); }
+.fare-mint-preview { position: relative; height: 650px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; overflow: hidden; }
+.fare-mint-preview > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 29px; }
+.fare-mint-preview > .fare-fleet-class { top: 18px; left: 18px; }
 .fare-mint-panel { min-height: 650px; padding: 38px 36px 30px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; }
 .fare-mint-panel h2 { margin: 0 0 40px; font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
 .fare-mint-progress-copy, .fare-mint-quantity-copy { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 500; line-height: 24px; }
