@@ -35,13 +35,10 @@
 7. Создать protocol Address Lookup Table, добавить адреса из `npm run protocol:claim-lookup-addresses` и записать её адрес в `VITE_TAXI_LOOKUP_TABLE`. Без ALT атомарный Claim ограничен четырьмя машинами, с ALT — десятью.
 8. Запустить backend и worker, после чего проверить сценарии F0/F0a из `docs/SCENARIO-TESTS.md`: сбор до graduation, PumpSwap WSOL после graduation, swaps, расчёт, claim, ремонт и стажёра.
 
-ALT создаётся и наполняется тем же явно указанным authority/payer и в той же сети, что и программа:
+ALT создаётся и наполняется тем же явно указанным authority/payer и в той же сети, что и программа. Скрипт печатает адрес и обе finalized-подписи; полученный адрес записывается в `VITE_TAXI_LOOKUP_TABLE`:
 
 ```sh
-solana address-lookup-table create -u devnet --authority <AUTHORITY_PUBKEY> --payer <PAYER_KEYPAIR>
-solana address-lookup-table extend -u devnet <LOOKUP_TABLE_ADDRESS> \
-  --authority <AUTHORITY_KEYPAIR> --payer <PAYER_KEYPAIR> \
-  --addresses "$(npm run --silent protocol:claim-lookup-addresses)"
+node --env-file=.env.devnet --import tsx scripts/create-claim-lookup-table.ts
 solana address-lookup-table get -u devnet <LOOKUP_TABLE_ADDRESS>
 ```
 

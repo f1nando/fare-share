@@ -2,17 +2,17 @@ const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 const addresses = {
   deployer: '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF',
-  worker: 'B9THxQChCdu4hZtKcJf4HRS2Ji2KLBNVt8M7H4jncWy8',
-  program: 'FHc9uKp4gwmPi4GpaNScjBMpcdH1WEEBRwfNJgjaHALf',
-  programData: '2NeWZA8cWEwrDcQ39f3rYFd9AmnVMWkenh9ahzhvy5ZJ',
-  feeVault: 'BwFmLQp5Wpn6SoFVFMend3KfQh2p1NomRm1YJ6n6WdZK',
+  worker: 'J38s2zZLszLssXu6CAencaqwrZ6wvE3hmoc4jWy2piJu',
+  program: 'H7X7Ky8q6mvEdeDLikx6fPGAyjjHywR74W53DyXZJrsY',
+  programData: '3dUwFwcqrq15iqQJdW5hsAs4HRtpEu4YrysvA9iV8DSH',
+  feeVault: 'H6sdzCz9gvXD8szwAjPDGK6AXGKT4zNBRwNWTNcr4Dyi',
   tokenVaults: [
-    '3nGcCDWtnivvAXJv58keQZtgHgJraZ9ZeR5ZjdKuj3cs',
-    '9jXxpk9VyeCFNtCUt9tuamYs7eP18N5TQkHVjxTo4PZ5',
-    '2RVCPyho4FcjzV338ccrAY1z1wnmv4wzJLcnioH3FGbU',
-    'GWJgEn9zk7Cwp5rqrv5nhmh1TF4VFdiQzA4P5p9ocEHo',
-    '5PiSMKFcR2stpKgnHTWhkRMm7wa1sYNaf1jB8fa7D6td',
-    'EJrSENUNrs7GaPnj51rbVtJbXbfNBWERjUFiWK6ehsnm',
+    '5xzU85NQMzGTurJ1t7Pbd1FAssxSLbyUF2HtbsRwrzZb',
+    '3y9YnVpaq5tDxDLJMJ6ScUKEacqqmtZsfhoqrgn7tJAk',
+    '4UrtzFMLTv9qMGaqwsVy9hf4fAwFD3hTo97kEdQq4VJk',
+    '4DRtXvhX8uZ5wzkCAFJ1G7QsKoMrFAZchJ2EkjYr9MtP',
+    '3VUV7W4sTU5bmy57kbRgrJLmfZeFZzWZeCi5CktRpBr6',
+    '4bom344dzMoHoRfJAd2mcixgGtZ65o14RYmyJCMBcMSm',
   ],
 };
 

@@ -113,3 +113,19 @@ test('ambiguous sendTransaction failure is not retried', async () => {
   );
   assert.equal(attempts, 1);
 });
+
+test('sendTransaction simulation errors retain program logs', async () => {
+  await assert.rejects(
+    solanaSendTransactionCall('https://rpc.test', ['signed'], {
+      fetchImplementation: async () => new Response(JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        error: {
+          message: 'Transaction simulation failed',
+          data: { logs: ['Program consumed 200000 of 200000 compute units'] },
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    }),
+    /Program consumed 200000 of 200000 compute units/,
+  );
+});

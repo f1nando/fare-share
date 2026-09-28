@@ -2,13 +2,13 @@
 
 set -euo pipefail
 
-PROGRAM_ID="FHc9uKp4gwmPi4GpaNScjBMpcdH1WEEBRwfNJgjaHALf"
-PROGRAM_DATA="2NeWZA8cWEwrDcQ39f3rYFd9AmnVMWkenh9ahzhvy5ZJ"
+PROGRAM_ID="H7X7Ky8q6mvEdeDLikx6fPGAyjjHywR74W53DyXZJrsY"
+PROGRAM_DATA="3dUwFwcqrq15iqQJdW5hsAs4HRtpEu4YrysvA9iV8DSH"
 DEPLOYER="2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
-WORKER="B9THxQChCdu4hZtKcJf4HRS2Ji2KLBNVt8M7H4jncWy8"
+WORKER="J38s2zZLszLssXu6CAencaqwrZ6wvE3hmoc4jWy2piJu"
 DEVNET_GENESIS="EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"
 DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/home/ivand/.config/solana/taxi-devnet-deployer.json}"
-WORKER_KEYPAIR="${WORKER_KEYPAIR:-/home/ivand/.config/solana/taxi-devnet-worker.json}"
+WORKER_KEYPAIR="${WORKER_KEYPAIR:-/home/ivand/.config/solana/taxi-devnet-claimmany-worker.json}"
 RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
 CONFIRMATION="CLOSE-$PROGRAM_ID"
 

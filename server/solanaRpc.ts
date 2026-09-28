@@ -62,8 +62,14 @@ export async function solanaSendTransactionCall<T>(
         signal: AbortSignal.timeout(options.timeoutMs ?? 15_000),
       });
       if (!response.ok) throw new SolanaRpcHttpError(`Solana RPC sendTransaction failed with HTTP ${response.status}`, response.status);
-      const payload = await response.json() as { result?: T; error?: { message?: string } };
-      if (payload.error) throw new SolanaRpcHttpError(`Solana RPC sendTransaction: ${payload.error.message || 'unknown error'}`);
+      const payload = await response.json() as {
+        result?: T;
+        error?: { message?: string; data?: { logs?: string[] } };
+      };
+      if (payload.error) {
+        const logs = payload.error.data?.logs?.length ? `\n${payload.error.data.logs.join('\n')}` : '';
+        throw new SolanaRpcHttpError(`Solana RPC sendTransaction: ${payload.error.message || 'unknown error'}${logs}`);
+      }
       if (payload.result === undefined) throw new SolanaRpcHttpError('Solana RPC sendTransaction returned no result');
       return payload.result;
     });

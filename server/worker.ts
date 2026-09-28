@@ -432,7 +432,7 @@ async function drainRewards(
       ],
       data: Buffer.concat([anchorDiscriminator(kind === 'main' ? 'calculate_rewards' : 'calculate_trainee_rewards'), Buffer.from([limit])]),
     };
-    const signature = await sendInstructions(rpcUrl, signer, [instruction]);
+    const signature = await sendInstructions(rpcUrl, signer, [computeUnitLimitInstruction(), instruction]);
     console.log(`${kind} calculate_rewards (${batch.selected.length} events) finalized: ${signature}`);
   }
   throw new Error(`${kind} queue did not drain after 500 transactions`);
