@@ -1,16 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
 const UNIT_PRICE = 240;
 const MINT_CLASSES = [
-  { name: 'Economy', tone: 'economy', supply: 1000, minted: 680, sceneName: 'Chevrolet Caprice' },
-  { name: 'Comfort', tone: 'comfort', supply: 300, minted: 112, sceneName: 'Toyota Camry' },
-  { name: 'Business', tone: 'business', supply: 100, minted: 35, sceneName: 'Tesla Model 3' },
-  { name: 'Legend', tone: 'legend', supply: 25, minted: 8, sceneName: 'Porsche 911' },
+  { name: 'Economy', tone: 'economy', supply: 1000, minted: 680, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', tone: 'comfort', supply: 300, minted: 112, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', tone: 'business', supply: 100, minted: 35, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', tone: 'legend', supply: 25, minted: 8, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ].map(item => ({
   ...item,
-  scene: drivingScenes.find(car => car.name === item.sceneName) || drivingScenes[0],
+  scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
 }));
 
 function ArrowIcon() {
@@ -24,7 +24,17 @@ function ArrowIcon() {
 export function MintPage() {
   const [quantity, setQuantity] = useState(2);
   const [selectedClassIndex, setSelectedClassIndex] = useState(0);
+  const [previewSceneIndex, setPreviewSceneIndex] = useState(0);
   const selectedClass = MINT_CLASSES[selectedClassIndex];
+  const previewScene = selectedClass.scenes[previewSceneIndex] || drivingScenes[0];
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setPreviewSceneIndex(index => (index + 1) % selectedClass.scenes.length);
+    }, 500);
+
+    return () => window.clearInterval(interval);
+  }, [selectedClassIndex, selectedClass.scenes.length]);
 
   return (
     <>
@@ -40,7 +50,7 @@ export function MintPage() {
 
           <div className="fare-mint-layout">
             <div className="fare-mint-preview">
-              <FareStepDrivingScene scene={selectedClass.scene} />
+              <FareStepDrivingScene scene={previewScene} />
               <span className={`fare-fleet-class is-${selectedClass.tone}`}>{selectedClass.name.toUpperCase()}</span>
             </div>
 
@@ -58,7 +68,10 @@ export function MintPage() {
                         className={isSelected ? 'is-selected' : undefined}
                         type="button"
                         aria-pressed={isSelected}
-                        onClick={() => setSelectedClassIndex(index)}
+                        onClick={() => {
+                          setSelectedClassIndex(index);
+                          setPreviewSceneIndex(0);
+                        }}
                       >
                         {item.name}
                       </button>
