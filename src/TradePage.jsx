@@ -4,6 +4,7 @@ import {
   executeTrade,
   loadCandles,
   loadHolders,
+  loadTradeBalance,
   loadTrades,
   loadTradeToken,
   quoteTrade,
@@ -65,6 +66,7 @@ function TradeForm({ token, wallet, connectWallet }) {
   const [quote, setQuote] = useState(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [balanceBusy, setBalanceBusy] = useState(false);
   const symbol = token?.symbol || 'TOKEN';
   const payToken = side === 'sell' ? symbol : 'SOL';
   const receiveToken = side === 'sell' ? 'SOL' : symbol;
@@ -113,6 +115,22 @@ function TradeForm({ token, wallet, connectWallet }) {
     }
   }
 
+  async function selectBalancePortion(portion) {
+    setBalanceBusy(true);
+    setNotice('');
+    try {
+      const connection = wallet || await connectWallet();
+      const balance = await loadTradeBalance(connection.account.address);
+      const available = side === 'buy' ? Math.max(0, balance.sol - .005) : balance.token;
+      setPayAmount(formatInputAmount(available * portion, side === 'buy' ? 9 : token?.decimals || 6));
+      if (side === 'buy' && portion === 1) setNotice('0.005 SOL is reserved for network and priority fees.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBalanceBusy(false);
+    }
+  }
+
   return (
     <section className="trade-swap" aria-label={`${symbol} trade form`}>
       <div className={`trade-side-tabs${side === 'sell' ? ' is-sell' : ''}`} role="tablist" aria-label="Trade side">
@@ -123,6 +141,10 @@ function TradeForm({ token, wallet, connectWallet }) {
         <label htmlFor="trade-pay-amount">YOU PAY</label>
         <input id="trade-pay-amount" type="text" inputMode="decimal" value={payAmount} onChange={event => setPayAmount(cleanAmount(event.target.value))} aria-label={`Amount to pay in ${payToken}`} />
         <b>{payToken}</b>
+      </div>
+      <div className="trade-quick-actions" aria-label={`${payToken} balance shortcuts`}>
+        <button type="button" disabled={balanceBusy} onClick={() => selectBalancePortion(.5)}>HALF</button>
+        <button type="button" disabled={balanceBusy} onClick={() => selectBalancePortion(1)}>MAX</button>
       </div>
       <div className="trade-amount-box">
         <label htmlFor="trade-receive-amount">YOU RECEIVE</label>
@@ -256,6 +278,10 @@ function formatTradeAmount(value) {
   const factor = 10 ** decimalPlaces;
   const truncated = Math.trunc(number * factor) / factor;
   return truncated.toLocaleString('en-US', { maximumFractionDigits: decimalPlaces });
+}
+
+function formatInputAmount(value, decimals) {
+  return Number(value || 0).toFixed(Math.min(Math.max(decimals, 0), 9)).replace(/\.?0+$/, '');
 }
 
 function formatPrice(value) {

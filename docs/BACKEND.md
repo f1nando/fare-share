@@ -32,6 +32,7 @@ GET  /api/trade/trades
 GET  /api/trade/holders
 GET  /api/trade/candles?interval=1h
 GET  /api/trade/stream
+GET  /api/trade/balance/:wallet
 POST /api/trade/quote
 POST /api/trade/build
 GET  /api/trade/status/:signature

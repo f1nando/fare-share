@@ -73,6 +73,12 @@ const server = createServer(async (request, response) => {
       return;
     }
     const tradeStatusRoute = /^\/api\/trade\/status\/([^/]+)$/.exec(url.pathname);
+    const tradeBalanceRoute = /^\/api\/trade\/balance\/([^/]+)$/.exec(url.pathname);
+    if (request.method === 'GET' && tradeBalanceRoute) {
+      requireTrade(trade);
+      json(response, 200, await trade.walletBalances(decodeURIComponent(tradeBalanceRoute[1])));
+      return;
+    }
     if (request.method === 'GET' && tradeStatusRoute) {
       requireTrade(trade);
       json(response, 200, await trade.signatureStatus(decodeURIComponent(tradeStatusRoute[1])));

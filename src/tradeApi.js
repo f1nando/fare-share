@@ -23,6 +23,10 @@ export async function loadCandles(interval = '1h', limit = 300) {
   return request(`/api/trade/candles?interval=${encodeURIComponent(interval)}&limit=${limit}`);
 }
 
+export async function loadTradeBalance(wallet) {
+  return request(`/api/trade/balance/${encodeURIComponent(wallet)}`);
+}
+
 export async function quoteTrade(side, amount, slippageBps = 500) {
   return request('/api/trade/quote', { method: 'POST', body: JSON.stringify({ side, amount, slippageBps }) });
 }

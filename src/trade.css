@@ -56,6 +56,11 @@ body { color: #111; background: #fff; }
 .trade-amount-box input { width: calc(100% - 86px); min-width: 0; padding: 0; border: 0; outline: 0; color: #111; background: transparent; font: inherit; font-size: 34px; font-weight: 800; letter-spacing: -.05em; }
 .trade-amount-box input::selection { color: #111; background: #ffe11a; }
 .trade-amount-box b { margin-left: auto; padding: 10px 15px; border: 1.5px solid #111; border-radius: 999px; background: #ffe11a; font-size: 11px; }
+.trade-quick-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }
+.trade-quick-actions button { min-width: 58px; height: 28px; padding: 0 12px; border: 1.5px solid #111; border-radius: 999px; color: #fff; background: #111; font-size: 9px; font-weight: 900; }
+.trade-quick-actions button:hover { color: #111; background: #ffe11a; }
+.trade-quick-actions button:disabled { cursor: wait; opacity: .5; }
+.trade-quick-actions + .trade-amount-box { margin-top: 10px; }
 .trade-rate { margin: 22px 0 18px; font-size: 15px; font-weight: 700; }
 .trade-rate div { display: flex; justify-content: space-between; margin-top: 6px; }
 .trade-rate dt, .trade-rate dd { margin: 0; }

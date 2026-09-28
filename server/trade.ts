@@ -326,6 +326,31 @@ export class TradeService {
     return { signature, status: Array.isArray(result.value) ? result.value[0] || null : null };
   }
 
+  async walletBalances(wallet: string) {
+    try { address(wallet); } catch { throw new TradeError('Invalid wallet address.'); }
+    const [balanceResult, tokenResult] = await Promise.all([
+      this.rpc('getBalance', [wallet, { commitment: 'confirmed' }]),
+      this.rpc('getTokenAccountsByOwner', [wallet, { mint: String(this.mint) }, { encoding: 'jsonParsed', commitment: 'confirmed' }]),
+    ]);
+    const lamports = BigInt(String(asRecord(balanceResult).value || '0'));
+    const accounts = Array.isArray(asRecord(tokenResult).value) ? asRecord(tokenResult).value as unknown[] : [];
+    let tokenRaw = 0n;
+    for (const account of accounts) {
+      const parsed = asRecord(asRecord(asRecord(account).account).data);
+      const info = asRecord(asRecord(parsed.parsed).info);
+      const amount = String(asRecord(info.tokenAmount).amount || '0');
+      tokenRaw += BigInt(amount);
+    }
+    return {
+      wallet,
+      solLamports: lamports.toString(),
+      sol: Number(lamports) / LAMPORTS_PER_SOL,
+      tokenRaw: tokenRaw.toString(),
+      token: Number(tokenRaw) / 10 ** this.state.decimals,
+      tokenDecimals: this.state.decimals,
+    };
+  }
+
   openStream(response: ServerResponse) {
     response.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
