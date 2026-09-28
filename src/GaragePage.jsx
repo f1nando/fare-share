@@ -23,6 +23,7 @@ const garageCars = drivingScenes.slice(0, 9).map((scene, index) => ({
   ...GARAGE_STATS[index],
   vehicleClass: CLASS_BY_SCENE.get(scene.name) || { name: 'Economy', tone: 'economy' },
 }));
+const earningsBars = [38, 46, 34, 51, 62, 73, 71, 72, 70, 69, 58, 57, 59, 56, 55, 57, 56, 64, 63, 62, 94, 94, 94, 108];
 
 export function GaragePage() {
   return (
@@ -33,6 +34,38 @@ export function GaragePage() {
             <h1 id="garage-page-title">GARAGE</h1>
             <p>Your taxi fleet, ready to run the next shift.</p>
           </div>
+
+          <section className="fare-garage-overview" aria-label="Fleet earnings overview">
+            <div className="fare-garage-overview-main">
+              <div className="fare-garage-overview-copy">
+                <span>Total fleet earnings</span>
+                <strong>219.53 FARE</strong>
+                <p>+$12.48 today · $54.94 earned in stocks</p>
+                <div className="fare-garage-overview-actions">
+                  <button type="button">Claim all <b>219.53</b></button>
+                  <button className="is-secondary" type="button">Repair all</button>
+                </div>
+              </div>
+
+              <div className="fare-garage-chart">
+                <div className="fare-garage-periods" aria-label="Earnings period">
+                  <button className="is-active" type="button">24H</button>
+                  <button type="button">7D</button>
+                  <button type="button">30D</button>
+                </div>
+                <div className="fare-garage-bars" aria-hidden="true">
+                  {earningsBars.map((height, index) => <i className={index > 9 ? 'is-accent' : undefined} style={{ height: `${height}px` }} key={`${height}-${index}`} />)}
+                </div>
+                <div className="fare-garage-chart-labels"><span>00:00</span><span>06:00</span><span>12:30</span><span>16:30</span><span>20:00</span><span>00:00</span></div>
+              </div>
+            </div>
+
+            <div className="fare-garage-overview-stats">
+              <div><span>Earned this hour</span><strong>4.82 FARE</strong><small className="is-positive">↗ 8.4%</small></div>
+              <div><span>Projected today</span><strong>57.60 FARE</strong><small>Estimate</small></div>
+              <div><span>Cars working</span><strong>7/9</strong><small>2 need repair</small></div>
+            </div>
+          </section>
 
           <div className="fare-garage-grid">
             {garageCars.map((car, index) => (
