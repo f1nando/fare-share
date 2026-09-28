@@ -656,7 +656,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-mint-intro > p { font-size: 14px; line-height: 17px; }
   .fare-mint-layout { gap: 20px; margin-top: 36px; }
   .fare-mint-preview { height: 440px; border-radius: 24px; box-shadow: 5px 6px 0 #111; }
-  .fare-mint-preview > button { top: 14px; right: 14px; width: 42px; height: 42px; }
   .fare-mint-panel { min-height: 0; padding: 26px 20px 22px; border-radius: 24px; }
   .fare-mint-panel h2 { margin-bottom: 30px; font-size: 30px; }
   .fare-mint-summary { padding: 16px 18px; border-radius: 20px; }
