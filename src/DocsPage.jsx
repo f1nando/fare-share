@@ -2,11 +2,26 @@ import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 import { FareShareCityBackground } from './FareShareLanding.jsx';
 
 const steps = [
-  ['01', 'GET A CAR', 'Mint or buy an NFT taxi.'],
-  ['02', 'IT WORKS', 'The car starts automatically.'],
-  ['03', 'REFUEL', 'Keep the car active.'],
-  ['04', 'MANAGE', 'Track it from Garage.'],
+  ['01', 'MINT A TAXI', 'Choose a class and mint one permanent NFT.'],
+  ['02', 'EARN BY WEIGHT', 'An active taxi shares actual protocol rewards.'],
+  ['03', 'REPAIR WITH FARE', 'Restore five days of durability when needed.'],
+  ['04', 'CLAIM ASSETS', 'Collect FARE and available xStocks to your wallet.'],
 ];
+
+const sections = [
+  ['one-minute', '01', 'FARE SHARE IN ONE MINUTE'],
+  ['cars', '02', 'TAXIS, CLASSES & SUPPLY'],
+  ['revenue', '03', 'WHERE REWARDS COME FROM'],
+  ['rewards', '04', 'HOW REWARDS ARE CALCULATED'],
+  ['durability', '05', 'DURABILITY & REPAIRS'],
+  ['ownership', '06', 'OWNERSHIP, CLAIMS & TRANSFERS'],
+  ['trainee', '07', 'TRAINEE CAMPAIGNS'],
+  ['risks', '08', 'FEES, RISKS & TRUST'],
+];
+
+function SectionTitle({ number, children }) {
+  return <div className="fare-docs-section-title"><span>{number}</span><h2>{children}</h2></div>;
+}
 
 export function DocsPage() {
   return (
@@ -18,52 +33,96 @@ export function DocsPage() {
         <div className="container">
           <nav className="fare-docs-tabs" aria-label="Documentation sections">
             <a className="is-active" href="#overview">OVERVIEW</a>
-            <a href="#how-it-works">HOW IT WORKS</a>
-            <a href="#support">SUPPORT</a>
-            <a href="#terms">TERMS</a>
-            <a href="#privacy">PRIVACY</a>
+            <a href="#cars">TAXIS</a>
+            <a href="#rewards">REWARDS</a>
+            <a href="#durability">REPAIRS</a>
+            <a href="#risks">RISKS</a>
           </nav>
 
           <div className="fare-docs-layout">
             <aside className="fare-docs-sidebar">
               <span>ON THIS PAGE</span>
               <nav aria-label="On this page">
-                <a className="is-active" href="#one-minute"><span>01</span>FARE SHARE IN ONE MINUTE</a>
-                <a href="#what-you-own"><span>02</span>WHAT YOU OWN</a>
-                <a href="#what-you-control"><span>03</span>WHAT YOU CONTROL</a>
+                {sections.map(([id, number, title], index) => (
+                  <a className={index === 0 ? 'is-active' : undefined} href={`#${id}`} key={id}>
+                    <span>{number}</span>{title}
+                  </a>
+                ))}
               </nav>
             </aside>
 
             <article className="fare-docs-article" id="overview">
               <header className="fare-docs-article-header">
                 <h1>THE ONCHAIN<br />TAXI PARK</h1>
-                <p>Fare Share turns every taxi into an ownable NFT that works automatically. This overview covers only the product concept, the asset you own and the actions available to an owner.</p>
+                <p>Fare Share is a Solana taxi park made of ownable NFT cars. Active cars share rewards created from actual protocol fees. Returns are variable, no fixed APY is promised, and every owner keeps control of their NFT and claimed assets.</p>
               </header>
 
-              <div className="fare-docs-steps" id="how-it-works">
+              <div className="fare-docs-steps" aria-label="How Fare Share works">
                 {steps.map(([number, title, text]) => <div key={number}><strong>{number} · {title}</strong><span>{text}</span></div>)}
               </div>
 
               <section className="fare-docs-copy-section" id="one-minute">
-                <div className="fare-docs-section-title"><span>01</span><h2>FARE SHARE IN ONE MINUTE</h2></div>
-                <p>A Fare Share car is a productive NFT inside one shared taxi park. There are no shifts to start and no driver to manage; after acquisition, the car works automatically while it has fuel.</p>
-                <p>The owner follows the complete cycle from two screens. Dashboard summarizes earnings and the next action, while Garage shows each individual car, its class, fuel level, status and history. When fuel reaches the pause threshold, that car stops earning until it is refueled with FSI.</p>
-                <p>Park revenue is settled in cycles. After a cycle closes, the collectible amount is separated from revenue that is still pending. A completed payout contains a cash portion and the supported tokenized stock selected by the owner.</p>
-                <div className="fare-docs-callout">Buy a car, let it work, keep it fueled and collect only after settlement.</div>
+                <SectionTitle number="01">FARE SHARE IN ONE MINUTE</SectionTitle>
+                <p>Connect a supported Solana wallet and mint a taxi from the official Fare Share collection. Each taxi is a Metaplex Core NFT with its own onchain operating account. The NFT stays in your wallet; Fare Share never takes custody of your wallet or private keys.</p>
+                <p>A newly minted taxi enters the park with five days of durability and starts participating automatically. There are no routes, drivers or shifts to configure. Its share depends on the class weight and the exact time for which it remains active.</p>
+                <p>Protocol fees are converted into $FARE and four supported xStocks. Rewards are calculated onchain in batches and become claimable by the current NFT owner. Repairing restores durability; claiming does not.</p>
+                <div className="fare-docs-callout">Mint → stay active → rewards are calculated → claim to your wallet → repair and repeat.</div>
               </section>
 
-              <section className="fare-docs-copy-section" id="what-you-own">
-                <div className="fare-docs-section-title"><span>02</span><h2>WHAT YOU OWN</h2></div>
-                <p>You own the taxi NFT in your connected wallet. Its class, identity and recorded ownership history stay attached to the token and move with it when transferred.</p>
-                <p>The NFT represents a specific car in the Fare Share park, not a promise of fixed income. The car record includes its permanent class and token ID, plus operational information such as lifetime earnings, current fuel and marketplace history.</p>
-                <p>A wallet transfer or confirmed marketplace sale moves control of the NFT to the receiving address. Cash, FSI and stock tokens already held by the previous owner do not move with the car unless they are included in a separate transaction.</p>
+              <section className="fare-docs-copy-section" id="cars">
+                <SectionTitle number="02">TAXIS, CLASSES & SUPPLY</SectionTitle>
+                <p>The collection has a hard maximum of 1,425 taxis: 1,000 Economy cars with weight 1, 300 Comfort cars with weight 3, 100 Business cars with weight 10, and 25 Legend cars with weight 30. Weight affects a taxi’s share of a reward period; it is not a guaranteed return.</p>
+                <p>Each mint creates one NFT. There is no per-wallet ownership limit, although every transaction mints only one car and is subject to the remaining supply of its class. Mint prices are fixed in SOL before the public sale starts and cannot be changed after the sale opens.</p>
+                <p>Names, artwork and permanent traits are stored through immutable Arweave metadata. Live information—durability, checkpoints and unclaimed rewards—is read from the taxi’s Solana account instead of being written into static NFT metadata.</p>
+                <p>Burning a taxi permanently removes the NFT and does not reopen its place in the collection. After the burn is finalized and cleaned up onchain, its future weight is removed and any unclaimed assets return to the relevant reward pools.</p>
               </section>
 
-              <section className="fare-docs-copy-section" id="what-you-control">
-                <div className="fare-docs-section-title"><span>03</span><h2>WHAT YOU CONTROL</h2></div>
-                <p>You choose which car to own, when to refuel it, which supported stock to receive and whether to keep or sell the NFT. Detailed operating and financial mechanics live in their own tabs.</p>
-                <p>You can compare car classes before minting, review a listed car before buying it, change the stock used for future payouts and decide when to collect an available balance. Every wallet action remains subject to an explicit confirmation.</p>
-                <p>You do not manually choose routes, drivers, fares or shifts. Those park operations are automatic. Your practical responsibilities are to protect the wallet, monitor fuel, review transaction details and understand that revenue and asset prices can change.</p>
+              <section className="fare-docs-copy-section" id="revenue">
+                <SectionTitle number="03">WHERE REWARDS COME FROM</SectionTitle>
+                <p>$FARE launches through pump.fun in the FARE/SOL pair. Fare Share receives the platform’s actual variable Creator Fee in SOL. The fee rate is controlled by the platform and can change; Fare Share does not add or promise a permanent 4% trading tax.</p>
+                <p>Collected SOL is separated by the protocol: 45% buys $FARE for the main taxi park, 5% buys $FARE for trainee campaigns, 20% buys and burns $FARE, 20% buys xStocks in four equal 5% allocations, and 10% goes to the project team.</p>
+                <p>The stock basket contains UBERx, TSLAx, GOOGLx and AMZNx. Each asset is bought independently through Jupiter. If one route is unavailable or fails its safety checks, that asset’s SOL remains reserved for a later attempt; successful purchases and other rewards are not cancelled.</p>
+                <div className="fare-docs-callout">The park distributes only assets it actually receives. It does not create a fixed yield or debt for a missing asset.</div>
+              </section>
+
+              <section className="fare-docs-copy-section" id="rewards">
+                <SectionTitle number="04">HOW REWARDS ARE CALCULATED</SectionTitle>
+                <p>Rewards are split by active time and class weight. The protocol divides a calculation period at every mint, repair and expiry event. Within each time segment, an active taxi receives its class weight divided by the total active weight, multiplied by that segment’s share of the available pool.</p>
+                <p>A taxi never earns for time before it was minted or while it is broken. Funds may already be in a pool before a taxi joins, but the new taxi can share only the time segments after its exact mint or repair time. If no taxis are active, the pool waits instead of being lost.</p>
+                <p>Calculation and claim are separate. Permissionless calculation transactions advance the event queue in bounded batches and lock each taxi’s share. A claim simply transfers the amount already calculated for one taxi; claim order cannot increase or reduce anyone else’s allocation.</p>
+                <p>A payout can contain $FARE, UBERx, TSLAx, GOOGLx and AMZNx. Each asset is accounted for independently in its native raw units. Small rounding remainders stay in the matching pool for a future calculation.</p>
+              </section>
+
+              <section className="fare-docs-copy-section" id="durability">
+                <SectionTitle number="05">DURABILITY & REPAIRS</SectionTitle>
+                <p>Every normal taxi has five days of maximum durability. At the exact expiry time it leaves the active weight and stops earning until repaired. Claiming rewards does not refill or extend durability.</p>
+                <p>A repair burns $FARE from the current owner and restores a full five days from the repair time. The cost is 25% of the taxi’s calculated $FARE earnings since its previous mint or repair. Only already calculated earnings are used; pending calculations are never estimated.</p>
+                <p>Repairing early does not reduce the total percentage paid: each repair uses only the new calculated $FARE earned since the preceding mint or repair. A taxi at full durability cannot be repaired merely to extend its expiry time.</p>
+                <p>If the calculated repair base is zero, the repair can be free. Otherwise the wallet must hold enough $FARE and confirm the burn transaction. Network and account-creation fees are paid separately in SOL.</p>
+              </section>
+
+              <section className="fare-docs-copy-section" id="ownership">
+                <SectionTitle number="06">OWNERSHIP, CLAIMS & TRANSFERS</SectionTitle>
+                <p>The wallet that currently owns the official NFT controls its taxi. A similar-looking NFT outside the verified Fare Share collection is not accepted by the protocol. Marketplace delegates cannot claim or repair unless they are also the current owner.</p>
+                <p>Unclaimed rewards, durability and operating history belong to the taxi’s onchain account and move with the NFT. If a transfer completes before claim, the new owner can claim the full remaining balance. Assets already claimed to the previous owner’s wallet do not follow the taxi.</p>
+                <p>Each claim handles one taxi and transfers all supported assets calculated for it at that moment. New rewards calculated later can be claimed in another transaction. The owner pays the Solana network fee and any rent needed to create missing token accounts.</p>
+                <p>Fare Share does not charge NFT royalties on ordinary secondary transfers or marketplace sales. The marketplace itself and the Solana network may still charge their own fees.</p>
+              </section>
+
+              <section className="fare-docs-copy-section" id="trainee">
+                <SectionTitle number="07">TRAINEE CAMPAIGNS</SectionTitle>
+                <p>A trainee campaign gives an eligible wallet a temporary virtual taxi through a backend-signed voucher. It does not mint a transferable NFT. The voucher defines a campaign, an activation window and a duration between one hour and seven days.</p>
+                <p>Trainees share a separate 5% $FARE pool. Participation starts at the next full minute, ends automatically, and does not affect the main NFT park. Each campaign can be activated once per wallet and claimed separately.</p>
+                <p>The backend checks campaign rules and signs the voucher, while the Solana program verifies that signature and prevents reuse. A voucher never gives the backend access to the user’s wallet.</p>
+              </section>
+
+              <section className="fare-docs-copy-section" id="risks">
+                <SectionTitle number="08">FEES, RISKS & TRUST</SectionTitle>
+                <p>Rewards depend on real trading activity, swap execution, token liquidity, active park weight and asset prices. $FARE, SOL, NFTs and tokenized stocks can lose value. Historical rewards are not a forecast, and owning a taxi does not guarantee profit or principal protection.</p>
+                <p>Owners pay SOL for mint, claim, repair and trainee transactions. Swaps depend on Jupiter routes; xStocks also depend on their issuer, supported jurisdictions and market availability. Users must confirm they are legally permitted to use the product and tokenized stocks in their country.</p>
+                <p>The Solana program is the source of truth for reserves, reward checkpoints and ownership rules. MongoDB stores recoverable backend data and cache only. Most maintenance calls are permissionless, but fresh swap plans require the backend signer.</p>
+                <p>The deployment has an upgrade authority and a trusted admin. During a global pause, the admin can use emergency rescue functions, including moving assets from protocol-controlled vaults. This is an explicit trust assumption, not a trustless guarantee. Verify the official domain, collection and token addresses before signing.</p>
+                <div className="fare-docs-callout">Never share a seed phrase or private key. Fare Share support will never ask for either.</div>
               </section>
             </article>
           </div>
