@@ -587,6 +587,26 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-faq h2 { height: 62px; font-size: 72px; -webkit-text-stroke-width: 2px; text-shadow: 5px 6px 0 #111; }
   .fare-faq-list { margin-top: 48px; }
   .fare-faq-item { font-size: 25px; }
+  .fare-footer { height: auto; min-height: 0; padding: 56px 0 112px; }
+  .fare-footer-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 24px; }
+  .fare-footer-about { grid-column: 1 / -1; }
+  .fare-footer-brand { height: 48px; }
+  .fare-footer-brand img { width: 48px; height: 48px; }
+  .fare-footer-brand strong { margin-left: 12px; font-size: 22px; }
+  .fare-footer-brand span { margin-left: 10px; font-size: 14px; }
+  .fare-footer-tagline { max-width: 330px; margin-top: 18px; font-size: 20px; line-height: 25px; }
+  .fare-footer-copy { max-width: 340px; margin-top: 12px; font-size: 15px; line-height: 21px; }
+  .fare-footer-copy br { display: none; }
+  .fare-footer-social { width: 48px; height: 48px; margin-top: 24px; }
+  .fare-footer-social svg { width: 20px; height: 18px; }
+  .fare-footer-copyright { position: static; margin-top: 24px; font-size: 14px; line-height: 20px; }
+  .fare-footer-column { transform: none; }
+  .fare-footer-column h2 { margin-bottom: 12px; font-size: 16px; line-height: 20px; }
+  .fare-footer-column a { display: flex; min-height: 40px; align-items: center; font-size: 16px; line-height: 20px; }
+  .fare-footer-column a + a { margin-top: 0; }
+  .fare-footer-column:last-child { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+  .fare-footer-column:last-child h2 { grid-column: 1 / -1; }
+  .fare-footer-watermark { top: auto; bottom: -4px; -webkit-text-stroke-width: 2px; text-shadow: 8px 9px 0 #181818; }
   .fare-fleet-button { top: auto; bottom: 70px; left: 12px; width: min(279px, calc(100% - 24px)); }
   .fare-leaderboard-page-main { padding-top: 150px; padding-bottom: 80px; }
   .fare-leaderboard-page-heading { align-items: flex-start; flex-direction: column; gap: 28px; }
