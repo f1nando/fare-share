@@ -17,7 +17,8 @@
 - [x] Удалить on-chain `credit_devnet_rewards` и соответствующий backend/admin tooling из production-кода.
 - [x] Собрать baseline SBF после удаления: `641720` байт, SHA-256 `35b3a37dfbb2b130cd88440bad105b3cb88d536732bd12a9c02d55761cdd635c`.
 - [x] Проверить бинарник: имя и discriminator `credit_devnet_rewards` отсутствуют; других test/devnet handlers в исходниках нет.
-- [ ] После назначения disposable Program ID заново собрать и зафиксировать финальные размер/SHA-256: baseline не является release artifact.
+- [x] После назначения disposable Program ID собрать SBF: `641720` байт, SHA-256 `d67d068c5840671d2c12da71c387c5aee85cb0329a2632b3171b4994996bc54c`.
+- [ ] Повторно зафиксировать hash после полного release freeze: текущий SBF является RC, а не разрешённым deploy artifact.
 
 ### Gate 2 — изолированная идентичность теста
 
@@ -26,17 +27,17 @@
 - [x] Создать отдельные test-mainnet backend `GkAaxN3mF6ko5qUPfBgstujzmE9kFCYAThDfkGkP74Lz` и worker `9GHXjBfG6qwV7Bwm53EBXh2Z19g6L2wUG6zVTY7hvAtA`.
 - [x] Выбрать authority/payer теста: ранее проверенный recovery-циклом `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`; production authority `2uGK…` тестом не используется.
 - [ ] Подтвердить независимую резервную копию keypair authority и четырёх новых test-mainnet keypair.
-- [ ] Синхронизировать disposable Program ID в `declare_id!`, `Anchor.toml`, `TAXI_PROGRAM_ID` и `VITE_TAXI_PROGRAM_ID` только в изолированной test-mainnet конфигурации.
+- [x] Синхронизировать disposable Program ID `3EAw6VA99tH6y5nEYuGNDWpBVkXXtKnSxpBtmk95JHMv` в `declare_id!`, `Anchor.toml`, `TAXI_PROGRAM_ID` и `VITE_TAXI_PROGRAM_ID` только в branch/worktree `mainnet-test-rc`.
 - [x] Подтвердить, что постоянный `9ZLA…6eVv` не существует onchain и его keypair не используется тестом.
 - [ ] Пополнить authority перед deploy: текущий mainnet-баланс `0.33957387 SOL`, что заведомо меньше необходимого пикового rent.
 
 ### Gate 3 — конфигурация и preflight
 
-- [ ] Исправить текущие ошибки `protocol:preflight`: семь rate-limit значений, официальный порядок `STOCK_MINTS` и рассинхронизацию Program ID.
-- [ ] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS.
-- [ ] Использовать отдельные test-mainnet MongoDB/database name, backend URL и allowed origin.
-- [ ] Проверить official xStocks mint и их Token/Token-2022 owners через `protocol:check-xstocks`.
-- [ ] Выбрать отдельный тестовый `$FARE` mint и документировать, какие реальные swap-сценарии он позволяет проверить.
+- [ ] Завершить `protocol:preflight`: семь rate-limit значений, официальный порядок `STOCK_MINTS` и Program ID уже исправлены; остаются только неутверждённые `MINT_PRICES_LAMPORTS`.
+- [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
+- [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.
+- [x] Проверить official xStocks mint: все четыре существуют в mainnet и принадлежат Token-2022.
+- [ ] Создать onchain отдельный test `$FARE` mint `BQsZXADvs8EXFWpPZzSi4LQX6ieVHAsZ7JMzAcd6bauX`; пока существует только offline keypair, реальные Jupiter/pump.fun flows такой mint не подтверждает.
 
 ### Gate 4 — assets и микроцены
 
@@ -55,7 +56,7 @@
 
 ### Gate 6 — rent и recovery до deploy
 
-- [ ] Пересчитать rent для точного финального SBF.
+- [x] Предварительно пересчитать rent для RC `641720` байт: buffer (`+37`) — `3.26077580 SOL`, ProgramData (`+45`) — `3.26081644 SOL`, Program tombstone — `0.00083312 SOL`; пик без комиссионного запаса около `6.52242536 SOL`.
 - [ ] Проверить mainnet admin/deployer `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`, его keypair и резервную копию.
 - [ ] Подготовить target-specific recovery audit без default signer и небезопасных адресных defaults.
 - [ ] Dry-run обязан проверить mainnet genesis, Program ID, ProgramData, authority, recipient, buffer и все SOL/token vault.
