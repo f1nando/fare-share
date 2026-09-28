@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { FareFooter, FareHeader } from './FareShareChrome.jsx';
 import { FareShareCityBackground } from './FareShareLanding.jsx';
 
@@ -8,11 +9,45 @@ const steps = [
   ['04', 'CLAIM ASSETS', 'Collect FARE and available xStocks to your wallet.'],
 ];
 
+const tabs = [
+  { id: 'overview', label: 'OVERVIEW', href: '#overview', sections: ['overview', 'one-minute'] },
+  { id: 'taxis', label: 'TAXIS', href: '#cars', sections: ['cars'] },
+  { id: 'rewards', label: 'REWARDS', href: '#revenue', sections: ['revenue', 'rewards'] },
+  { id: 'repairs', label: 'REPAIRS', href: '#durability', sections: ['durability', 'ownership'] },
+  { id: 'risks', label: 'RISKS', href: '#trainee', sections: ['trainee', 'risks'] },
+];
+
 function SectionTitle({ number, children }) {
   return <div className="fare-docs-section-title"><span>{number}</span><h2>{children}</h2></div>;
 }
 
 export function DocsPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    const updateActiveTab = () => {
+      const marker = 190;
+      let current = 'overview';
+
+      tabs.forEach((tab) => {
+        tab.sections.forEach((sectionId) => {
+          const section = document.getElementById(sectionId);
+          if (section && section.getBoundingClientRect().top <= marker) current = tab.id;
+        });
+      });
+
+      setActiveTab(current);
+    };
+
+    updateActiveTab();
+    window.addEventListener('scroll', updateActiveTab, { passive: true });
+    window.addEventListener('resize', updateActiveTab);
+    return () => {
+      window.removeEventListener('scroll', updateActiveTab);
+      window.removeEventListener('resize', updateActiveTab);
+    };
+  }, []);
+
   return (
     <div className="fare-page fare-docs-page">
       <FareShareCityBackground />
@@ -20,12 +55,21 @@ export function DocsPage() {
 
       <main className="fare-docs-main" id="top">
         <div className="container">
-          <nav className="fare-docs-tabs" aria-label="Documentation sections">
-            <a className="is-active" href="#overview">OVERVIEW</a>
-            <a href="#cars">TAXIS</a>
-            <a href="#rewards">REWARDS</a>
-            <a href="#durability">REPAIRS</a>
-            <a href="#risks">RISKS</a>
+          <nav
+            className="fare-docs-tabs"
+            aria-label="Documentation sections"
+            style={{ position: 'sticky', top: '118px', zIndex: 2 }}
+          >
+            {tabs.map((tab) => (
+              <a
+                className={activeTab === tab.id ? 'is-active' : undefined}
+                href={tab.href}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </a>
+            ))}
           </nav>
 
           <div className="fare-docs-layout" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
