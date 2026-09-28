@@ -2,8 +2,16 @@ import { useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
-const mintCar = drivingScenes.find(car => car.name === 'Chevrolet Caprice') || drivingScenes[0];
 const UNIT_PRICE = 240;
+const MINT_CLASSES = [
+  { name: 'Economy', tone: 'economy', supply: 1000, minted: 680, sceneName: 'Chevrolet Caprice' },
+  { name: 'Comfort', tone: 'comfort', supply: 300, minted: 112, sceneName: 'Toyota Camry' },
+  { name: 'Business', tone: 'business', supply: 100, minted: 35, sceneName: 'Tesla Model 3' },
+  { name: 'Legend', tone: 'legend', supply: 25, minted: 8, sceneName: 'Porsche 911' },
+].map(item => ({
+  ...item,
+  scene: drivingScenes.find(car => car.name === item.sceneName) || drivingScenes[0],
+}));
 
 function ArrowIcon() {
   return (
@@ -15,6 +23,8 @@ function ArrowIcon() {
 
 export function MintPage() {
   const [quantity, setQuantity] = useState(2);
+  const [selectedClassIndex, setSelectedClassIndex] = useState(0);
+  const selectedClass = MINT_CLASSES[selectedClassIndex];
 
   return (
     <>
@@ -30,15 +40,43 @@ export function MintPage() {
 
           <div className="fare-mint-layout">
             <div className="fare-mint-preview">
-              <FareStepDrivingScene scene={mintCar} />
-              <span className="fare-fleet-class is-economy">ECONOMY</span>
+              <FareStepDrivingScene scene={selectedClass.scene} />
+              <span className={`fare-fleet-class is-${selectedClass.tone}`}>{selectedClass.name.toUpperCase()}</span>
             </div>
 
             <div className="fare-mint-panel">
               <h2>CHOOSE YOUR CLASS</h2>
 
-              <div className="fare-mint-progress-copy"><span>Minted</span><strong>835/1,222</strong></div>
-              <div className="fare-mint-progress" aria-label="835 of 1222 taxis minted"><span /></div>
+              <div className="fare-mint-classes" aria-label="Taxi class">
+                {MINT_CLASSES.map((item, index) => {
+                  const progress = item.minted / item.supply * 100;
+                  const isSelected = index === selectedClassIndex;
+
+                  return (
+                    <div className="fare-mint-class-option" key={item.name}>
+                      <button
+                        className={isSelected ? 'is-selected' : undefined}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setSelectedClassIndex(index)}
+                      >
+                        {item.name}
+                      </button>
+                      <div className="fare-mint-class-count"><span>Minted</span><strong>{item.minted}/{item.supply}</strong></div>
+                      <div
+                        className="fare-mint-progress"
+                        role="progressbar"
+                        aria-label={`${item.name}: ${item.minted} of ${item.supply} taxis minted`}
+                        aria-valuemin="0"
+                        aria-valuemax={item.supply}
+                        aria-valuenow={item.minted}
+                      >
+                        <span style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               <div className="fare-mint-quantity-copy"><span>Quantity</span><span>Max 3</span></div>
               <div className="fare-mint-quantity">
@@ -48,7 +86,7 @@ export function MintPage() {
               </div>
 
               <div className="fare-mint-summary">
-                <div><span>Class</span><strong>Economy</strong></div>
+                <div><span>Class</span><strong>{selectedClass.name}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
                 <div className="is-total"><span>Total</span><strong>${quantity * UNIT_PRICE}</strong></div>
               </div>

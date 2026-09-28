@@ -345,12 +345,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-preview > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 29px; }
 .fare-mint-preview > .fare-fleet-class { top: 18px; left: 18px; }
 .fare-mint-panel { min-height: 650px; padding: 38px 36px 30px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; }
-.fare-mint-panel h2 { margin: 0 0 40px; font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
-.fare-mint-progress-copy, .fare-mint-quantity-copy { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 500; line-height: 24px; }
-.fare-mint-progress-copy strong { font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 16px; }
+.fare-mint-panel h2 { margin: 0 0 28px; font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -.05em; }
+.fare-mint-classes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.fare-mint-class-option { min-width: 0; }
+.fare-mint-class-option > button { width: 100%; height: 42px; padding: 0 6px; border: 2px solid #111; border-radius: 999px; color: #111; background: #fff; font-size: 13px; font-weight: 800; transition: color .15s ease, background-color .15s ease, transform .15s ease; }
+.fare-mint-class-option > button:hover { transform: translateY(-2px); }
+.fare-mint-class-option > button.is-selected { color: #111; background: #ffe72f; box-shadow: 3px 4px 0 #111; }
+.fare-mint-class-count { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 13px; color: #777; font-size: 10px; line-height: 1; }
+.fare-mint-class-count strong { color: #111; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 10px; }
+.fare-mint-quantity-copy { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 500; line-height: 24px; }
 .fare-mint-progress { height: 16px; margin-top: 10px; border: 2px solid #111; border-radius: 999px; background: #fff; overflow: hidden; }
-.fare-mint-progress span { display: block; width: 68.33%; height: 100%; border-right: 2px solid #111; background: #ffe72f; }
-.fare-mint-quantity-copy { margin-top: 32px; }
+.fare-mint-progress span { display: block; height: 100%; border-right: 2px solid #111; background: #ffe72f; }
+.fare-mint-quantity-copy { margin-top: 28px; }
 .fare-mint-quantity-copy span:last-child { color: #777; }
 .fare-mint-quantity { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 14px; margin-top: 10px; }
 .fare-mint-quantity button { width: 56px; height: 56px; padding: 0; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; box-shadow: 4px 5px 0 #111; font-size: 31px; font-weight: 400; line-height: 1; transition: transform .15s ease, box-shadow .15s ease; }
@@ -658,6 +664,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-mint-preview { height: 440px; border-radius: 24px; box-shadow: 5px 6px 0 #111; }
   .fare-mint-panel { min-height: 0; padding: 26px 20px 22px; border-radius: 24px; }
   .fare-mint-panel h2 { margin-bottom: 30px; font-size: 30px; }
+  .fare-mint-classes { gap: 6px; }
+  .fare-mint-class-option > button { height: 38px; font-size: 11px; }
+  .fare-mint-class-count { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .fare-mint-progress { height: 12px; margin-top: 7px; }
   .fare-mint-summary { padding: 16px 18px; border-radius: 20px; }
   .fare-mint-submit { height: 54px; }
   .fare-docs-main { padding-top: 126px; padding-bottom: 60px; }
