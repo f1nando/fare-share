@@ -33,7 +33,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'mint', label: 'MINT', href: '/mint/' },
     { id: 'garage', label: 'GARAGE', href: '/garage/' },
     { id: 'market', label: 'MARKET', href: `${linkPrefix}#market` },
-    { id: 'trade', label: 'TRADE', href: `${linkPrefix}#trade` },
+    { id: 'trade', label: 'TRADE', href: '/trade/' },
     { id: 'faq', label: 'FAQ', href: `${linkPrefix}#faq` },
     { id: 'docs', label: 'DOCS', href: '/docs/' },
   ];
