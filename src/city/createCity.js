@@ -36,7 +36,7 @@ import { roundaboutCornerGeometry } from './roundaboutGeometry.js';
 import { parkingAt, populateParking } from './parkingLayout.js';
 import { diagonalAt, approachesNear } from './diagonalLayout.js';
 import { diagonalLotGeometry, populateDiagonal, approachStreetBatch } from './diagonalGeometry.js';
-import { animationVariation, stuntType, vehicleStunt } from './vehicleBounce.js';
+import { animationVariation, movingVehicleWithinBrush, stuntType, vehicleStunt } from './vehicleBounce.js';
 import { FOLIAGE_SWAY_DURATION, claimAnimationStart, foliageSwayAngle, withinGestureRadius } from './foliageAnimation.js';
 import { BUILDING_STRETCH_DURATION, buildingMotion } from './buildingAnimation.js';
 import { AdaptiveQuality, QUALITY_PROFILES } from './adaptiveQuality.js';
@@ -612,6 +612,9 @@ export function createCity(container, initialSettings, benchmark = null) {
   const brushTargetsNow = new Set();
   const brushVehicleTargets = new Set();
   const brushVehiclesNow = new Set();
+  const visibleVehicleKeys = new Set();
+  const vehicleScreenPositions = new Map();
+  const currentVehicleScreen = { x: 0, y: 0 };
   const gesturePoint = { x: 0, y: 0 };
   const overControl = event => event.target instanceof Element && event.target.closest('button, input, select, textarea, a');
   const activateFoliage = (index, item, targetsInBrush) => {
@@ -646,23 +649,31 @@ export function createCity(container, initialSettings, benchmark = null) {
   function animateAtPointer(event, vehiclesOnly = false) {
     const rect = renderer.domElement.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
-      activeBrushEvent = null; gestureTargets.clear(); return;
+      activeBrushEvent = null; gestureTargets.clear(); vehicleScreenPositions.clear(); return;
     }
     const radius = event.pointerType === 'touch' ? 72 : 56;
     const targetsInBrush = brushTargetsNow;
     targetsInBrush.clear();
     brushVehiclesNow.clear();
+    visibleVehicleKeys.clear();
     gesturePoint.x = event.clientX; gesturePoint.y = event.clientY;
     for (const vehicle of clickableVehicles) {
       projectedVehicle.set(vehicle.x, vehicle.y, vehicle.z).project(camera);
       vehicle.screenX = rect.left + (projectedVehicle.x + 1) * rect.width / 2;
       vehicle.screenY = rect.top + (1 - projectedVehicle.y) * rect.height / 2;
-      if (!withinGestureRadius(vehicle.screenX, vehicle.screenY, gesturePoint, radius)) continue;
+      visibleVehicleKeys.add(vehicle.key);
+      const previousPosition = vehicleScreenPositions.get(vehicle.key);
+      currentVehicleScreen.x = vehicle.screenX; currentVehicleScreen.y = vehicle.screenY;
+      const inside = movingVehicleWithinBrush(currentVehicleScreen, previousPosition, gesturePoint, radius, vehicle.type);
+      if (previousPosition) { previousPosition.x = vehicle.screenX; previousPosition.y = vehicle.screenY; }
+      else vehicleScreenPositions.set(vehicle.key, { x: vehicle.screenX, y: vehicle.screenY });
+      if (!inside) continue;
       targetsInBrush.add(vehicle.key);
       brushVehiclesNow.add(vehicle.key);
       if (!claimAnimationStart(gestureTargets, vehicle.key, vehicleStunts.has(vehicle.key))) continue;
       vehicleStunts.set(vehicle.key, { started: performance.now(), variation: animationVariation() });
     }
+    for (const key of vehicleScreenPositions.keys()) if (!visibleVehicleKeys.has(key)) vehicleScreenPositions.delete(key);
     if (vehiclesOnly) {
       for (const target of brushVehicleTargets) if (!brushVehiclesNow.has(target)) gestureTargets.delete(target);
       brushVehicleTargets.clear();
@@ -705,7 +716,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const continueGesture = event => {
     if (event.pointerType === 'mouse') return;
     if (event.pointerId !== gesturePointer) return;
-    if (overControl(event)) { activeBrushEvent = null; return; }
+    if (overControl(event)) { activeBrushEvent = null; vehicleScreenPositions.clear(); return; }
     updateActiveBrush(event);
     const points = event.getCoalescedEvents?.() ?? [event];
     for (const point of points.length ? points : [event]) animateAtPointer(point);
@@ -715,6 +726,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     if (event.pointerId !== gesturePointer) return;
     gesturePointer = null;
     activeBrushEvent = null;
+    vehicleScreenPositions.clear();
     gestureTargets.clear();
   };
   const continueMouseGesture = event => {
@@ -722,6 +734,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   };
   const leaveMouseBrush = () => {
     activeBrushEvent = null;
+    vehicleScreenPositions.clear();
     gestureTargets.clear();
   };
   window.addEventListener('pointerdown', beginGesture, true);

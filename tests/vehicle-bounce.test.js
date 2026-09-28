@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VEHICLE_BOUNCE_DURATION, animationVariation, nearestScreenVehicle, stuntType, vehicleBounceLift, vehicleStunt } from '../src/city/vehicleBounce.js';
+import { VEHICLE_BOUNCE_DURATION, animationVariation, movingVehicleWithinBrush, nearestScreenVehicle, stuntType, vehicleBounceLift, vehicleBrushPadding, vehicleStunt } from '../src/city/vehicleBounce.js';
 
 test('vehicle bounce is a visual up-and-down arc with no lasting offset', () => {
   assert.equal(vehicleBounceLift(0), 0);
@@ -45,4 +45,15 @@ test('click selection chooses only a nearby rendered vehicle', () => {
   const second = { screenX: 500, screenY: 300, key: 'second' };
   assert.equal(nearestScreenVehicle([first, second], { x: 492, y: 305 }), second);
   assert.equal(nearestScreenVehicle([first, second], { x: 700, y: 500 }), null);
+});
+
+test('brush catches vehicle bodies and movement between rendered frames', () => {
+  const point = { x: 100, y: 100 };
+  assert.ok(vehicleBrushPadding('heavy') > vehicleBrushPadding('car'));
+  assert.ok(vehicleBrushPadding('helicopter') > vehicleBrushPadding('heavy'));
+  assert.equal(movingVehicleWithinBrush({ x: 145, y: 100 }, null, point, 34, 'car'), true,
+    'visible body padding catches a car even when its centre is outside the brush');
+  assert.equal(movingVehicleWithinBrush({ x: 140, y: 100 }, { x: 60, y: 100 }, point, 20, 'car'), true,
+    'a fast vehicle crossing the brush between frames is still caught');
+  assert.equal(movingVehicleWithinBrush({ x: 180, y: 180 }, { x: 160, y: 160 }, point, 20, 'car'), false);
 });

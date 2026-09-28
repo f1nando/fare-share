@@ -60,3 +60,18 @@ export function nearestScreenVehicle(vehicles, point, maxDistance = 30) {
   }
   return nearest;
 }
+
+export function vehicleBrushPadding(type) {
+  return { motorcycle: 8, car: 12, taxi: 14, heavy: 22, boat: 28, helicopter: 36 }[type] ?? 12;
+}
+
+export function movingVehicleWithinBrush(current, previous, point, brushRadius, type = 'car') {
+  const radius = brushRadius + vehicleBrushPadding(type);
+  if (!previous) return (current.x - point.x) ** 2 + (current.y - point.y) ** 2 <= radius ** 2;
+  const dx = current.x - previous.x, dy = current.y - previous.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const amount = lengthSquared ? Math.max(0, Math.min(1,
+    ((point.x - previous.x) * dx + (point.y - previous.y) * dy) / lengthSquared)) : 0;
+  const nearestX = previous.x + dx * amount, nearestY = previous.y + dy * amount;
+  return (nearestX - point.x) ** 2 + (nearestY - point.y) ** 2 <= radius ** 2;
+}
