@@ -198,7 +198,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-collect-wallet { position: absolute; left: 50%; bottom: 13px; display: block; width: var(--fare-wallet-width); height: auto; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-wallet-back { z-index: 1; }
 .fare-collect-wallet-front { z-index: 4; }
-.fare-collect-flying-assets { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
+.fare-collect-flying-assets { position: absolute; z-index: 2; top: 0; bottom: 0; left: 50%; width: var(--fare-wallet-width); transform: translateX(-50%); pointer-events: none; }
 .fare-collect-depth-mask { position: absolute; z-index: 3; bottom: 0; left: 50%; width: var(--fare-wallet-width); aspect-ratio: 842 / 348; background: #fff; transform: translateX(-50%); pointer-events: none; }
 .fare-collect-asset { position: absolute; display: block; opacity: 1; animation: fare-collect-flight 4s linear infinite; pointer-events: none; will-change: transform; }
 .fare-collect-asset img { display: block; width: 100%; height: auto; transition: transform .14s ease-out; }
