@@ -62,6 +62,7 @@ export function MarketPage({ wallet, connectWallet }) {
       .filter(listing => !normalizedQuery || `${listing.name} ${listing.vehicleClass.name} ${listing.nftNumber}`.toLocaleLowerCase().includes(normalizedQuery))
       .sort(SORTERS[sort]);
   }, [query, sort, vehicleClass]);
+  const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
 
   async function handleBuy(listing) {
     if (!wallet) {
@@ -130,10 +131,6 @@ export function MarketPage({ wallet, connectWallet }) {
           </div>
         </div>
 
-        <div className="fare-market-results">
-          {(query || vehicleClass !== 'all') && <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>Clear filters</button>}
-        </div>
-
         {notice && <div className="fare-market-notice" role="status">{notice}<button type="button" aria-label="Close message" onClick={() => setNotice('')}>×</button></div>}
 
         {visibleListings.length ? (
@@ -164,8 +161,10 @@ export function MarketPage({ wallet, connectWallet }) {
         ) : (
           <div className="fare-market-empty">
             <strong>NO CARS FOUND</strong>
-            <p>Try another model, NFT number, or class.</p>
-            <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
+            <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No cars are listed right now. Mint a new taxi for your fleet.'}</p>
+            {hasActiveFilters
+              ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
+              : <a href="/mint/">GO TO MINT</a>}
           </div>
         )}
       </section>
