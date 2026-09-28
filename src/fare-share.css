@@ -339,7 +339,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-intro { display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); align-items: end; gap: 56px; }
 .fare-mint-intro > div > span { display: inline-flex; min-height: 34px; align-items: center; margin-bottom: 18px; padding: 0 15px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
 .fare-mint-intro h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 70px; font-weight: 400; line-height: .82; letter-spacing: -.025em; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 6px 7px 0 #111; }
-.fare-mint-intro > p { max-width: 680px; margin: 0 0 3px; padding: 13px 18px; border-left: 8px solid #111; background: #fff; font-size: 26px; font-weight: 700; line-height: 32px; }
+.fare-mint-intro > p { max-width: 680px; margin: 0 0 3px; padding: 13px 18px; border-left: 8px solid #111; background: #fff; font-size: 20px; font-weight: 700; line-height: 25px; }
 .fare-mint-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; margin-top: 54px; }
 .fare-mint-preview { position: relative; height: 650px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 7px 8px 0 #111; overflow: hidden; }
 .fare-mint-preview > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 29px; }
