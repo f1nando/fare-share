@@ -532,6 +532,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-hero .fare-round-arrow { width: 40px; height: 40px; margin-left: 10px; font-size: 22px; }
   .fare-hero .fare-token-symbol { margin-right: 14px; }
   .fare-hero .fare-copy-icon { width: 16px; height: 20px; margin-left: auto; }
+  .fare-treasury { height: auto; padding-bottom: 80px; }
+  .fare-treasury-container { height: auto; }
+  .fare-treasury-heading { grid-template-columns: 1fr; }
+  .fare-stat-grid { grid-template-columns: 1fr; }
+  .fare-leaderboard-heading { position: relative; top: auto; right: auto; left: auto; flex-direction: column; gap: 24px; margin-top: 70px; }
+  .fare-leaderboard { position: relative; top: auto; right: auto; left: auto; margin-top: 40px; }
   .fare-fleet { height: 760px; padding: 96px 0 0; }
   .fare-fleet-card-wall { --wall-gap: 10px; --wall-half-gap: 5px; inset: -100px -56px; opacity: .9; }
   .fare-fleet-wall-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
