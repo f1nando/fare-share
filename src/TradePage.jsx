@@ -155,7 +155,7 @@ function MarketTables({ trades, holders, symbol }) {
             </span>
             {isTransactions ? <>
               <span data-label={headers[2]} role="cell" className={`is-${row.side}`}>{row.side.toUpperCase()}</span>
-              <span data-label={headers[3]} role="cell">{formatToken(row.tokenAmount)} {symbol} · {formatNumber(row.solAmount, 4)} SOL</span>
+              <span data-label={headers[3]} role="cell">{formatTradeAmount(row.tokenAmount)} {symbol} · {formatTradeAmount(row.solAmount)} SOL</span>
               <a className="trade-solscan-link" data-label={headers[4]} role="cell" href={`https://solscan.io/tx/${row.signature}`} target="_blank" rel="noreferrer">View ↗</a>
             </> : <span data-label={headers[2]} role="cell">{formatNumber(row.supplyShare, 4)}%</span>}
           </div>
@@ -226,6 +226,16 @@ function formatNumber(value, digits = 2) {
 
 function formatToken(value) {
   return Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 6 });
+}
+
+function formatTradeAmount(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number === 0) return '0';
+  const magnitude = Math.floor(Math.log10(Math.abs(number)));
+  const decimalPlaces = Math.min(12, Math.max(0, 2 - magnitude));
+  const factor = 10 ** decimalPlaces;
+  const truncated = Math.trunc(number * factor) / factor;
+  return truncated.toLocaleString('en-US', { maximumFractionDigits: decimalPlaces });
 }
 
 function formatPrice(value) {
