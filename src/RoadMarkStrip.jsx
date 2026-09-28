@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { fleetRoadStrip } from './fleetWall.js';
 
-export function RoadMarkStrip({ settings, className = '' }) {
+export function RoadMarkStrip({ settings, className = '', sizeUnit = '%' }) {
   const patternId = `road-pattern-${useId().replaceAll(':', '')}`;
   const strip = fleetRoadStrip(settings);
   const angleOffset = Number.isFinite(settings.markAngleOffset) ? settings.markAngleOffset : 0;
@@ -11,8 +11,8 @@ export function RoadMarkStrip({ settings, className = '' }) {
     <svg className={className} viewBox={`0 0 ${strip.width} ${strip.height}`} preserveAspectRatio="none" style={{
       left: `${settings.markX}%`,
       top: `${settings.markY}%`,
-      width: `${strip.width}%`,
-      height: `${strip.height}%`,
+      width: `${strip.width}${sizeUnit}`,
+      height: `${strip.height}${sizeUnit}`,
       opacity,
       transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
     }} aria-hidden="true">

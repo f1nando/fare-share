@@ -153,12 +153,12 @@ function FleetSceneCard({ scene, fleetClass }) {
         decoding="async"
       />
       <div className="fare-fleet-road" style={{
-        '--road-travel-x': `${settings.markSpacing * pathX}%`,
-        '--road-travel-y': `${settings.markSpacing * pathY}%`,
+        '--road-travel-x': `${settings.markSpacing * pathX}cqw`,
+        '--road-travel-y': `${settings.markSpacing * pathY}cqw`,
         '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
         animationPlayState: roadSpeed > 0 ? undefined : 'paused',
       }}>
-        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} />
+        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
       {isHovered && [
         ['left', settings.leftX, settings.leftY],
@@ -248,12 +248,12 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE }) {
     >
       <img className="fare-step-driving-car" src={imageUrl} alt="" loading="lazy" decoding="async" />
       <div className="fare-fleet-road" ref={roadRef} style={{
-        '--road-travel-x': `${settings.markSpacing * pathX}%`,
-        '--road-travel-y': `${settings.markSpacing * pathY}%`,
+        '--road-travel-x': `${settings.markSpacing * pathX}cqw`,
+        '--road-travel-y': `${settings.markSpacing * pathY}cqw`,
         '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
         animationPlayState: roadSpeed > 0 ? undefined : 'paused',
       }}>
-        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} />
+        <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
       {[
         ['left', settings.leftX, settings.leftY],

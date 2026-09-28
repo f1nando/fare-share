@@ -188,7 +188,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-step-media { display: block; width: 100%; height: 429px; border-radius: 22px; object-fit: cover; }
 .fare-step-media[hidden] { display: none; }
 .fare-step-sprite { position: relative; left: 50%; width: 429px; max-width: none; transform: translateX(-50%); background-repeat: no-repeat; background-position: 0 0; background-size: 400% 400%; animation: fare-step-sprite-frames 4.8s steps(1, end) infinite; }
-.fare-step-driving { position: relative; cursor: pointer; overflow: hidden; isolation: isolate; }
+.fare-step-driving { position: relative; container-type: inline-size; cursor: pointer; overflow: hidden; isolation: isolate; }
 .fare-step-driving-car { position: absolute; z-index: 0; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .fare-step-driving .fare-fleet-road { z-index: 1; }
 .fare-step-driving .fare-fleet-headlight { z-index: 2; }
@@ -256,7 +256,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-card-track { --card-half-gap: 7px; display: flex; flex-direction: column; gap: 14px; animation: fare-fleet-column-up var(--column-duration) linear var(--column-delay) infinite; will-change: transform; }
 .fare-fleet-card-column.is-down .fare-fleet-card-track { animation-name: fare-fleet-column-down; }
 .fare-fleet-container { position: relative; height: 100%; }
-.fare-fleet-scene-card { position: relative; flex: 0 0 auto; aspect-ratio: 1; border: 0; border-radius: 12px; background: #d9d9d7; cursor: pointer; overflow: hidden; isolation: isolate; }
+.fare-fleet-scene-card { position: relative; container-type: inline-size; flex: 0 0 auto; aspect-ratio: 1; border: 0; border-radius: 12px; background: #d9d9d7; cursor: pointer; overflow: hidden; isolation: isolate; }
 .fare-fleet-scene-card img { -webkit-user-drag: none; user-select: none; }
 .fare-fleet-class { position: absolute; z-index: 5; top: 12px; left: 12px; display: inline-flex; min-height: 34px; align-items: center; padding: 0 15px; border: 2px solid #111; border-radius: 999px; font-size: 13px; font-weight: 800; line-height: 1; letter-spacing: .04em; }
 .fare-fleet-class.is-economy, .fare-fleet-class.is-comfort { border-color: #111; color: #111; background: #fff; }
