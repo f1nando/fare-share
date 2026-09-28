@@ -31,6 +31,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'home', label: 'HOME', href: `${linkPrefix}#top` },
     { id: 'mint', label: 'MINT', href: '/mint/' },
     { id: 'garage', label: 'GARAGE', href: '/garage/' },
+    { id: 'leaderboard', label: 'LEADERBOARD', href: '/leaderboard/' },
     { id: 'market', label: 'MARKET', href: `${linkPrefix}#market` },
     { id: 'trade', label: 'TRADE', href: '/trade/' },
     { id: 'faq', label: 'FAQ', href: '/faq/' },

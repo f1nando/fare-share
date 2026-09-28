@@ -33,7 +33,7 @@ const routes = {
   '/leaderboard/': {
     className: 'fare-leaderboard-page',
     component: LeaderboardPage,
-    activeItem: null,
+    activeItem: 'leaderboard',
     title: 'Leaderboard — Fare Share',
   },
   '/trade/': {
