@@ -44,22 +44,22 @@ Indexer автоматически читает Pump.fun bonding curve и дос
 
 ## Общие лимиты Helius и Jupiter
 
-Проект использует долю общих Developer-подписок и ограничивает исходящие запросы внутри каждого процесса:
+Проект использует выделенные Developer-подписки и ограничивает исходящие запросы внутри каждого процесса их максимальными тарифными значениями:
 
 ```env
-JUPITER_REQUESTS_PER_SECOND=5
-SOLANA_RPC_MAX_REQUESTS_PER_SECOND=20
-SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND=2
+JUPITER_REQUESTS_PER_SECOND=10
+SOLANA_RPC_MAX_REQUESTS_PER_SECOND=50
+SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND=5
 SOLANA_DAS_MAX_REQUESTS_PER_SECOND=10
 ```
 
-- Все Jupiter `/quote` и `/build` проходят через одну FIFO-очередь с интервалом не менее 200 мс. Безопасный retry снова встаёт в конец той же очереди. Запрос, который ждал более 10 секунд, отменяется до обращения к Jupiter.
-- Standard Solana RPC (`getAccountInfo`, `getMultipleAccounts`, `getProgramAccounts`, balances, block time, simulation и status polling) использует отдельную общую FIFO-очередь с пределом 20 запросов/с.
-- `sendTransaction` не входит в standard RPC: для него используется отдельная очередь с согласованным пределом 2 отправки/с. После сетевого timeout результат считается неоднозначным, автоматическая повторная отправка запрещена; следующий worker cycle сначала заново читает finalized on-chain состояние.
+- Все Jupiter `/quote` и `/build` проходят через одну FIFO-очередь с интервалом не менее 100 мс. Безопасный retry снова встаёт в конец той же очереди. Запрос, который ждал более 10 секунд, отменяется до обращения к Jupiter.
+- Standard Solana RPC (`getAccountInfo`, `getMultipleAccounts`, `getProgramAccounts`, balances, block time, simulation и status polling) использует отдельную общую FIFO-очередь с пределом 50 запросов/с. Для `getProgramAccounts` у Helius Developer действует более узкий тарифный предел 25 запросов/с; текущие периодические вызовы этого метода существенно ниже него.
+- `sendTransaction` не входит в standard RPC: для него используется отдельная очередь с пределом 5 отправок/с. После сетевого timeout результат считается неоднозначным, автоматическая повторная отправка запрещена; следующий worker cycle сначала заново читает finalized on-chain состояние.
 - DAS `getAssetsByOwner` не входит в standard RPC и ограничен отдельной очередью 10 запросов/с.
 - Ошибка одного запроса не останавливает очередь. Каждая явная retry-попытка занимает новый слот.
 
-Эти лимиты действуют **на один Node.js-процесс или одну вкладку frontend**. Два backend/worker процесса с одинаковым значением `20` способны вместе создать до `40 RPC RPS`; несколько вкладок аналогично умножают frontend-лимит. При нескольких production-инстансах значения необходимо делить между ними так, чтобы сумма проекта не превышала `Jupiter 5 RPS`, `standard RPC 20 RPS`, `sendTransaction 2 RPS` и `DAS 10 RPS`. Для нескольких постоянно масштабируемых инстансов потребуется внешний общий rate limiter; текущие in-process очереди не координируются между машинами.
+Эти лимиты действуют **на один Node.js-процесс или одну вкладку frontend**. Два backend/worker процесса со значением `50` способны вместе создать до `100 RPC RPS`; несколько вкладок аналогично умножают frontend-лимит. При нескольких production-инстансах значения необходимо делить между ними так, чтобы сумма проекта не превышала `Jupiter 10 RPS`, `standard RPC 50 RPS`, `sendTransaction 5 RPS` и `DAS 10 RPS`. Для нескольких постоянно масштабируемых инстансов потребуется внешний общий rate limiter; текущие in-process очереди не координируются между машинами.
 
 Frontend использует зеркальные `VITE_SOLANA_*_MAX_REQUESTS_PER_SECOND` настройки. Production Helius URL и API-ключи нельзя коммитить или выводить в логи.
 

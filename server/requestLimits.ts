@@ -85,9 +85,9 @@ export function createRequestQueues(input: {
 }
 
 export const requestQueues = createRequestQueues({
-  jupiterRequestsPerSecond: boundedNumber('JUPITER_REQUESTS_PER_SECOND', 5, 5),
-  solanaRpcRequestsPerSecond: boundedNumber('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 20, 20),
-  solanaSendTransactionRequestsPerSecond: boundedNumber('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 2, 2),
+  jupiterRequestsPerSecond: boundedNumber('JUPITER_REQUESTS_PER_SECOND', 10, 10),
+  solanaRpcRequestsPerSecond: boundedNumber('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 50, 50),
+  solanaSendTransactionRequestsPerSecond: boundedNumber('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 5, 5),
   solanaDasRequestsPerSecond: boundedNumber('SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10, 10),
 });
 

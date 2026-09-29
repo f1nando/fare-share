@@ -35,7 +35,7 @@ test('Jupiter quote and build requests share one process queue', async () => {
     jupiterRequest('https://jupiter.test/build', {}, { fetchImplementation, maximumAttempts: 1, operation: '/build' }),
   ]);
   assert.equal(starts.length, 2);
-  assert.ok(starts[1] - starts[0] >= 180, `Jupiter interval was ${starts[1] - starts[0]}ms`);
+  assert.ok(starts[1] - starts[0] >= 80, `Jupiter interval was ${starts[1] - starts[0]}ms`);
 });
 
 test('Solana RPC callers share one process queue', async () => {
@@ -49,7 +49,7 @@ test('Solana RPC callers share one process queue', async () => {
     solanaRpcCall('https://rpc.test', 'getAccountInfo', ['b'], { fetchImplementation, maximumAttempts: 1 }),
   ]);
   assert.equal(starts.length, 2);
-  assert.ok(starts[1] - starts[0] >= 40, `Solana RPC interval was ${starts[1] - starts[0]}ms`);
+  assert.ok(starts[1] - starts[0] >= 15, `Solana RPC interval was ${starts[1] - starts[0]}ms`);
 });
 
 test('safe retries return to the back of the same queue', async () => {

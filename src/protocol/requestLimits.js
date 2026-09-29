@@ -34,8 +34,8 @@ class FifoRequestQueue {
 }
 
 const env = import.meta.env ?? {};
-const standardQueue = new FifoRequestQueue(boundedNumber(env.VITE_SOLANA_RPC_MAX_REQUESTS_PER_SECOND, 20, 20));
-const sendQueue = new FifoRequestQueue(boundedNumber(env.VITE_SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND, 2, 2));
+const standardQueue = new FifoRequestQueue(boundedNumber(env.VITE_SOLANA_RPC_MAX_REQUESTS_PER_SECOND, 50, 50));
+const sendQueue = new FifoRequestQueue(boundedNumber(env.VITE_SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND, 5, 5));
 const dasQueue = new FifoRequestQueue(boundedNumber(env.VITE_SOLANA_DAS_MAX_REQUESTS_PER_SECOND, 10, 10));
 
 export function createRateLimitedSolanaRpc(url) {

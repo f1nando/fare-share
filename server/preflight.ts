@@ -78,12 +78,12 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   validUrl('VITE_SOLANA_DAS_URL', ['http:', 'https:']);
   validUrl('VITE_BACKEND_URL', ['http:', 'https:']);
   validUrl('ALLOWED_ORIGIN', ['http:', 'https:']);
-  requestLimit('JUPITER_REQUESTS_PER_SECOND', 5);
-  requestLimit('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 20);
-  requestLimit('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 2);
+  requestLimit('JUPITER_REQUESTS_PER_SECOND', 10);
+  requestLimit('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 50);
+  requestLimit('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 5);
   requestLimit('SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10);
-  requestLimit('VITE_SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 20);
-  requestLimit('VITE_SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 2);
+  requestLimit('VITE_SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 50);
+  requestLimit('VITE_SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 5);
   requestLimit('VITE_SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10);
   const frontendChain = required('VITE_SOLANA_CHAIN');
   if (frontendChain && frontendChain !== 'solana:devnet' && frontendChain !== 'solana:mainnet') {
