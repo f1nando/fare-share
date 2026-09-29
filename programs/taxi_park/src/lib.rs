@@ -526,6 +526,7 @@ pub mod taxi_park {
         let output_before = output.amount;
         invoke_jupiter(
             &ctx.accounts.config,
+            &ctx.accounts.caller,
             &ctx.accounts.jupiter_program,
             ctx.remaining_accounts,
             route_data,
@@ -561,6 +562,15 @@ pub mod taxi_park {
                 &[seeds],
             )?;
         }
+        close_empty_route_accounts(
+            &ctx.accounts.config,
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.wsol_vault.key(),
+            &ctx.accounts.reward_vault.key(),
+            &ctx.accounts.token_program.to_account_info(),
+            &ctx.accounts.fare_token_program.to_account_info(),
+            ctx.remaining_accounts,
+        )?;
 
         ctx.accounts.pool.next_pool[0] = ctx.accounts.pool.next_pool[0]
             .checked_add(main_amount)
@@ -687,6 +697,7 @@ pub mod taxi_park {
         let output_before = output.amount;
         invoke_jupiter(
             &ctx.accounts.config,
+            &ctx.accounts.caller,
             &ctx.accounts.jupiter_program,
             ctx.remaining_accounts,
             route_data,
@@ -707,6 +718,15 @@ pub mod taxi_park {
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
+        close_empty_route_accounts(
+            &ctx.accounts.config,
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.wsol_vault.key(),
+            &ctx.accounts.reward_vault.key(),
+            &ctx.accounts.token_program.to_account_info(),
+            &ctx.accounts.stock_token_program.to_account_info(),
+            ctx.remaining_accounts,
+        )?;
 
         let asset_index = stock_index + 1;
         ctx.accounts.pool.next_pool[asset_index] = ctx.accounts.pool.next_pool[asset_index]
@@ -2408,12 +2428,58 @@ fn fund_wsol<'info>(
         .ok_or(TaxiError::MathOverflow)?;
     **fee_vault.try_borrow_mut_lamports()? = fee_after;
     **wsol_vault.try_borrow_mut_lamports()? = wsol_after;
-    token::sync_native(token_program, wsol_vault)?;
+    token::sync_native(token_program, wsol_vault, fee_vault)?;
+    Ok(())
+}
+
+fn close_empty_route_accounts<'info>(
+    config: &Account<'info, Configuration>,
+    rent_recipient: &AccountInfo<'info>,
+    source: &Pubkey,
+    destination: &Pubkey,
+    legacy_token_program: &AccountInfo<'info>,
+    output_token_program: &AccountInfo<'info>,
+    route_accounts: &[AccountInfo<'info>],
+) -> Result<()> {
+    let mut closed = Vec::<Pubkey>::new();
+    let bump = [config.bump];
+    let seeds: &[&[u8]] = &[b"config", &bump];
+    for account in route_accounts {
+        if account.key == source || account.key == destination || closed.contains(account.key) {
+            continue;
+        }
+        let Some(view) = token::account_view_if_initialized(account)? else {
+            continue;
+        };
+        if view.owner != config.key() {
+            continue;
+        }
+        require!(view.amount == 0, TaxiError::InvalidTokenAccount);
+        let program = if account.owner == legacy_token_program.key {
+            legacy_token_program
+        } else {
+            require_keys_eq!(
+                *account.owner,
+                output_token_program.key(),
+                TaxiError::InvalidTokenProgram
+            );
+            output_token_program
+        };
+        token::close_account(
+            program,
+            account,
+            rent_recipient,
+            &config.to_account_info(),
+            &[seeds],
+        )?;
+        closed.push(account.key());
+    }
     Ok(())
 }
 
 fn invoke_jupiter<'info>(
     config: &Account<'info, Configuration>,
+    caller: &Signer<'info>,
     jupiter_program: &UncheckedAccount<'info>,
     route_accounts: &[AccountInfo<'info>],
     route_data: Vec<u8>,
@@ -2423,7 +2489,7 @@ fn invoke_jupiter<'info>(
         .iter()
         .map(|account| AccountMeta {
             pubkey: account.key(),
-            is_signer: account.key() == config_key,
+            is_signer: account.key() == config_key || account.key() == caller.key(),
             is_writable: account.is_writable,
         })
         .collect();

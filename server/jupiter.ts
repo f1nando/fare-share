@@ -7,6 +7,7 @@ import {
   type AddressesByLookupTableAddress,
   type Instruction,
 } from '@solana/kit';
+import { findAssociatedTokenPda } from '@solana-program/token';
 import type { BackendSigner } from './signing.js';
 import { jupiterRequest } from './jupiterHttp.js';
 
@@ -75,6 +76,7 @@ export interface BuildJupiterSwapInput {
 }
 
 export interface JupiterRoute {
+  setupInstructions: Instruction[];
   routeData: Uint8Array;
   routeAccounts: NonNullable<Instruction['accounts']>;
   minOut: bigint;
@@ -92,6 +94,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
     slippageBps: String(input.slippageBps),
     maxAccounts: String(input.maxAccounts),
     wrapAndUnwrapSol: 'false',
+    restrictIntermediateTokens: 'true',
   });
   const headers: Record<string, string> = { accept: 'application/json' };
   if (input.apiKey) headers['x-api-key'] = input.apiKey;
@@ -103,7 +106,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
   });
   const build = await response.json() as BuildResponse;
   if (build.error) throw new Error(`Jupiter /build failed: ${build.error}`);
-  validateBuildResponse(build, input);
+  await validateBuildResponse(build, input);
 
   const routeData = Uint8Array.from(Buffer.from(build.swapInstruction.data, 'base64'));
   if (routeData.length === 0) throw new Error('Jupiter returned empty swap instruction data');
@@ -113,7 +116,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
   }
   const routeAccounts = build.swapInstruction.accounts.map(accountMeta => {
     const accountAddress = address(accountMeta.pubkey);
-    if (accountMeta.isSigner && accountAddress !== input.taker) {
+    if (accountMeta.isSigner && accountAddress !== input.taker && accountAddress !== input.payer) {
       throw new Error(`Jupiter route requires unsupported signer ${accountAddress}`);
     }
     return {
@@ -130,6 +133,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
     ]),
   );
   return {
+    setupInstructions: (build.setupInstructions || []).map(apiInstruction),
     routeData,
     routeAccounts,
     minOut: BigInt(build.otherAmountThreshold),
@@ -216,7 +220,7 @@ export function computeUnitLimitInstruction(units = 1_400_000): Instruction {
   };
 }
 
-function validateBuildResponse(build: BuildResponse, input: BuildJupiterSwapInput) {
+async function validateBuildResponse(build: BuildResponse, input: BuildJupiterSwapInput) {
   if (build.inputMint !== input.inputMint || build.outputMint !== input.outputMint) {
     throw new Error('Jupiter returned a route for different mints');
   }
@@ -227,7 +231,8 @@ function validateBuildResponse(build: BuildResponse, input: BuildJupiterSwapInpu
   if (!build.swapInstruction || build.swapInstruction.programId !== input.jupiterProgram) {
     throw new Error('Jupiter returned an unexpected router program');
   }
-  const unsafeSetup = (build.setupInstructions || []).some(instruction => !isSafeIdempotentAtaSetup(instruction, input));
+  const setupSafety = await Promise.all((build.setupInstructions || []).map(instruction => isSafeIdempotentAtaSetup(instruction, input)));
+  const unsafeSetup = setupSafety.some(safe => !safe);
   const extra = (build.otherInstructions?.length || 0)
     + Number(Boolean(build.cleanupInstruction))
     + Number(Boolean(build.tipInstruction));
@@ -236,17 +241,36 @@ function validateBuildResponse(build: BuildResponse, input: BuildJupiterSwapInpu
   }
 }
 
-function isSafeIdempotentAtaSetup(instruction: ApiInstruction, input: BuildJupiterSwapInput) {
+async function isSafeIdempotentAtaSetup(instruction: ApiInstruction, input: BuildJupiterSwapInput) {
   const accounts = instruction.accounts;
   const data = Buffer.from(instruction.data, 'base64');
   if (instruction.programId !== ASSOCIATED_TOKEN_PROGRAM || data.length !== 1 || data[0] !== 1 || accounts.length !== 6) return false;
   const [payer, ata, owner, mint, systemProgram, tokenProgram] = accounts;
-  return payer.pubkey === String(input.payer) && payer.isSigner && payer.isWritable
-    && input.fixedWritableAccounts.has(ata.pubkey) && !ata.isSigner && ata.isWritable
+  if (!(payer.pubkey === String(input.payer) && payer.isSigner && payer.isWritable
+    && !ata.isSigner && ata.isWritable
     && owner.pubkey === String(input.taker) && !owner.isSigner && !owner.isWritable
-    && (mint.pubkey === String(input.inputMint) || mint.pubkey === String(input.outputMint)) && !mint.isSigner && !mint.isWritable
+    && !mint.isSigner && !mint.isWritable
     && systemProgram.pubkey === SYSTEM_PROGRAM && !systemProgram.isSigner && !systemProgram.isWritable
-    && TOKEN_PROGRAMS.has(tokenProgram.pubkey) && !tokenProgram.isSigner && !tokenProgram.isWritable;
+    && TOKEN_PROGRAMS.has(tokenProgram.pubkey) && !tokenProgram.isSigner && !tokenProgram.isWritable)) return false;
+  const [expectedAta] = await findAssociatedTokenPda({
+    owner: input.taker,
+    mint: address(mint.pubkey),
+    tokenProgram: address(tokenProgram.pubkey),
+  });
+  return String(expectedAta) === ata.pubkey;
+}
+
+function apiInstruction(instruction: ApiInstruction): Instruction {
+  return {
+    programAddress: address(instruction.programId),
+    accounts: instruction.accounts.map(account => ({
+      address: address(account.pubkey),
+      role: account.isSigner
+        ? (account.isWritable ? AccountRole.WRITABLE_SIGNER : AccountRole.READONLY_SIGNER)
+        : (account.isWritable ? AccountRole.WRITABLE : AccountRole.READONLY),
+    })),
+    data: Uint8Array.from(Buffer.from(instruction.data, 'base64')),
+  };
 }
 
 function key(value: Address) { return Uint8Array.from(addressEncoder.encode(value)); }

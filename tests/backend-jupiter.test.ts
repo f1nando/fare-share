@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import test from 'node:test';
 import { AccountRole, address, getAddressEncoder } from '@solana/kit';
+import { findAssociatedTokenPda } from '@solana-program/token';
 import {
   buildEd25519Instruction,
   buildJupiterRoute,
@@ -68,6 +69,7 @@ test('Jupiter V2 route is validated and converted for a PDA-signed CPI', async (
   });
   assert.match(requested, /swap\/v2\/build\?/);
   assert.match(requested, /wrapAndUnwrapSol=false/);
+  assert.match(requested, /restrictIntermediateTokens=true/);
   assert.match(requested, /slippageBps=500/);
   assert.equal(route.minOut, 900n);
   assert.deepEqual([...route.routeData], [4, 5, 6]);
@@ -103,7 +105,10 @@ test('Jupiter route rejects auxiliary instructions and foreign signers', async (
       fetchImplementation: async () => new Response(JSON.stringify(response({
         swapInstruction: {
           ...response().swapInstruction,
-          accounts: [{ pubkey: PROGRAM, isSigner: true, isWritable: false }],
+          accounts: [
+            { pubkey: CONFIG, isSigner: true, isWritable: false },
+            { pubkey: SOURCE, isSigner: true, isWritable: false },
+          ],
         },
       }))),
     }),
@@ -112,19 +117,21 @@ test('Jupiter route rejects auxiliary instructions and foreign signers', async (
 });
 
 test('Jupiter route permits only idempotent setup for pre-created protocol vaults', async () => {
+  const tokenProgram = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+  const [setupAta] = await findAssociatedTokenPda({ owner: CONFIG, mint: SOURCE, tokenProgram });
   const setupInstruction = {
     programId: 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
     accounts: [
       { pubkey: PROGRAM, isSigner: true, isWritable: true },
-      { pubkey: DESTINATION, isSigner: false, isWritable: true },
+      { pubkey: setupAta, isSigner: false, isWritable: true },
       { pubkey: CONFIG, isSigner: false, isWritable: false },
       { pubkey: SOURCE, isSigner: false, isWritable: false },
       { pubkey: CONFIG, isSigner: false, isWritable: false },
-      { pubkey: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', isSigner: false, isWritable: false },
+      { pubkey: tokenProgram, isSigner: false, isWritable: false },
     ],
     data: Buffer.from([1]).toString('base64'),
   };
-  setupInstruction.accounts[4].pubkey = '11111111111111111111111111111111';
+  setupInstruction.accounts[4].pubkey = address('11111111111111111111111111111111');
   const route = await buildJupiterRoute({
     inputMint: SOURCE,
     outputMint: DESTINATION,
@@ -139,6 +146,7 @@ test('Jupiter route permits only idempotent setup for pre-created protocol vault
     fetchImplementation: async () => new Response(JSON.stringify(response({ setupInstructions: [setupInstruction] }))),
   });
   assert.equal(route.minOut, 900n);
+  assert.equal(route.setupInstructions.length, 1);
 
   await assert.rejects(
     buildJupiterRoute({

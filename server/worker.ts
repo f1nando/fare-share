@@ -261,7 +261,7 @@ async function processPendingSwaps(
       const signature = await sendInstructions(
         config.solanaRpcUrl,
         caller,
-        [computeUnitLimitInstruction(), signatureInstruction, processInstruction],
+        [...route.setupInstructions, computeUnitLimitInstruction(), signatureInstruction, processInstruction],
         [],
         route.lookupTables,
       );

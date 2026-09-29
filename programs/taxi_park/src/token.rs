@@ -81,6 +81,17 @@ pub fn account_view(account: &AccountInfo<'_>, token_program: &Pubkey) -> Result
     parse_account_data(&data)
 }
 
+pub fn account_view_if_initialized(account: &AccountInfo<'_>) -> Result<Option<TokenAccountView>> {
+    if !is_supported_program(account.owner) {
+        return Ok(None);
+    }
+    let data = account.try_borrow_data()?;
+    if data.len() < TOKEN_ACCOUNT_BASE_LEN || data[TOKEN_ACCOUNT_STATE_OFFSET] == 0 {
+        return Ok(None);
+    }
+    Ok(Some(parse_account_data(&data)?))
+}
+
 fn parse_account_data(data: &[u8]) -> Result<TokenAccountView> {
     require!(
         data.len() >= TOKEN_ACCOUNT_BASE_LEN && data[TOKEN_ACCOUNT_STATE_OFFSET] != 0,
@@ -197,6 +208,7 @@ pub fn close_account<'info>(
 pub fn sync_native<'info>(
     program: &AccountInfo<'info>,
     account: &AccountInfo<'info>,
+    balance_source: &AccountInfo<'info>,
 ) -> Result<()> {
     assert_program(program)?;
     require_keys_eq!(
@@ -209,7 +221,14 @@ pub fn sync_native<'info>(
         accounts: vec![AccountMeta::new(account.key(), false)],
         data: vec![SYNC_NATIVE],
     };
-    invoke_signed(&instruction, &[program.clone(), account.clone()], &[])?;
+    // The source is intentionally included in the CPI account-info slice even
+    // though SyncNative has no source meta. Solana's CPI balance checkpoint
+    // must observe both sides of the preceding direct lamport transfer.
+    invoke_signed(
+        &instruction,
+        &[program.clone(), account.clone(), balance_source.clone()],
+        &[],
+    )?;
     Ok(())
 }
 
