@@ -2,13 +2,16 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
+  AccountRole,
   address,
   appendTransactionMessageInstructions,
   compileTransaction,
   compressTransactionMessageUsingAddressLookupTables,
   createTransactionMessage,
   generateKeyPairSigner,
+  getTransactionDecoder,
   getTransactionEncoder,
+  partiallySignTransaction,
   pipe,
   setTransactionMessageFeePayer,
   setTransactionMessageLifetimeUsingBlockhash,
@@ -47,6 +50,7 @@ import {
   decodeEventQueue,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
+  sendWalletInstructions,
   waitForFinalizedSignature,
 } from '../src/protocol/anchorClient.js';
 
@@ -560,4 +564,57 @@ test('wallet transaction timeout keeps its signature for Explorer verification',
   ).catch(value => value);
   assert.match(error.message, /Explorer before retrying/);
   assert.equal(error.signature, 'pending-signature');
+});
+
+test('multi-signer mint lets the wallet sign before adding the asset signature', async () => {
+  const owner = await generateKeyPairSigner();
+  const asset = await generateKeyPairSigner();
+  const blockhash = await generateKeyPairSigner();
+  const signature = '1'.repeat(64);
+  let sentTransaction;
+  let signAndSendCalled = false;
+  const rpc = {
+    getLatestBlockhash: () => ({ send: async () => ({ value: { blockhash: String(blockhash.address), lastValidBlockHeight: 999n } }) }),
+    sendTransaction: wire => ({
+      send: async () => {
+        sentTransaction = getTransactionDecoder().decode(Buffer.from(wire, 'base64'));
+        return signature;
+      },
+    }),
+    getSignatureStatuses: () => ({ send: async () => ({ value: [{ confirmationStatus: 'finalized', err: null }] }) }),
+  };
+  const wallet = { features: {
+    'solana:signTransaction': {
+      signTransaction: async ({ transaction }) => {
+        const decoded = getTransactionDecoder().decode(transaction);
+        const signed = await partiallySignTransaction([owner.keyPair], decoded);
+        return [{ signedTransaction: getTransactionEncoder().encode(signed) }];
+      },
+    },
+    'solana:signAndSendTransaction': {
+      signAndSendTransaction: async () => {
+        signAndSendCalled = true;
+        throw new Error('Unexpected sign-and-send call');
+      },
+    },
+  } };
+  const result = await sendWalletInstructions({
+    rpc,
+    wallet,
+    account: { address: owner.address },
+    chain: 'solana:mainnet',
+    instructions: [{
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: owner.address, role: AccountRole.WRITABLE_SIGNER },
+        { address: asset.address, role: AccountRole.WRITABLE_SIGNER },
+      ],
+      data: new Uint8Array(),
+    }],
+    additionalSigners: [asset],
+  });
+  assert.equal(result, signature);
+  assert.equal(signAndSendCalled, false);
+  assert.ok(sentTransaction.signatures[owner.address]);
+  assert.ok(sentTransaction.signatures[asset.address]);
 });

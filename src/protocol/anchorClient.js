@@ -9,7 +9,9 @@ import {
   generateKeyPairSigner,
   getAddressDecoder,
   getBase58Decoder,
+  getBase64EncodedWireTransaction,
   getProgramDerivedAddress,
+  getTransactionDecoder,
   getTransactionEncoder,
   getUtf8Encoder,
   partiallySignTransaction,
@@ -625,8 +627,6 @@ export async function buildClaimTraineeInstructions({
 }
 
 export async function sendWalletInstructions({ rpc, wallet, account, chain, instructions, additionalSigners = [], lookupTables = {} }) {
-  const feature = wallet.features['solana:signAndSendTransaction'];
-  if (!feature) throw new Error('Phantom does not support transaction signing through Wallet Standard.');
   const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
   const message = pipe(
     createTransactionMessage({ version: 0 }),
@@ -636,13 +636,29 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
     transaction => compressTransactionMessageUsingAddressLookupTables(transaction, lookupTables),
   );
   let transaction = compileTransaction(message);
-  if (additionalSigners.length) {
-    transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
-  }
   const encoded = getTransactionEncoder().encode(transaction);
   if (encoded.length > 1232) {
     throw new Error(`This fleet does not fit into one Solana transaction (${encoded.length}/1232 bytes). No transaction was sent.`);
   }
+
+  if (additionalSigners.length) {
+    const signFeature = wallet.features['solana:signTransaction'];
+    if (!signFeature) throw new Error('Phantom does not support the safe multi-signer transaction flow.');
+    const [walletResult] = await signFeature.signTransaction({ transaction: encoded, account, chain });
+    transaction = getTransactionDecoder().decode(walletResult.signedTransaction);
+    transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
+    const signature = await rpc.sendTransaction(getBase64EncodedWireTransaction(transaction), {
+      encoding: 'base64',
+      maxRetries: 3n,
+      preflightCommitment: 'confirmed',
+      skipPreflight: false,
+    }).send();
+    await waitForFinalizedSignature(rpc, signature);
+    return signature;
+  }
+
+  const feature = wallet.features['solana:signAndSendTransaction'];
+  if (!feature) throw new Error('Phantom does not support transaction signing through Wallet Standard.');
   const [result] = await feature.signAndSendTransaction({ transaction: encoded, account, chain });
   const signature = getBase58Decoder().decode(result.signature);
   await waitForFinalizedSignature(rpc, signature);
