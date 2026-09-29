@@ -262,6 +262,16 @@ export async function createFeeAdminService(
       if (outcome.state !== 'finalized') throw new UnresolvedSolanaTransactionError(operation.signature);
       slot = outcome.slot;
     }
+    if (slot === undefined) {
+      const statuses = await solanaRpcCall<{ value: Array<{ err: unknown; confirmationStatus?: string | null; slot: number } | null> }>(
+        config.rpcUrl,
+        'getSignatureStatuses',
+        [[operation.signature], { searchTransactionHistory: true }],
+      );
+      const status = statuses.value[0];
+      if (status?.err) throw new Error(`Finalized operation ${operation.operationId} failed: ${JSON.stringify(status.err)}`);
+      if (status?.confirmationStatus === 'finalized') slot = status.slot;
+    }
     if (slot === undefined) throw new Error(`Finalized operation ${operation.operationId} has no slot`);
     const walletAfter = await getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT);
     const action: AdminFeeActionDocument = {
