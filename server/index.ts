@@ -38,7 +38,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
-const publicData = createPublicDataService(config, database);
+const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);

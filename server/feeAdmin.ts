@@ -318,9 +318,9 @@ export async function createFeeAdminService(
         actions.findOne({ kind: 'emergency_rescue' }, { sort: { createdAt: -1 } }),
         actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } }),
       ]);
-      const dashboard = await loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs);
-      const lastClaim = history.find(item => item.kind === 'claim');
       const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
+      const dashboard = await loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs, ticker || 'FARE');
+      const lastClaim = history.find(item => item.kind === 'claim');
       return {
         ...fees,
         ticker,

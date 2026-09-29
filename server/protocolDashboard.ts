@@ -9,14 +9,16 @@ import { protocolAddresses } from './setup.js';
 const addressDecoder = getAddressDecoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const CLASS_NAMES = new Map([[1, 'Economy'], [3, 'Comfort'], [10, 'Business'], [30, 'Legend']]);
-const ASSET_SYMBOLS = ['FARE', 'UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
+const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 
 export async function loadProtocolDashboard(
   rpcUrl: string,
   programId: Address,
   worker: WorkerStatusDocument | null,
   workerIntervalMs: number,
+  fareSymbol = 'FARE',
 ) {
+  const assetSymbols = [fareSymbol, ...STOCK_SYMBOLS];
   const addresses = await protocolAddresses(programId);
   const [configAccount, poolAccount, traineePoolAccount, queueAccount, traineeQueueAccount, feeVaultAccount, machineAccounts] = await Promise.all([
     getAccount(rpcUrl, addresses.config),
@@ -67,7 +69,7 @@ export async function loadProtocolDashboard(
       trainee: queueSummary(traineeQueue, traineePool, nowSeconds),
     },
     distribution: {
-      assets: ASSET_SYMBOLS.map((symbol, index) => ({ symbol, decimals: mintDetails[index].decimals })),
+      assets: assetSymbols.map((symbol, index) => ({ symbol, decimals: mintDetails[index].decimals })),
       activeWeight: pool.totalActiveWeight.toString(),
       calculatedUntil: pool.calculatedUntil.toString(),
       seriesActive: pool.seriesActive,
@@ -81,7 +83,7 @@ export async function loadProtocolDashboard(
     },
     vaults: {
       solLamports: String(Math.max(0, feeVaultAccount.lamports - feeVaultRent)),
-      tokens: ASSET_SYMBOLS.map((symbol, index) => ({ symbol, mint: String(assetMints[index]), decimals: mintDetails[index].decimals, amount: vaultBalances[index].toString() })),
+      tokens: assetSymbols.map((symbol, index) => ({ symbol, mint: String(assetMints[index]), decimals: mintDetails[index].decimals, amount: vaultBalances[index].toString() })),
     },
     machines: machines.sort((a, b) => Number(BigInt(b.claimable[0]) - BigInt(a.claimable[0]))),
     observedAt: new Date().toISOString(),

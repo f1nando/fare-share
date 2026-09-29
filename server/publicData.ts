@@ -33,6 +33,7 @@ export function createPublicDataService(config: {
   solanaRpcUrl: string;
   programId: Address;
   workerIntervalMs: number;
+  fareSymbol: string;
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -42,7 +43,7 @@ export function createPublicDataService(config: {
     if (activeSync) return activeSync;
     activeSync = (async () => {
       const worker = await database.workerStatus.findOne({ key: 'protocol-worker' });
-      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs);
+      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, config.fareSymbol);
       const assets = await loadAssets(config.solanaRpcUrl, dashboard.machines.map(machine => machine.asset));
       const assetsById = new Map(assets.map(asset => [asset.id, asset]));
       const now = new Date();
