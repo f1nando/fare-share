@@ -1,5 +1,10 @@
 # Развёртывание Taxi Park
 
+> **Текущий статус:** по решению владельца deployment `GHGq…i3i4` и Collection
+> `5DwD…5nroP` являются mainnet-тестом, а не production-релизом. Sale была открыта
+> только для smoke и после тестов снова поставлена на pause. Для настоящего запуска
+> потребуется новый Program ID, новая Collection и отдельный release freeze.
+
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
 Постоянный публичный Program ID подготовлен: `GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
@@ -280,6 +285,26 @@ supply `[0,0,0,0]`; поэтому CA можно заменить финальн
 Pre-sale mint simulation против permanent program ожидаемо вернула Anchor
 `SaleNotStarted` (`6041`) до отправки транзакции; NFT не создавался и SOL не
 списывались.
+
+После решения считать deployment тестовым цены до старта sale уменьшены до
+`1 / 3 / 10 / 30` lamports (`3UKNWG…Wr3QZ7E`), sale открыта
+`2EmVS6…UKjcvB`. Отдельный buyer `7BJt…Sruxi` получил ограниченные `0.2 SOL`.
+Успешно выполнены 16 mint: supply `[4,4,4,4]`, варианты каждого класса `0–3`;
+DAS подтвердил ownership, Collection и все 16 URI. Core transfer последней машины
+к worker и обратно: `2yvwEz…xMHWc`, `iZXXNX…GqJtFb`.
+
+Reward smoke использовал суммарно `0.1 SOL` test deposit. Успешно куплены и
+распределены `$TAXI`, TSLAx и GOOGLx; UBERx/AMZNx оставлены нулевыми, потому что
+текущие Jupiter routes требовали бы существенно больший test amount. Claim 10
+`2YmKnZ…8Wmi1y` увеличил три доступных reward balance; invalid Claim 10 был
+атомарно отклонён без изменений. Repair 8 `4WZgsK…RkjpS5` сжёг точно
+`11,594,516,239` raw `$TAXI`. Остатки свободного SOL buyer/worker возвращены на
+admin, оба баланса равны нулю. Финальная pause: `4Z2mUq…5R1ft2m`.
+
+После smoke admin имеет `3.129511961 SOL`; ProgramData rent `3.402203000 SOL`
+не затронут и остаётся recoverable. В FeeVault остаётся `0.088932152 SOL`, а также
+reward tokens и обязательства тестовым NFT; их нельзя считать потерянными, но
+выводить следует только при отдельном закрытии теста после paused/empty audit.
 
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
