@@ -66,7 +66,7 @@ export function GaragePage({ wallet }) {
     machine.rewards.some(amount => BigInt(amount) > 0n)
   )), [machines]);
   const repairable = useMemo(() => machines.filter(machine => machine.missingSeconds > 0), [machines]);
-  const activeCars = useMemo(() => machines.filter(machine => machine.rewardActive), [machines]);
+  const brokenCars = useMemo(() => machines.filter(machine => machine.durability <= 0), [machines]);
   const claimBatch = claimable.slice(0, MAX_CLAIM_MACHINES_PER_TRANSACTION);
   const repairBatch = repairable.slice(0, MAX_REPAIR_MACHINES_PER_TRANSACTION);
   const displayedCars = wallet && status?.deployed
@@ -171,7 +171,7 @@ export function GaragePage({ wallet }) {
             <div className="fare-garage-overview-stats">
               <div><span>Claimable cars</span><strong>{wallet && status?.deployed ? claimable.length : 0}</strong><small>Finalized state</small></div>
               <div><span>Fleet weight</span><strong>{wallet && status?.deployed ? machines.reduce((sum, machine) => sum + machine.weight, 0) : 0}</strong><small>Current total</small></div>
-              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${activeCars.length}/${machines.length}` : '0/0'}</strong><small>{wallet && status?.deployed ? `${repairable.length} can be repaired` : 'Connect wallet'}</small></div>
+              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${machines.length - brokenCars.length}/${machines.length}` : '0/0'}</strong><small>{wallet && status?.deployed ? `${brokenCars.length} ${brokenCars.length === 1 ? 'needs' : 'need'} repair` : 'Connect wallet'}</small></div>
             </div>
           </section>
 
