@@ -77,7 +77,9 @@ export async function runWorkerCycle() {
     console.log(`collect_fees finalized: ${signature}`);
   }
 
-  if (config.jupiterApiKey) {
+  if (String(configuration.fareMint) === '11111111111111111111111111111111') {
+    console.log('FARE mint is not configured; swap jobs were skipped.');
+  } else if (config.jupiterApiKey) {
     await processPendingSwaps(config, signer, backendSigner, addresses, clock.chainTime);
   } else {
     console.log('JUPITER_API_KEY is not configured; accumulated swap reserves were left untouched.');
