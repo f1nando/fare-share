@@ -155,6 +155,26 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
     errors.push('ADMIN, BACKEND_SIGNER и WORKER должны использовать разные keypair');
   }
+  const feeRecipientSecret = required('PUMP_FEE_RECIPIENT_SECRET_KEY');
+  if (feeRecipientSecret) {
+    try {
+      const signer = await createKeyPairSignerFromBytes(parseSecretBytes(feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
+      if (frontendChain === 'solana:mainnet' && String(signer.address) !== '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF') {
+        errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: должен соответствовать зафиксированному mainnet-кошельку 2NUN…');
+      }
+    } catch (error) {
+      errors.push(String((error as Error).message));
+    }
+  }
+  required('ADMIN_USERNAME');
+  const adminPassword = required('ADMIN_PASSWORD_SCRYPT');
+  if (adminPassword && !/^scrypt\$[a-f0-9]{32}\$[a-f0-9]{64}$/i.test(adminPassword)) {
+    errors.push('ADMIN_PASSWORD_SCRYPT: используйте npm run admin:hash-password');
+  }
+  const adminSessionSecret = required('ADMIN_SESSION_SECRET');
+  if (adminSessionSecret && adminSessionSecret.length < 32) {
+    errors.push('ADMIN_SESSION_SECRET: нужен случайный секрет длиной не менее 32 символов');
+  }
 
   const pepper = required('TRAINEE_WORD_PEPPER');
   if (pepper && (pepper === 'replace-with-a-long-random-secret' || pepper.length < 32)) {
