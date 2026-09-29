@@ -1,4 +1,4 @@
-import { address, createKeyPairSignerFromBytes } from '@solana/kit';
+import { address, createKeyPairSignerFromBytes, type KeyPairSigner } from '@solana/kit';
 import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
 import {
   buildRescueSolInstruction,
@@ -11,6 +11,7 @@ import { parseSecretBytes } from '../server/signing.js';
 import { protocolAddresses } from '../server/setup.js';
 import { sendInstructions } from '../server/transaction.js';
 import { solanaRpcCall } from '../server/solanaRpc.js';
+import { derivePumpBondingCurve } from '../server/pump.js';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -25,10 +26,15 @@ const [commandName, ...args] = process.argv.slice(2);
 if (!commandName) usage();
 
 let instructions;
+let additionalSigners: KeyPairSigner[] = [];
 if (commandName === 'set-fare-mint') {
   exactArgs(args, 1);
   const fareMint = address(args[0]);
   const tokenProgram = await mintOwner(rpcUrl, fareMint);
+  const feeRecipient = await createKeyPairSignerFromBytes(parseSecretBytes(
+    required('PUMP_FEE_RECIPIENT_SECRET_KEY'), 'PUMP_FEE_RECIPIENT_SECRET_KEY',
+  ));
+  const bondingCurve = await derivePumpBondingCurve(fareMint);
   const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: fareMint, tokenProgram });
   instructions = [
     getCreateAssociatedTokenIdempotentInstruction({
@@ -41,12 +47,15 @@ if (commandName === 'set-fare-mint') {
     buildSetFareMintInstruction({
       programId,
       admin: admin.address,
+      feeRecipient: feeRecipient.address,
       config: addresses.config,
       fareMint,
       fareVault,
+      bondingCurve,
       tokenProgram,
     }),
   ];
+  if (String(feeRecipient.address) !== String(admin.address)) additionalSigners = [feeRecipient];
 } else if (commandName === 'rescue-sol') {
   exactArgs(args, 2);
   instructions = [buildRescueSolInstruction(
@@ -84,7 +93,7 @@ if (commandName === 'set-fare-mint') {
   instructions = [buildSimpleAdminInstruction(programId, admin.address, addresses.config, command)];
 }
 
-const signature = await sendInstructions(rpcUrl, admin, instructions);
+const signature = await sendInstructions(rpcUrl, admin, instructions, additionalSigners);
 console.log(`${commandName} finalized: ${signature}`);
 
 function parseSimpleCommand(name: string, values: string[]): SimpleAdminCommand {

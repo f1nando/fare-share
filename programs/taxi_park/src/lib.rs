@@ -118,6 +118,11 @@ pub mod taxi_park {
         let config = &mut ctx.accounts.config;
         let fare_mint = ctx.accounts.fare_mint.key();
         validate_fare_assignment(config, fare_mint)?;
+        validate_pump_creator(
+            fare_mint,
+            &ctx.accounts.fee_recipient.key(),
+            &ctx.accounts.bonding_curve,
+        )?;
         let config_key = config.key();
         let token_program_key = ctx.accounts.token_program.key();
         token::assert_program(&ctx.accounts.token_program)?;
@@ -2061,12 +2066,15 @@ pub struct Claim<'info> {
 #[derive(Accounts)]
 pub struct SetFareMint<'info> {
     pub admin: Signer<'info>,
+    pub fee_recipient: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
     pub config: Box<Account<'info, Configuration>>,
     /// CHECK: Owner and initialized mint layout are validated in the handler.
     pub fare_mint: UncheckedAccount<'info>,
     /// CHECK: Canonical ATA, mint and authority are validated in the handler.
     pub fare_vault: UncheckedAccount<'info>,
+    /// CHECK: Pump ownership, PDA, creator, stage and flags are validated in the handler.
+    pub bonding_curve: UncheckedAccount<'info>,
     /// CHECK: Must be the SPL Token or Token-2022 program that owns fare_mint.
     pub token_program: UncheckedAccount<'info>,
 }
@@ -2162,6 +2170,51 @@ fn require_fare_ready(fare_mint: Pubkey) -> Result<()> {
     Ok(())
 }
 
+fn validate_pump_creator(
+    fare_mint: Pubkey,
+    fee_recipient: &Pubkey,
+    bonding_curve: &AccountInfo<'_>,
+) -> Result<()> {
+    const PUMP_PROGRAM: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+    let expected = Pubkey::find_program_address(
+        &[b"bonding-curve", fare_mint.as_ref()],
+        &PUMP_PROGRAM,
+    )
+    .0;
+    require_keys_eq!(bonding_curve.key(), expected, TaxiError::InvalidPumpToken);
+    require_keys_eq!(*bonding_curve.owner, PUMP_PROGRAM, TaxiError::InvalidPumpToken);
+    let data = bonding_curve.try_borrow_data()?;
+    let (creator, complete) = decode_direct_pump_curve(&data)?;
+    require!(!complete, TaxiError::PumpTokenAlreadyGraduated);
+    require_keys_eq!(creator, *fee_recipient, TaxiError::InvalidPumpCreator);
+    Ok(())
+}
+
+fn decode_direct_pump_curve(data: &[u8]) -> Result<(Pubkey, bool)> {
+    const BONDING_CURVE_DISCRIMINATOR: [u8; 8] = [23, 183, 248, 55, 96, 216, 172, 96];
+    const COMPLETE_OFFSET: usize = 48;
+    const CREATOR_OFFSET: usize = 49;
+    const CASHBACK_OFFSET: usize = 82;
+    const QUOTE_MINT_OFFSET: usize = 83;
+    require!(data.len() >= CASHBACK_OFFSET + 1, TaxiError::InvalidPumpToken);
+    require!(data[..8] == BONDING_CURVE_DISCRIMINATOR, TaxiError::InvalidPumpToken);
+    let creator = Pubkey::new_from_array(
+        data[CREATOR_OFFSET..CREATOR_OFFSET + 32]
+            .try_into()
+            .map_err(|_| TaxiError::InvalidPumpToken)?,
+    );
+    require!(data[CASHBACK_OFFSET] == 0, TaxiError::InvalidPumpToken);
+    if data.len() >= QUOTE_MINT_OFFSET + 32 {
+        let quote_mint = Pubkey::new_from_array(
+            data[QUOTE_MINT_OFFSET..QUOTE_MINT_OFFSET + 32]
+                .try_into()
+                .map_err(|_| TaxiError::InvalidPumpToken)?,
+        );
+        require!(quote_mint == Pubkey::default(), TaxiError::InvalidPumpToken);
+    }
+    Ok((creator, data[COMPLETE_OFFSET] != 0))
+}
+
 #[cfg(test)]
 mod accounting_tests {
     use super::*;
@@ -2233,6 +2286,20 @@ mod accounting_tests {
         config.fare_mint = fare_mint;
         assert!(require_fare_ready(config.fare_mint).is_ok());
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
+    }
+
+    #[test]
+    fn pump_curve_requires_direct_creator_sol_quote_and_no_cashback() {
+        let creator = Pubkey::new_unique();
+        let mut data = vec![0_u8; 115];
+        data[..8].copy_from_slice(&[23, 183, 248, 55, 96, 216, 172, 96]);
+        data[49..81].copy_from_slice(creator.as_ref());
+        assert_eq!(decode_direct_pump_curve(&data).unwrap(), (creator, false));
+        data[82] = 1;
+        assert!(decode_direct_pump_curve(&data).is_err());
+        data[82] = 0;
+        data[83..115].copy_from_slice(Pubkey::new_unique().as_ref());
+        assert!(decode_direct_pump_curve(&data).is_err());
     }
 }
 

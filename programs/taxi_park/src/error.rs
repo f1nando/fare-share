@@ -18,6 +18,12 @@ pub enum TaxiError {
     FareMintNotSet,
     #[msg("FARE mint is already configured and cannot be replaced")]
     FareMintAlreadySet,
+    #[msg("FARE mint is not a supported direct-creator pump.fun token")]
+    InvalidPumpToken,
+    #[msg("pump.fun creator does not match the signing fee recipient")]
+    InvalidPumpCreator,
+    #[msg("FARE mint must be bound before pump.fun graduation")]
+    PumpTokenAlreadyGraduated,
     #[msg("Mint price must be greater than zero")]
     InvalidPrice,
     #[msg("Admin address cannot be the zero address")]

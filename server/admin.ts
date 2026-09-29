@@ -59,18 +59,22 @@ export function buildRescueSolInstruction(
 export function buildSetFareMintInstruction(input: {
   programId: Address;
   admin: Address;
+  feeRecipient: Address;
   config: Address;
   fareMint: Address;
   fareVault: Address;
+  bondingCurve: Address;
   tokenProgram: Address;
 }): Instruction {
   return {
     programAddress: input.programId,
     accounts: [
       meta(input.admin, AccountRole.READONLY_SIGNER),
+      meta(input.feeRecipient, AccountRole.READONLY_SIGNER),
       meta(input.config, AccountRole.WRITABLE),
       meta(input.fareMint, AccountRole.READONLY),
       meta(input.fareVault, AccountRole.READONLY),
+      meta(input.bondingCurve, AccountRole.READONLY),
       meta(input.tokenProgram, AccountRole.READONLY),
     ],
     data: discriminator('set_fare_mint'),
