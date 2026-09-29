@@ -1,4 +1,5 @@
-import { boulevardRoad, tramRoad } from './roadProfile.js';
+import { boulevardRoad, tramRoad, junctionStop } from './roadProfile.js';
+import { extraHalfLength } from './vehicleTypes.js';
 export { boulevardRoad } from './roadProfile.js';
 import { approachAtRing } from './diagonalLayout.js';
 import { canalColumn, canalBridge } from './bridgeProfile.js';
@@ -98,12 +99,18 @@ export function straightRoadOpen(car, blockSize, stopLine) {
   return roadOpen(car.axis, car.line, center - (car.direction < 0 ? 1 : 0));
 }
 
+function spawnClearance(car, blockSize, stopLine) {
+  const cross = Math.round(car.position / blockSize);
+  return Math.max(stopLine, junctionStop(car.axis === 0 ? cross : car.line,
+    car.axis === 0 ? car.line : cross)) + extraHalfLength(car) + 1;
+}
+
 export function spawnRoadOpen(car, blockSize, stopLine) {
   const cross = Math.round(car.position / blockSize);
   if (roundaboutAt(car.axis === 0 ? cross : car.line, car.axis === 0 ? car.line : cross) &&
       Math.abs(car.position - cross * blockSize) < roundaboutStopAt(car.axis===0?cross:car.line,car.axis===0?car.line:cross,blockSize) + 1.1) return false;
   if (!roadOpen(car.axis, car.line, Math.floor(car.position / blockSize)) ||
-    !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize))) return false;
+    !roadOpen(car.axis, car.line, Math.floor((car.position + car.direction * spawnClearance(car, blockSize, stopLine)) / blockSize))) return false;
   if (car.track !== 1) return true;
   const work = roadworkAt(car.axis, car.line, Math.floor(car.position / blockSize), blockSize);
   if (!work || work.direction !== car.direction) return true;
@@ -128,7 +135,7 @@ export function relocateToRoad(car, blockSize, stopLine) {
       car.position = car.direction > 0 ? work.end + 2.1 : work.start - 2.1;
       continue;
     }
-    if (roadOpen(car.axis, car.line, segment)) segment = Math.floor((car.position + car.direction * (stopLine + 1)) / blockSize);
+    if (roadOpen(car.axis, car.line, segment)) segment = Math.floor((car.position + car.direction * spawnClearance(car, blockSize, stopLine)) / blockSize);
     const exit = segment + (car.direction > 0 ? 1 : 0);
     car.position = exit * blockSize + car.direction * (stopLine + 1);
   }
