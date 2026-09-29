@@ -1,4 +1,4 @@
-import { address, createKeyPairSignerFromBytes } from '@solana/kit';
+import { address, createKeyPairSignerFromBytes, type Address } from '@solana/kit';
 import {
   getCreateLookupTableInstructionAsync,
   getExtendLookupTableInstruction,
@@ -8,6 +8,7 @@ import {
   base64Bytes,
   claimLookupTableAddresses,
   decodeConfiguration,
+  decodeAddressLookupTable,
 // @ts-expect-error The browser protocol client is intentionally plain JavaScript.
 } from '../src/protocol/anchorClient.js';
 import { parseSecretBytes } from '../server/signing.js';
@@ -28,14 +29,24 @@ const authority = await createKeyPairSignerFromBytes(parseSecretBytes(
   'ADMIN_KEYPAIR_SECRET_KEY',
 ));
 const addresses = await protocolAddresses(programAddress);
-const recentSlot = await solanaRpcCall<bigint>(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
-const createInstruction = await getCreateLookupTableInstructionAsync({
-  authority: authority.address,
-  payer: authority,
-  recentSlot,
-});
-const lookupTable = createInstruction.accounts[0].address;
-const createSignature = await sendInstructions(rpcUrl, authority, [createInstruction]);
+const configuredLookupTable = process.env.VITE_TAXI_LOOKUP_TABLE?.trim();
+let lookupTable: Address;
+let createSignature: string | null = null;
+let existingAddresses: Address[] = [];
+if (configuredLookupTable) {
+  lookupTable = address(configuredLookupTable);
+  existingAddresses = decodeAddressLookupTable(await accountBytes(lookupTable));
+} else {
+  const finalizedSlot = await solanaRpcCall<number | bigint>(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
+  const recentSlot = BigInt(finalizedSlot) - 1n;
+  const createInstruction = await getCreateLookupTableInstructionAsync({
+    authority: authority.address,
+    payer: authority,
+    recentSlot,
+  });
+  lookupTable = createInstruction.accounts[0].address;
+  createSignature = String(await sendInstructions(rpcUrl, authority, [createInstruction]));
+}
 
 const configAccount = await solanaRpcCall<{
   value: { data: [string, string] } | null;
@@ -55,17 +66,25 @@ const lookupAddresses = await claimLookupTableAddresses({
   mints,
   tokenPrograms,
 });
-const extendInstruction = getExtendLookupTableInstruction({
+const existing = new Set(existingAddresses.map(String));
+const missingAddresses = (lookupAddresses as Address[]).filter((value: Address) => !existing.has(String(value)));
+const extendSignature = missingAddresses.length > 0 ? String(await sendInstructions(rpcUrl, authority, [getExtendLookupTableInstruction({
   address: lookupTable,
   authority,
   payer: authority,
-  addresses: lookupAddresses,
-});
-const extendSignature = await sendInstructions(rpcUrl, authority, [extendInstruction]);
+  addresses: missingAddresses,
+})])) : null;
 
 console.log(JSON.stringify({
   lookupTable: String(lookupTable),
-  addressCount: lookupAddresses.length,
-  createSignature: String(createSignature),
-  extendSignature: String(extendSignature),
+  addressCount: existingAddresses.length + missingAddresses.length,
+  addedAddressCount: missingAddresses.length,
+  createSignature,
+  extendSignature,
 }, null, 2));
+
+async function accountBytes(account: Address) {
+  const response = await solanaRpcCall<{ value: { data: [string, string] } | null }>(rpcUrl, 'getAccountInfo', [account, { commitment: 'finalized', encoding: 'base64' }]);
+  if (!response.value) throw new Error(`Lookup table ${account} does not exist`);
+  return base64Bytes(response.value.data[0]);
+}
