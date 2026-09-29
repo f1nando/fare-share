@@ -258,10 +258,20 @@ async function processPendingSwaps(
         plan,
         route,
       });
+      if (route.setupInstructions.length > 0) {
+        const setupSignature = await sendInstructions(
+          config.solanaRpcUrl,
+          caller,
+          route.setupInstructions,
+          [],
+          route.lookupTables,
+        );
+        console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} vault setup finalized: ${setupSignature}`);
+      }
       const signature = await sendInstructions(
         config.solanaRpcUrl,
         caller,
-        [...route.setupInstructions, computeUnitLimitInstruction(), signatureInstruction, processInstruction],
+        [computeUnitLimitInstruction(), signatureInstruction, processInstruction],
         [],
         route.lookupTables,
       );

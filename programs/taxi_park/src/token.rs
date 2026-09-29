@@ -218,7 +218,12 @@ pub fn sync_native<'info>(
     );
     let instruction = Instruction {
         program_id: TOKEN_PROGRAM_ID,
-        accounts: vec![AccountMeta::new(account.key(), false)],
+        // The token program ignores the trailing source meta, while the
+        // runtime includes it in the CPI lamport-balance checkpoint.
+        accounts: vec![
+            AccountMeta::new(account.key(), false),
+            AccountMeta::new(balance_source.key(), false),
+        ],
         data: vec![SYNC_NATIVE],
     };
     // The source is intentionally included in the CPI account-info slice even
