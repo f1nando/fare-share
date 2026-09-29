@@ -27,6 +27,7 @@ import { SceneryCache } from './sceneryCache.js';
 import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
 import { boatHullGeometry, addBoats } from './boats.js';
+import { sharkGeometry, animateSharkTail, addSharks } from './sharks.js';
 import { AirTraffic } from './airTraffic.js';
 import { ParkBirds, birdWingGeometry } from './parkBirds.js';
 import { populateTramTracks } from './tramTracks.js';
@@ -257,6 +258,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const geometries = {
     diagonalLot: diagonalLotGeometry(),
     boat: boatHullGeometry(),
+    shark: sharkGeometry(),
     boatRipple: new THREE.RingGeometry(0.91, 1, 24).rotateX(-Math.PI / 2),
     birdWing: birdWingGeometry(),
     roundaboutCurb: roundaboutCornerGeometry(),
@@ -535,6 +537,8 @@ export function createCity(container, initialSettings, benchmark = null) {
       }
     }
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
+    animateSharkTail(geometries.shark, boatTime);
+    addSharks(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
     parkBirds.update(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     if (activeBrushEvent) animateAtPointer(activeBrushEvent, true);
