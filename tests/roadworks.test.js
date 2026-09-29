@@ -9,6 +9,7 @@ import { TrafficSimulation } from '../src/city/trafficSimulation.js';
 import { DEFAULT_SETTINGS } from '../src/city/settings.js';
 import { carCoordinates } from '../src/city/trafficNetwork.js';
 import { vehiclePose } from '../src/city/world.js';
+import { laneOffset, streetHalf } from '../src/city/roadProfile.js';
 
 const vehicle = (position, track = 1, taxi = false, direction = 1) => ({ axis: 0, line: 0, direction,
   position: position * direction, track, fromTrack: track, offset: trackOffset(track), taxi,
@@ -20,14 +21,16 @@ const safe = (car, work, direction) => {
   if (occupiesTrack(car, 1)) assert.ok(car.position * direction <= 20 - WORK_MARGIN + 1e-7 || car.position * direction >= 26 + WORK_MARGIN - 1e-7, 'car entered the closure');
 };
 
-test('sites are sparse, deterministic and clear of bridges, missing roads and intersections', () => {
+test('varied sites appear up to twice per district and stay clear of bridges and intersections', () => {
   const groups = new Map(), sites = [];
   for (const axis of [0,1]) for (let x = -16; x <= 16; x++) for (let z = -16; z <= 16; z++) {
     const work = roadworkAt(axis, axis === 0 ? z : x, axis === 0 ? x : z, 40);
     if (!work) continue;
     sites.push(work);
     const key = `${Math.floor(x/4)}:${Math.floor(z/4)}`;
-    assert.ok(!groups.has(key)); groups.set(key, work);
+    groups.set(key, (groups.get(key) ?? 0) + 1);
+    assert.ok(groups.get(key) <= 2);
+    assert.deepEqual(work, roadworkAt(axis, work.line, work.segment, 40));
     assert.ok(roadOpen(axis, work.line, work.segment));
     assert.ok(axis === 0 ? !canalColumn(work.segment) : !canalColumn(work.line) && !canalColumn(work.line - 1));
     assert.ok(work.start - work.segment * 40 > STOP_LINE + 5);
@@ -37,11 +40,13 @@ test('sites are sparse, deterministic and clear of bridges, missing roads and in
     for (const p of parts) {
       const across = axis === 0 ? Math.abs(p[3]) : Math.abs(p[1]);
       const halfWidth = p[axis === 0 ? 6 : 4] / 2;
-      assert.ok(across + halfWidth < PAVED_ROAD / 2, 'the shoulder stays physically clear');
-      assert.ok(across - halfWidth > 1.5, 'the inner lane stays physically clear');
+      assert.ok(across + halfWidth < streetHalf(axis, work.line), 'the shoulder stays physically clear');
+      assert.ok(Math.abs(across - laneOffset(axis, work.line, 1)) + halfWidth <= 0.85,
+        'all variants stay inside the same closed-lane envelope');
     }
   }
-  assert.ok(sites.length > 20 && sites.length < 90);
+  assert.ok(sites.length > 90 && sites.length < 170);
+  assert.deepEqual(new Set(sites.map(w => w.variant)), new Set([0, 1, 2]));
   assert.deepEqual(new Set(sites.map(w=>w.direction)), new Set([-1,1]));
 });
 
@@ -141,7 +146,8 @@ test('moving network routes cars around the physical closure during turns and re
           const a=axis===0?x:z,c=(axis===0?z-line*40:line*40-x)*work.direction;
           minAlong=Math.min(minAlong,a);maxAlong=Math.max(maxAlong,a);minAcross=Math.min(minAcross,c);maxAcross=Math.max(maxAcross,c);
         }
-        assert.ok(!(maxAlong > work.start-.19 && minAlong < work.end+.19 && maxAcross > 1.61 && minAcross < 3.29),
+        const laneCenter = laneOffset(axis, work.line, 1);
+        assert.ok(!(maxAlong > work.start-.19 && minAlong < work.end+.19 && maxAcross > laneCenter-.84 && minAcross < laneCenter+.84),
           JSON.stringify({step,work,position:car.position,track:car.track,changing:car.changing,turn:!!car.turn}));
       }
     }

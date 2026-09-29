@@ -57,16 +57,20 @@ export function roundaboutStopAt(x,z,block=40){
   return ROUNDABOUT_STOP+(approachAtRing(x,z,block)?4:0);
 }
 
-// One possible site per 4x4 group, always away from water and missing roads.
+// Two possible sites per 4x4 group, always away from water and missing roads.
 // Coordinates own the site, so rendering, spawning and Worker agree forever.
 export function roadworkAt(axis, line, segment, block) {
   const x = axis === 0 ? segment : line, z = axis === 0 ? line : segment;
   const dx = Math.floor(x / 4), dz = Math.floor(z / 4), code = districtCode(dx + 41, dz - 53);
-  if (x !== dx * 4 + 1 + (code & 1) || z !== dz * 4 + 1 + ((code >>> 1) & 1) || axis !== ((code >>> 2) & 1)) return null;
+  const slotX = code & 1, slotZ = (code >>> 1) & 1, firstAxis = (code >>> 2) & 1;
+  const first = x === dx * 4 + 1 + slotX && z === dz * 4 + 1 + slotZ && axis === firstAxis;
+  const second = x === dx * 4 + 2 - slotX && z === dz * 4 + 2 - slotZ && axis === 1 - firstAxis;
+  if (!first && !second) return null;
   if (!roadOpen(axis, line, segment) || (axis === 0 ? canalColumn(segment) : canalColumn(line) || canalColumn(line - 1))) return null;
   if (block < 32 && [segment, segment + 1].some(cross => roundaboutAt(axis === 0 ? cross : line, axis === 0 ? line : cross))) return null;
-  const length = Math.min(6, block * 0.16), center = (segment + 0.5) * block;
-  return { axis, line, segment, direction: (code & 8) ? 1 : -1, start: center - length / 2, end: center + length / 2 };
+  const variant = ((code >>> 5) + Number(second)) % 3;
+  const length = Math.min([6, 4.5, 5.5][variant], block * 0.16), center = (segment + 0.5) * block;
+  return { axis, line, segment, variant, direction: (code & 8) ? 1 : -1, start: center - length / 2, end: center + length / 2 };
 }
 
 export function laneRoadworks(lane, block) {
