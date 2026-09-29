@@ -105,6 +105,11 @@ Upgrade authority после smoke-тестов **не отзывается**. �
 
 ### Обязательная гарантия сохранности mainnet rent
 
+Перед любым release отдельно проверить поддержку Pump creator fees: direct
+creator `2NUN…` и immutable active version-2 sharing config с единственной долей
+`2NUN… = 100%`. Поддержка безопасного sharing-варианта обязательна; произвольные,
+редактируемые или разделённые configs должны отклоняться on-chain и backend.
+
 Это блокирующее требование релиза, а не рекомендация. Боевой deployment обязан
 повторять уже проверенный mainnet lifecycle: `deploy → проверка → работа → pause →
 освобождение vault → close → возврат ProgramData rent`.

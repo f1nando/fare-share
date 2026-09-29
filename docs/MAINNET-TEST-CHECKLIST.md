@@ -15,6 +15,8 @@
 
 ### Gate 1 — production-only контракт
 
+- [x] Обязательная совместимость `$FARE`: direct creator `2NUN…` либо canonical immutable active Pump fee-sharing v2 с единственной долей `2NUN… = 100%`; backend обязан использовать V2 distribution, а остальные sharing configs отклонять.
+
 - [x] Удалить on-chain `credit_devnet_rewards` и соответствующий backend/admin tooling из production-кода.
 - [x] Собрать baseline SBF после удаления: `641720` байт, SHA-256 `35b3a37dfbb2b130cd88440bad105b3cb88d536732bd12a9c02d55761cdd635c`.
 - [x] Проверить бинарник: имя и discriminator `credit_devnet_rewards` отсутствуют; других test/devnet handlers в исходниках нет.

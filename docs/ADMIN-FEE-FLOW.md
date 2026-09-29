@@ -4,6 +4,13 @@
 
 ## Зафиксированные адреса и ограничения
 
+Поддержка обоих разрешённых Pump creator-fee вариантов является обязательным
+release gate для test и production: (1) direct creator `2NUN…`; (2) canonical
+Pump Fees sharing config того же типа, что проверенный пользователем пример —
+version 2, active, `admin_revoked = true`, единственный shareholder `2NUN…` с
+долей `10_000 bps`. Релиз, который не умеет валидировать, показывать и собирать
+комиссии из второго варианта через V2 distribution, запрещён.
+
 - Получатель pump.fun Creator Fees: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`.
 - Заказчик самостоятельно создаёт SOL-paired токен на pump.fun. Поддерживаются direct creator `2NUN…` и Pump Fees sharing config, который активен, необратимо зафиксирован и назначает ровно 100% этому же кошельку.
 - Direct creator wallet `2NUN…` следует использовать только для одного `$FARE`, потому что direct vault агрегирует fees по creator. Безопасный immutable sharing config имеет отдельный vault конкретного CA.
