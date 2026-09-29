@@ -13,6 +13,12 @@ import { jupiterRequest } from './jupiterHttp.js';
 const SWAP_DOMAIN = Uint8Array.from(Buffer.from('TAXI_SWAP_V1'));
 const ED25519_PROGRAM = address('Ed25519SigVerify111111111111111111111111111');
 const COMPUTE_BUDGET_PROGRAM = address('ComputeBudget111111111111111111111111111111');
+const ASSOCIATED_TOKEN_PROGRAM = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+const SYSTEM_PROGRAM = '11111111111111111111111111111111';
+const TOKEN_PROGRAMS = new Set([
+  'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+]);
 const addressEncoder = getAddressEncoder();
 
 export interface SwapPlan {
@@ -221,13 +227,26 @@ function validateBuildResponse(build: BuildResponse, input: BuildJupiterSwapInpu
   if (!build.swapInstruction || build.swapInstruction.programId !== input.jupiterProgram) {
     throw new Error('Jupiter returned an unexpected router program');
   }
-  const extra = (build.setupInstructions?.length || 0)
-    + (build.otherInstructions?.length || 0)
+  const unsafeSetup = (build.setupInstructions || []).some(instruction => !isSafeIdempotentAtaSetup(instruction, input));
+  const extra = (build.otherInstructions?.length || 0)
     + Number(Boolean(build.cleanupInstruction))
     + Number(Boolean(build.tipInstruction));
-  if (extra !== 0) {
+  if (unsafeSetup || extra !== 0) {
     throw new Error('Jupiter route requires setup, cleanup, or auxiliary instructions; pre-created vault route required');
   }
+}
+
+function isSafeIdempotentAtaSetup(instruction: ApiInstruction, input: BuildJupiterSwapInput) {
+  const accounts = instruction.accounts;
+  const data = Buffer.from(instruction.data, 'base64');
+  if (instruction.programId !== ASSOCIATED_TOKEN_PROGRAM || data.length !== 1 || data[0] !== 1 || accounts.length !== 6) return false;
+  const [payer, ata, owner, mint, systemProgram, tokenProgram] = accounts;
+  return payer.pubkey === String(input.payer) && payer.isSigner && payer.isWritable
+    && input.fixedWritableAccounts.has(ata.pubkey) && !ata.isSigner && ata.isWritable
+    && owner.pubkey === String(input.taker) && !owner.isSigner && !owner.isWritable
+    && (mint.pubkey === String(input.inputMint) || mint.pubkey === String(input.outputMint)) && !mint.isSigner && !mint.isWritable
+    && systemProgram.pubkey === SYSTEM_PROGRAM && !systemProgram.isSigner && !systemProgram.isWritable
+    && TOKEN_PROGRAMS.has(tokenProgram.pubkey) && !tokenProgram.isSigner && !tokenProgram.isWritable;
 }
 
 function key(value: Address) { return Uint8Array.from(addressEncoder.encode(value)); }

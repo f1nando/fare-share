@@ -111,6 +111,55 @@ test('Jupiter route rejects auxiliary instructions and foreign signers', async (
   );
 });
 
+test('Jupiter route permits only idempotent setup for pre-created protocol vaults', async () => {
+  const setupInstruction = {
+    programId: 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+    accounts: [
+      { pubkey: PROGRAM, isSigner: true, isWritable: true },
+      { pubkey: DESTINATION, isSigner: false, isWritable: true },
+      { pubkey: CONFIG, isSigner: false, isWritable: false },
+      { pubkey: SOURCE, isSigner: false, isWritable: false },
+      { pubkey: CONFIG, isSigner: false, isWritable: false },
+      { pubkey: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from([1]).toString('base64'),
+  };
+  setupInstruction.accounts[4].pubkey = '11111111111111111111111111111111';
+  const route = await buildJupiterRoute({
+    inputMint: SOURCE,
+    outputMint: DESTINATION,
+    amountIn: 1000n,
+    taker: CONFIG,
+    payer: PROGRAM,
+    destinationTokenAccount: DESTINATION,
+    jupiterProgram: PROGRAM,
+    slippageBps: 500,
+    maxAccounts: 48,
+    fixedWritableAccounts: new Set([String(DESTINATION)]),
+    fetchImplementation: async () => new Response(JSON.stringify(response({ setupInstructions: [setupInstruction] }))),
+  });
+  assert.equal(route.minOut, 900n);
+
+  await assert.rejects(
+    buildJupiterRoute({
+      inputMint: SOURCE,
+      outputMint: DESTINATION,
+      amountIn: 1000n,
+      taker: CONFIG,
+      payer: PROGRAM,
+      destinationTokenAccount: DESTINATION,
+      jupiterProgram: PROGRAM,
+      slippageBps: 500,
+      maxAccounts: 48,
+      fixedWritableAccounts: new Set([String(DESTINATION)]),
+      fetchImplementation: async () => new Response(JSON.stringify(response({
+        setupInstructions: [{ ...setupInstruction, data: Buffer.from([0]).toString('base64') }],
+      }))),
+    }),
+    /requires setup/,
+  );
+});
+
 test('swap plan bytes, route hash, and Ed25519 envelope match the Rust contract', () => {
   const accounts = [
     { address: CONFIG, role: AccountRole.WRITABLE },
