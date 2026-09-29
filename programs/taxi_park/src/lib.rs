@@ -249,7 +249,7 @@ pub mod taxi_park {
             .ok_or(TaxiError::MathOverflow)?;
         **vault_info.try_borrow_mut_lamports()? = vault_after;
         **ctx.accounts.recipient.try_borrow_mut_lamports()? = recipient_after;
-        ctx.accounts.fee_vault.consume_reserves(amount)?;
+        ctx.accounts.fee_vault.consume_reserves_for_rescue(amount)?;
         emit!(AssetRescued {
             mint: Pubkey::default(),
             recipient: ctx.accounts.recipient.key(),
@@ -442,6 +442,7 @@ pub mod taxi_park {
         route_data: Vec<u8>,
     ) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
         require!(
             plan.kind == FARE_SWAP_KIND && plan.asset_index == 0,
             TaxiError::InvalidSwapPlan
@@ -2157,10 +2158,6 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
 fn validate_fare_assignment(config: &Configuration, fare_mint: Pubkey) -> Result<()> {
     require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
     require!(
-        config.fare_mint == Pubkey::default(),
-        TaxiError::FareMintAlreadySet
-    );
-    require!(
         fare_mint != Pubkey::default()
             && !config.stock_mints.iter().any(|mint| *mint == fare_mint),
         TaxiError::InvalidRewardMint
@@ -2275,7 +2272,7 @@ mod accounting_tests {
     }
 
     #[test]
-    fn fare_mint_is_required_once_and_cannot_match_a_stock() {
+    fn fare_mint_can_change_before_sale_and_cannot_match_a_stock() {
         let stock_mints = [
             Pubkey::new_unique(),
             Pubkey::new_unique(),
@@ -2313,6 +2310,8 @@ mod accounting_tests {
 
         config.fare_mint = fare_mint;
         assert!(require_fare_ready(config.fare_mint).is_ok());
+        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
+        config.sale_started = true;
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
     }
 

@@ -16,7 +16,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 import type { Collection } from 'mongodb';
-import { buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
+import { buildRescueSolInstruction, buildRescueTokenInstruction, buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
 import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
 import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
@@ -74,8 +74,12 @@ export async function createFeeAdminService(
   const minimumWalletLamports = config.minimumWalletLamports ?? 10_000_000n;
 
   async function configuredMint() {
+    return (await configuredState()).fareMint;
+  }
+
+  async function configuredState() {
     const account = await getAccount(config.rpcUrl, addresses.config);
-    return decodeWorkerConfiguration(account.data).fareMint;
+    return decodeWorkerConfiguration(account.data);
   }
 
   async function inspectMint(rawMint: unknown) {
@@ -102,8 +106,10 @@ export async function createFeeAdminService(
     if (String(curve.quoteMint) !== ZERO_ADDRESS) throw new FeeAdminError('FARE must use the SOL quote.');
     if (sharingConfig) throw new FeeAdminError('Pump fee sharing is enabled for this CA.');
     if (curve.complete) throw new FeeAdminError('CA must be fixed before pump.fun graduation.');
-    const current = await configuredMint();
-    if (String(current) !== ZERO_ADDRESS && String(current) !== String(mint)) throw new FeeAdminError(`Another CA is already fixed: ${current}.`, 409);
+    const current = await configuredState();
+    if (current.saleStarted && String(current.fareMint) !== String(mint)) {
+      throw new FeeAdminError(`The sale has started and $FARE is locked as ${current.fareMint}. Use a paused migration instead of direct replacement.`, 409);
+    }
     return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), creator: curve.creator, complete: curve.complete };
   }
 
@@ -268,11 +274,13 @@ export async function createFeeAdminService(
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
-      const [fees, history, storedToken, worker] = await Promise.all([
+      const [fees, history, storedToken, worker, lastRescue, lastUnpause] = await Promise.all([
         feeSnapshot(mint),
         actions.find({}, { sort: { createdAt: -1 }, limit: 20 }).toArray(),
         tokenConfig.findOne({ key: 'primary' }),
         workerStatus.findOne({ key: 'protocol-worker' }),
+        actions.findOne({ kind: 'emergency_rescue' }, { sort: { createdAt: -1 } }),
+        actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } }),
       ]);
       const dashboard = await loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs);
       const lastClaim = history.find(item => item.kind === 'claim');
@@ -288,6 +296,7 @@ export async function createFeeAdminService(
           signature: activeOperation.signature || null,
         } : null,
         dashboard,
+        rescuePendingMigration: Boolean(lastRescue && (!lastUnpause || lastRescue.createdAt > lastUnpause.createdAt)),
         history: history.map(publicAction),
       };
     },
@@ -296,18 +305,15 @@ export async function createFeeAdminService(
       try { ticker = normalizeTicker(rawTicker); } catch (error) { throw new FeeAdminError((error as Error).message); }
       const inspected = await inspectMint(rawMint);
       const storedToken = await tokenConfig.findOne({ key: 'primary' });
-      if (storedToken) {
-        if (storedToken.mint !== String(inspected.mint) || storedToken.ticker !== ticker) {
-          throw new FeeAdminError(`Token is already fixed as $${storedToken.ticker} (${storedToken.mint}).`, 409);
-        }
-        return { signature: storedToken.bindSignature, mint: storedToken.mint, ticker: storedToken.ticker };
-      }
       const current = await configuredMint();
       if (String(current) === String(inspected.mint)) {
+        if (storedToken?.mint === String(inspected.mint) && storedToken.ticker === ticker) {
+          return { signature: storedToken.bindSignature, mint: storedToken.mint, ticker: storedToken.ticker, unchanged: true };
+        }
         const previous = await actions.findOne({ kind: 'bind_mint', mint: String(inspected.mint) }, { sort: { createdAt: -1 } });
         const signature = previous?.signature || '';
         await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
-        return { signature, mint: String(inspected.mint), ticker };
+        return { signature, mint: String(inspected.mint), ticker, unchanged: false };
       }
       const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram });
       const feeSharingConfig = await derivePumpFeeSharingConfig(inspected.mint);
@@ -329,7 +335,7 @@ export async function createFeeAdminService(
       const signature = String(await sendInstructions(config.rpcUrl, admin, instructions, additional));
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
-      return { signature, mint: String(inspected.mint), ticker };
+      return { signature, mint: String(inspected.mint), ticker, unchanged: false };
     },
     async setTeamAccount(rawTeamAccount: unknown) {
       if (typeof rawTeamAccount !== 'string') throw new FeeAdminError('Team wallet is required.');
@@ -349,6 +355,65 @@ export async function createFeeAdminService(
         cluster: config.cluster, createdAt: new Date(),
       });
       return { signature, teamAccount: String(teamAccount), unchanged: false };
+    },
+    async setPaused(rawPaused: unknown, migrationConfirmed: unknown) {
+      if (typeof rawPaused !== 'boolean') throw new FeeAdminError('Paused state must be true or false.');
+      const current = await configuredState();
+      const isPaused = current.pausedAt !== 0n;
+      if (isPaused === rawPaused) return { signature: '', paused: isPaused, unchanged: true };
+      if (!rawPaused) {
+        const lastRescue = await actions.findOne({ kind: 'emergency_rescue' }, { sort: { createdAt: -1 } });
+        const lastUnpause = await actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } });
+        if (lastRescue && (!lastUnpause || lastRescue.createdAt > lastUnpause.createdAt) && migrationConfirmed !== true) {
+          throw new FeeAdminError('Assets were rescued after the last pause. Confirm completed migration before unpausing this deployment.', 409);
+        }
+      }
+      const activeOperation = await reconcileActiveOperation();
+      if (activeOperation) throw new FeeAdminError('Wait for the active creator-fee operation to finalize before changing protocol state.', 409);
+      const kind = rawPaused ? 'pause' : 'unpause';
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [
+        buildSimpleAdminInstruction(config.programId, admin.address, addresses.config, { name: kind }),
+      ]));
+      await actions.insertOne({ kind, mint: String(current.fareMint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
+      return { signature, paused: rawPaused, unchanged: false };
+    },
+    async emergencyRescue(rawRecipient: unknown) {
+      if (typeof rawRecipient !== 'string') throw new FeeAdminError('Emergency recipient is required.');
+      let recipient: Address;
+      try { recipient = address(rawRecipient.trim()); } catch { throw new FeeAdminError('Emergency recipient is not a valid Solana address.'); }
+      if (String(recipient) === ZERO_ADDRESS) throw new FeeAdminError('Emergency recipient cannot be the system address.');
+      const current = await configuredState();
+      if (current.pausedAt === 0n) throw new FeeAdminError('Pause the protocol before rescuing assets.', 409);
+      const activeOperation = await reconcileActiveOperation();
+      if (activeOperation) throw new FeeAdminError('Wait for the active creator-fee operation to finalize before rescuing assets.', 409);
+      const feeVault = await getAccount(config.rpcUrl, addresses.feeVault);
+      const solAmount = availableLamports(feeVault, await rent(config.rpcUrl, feeVault.data.length));
+      const instructions: Instruction[] = [];
+      const rescuedTokens: Array<{ mint: string; amount: string }> = [];
+      const mints = [current.fareMint, ...current.stockMints].filter(mint => String(mint) !== ZERO_ADDRESS);
+      for (const mint of mints) {
+        const mintAccount = await getAccount(config.rpcUrl, mint);
+        if (![String(TOKEN_PROGRAM), String(TOKEN_2022_PROGRAM)].includes(mintAccount.owner)) throw new FeeAdminError(`Unsupported token program for ${mint}.`, 409);
+        const tokenProgram = address(mintAccount.owner);
+        const [vault] = await findAssociatedTokenPda({ owner: addresses.config, mint, tokenProgram });
+        const vaultAccount = await getOptionalAccount(config.rpcUrl, vault);
+        const amount = vaultAccount ? tokenAmount(vaultAccount.data) : 0n;
+        if (amount === 0n) continue;
+        const [destination] = await findAssociatedTokenPda({ owner: recipient, mint, tokenProgram });
+        instructions.push(
+          getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: destination, owner: recipient, mint, tokenProgram }),
+          buildRescueTokenInstruction({ programId: config.programId, admin: admin.address, config: addresses.config, mint, vault, destination, tokenProgram, amount }),
+        );
+        rescuedTokens.push({ mint: String(mint), amount: amount.toString() });
+      }
+      if (solAmount > 0n) instructions.push(buildRescueSolInstruction(config.programId, admin.address, addresses.config, addresses.feeVault, recipient, solAmount));
+      if (instructions.length === 0) throw new FeeAdminError('The protocol vaults do not contain rescuable assets.', 409);
+      const signature = String(await sendInstructions(config.rpcUrl, admin, instructions));
+      await actions.insertOne({
+        kind: 'emergency_rescue', mint: String(current.fareMint), amountLamports: solAmount.toString(), signature,
+        cluster: config.cluster, recipient: String(recipient), rescuedTokens, createdAt: new Date(),
+      });
+      return { signature, recipient: String(recipient), solLamports: solAmount.toString(), tokens: rescuedTokens };
     },
     async claim(rawOperationId: unknown) {
       const mint = await requireConfiguredMint();
@@ -528,6 +593,7 @@ async function getOptionalAccount(rpcUrl: string, account: Address): Promise<Rpc
 function publicAction(action: AdminFeeActionDocument) {
   return {
     kind: action.kind, mint: action.mint, amountLamports: action.amountLamports, signature: action.signature,
-    cluster: action.cluster, bondingLamports: action.bondingLamports, ammLamports: action.ammLamports, createdAt: action.createdAt,
+    cluster: action.cluster, bondingLamports: action.bondingLamports, ammLamports: action.ammLamports,
+    recipient: action.recipient, rescuedTokens: action.rescuedTokens, createdAt: action.createdAt,
   };
 }

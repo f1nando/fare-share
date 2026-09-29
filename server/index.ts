@@ -97,7 +97,8 @@ const server = createServer(async (request, response) => {
       const body = asRecord(await readJson(request));
       const result = await services.fees.bindMint(body.ca, body.ticker);
       publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
-      if (!trade) trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      trade?.stop();
+      trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
       json(response, 200, result);
       return;
     }
@@ -106,6 +107,20 @@ const server = createServer(async (request, response) => {
       services.auth.require(request, true);
       const body = asRecord(await readJson(request));
       json(response, 200, await services.fees.setTeamAccount(body.teamAccount));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/protocol/pause') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.setPaused(body.paused, body.migrationConfirmed));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/protocol/rescue') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.emergencyRescue(body.recipient));
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/fees/claim') {

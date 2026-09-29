@@ -17,8 +17,12 @@ export function AdminPage() {
   const [notice, setNotice] = useState('');
   const [machineQuery, setMachineQuery] = useState('');
   const [teamAccount, setTeamAccount] = useState('');
+  const [rescueRecipient, setRescueRecipient] = useState('');
+  const [rescueConfirmation, setRescueConfirmation] = useState('');
+  const [migrationConfirmation, setMigrationConfirmation] = useState('');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
-  const selectedCa = status?.mint || ca;
+  const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
+  const selectedCa = fareLocked ? status?.mint || '' : ca || status?.mint || '';
 
   const refresh = useCallback(async () => {
     if (!csrf) return;
@@ -62,7 +66,7 @@ export function AdminPage() {
   }
 
   async function bind() {
-    if (!window.confirm(`Bind the CA and ticker $${verifiedTicker} permanently? They cannot be changed after the transaction.`)) return;
+    if (!window.confirm(`Use ${verifiedCa} as $${verifiedTicker}? It can be replaced until start-sale, then becomes locked to protect existing rewards.`)) return;
     await action('bind', async () => {
       const result = await request('/api/admin/mint/bind', { method: 'POST', body: { ca: verifiedCa, ticker: verifiedTicker }, csrf });
       setNotice(`CA and ticker $${result.ticker} are now bound.${result.signature ? ` ${result.signature}` : ''}`);
@@ -91,6 +95,27 @@ export function AdminPage() {
       const result = await request('/api/admin/team', { method: 'POST', body: { teamAccount: selected }, csrf });
       setTeamAccount('');
       setNotice(result.unchanged ? 'This wallet is already the active team recipient.' : `Team wallet updated on-chain. ${result.signature}`);
+      await refresh();
+    });
+  }
+
+  async function setProtocolPaused(paused) {
+    if (!window.confirm(paused ? 'Pause every protocol operation now?' : 'Unpause the protocol and resume normal operations?')) return;
+    await action(paused ? 'pause' : 'unpause', async () => {
+      const result = await request('/api/admin/protocol/pause', { method: 'POST', body: { paused, migrationConfirmed: !paused && migrationConfirmation === 'MIGRATED' }, csrf });
+      setMigrationConfirmation('');
+      setNotice(result.unchanged ? `The protocol is already ${paused ? 'paused' : 'live'}.` : `Protocol ${paused ? 'paused' : 'unpaused'} on-chain. ${result.signature}`);
+      await refresh();
+    });
+  }
+
+  async function rescueAssets() {
+    const recipient = rescueRecipient.trim();
+    if (!window.confirm(`Emergency rescue all available SOL and token vault balances to ${recipient}? This stops normal claims and requires migration.`)) return;
+    await action('rescue', async () => {
+      const result = await request('/api/admin/protocol/rescue', { method: 'POST', body: { recipient }, csrf });
+      setRescueConfirmation('');
+      setNotice(`Emergency rescue finalized: ${formatSol(result.solLamports)} and ${result.tokens.length} token balance(s). ${result.signature}`);
       await refresh();
     });
   }
@@ -139,12 +164,13 @@ export function AdminPage() {
         <Metric label="2NUN balance" value={formatSol(status.walletLamports)} />
       </section>
       <LiveOverview dashboard={status.dashboard} />
+      <EmergencyControls dashboard={status.dashboard} migrationPending={status.rescuePendingMigration} migrationConfirmation={migrationConfirmation} setMigrationConfirmation={setMigrationConfirmation} recipient={rescueRecipient} setRecipient={setRescueRecipient} confirmation={rescueConfirmation} setConfirmation={setRescueConfirmation} busy={busy} setPaused={setProtocolPaused} rescue={rescueAssets} />
       <section className="admin-grid">
-        <div className="admin-card"><p className="eyebrow">PROTOCOL SETTINGS</p>{status.mint && status.ticker ? <><h2>${status.ticker} token</h2><p className="mono break">{status.mint}</p><p className="status-ok">● Reward and burn CA is permanently bound</p><p className="muted">The protocol buys this same token for fleet rewards, trainee rewards and the 20% burn allocation.</p></> : <>
+        <div className="admin-card"><p className="eyebrow">PROTOCOL SETTINGS</p>{status.mint && status.ticker ? <><h2>${status.ticker} token</h2><p className="mono break">{status.mint}</p><p className="status-ok">● Reward and burn CA is configured</p><p className="muted">The protocol buys this same token for fleet rewards, trainee rewards and the 20% burn allocation. {fareLocked ? 'The sale has started, so direct replacement is locked.' : 'The admin can replace it until start-sale.'}</p></> : <>
           <h2>{status.mint ? 'Enter the ticker for the on-chain CA' : 'Waiting for the client CA and ticker'}</h2><label>Contract address<input className="mono" value={selectedCa} disabled={Boolean(status.mint)} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste CA" /></label>
           <label>Ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="For example, FARE" maxLength="10" /></label>
           <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Verify</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Bind CA and ticker</button></div>
-        </>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations and NFT mint proceeds use this on-chain address. Previous transfers are not moved.</p><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
+        </>}{status.mint && !fareLocked && <><label>Replacement contract address<input className="mono" value={selectedCa} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste a new CA" /></label><label>Replacement ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder={status.ticker || 'FARE'} maxLength="10" /></label><div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || selectedCa === status.mint || busy === 'inspect'}>Verify replacement</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Replace CA</button></div></>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations and NFT mint proceeds use this on-chain address. Previous transfers are not moved.</p><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
         <div className="admin-card"><p className="eyebrow">OPERATIONS</p><h2>Claim and distribution</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Claiming…' : 'Claim fees'}</button>
           <form onSubmit={deposit}><label>Send to contract, SOL<input inputMode="decimal" value={amount} onChange={event => { setAmount(event.target.value); clearOperationId(operationIds, 'deposit'); }} placeholder="0.000000000" /></label><button className="wide" disabled={!status.mint || !amount || busy === 'deposit'}>{busy === 'deposit' ? 'Sending…' : 'Send fees to contract'}</button></form>
@@ -183,6 +209,11 @@ function LiveOverview({ dashboard }) {
     </div>
   </section>;
 }
+function EmergencyControls({ dashboard, migrationPending, migrationConfirmation, setMigrationConfirmation, recipient, setRecipient, confirmation, setConfirmation, busy, setPaused, rescue }) {
+  if (!dashboard) return null;
+  const paused = dashboard.protocol.paused;
+  return <section className="admin-card emergency-card"><div><p className="eyebrow">EMERGENCY CONTROL</p><h2>{paused ? 'Protocol is paused' : 'Protocol is running'}</h2><p className="muted">Pause blocks minting, swaps, distributions, claims and repairs. Emergency rescue moves available SOL and all five token vault balances in one transaction.</p>{dashboard.vaults && <div className="rescue-balances"><b>{formatSol(dashboard.vaults.solLamports)}</b>{dashboard.vaults.tokens.map(asset => <span key={asset.symbol}>{asset.symbol}: {formatToken(asset.amount, asset.decimals)}</span>)}</div>}{migrationPending && <p className="worker-error">Vault assets were rescued. Verify that balances and user obligations were migrated before unpausing.</p>}</div><div className="emergency-actions">{paused && migrationPending && <input value={migrationConfirmation} onChange={event => setMigrationConfirmation(event.target.value.toUpperCase())} placeholder="Type MIGRATED to enable unpause" />}<button className={paused ? 'secondary' : 'danger'} onClick={() => setPaused(!paused)} disabled={busy === 'pause' || busy === 'unpause' || (paused && migrationPending && migrationConfirmation !== 'MIGRATED')}>{paused ? 'Unpause protocol' : 'Pause entire protocol'}</button>{paused && <div className="rescue-form"><input className="mono" value={recipient} onChange={event => setRecipient(event.target.value.trim())} placeholder="Emergency recipient wallet" /><input value={confirmation} onChange={event => setConfirmation(event.target.value.toUpperCase())} placeholder="Type RESCUE" /><button className="danger" onClick={rescue} disabled={!recipient || confirmation !== 'RESCUE' || busy === 'rescue'}>{busy === 'rescue' ? 'Rescuing…' : 'Rescue all vault assets'}</button></div>}</div></section>;
+}
 function Distribution({ dashboard }) {
   if (!dashboard) return null;
   const { distribution, worker } = dashboard;
@@ -205,7 +236,7 @@ function StatusPill({ state }) { return <span className={`status-pill ${state}`}
 function LiveLine({ label, value, hint }) { return <div className="live-line"><span>{label}{hint && <small>{hint}</small>}</span><b>{value}</b></div>; }
 function QueueBar({ label, queue }) { const percent = Math.min(100, queue.count / queue.capacity * 100); return <div className="queue"><div><span>{label}</span><b>{queue.count} events · {queue.readyPages} ready pages</b></div><div className="queue-track"><i style={{ width: `${percent}%` }} /></div></div>; }
 function Amount({ label, value, asset }) { return <div><span>{label}</span><b className="mono">{formatToken(value, asset.decimals)}</b></div>; }
-const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA', set_team: 'TEAM WALLET' };
+const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA', set_team: 'TEAM WALLET', pause: 'PAUSE', unpause: 'UNPAUSE', emergency_rescue: 'RESCUE' };
 function short(value) { return `${value.slice(0, 7)}…${value.slice(-7)}`; }
 function explorer(signature, cluster) { return `https://solscan.io/tx/${signature}${cluster === 'devnet' ? '?cluster=devnet' : ''}`; }
 function accountExplorer(value) { return `https://solscan.io/account/${value}`; }

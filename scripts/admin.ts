@@ -130,7 +130,7 @@ function usage(): never {
   throw new Error([
     'Usage: npm run protocol:admin -- <command> [arguments]',
     'Commands: start-sale | pause | unpause | set-mint-prices <a,b,c,d>',
-    'set-fare-mint <mint> (one-time; atomically creates the protocol FARE vault)',
+    'set-fare-mint <mint> (replaceable before start-sale; atomically creates the protocol FARE vault)',
     'propose-admin <pubkey> | accept-admin | set-team <pubkey>',
     'set-backend-signer <pubkey> | set-jupiter <program>',
     'rescue-sol <recipient> <lamports> | rescue-token <mint> <recipient-wallet> <raw-amount>',

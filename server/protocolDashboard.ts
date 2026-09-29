@@ -1,3 +1,4 @@
+import { findAssociatedTokenPda } from '@solana-program/token';
 import { address, getAddressDecoder, type Address } from '@solana/kit';
 import type { WorkerStatusDocument } from './database.js';
 import { decodeEventQueueState, MACHINE_ACCOUNT_SIZE, type EventQueueState } from './programState.js';
@@ -17,16 +18,21 @@ export async function loadProtocolDashboard(
   workerIntervalMs: number,
 ) {
   const addresses = await protocolAddresses(programId);
-  const [configAccount, poolAccount, traineePoolAccount, queueAccount, traineeQueueAccount, machineAccounts] = await Promise.all([
+  const [configAccount, poolAccount, traineePoolAccount, queueAccount, traineeQueueAccount, feeVaultAccount, machineAccounts] = await Promise.all([
     getAccount(rpcUrl, addresses.config),
     getAccount(rpcUrl, addresses.pool),
     getAccount(rpcUrl, addresses.traineePool),
     getAccount(rpcUrl, addresses.queue),
     getAccount(rpcUrl, addresses.traineeQueue),
+    getRpcAccount(rpcUrl, addresses.feeVault),
     listMachines(rpcUrl, programId),
   ]);
   const configuration = decodeWorkerConfiguration(configAccount);
-  const assetDecimals = await getMintDecimals(rpcUrl, [configuration.fareMint, ...configuration.stockMints]);
+  const assetMints = [configuration.fareMint, ...configuration.stockMints];
+  const mintDetails = await getMintDetails(rpcUrl, assetMints);
+  const vaultAddresses = await Promise.all(assetMints.map((mint, index) => findAssociatedTokenPda({ owner: addresses.config, mint, tokenProgram: mintDetails[index].tokenProgram }).then(([vault]) => vault)));
+  const vaultBalances = await getTokenBalances(rpcUrl, vaultAddresses);
+  const feeVaultRent = await solanaRpcCall<number>(rpcUrl, 'getMinimumBalanceForRentExemption', [feeVaultAccount.data.length, { commitment: 'finalized' }]);
   const pool = decodeDashboardPool(poolAccount);
   const traineePool = decodeDashboardPool(traineePoolAccount);
   const queue = decodeEventQueueState(queueAccount);
@@ -60,7 +66,7 @@ export async function loadProtocolDashboard(
       trainee: queueSummary(traineeQueue, traineePool, nowSeconds),
     },
     distribution: {
-      assets: ASSET_SYMBOLS.map((symbol, index) => ({ symbol, decimals: assetDecimals[index] })),
+      assets: ASSET_SYMBOLS.map((symbol, index) => ({ symbol, decimals: mintDetails[index].decimals })),
       activeWeight: pool.totalActiveWeight.toString(),
       calculatedUntil: pool.calculatedUntil.toString(),
       seriesActive: pool.seriesActive,
@@ -70,6 +76,10 @@ export async function loadProtocolDashboard(
       nextPool: pool.nextPool.map(String),
       seriesRemaining: pool.seriesRemaining.map(String),
       obligations: pool.obligations.map(String),
+    },
+    vaults: {
+      solLamports: String(Math.max(0, feeVaultAccount.lamports - feeVaultRent)),
+      tokens: ASSET_SYMBOLS.map((symbol, index) => ({ symbol, mint: String(assetMints[index]), decimals: mintDetails[index].decimals, amount: vaultBalances[index].toString() })),
     },
     machines: machines.sort((a, b) => Number(BigInt(b.claimable[0]) - BigInt(a.claimable[0]))),
     observedAt: new Date().toISOString(),
@@ -152,15 +162,28 @@ async function listMachines(rpcUrl: string, programId: Address) {
 }
 
 async function getAccount(rpcUrl: string, account: Address) {
-  const result = await solanaRpcCall<{ value: { data: [string, string] } | null }>(rpcUrl, 'getAccountInfo', [account, { commitment: 'finalized', encoding: 'base64' }]);
-  if (!result.value) throw new Error(`Protocol account ${account} is not deployed`);
-  return Uint8Array.from(Buffer.from(result.value.data[0], 'base64'));
+  return (await getRpcAccount(rpcUrl, account)).data;
 }
 
-async function getMintDecimals(rpcUrl: string, mints: Address[]) {
+async function getRpcAccount(rpcUrl: string, account: Address) {
+  const result = await solanaRpcCall<{ value: { lamports: number; data: [string, string] } | null }>(rpcUrl, 'getAccountInfo', [account, { commitment: 'finalized', encoding: 'base64' }]);
+  if (!result.value) throw new Error(`Protocol account ${account} is not deployed`);
+  return { lamports: result.value.lamports, data: Uint8Array.from(Buffer.from(result.value.data[0], 'base64')) };
+}
+
+async function getMintDetails(rpcUrl: string, mints: Address[]) {
   const fallback = [6, 8, 8, 8, 8];
-  const result = await solanaRpcCall<{ value: Array<{ data: [string, string] } | null> }>(rpcUrl, 'getMultipleAccounts', [mints, { commitment: 'finalized', encoding: 'base64' }]);
-  return result.value.map((account, index) => account ? Buffer.from(account.data[0], 'base64')[44] : fallback[index]);
+  const result = await solanaRpcCall<{ value: Array<{ owner: string; data: [string, string] } | null> }>(rpcUrl, 'getMultipleAccounts', [mints, { commitment: 'finalized', encoding: 'base64' }]);
+  return result.value.map((account, index) => ({ decimals: account ? Buffer.from(account.data[0], 'base64')[44] : fallback[index], tokenProgram: address(account?.owner || 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') }));
+}
+
+async function getTokenBalances(rpcUrl: string, accounts: Address[]) {
+  const result = await solanaRpcCall<{ value: Array<{ data: [string, string] } | null> }>(rpcUrl, 'getMultipleAccounts', [accounts, { commitment: 'finalized', encoding: 'base64' }]);
+  return result.value.map(account => {
+    if (!account) return 0n;
+    const data = Buffer.from(account.data[0], 'base64');
+    return new DataView(data.buffer, data.byteOffset, data.byteLength).getBigUint64(64, true);
+  });
 }
 
 class Reader {

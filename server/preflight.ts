@@ -105,7 +105,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const rawFareMint = value('FARE_MINT');
   const fareMint = rawFareMint ? validAddress('FARE_MINT', rawFareMint) : '';
   if (!rawFareMint) {
-    warnings.push('FARE_MINT: will be bound with a one-time admin instruction after token creation');
+    warnings.push('FARE_MINT: will be set by an admin instruction after token creation and remains replaceable until start-sale');
   }
   if (programId && frontendProgramId && programId !== frontendProgramId) {
     errors.push('VITE_TAXI_PROGRAM_ID: must match TAXI_PROGRAM_ID');

@@ -29,7 +29,7 @@ export interface RateLimitDocument {
 }
 
 export interface AdminFeeActionDocument {
-  kind: 'claim' | 'deposit' | 'bind_mint' | 'set_team';
+  kind: 'claim' | 'deposit' | 'bind_mint' | 'set_team' | 'pause' | 'unpause' | 'emergency_rescue';
   mint: string;
   amountLamports: string;
   signature: string;
@@ -39,6 +39,8 @@ export interface AdminFeeActionDocument {
   ammLamports?: string;
   walletBalanceBefore?: string;
   walletBalanceAfter?: string;
+  recipient?: string;
+  rescuedTokens?: Array<{ mint: string; amount: string }>;
   createdAt: Date;
 }
 

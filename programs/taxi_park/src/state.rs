@@ -120,6 +120,10 @@ impl FeeVault {
         require!(amount == 0, TaxiError::VaultBalanceMismatch);
         Ok(())
     }
+
+    pub fn consume_reserves_for_rescue(&mut self, amount: u64) -> Result<()> {
+        self.consume_reserves(amount.min(self.total_reserved()?))
+    }
 }
 
 #[account]
@@ -775,5 +779,8 @@ mod tests {
         assert_eq!(vault.fare_sol_reserve, 0);
         assert_eq!(vault.stock_sol_reserves, [0, 4, 5, 5]);
         assert_eq!(vault.total_reserved().unwrap(), 14);
+
+        vault.consume_reserves_for_rescue(100).unwrap();
+        assert_eq!(vault.total_reserved().unwrap(), 0);
     }
 }

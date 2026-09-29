@@ -85,7 +85,7 @@ npm run protocol:initialize
 
 Команда атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`, затем идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Если первая транзакция уже прошла, а создание token accounts прервалось, повторный запуск безопасно завершает только отсутствующий этап.
 
-До выполнения нужны четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и необратимо привязывает mint; после finalization сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До этого `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
+До выполнения нужны четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и записывает mint; protocol admin может заменить его до `start-sale`. После старта прямая замена блокируется и требует отдельной paused migration. После finalization MongoDB сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До настройки CA `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
 
 ## Ручное управление через SSH
 
