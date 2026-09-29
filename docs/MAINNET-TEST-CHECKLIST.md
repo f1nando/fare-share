@@ -142,9 +142,22 @@
 - [x] Финальный recovery dry-run: mainnet genesis, Program ID/ProgramData/authority/recipient проверены; buffer closed; FeeVault recoverable SOL `0`; token vaults `0,0,0,0,0,0`; worker/backend `0`; `MAINNET_RECOVERY_DRY_RUN=PASS`. Authority balance `3.419415741 SOL`, recoverable ProgramData rent `3.392002360 SOL`; conservative total irreversible/locked cost `< 0.25 SOL` из лимита `0.5 SOL`.
 - [x] После blocker протокол снова paused: signature `4oaFHZ…WUndf`; временные `0.02 SOL` worker funding возвращены на `2NUN…` за вычетом двух network fees, worker balance `0`. FeeVault reserves `0.018 SOL` сохранены и доступны для swap после upgrade либо emergency rescue.
 - [x] Текущий консервативный outflow/lock `0.199323200 / 0.5 SOL`; finalized authority balance `3.456695083 SOL`, запас лимита `0.300676800 SOL`. Ни один Jupiter swap не прошёл, reward vault balances не изменились.
-- [ ] Проверить ownership, transfer, reward calculation через реальные разрешённые flows, Claim 10 с ALT и Repair `8 + остаток`.
-- [ ] Проверить намеренно ошибочный batch: транзакция отклонена, Machine PDA и token balances неизменны.
+- [x] Ownership, transfer, reward calculation, Claim 10 с ALT и максимальный Repair 8 проверены реальными разрешёнными flows новой 16-variant версии.
+- [x] Намеренно ошибочный Claim 10 атомарно отклонён: Machine PDA и token balances остались неизменными.
 - [ ] Проверить frontend Garage с Phantom на mainnet-beta и отсутствие console/RPC ошибок.
+
+### Gate 8b — новая 16-variant disposable validation
+
+- [x] Старый disposable `3EAw…5JHMv` после строгого paused/empty audit окончательно закрыт: signature `3JFiuP…WcJNM`, slot `451748290`; возвращено `3.392002360 SOL`, fee `0.000005 SOL`. Старый Program ID навсегда tombstoned.
+- [x] Канонические artwork — 16 неизменённых WebP из `original-assets/driving-scenes/`, без runtime-дороги/разметки и мигающих фар. Image manifest: `https://gateway.irys.xyz/DUxuuswdW5GvAaSejz35vmGa1G6S8xcjbb1EmqQamc5i/`; metadata manifest: `https://gateway.irys.xyz/Gj5jd6LbY1VsGcHdAtH9Bx2pBrSiADninTAAYD3pJtvd/`. Все 34 файла проверены по SHA-256 после upload.
+- [x] Новый disposable Program ID `4QLtcvG2yK4g3Nui9Lu6w9ASaYsXKQ7SMxNDUFxmUXiG`, ProgramData `F3B4QLnRRBumZ27TARxSKQdZ75sb7pU3crbnU5A3LHLo`, authority `2NUN…EGVnF`. Initial deploy `a1y5uY…c8j4q`, slot `451749727`; исходный SBF `670272` bytes, SHA-256 `e7a700f450bf968c42871c5f317b2f5793e1eb8f7cb534f94f4e66c915780712`.
+- [x] Initialization `2aiPiti…UsHCSD`; Core Collection `Ex1eA7BxLGFCEurXjkrEAWEgic2sMtco1rEShjeUpu6Q`; четыре metadata batches и пять reward vault завершены. Pump fee-sharing повторно подтверждён как immutable active v2, единственный shareholder `2NUN… = 10000 bps`; FARE bind `4pPtwj…xyhZS2`, start-sale `5caXzH…sbcVE`.
+- [x] Выполнены 16 mint, supply `[4,4,4,4]`. DAS подтвердил `16/16` ownership и точное соответствие URI порядку `class * 4 + variant`; варианты каждого класса — `0,1,2,3`. Последний asset `9ncAkd…iqTi` переведён на worker и обратно: `48CZ2a…M9D3c`, `VWaSi6…PUAku`.
+- [x] Claim ALT `3amRH79L1VYiS14twX5YhhZSzD6t6kjvkzMbCZHVgX4z`; invalid Claim 10 отклонён атомарно. Первый valid Claim 10 `5HLyvT…K536zs` увеличил FARE и stock0–2; Repair 8 `3essmf…idZks` с exact burn `6,821,023,392` raw FARE увеличил durability всех восьми машин.
+- [x] Live route выявил stock-3 source-close edge (`InvalidTokenProgram 6045`). Fix commit `b3f85db` использует тот же closed-source-as-zero invariant, что и FARE; Rust `29/29`. Frozen SBF `669552` bytes, SHA-256 `a95006af7837c021e74e96f90752ea2cf10a9adb6b81220e4c1907ad8792fad3`, помещается без extension.
+- [x] Disposable upgrade `bgiH9G…NhgSEW`, slot `451758405`; buffer hash проверен до upgrade, on-chain первые `669552` bytes совпали, нулевой хвост `720` bytes, buffer закрыт, authority сохранена. Повторный stock-3 swap finalized `2NYdjy…LGmGZwL`.
+- [x] Второй Claim 10 `4Hpk8M…3E9jyW` увеличил все четыре stock balances, включая stock3; вместе с первым Claim подтверждены все пять reward assets. Финальная pause `456FrU…SJyYKZ`; worker balance возвращён `2Es3kZ…entYnM` и равен нулю.
+- [x] Финальный recovery dry-run: mainnet genesis/Program/ProgramData/authority/recipient совпадают, buffer closed, worker/backend `0`, recoverable ProgramData `3.405860600 SOL`, FeeVault `0.035290280 SOL`, token vault raw amounts `0,272083044045,319118,73390,76387,38229`. Finalized authority balance `3.384783537 SOL`; консервативный unrecovered/locked расход не более `0.385353684 / 0.5 SOL`, даже без зачёта ALT rent и стоимости recoverable tokens.
 
 ### Gate 9 — закрытие disposable deployment
 
@@ -158,6 +171,6 @@
 
 - Devnet E2E `Claim 10`, atomic rejection и `Repair 8 + 2` пройдены; тестовый Devnet ProgramData закрыт, rent возвращён.
 - Mainnet permanent Program ID `9ZLA…6eVv` на момент проверки не опубликован.
-- Disposable Program ID `3EAw…5JHMv` опубликован и верифицирован; initialize, Collection, ALT и sale ещё не выполнялись.
+- Старый disposable `3EAw…5JHMv` закрыт навсегда. Новый disposable `4QLt…mUXiG` полностью проверен, paused, upgrade authority сохранена; его ProgramData и vault assets не закрывались.
 - Никакая запись в этом документе не является разрешением на mainnet deploy или расход SOL.
 - Metadata funding: `2aTrVgnedaStnRHW7dYvdTD3cFdeE6r4je4BVyXbneW6F5fvAgMVVVk2Dw5DpsPgrkRigkUa9ok9JwUQGT8jA3LC`; возврат `0.0001 SOL`: `3bEjy7SE5rk5BPNN6tYsUWkwfYkQUzCT1ZFRZKs8VA8CkAmJc6cu8eRKfNxYgT3LMNQ6rFmjYJXFfHaAxbUM93V2`.
