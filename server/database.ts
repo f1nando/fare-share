@@ -1,6 +1,7 @@
 import { MongoClient, type Collection, type Db } from 'mongodb';
 import type { DrivingSceneDocument } from './drivingScenes.js';
 import type { TradeHolderDocument, TradeStateDocument, TradeTransactionDocument } from './trade.js';
+import type { AdminLoginLimitDocument } from './adminAuth.js';
 
 export interface CampaignDocument {
   campaignId: string;
@@ -26,6 +27,20 @@ export interface RateLimitDocument {
   expiresAt: Date;
 }
 
+export interface AdminFeeActionDocument {
+  kind: 'claim' | 'deposit' | 'bind_mint';
+  mint: string;
+  amountLamports: string;
+  signature: string;
+  cluster: 'mainnet-beta' | 'devnet';
+  slot?: number;
+  bondingLamports?: string;
+  ammLamports?: string;
+  walletBalanceBefore?: string;
+  walletBalanceAfter?: string;
+  createdAt: Date;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -36,6 +51,8 @@ export interface TaxiDatabase {
   tradeTransactions: Collection<TradeTransactionDocument>;
   tradeHolders: Collection<TradeHolderDocument>;
   tradeState: Collection<TradeStateDocument>;
+  adminLoginLimits: Collection<AdminLoginLimitDocument>;
+  adminFeeActions: Collection<AdminFeeActionDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -49,6 +66,8 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const tradeTransactions = db.collection<TradeTransactionDocument>('trade_transactions');
   const tradeHolders = db.collection<TradeHolderDocument>('trade_holders');
   const tradeState = db.collection<TradeStateDocument>('trade_state');
+  const adminLoginLimits = db.collection<AdminLoginLimitDocument>('admin_login_limits');
+  const adminFeeActions = db.collection<AdminFeeActionDocument>('admin_fee_actions');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
@@ -61,6 +80,10 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     tradeHolders.createIndex({ mint: 1, owner: 1 }, { unique: true }),
     tradeHolders.createIndex({ mint: 1, balance: -1 }),
     tradeState.createIndex({ mint: 1 }, { unique: true }),
+    adminLoginLimits.createIndex({ key: 1 }, { unique: true }),
+    adminLoginLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    adminFeeActions.createIndex({ createdAt: -1 }),
+    adminFeeActions.createIndex({ signature: 1 }, { unique: true }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions };
 }

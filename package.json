@@ -25,6 +25,7 @@
     "protocol:check-xstocks": "node --env-file-if-exists=.env --import tsx scripts/check-xstocks-liquidity.ts",
     "protocol:quote-mint-prices": "node --env-file-if-exists=.env --import tsx scripts/quote-mint-prices.ts",
     "protocol:preflight": "node --env-file-if-exists=.env --import tsx scripts/preflight.ts",
+    "admin:hash-password": "node --import tsx scripts/hash-admin-password.ts",
     "metadata:build": "node --env-file-if-exists=.env --import tsx scripts/build-nft-metadata.ts",
     "build": "vite build",
     "build:city": "vite build --mode city",
