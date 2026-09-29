@@ -21,6 +21,7 @@ import {
   buildPumpAmmFeeCollection,
   buildPumpBondingFeeCollection,
   derivePumpFeeAddresses,
+  derivePumpFeeSharingConfig,
 } from '../server/pump.js';
 import { absorbPumpWsolFeesInstruction } from '../server/worker.js';
 
@@ -46,6 +47,7 @@ test('pump.fun fee instructions use the official programs, discriminators, and P
   assert.equal(amm.accounts?.[2].address, creator);
   assert.equal(amm.accounts?.[5].address, addresses.creatorWsolAta);
   assert.notEqual(addresses.bondingCreatorVault, addresses.ammCreatorVaultAuthority);
+  assert.equal(await derivePumpFeeSharingConfig(address('5xF68yQmQ6p9uQitrf8shxGXqTt5CouXXi19cNHvpump')), '43uWECi43atPx7sb7dzwhKDg4pCC9mbGMVtnVkyWTkaR');
 });
 
 test('taxi program absorbs collected PumpSwap WSOL into its fee vault', () => {

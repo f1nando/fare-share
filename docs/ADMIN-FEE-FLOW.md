@@ -7,7 +7,7 @@
 - Получатель pump.fun Creator Fees: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`.
 - Заказчик самостоятельно создаёт SOL-paired токен на pump.fun и указывает этот адрес direct creator.
 - Кошелёк `2NUN…` должен использоваться только для одного `$FARE`: pump.fun vault агрегирует fees по creator, а не разделяет их по CA.
-- Cashback, holder rewards и Pump Fees sharing config для `$FARE` запрещены: такой токен не соответствует выбранному direct-creator flow.
+- Mayhem Mode, Cashback, Holder Rewards, изменяемая custom creator fee и Pump Fees sharing config для `$FARE` запрещены: такой токен не соответствует выбранному direct-creator flow.
 - Приватный ключ `2NUN…` хранится только в server secret storage как `PUMP_FEE_RECIPIENT_SECRET_KEY`. Backend при запуске обязан получить из него public key и строго сравнить с зафиксированным адресом.
 
 ## 1. Подготовка до получения CA
@@ -28,10 +28,13 @@ Backend проверяет finalized on-chain состояние:
 2. Pump bonding-curve PDA действительно выведен из этого mint и принадлежит официальной Pump Program.
 3. Токен имеет SOL quote.
 4. `BondingCurve.creator` равен `2NUN…`.
-5. Токен не является cashback/holder-reward coin.
-6. Активного fee sharing config нет.
-7. Токен ещё не graduated. CA фиксируется до graduation, чтобы PumpSwap не успел получить несогласованного `coin_creator`.
-8. On-chain `Configuration.fare_mint` ещё пуст.
+5. Токен не использует Mayhem Mode, Cashback или Holder Rewards.
+6. Custom creator fee равна нулю и не может редактироваться.
+7. Активного fee sharing config нет.
+8. Токен ещё не graduated. CA фиксируется до graduation, чтобы PumpSwap не успел получить несогласованного `coin_creator`.
+9. On-chain `Configuration.fare_mint` ещё пуст.
+
+Offsets, discriminators, account order и PDA seeds сверены с официальными Pump/PumpSwap/Pump Fees IDL в commit `e0687ae9b7e064a0f54efc7297c65eecfbba3a8f` от 2026-09-12. Дополнительно на finalized mainnet проверена реальная migrated пара `5xF68…pump`: 125-byte `BondingCurve`, 301-byte PumpSwap `Pool`, одинаковые `creator/coin_creator`, SOL quote и новые reward-флаги декодируются по этим layouts. Финальный `$FARE` всё равно проходит такую же проверку отдельно до фиксации.
 
 Баланс fees не является доказательством права на fees: сразу после создания он может быть нулевым. Источником истины служат Pump/PumpSwap accounts.
 
@@ -70,12 +73,12 @@ Backend проверяет finalized on-chain состояние:
 2. Читает обе независимые суммы: Pump bonding creator vault и PumpSwap creator vault.
 3. Если обе суммы нулевые, транзакция не отправляется.
 4. Серверный hot key `2NUN…` подписывает официальный claim flow.
-5. PumpSwap WSOL безопасно разворачивается в SOL; нельзя закрывать ATA с посторонним WSOL-балансом.
+5. До отправки backend требует нулевой исходный баланс creator WSOL ATA. ATA создаётся idempotently, обе fee-суммы поступают туда и разворачиваются в SOL закрытием ATA в той же атомарной транзакции. При постороннем WSOL claim блокируется.
 6. После finalized определяется фактически полученная сумма по разнице баланса с учётом network fee.
 7. В MongoDB записываются сумма, signature, slot, время и раздельные источники Pump/PumpSwap.
 8. Поле «Направить в контракт» автоматически получает сумму этого finalized claim.
 
-Повтор после неоднозначного RPC-ответа выполняется только после reconciliation исходной signature, чтобы не создать ошибочную запись или повторное действие.
+Каждый claim/deposit получает сохраняемый браузером operation ID. До отправки подписанной транзакции MongoDB атомарно сохраняет operation ID, ожидаемую signature и `lastValidBlockHeight`; одновременно разрешена только одна денежная операция. После неоднозначного RPC-ответа polling проверяет исходную signature до `finalized`, явной ошибки или истечения blockhash. Перезапуск backend и повтор с тем же ID не создают новую транзакцию, пока результат исходной неизвестен.
 
 ## 5. Кнопка «Направить в контракт»
 
@@ -116,6 +119,8 @@ Worker больше не должен автоматически claim-ить pu
 - `createdAt` и finalized slot.
 
 Private keys, пароль, cookie и полные RPC payload в MongoDB не сохраняются.
+
+Незавершённые операции отдельно хранятся в `admin_fee_operations` со статусами `executing/submitted/finalized/failed`. Уникальный sparse lock не допускает параллельные claim/deposit; finalized-история по-прежнему хранится в `admin_fee_actions` и защищена уникальной signature.
 
 ## 8. Блокирующие release gates
 

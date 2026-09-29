@@ -17,18 +17,17 @@ import {
 } from '@solana/kit';
 import type { Collection } from 'mongodb';
 import { buildSetFareMintInstruction } from './admin.js';
-import type { AdminFeeActionDocument } from './database.js';
-import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM } from './pump.js';
+import type { AdminFeeActionDocument, AdminFeeOperationDocument } from './database.js';
+import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
 import { decodeWorkerConfiguration } from './solanaState.js';
 import { protocolAddresses } from './setup.js';
-import { sendInstructions } from './transaction.js';
+import { finalizedTransactionOutcome, sendInstructions, UnresolvedSolanaTransactionError } from './transaction.js';
 import { normalizeTicker, savePrimaryTokenConfig, type TokenConfigDocument } from './tokenConfig.js';
 
 export const FIXED_FEE_RECIPIENT = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
 const TOKEN_2022_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
-const PUMP_FEE_PROGRAM = address('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
 const ZERO_ADDRESS = '11111111111111111111111111111111';
 const BONDING_CURVE_DISCRIMINATOR = Buffer.from([23, 183, 248, 55, 96, 216, 172, 96]);
 const utf8 = getUtf8Encoder();
@@ -60,6 +59,7 @@ export class FeeAdminError extends Error {
 export async function createFeeAdminService(
   config: FeeAdminConfig,
   actions: Collection<AdminFeeActionDocument>,
+  operations: Collection<AdminFeeOperationDocument>,
   tokenConfig: Collection<TokenConfigDocument>,
 ) {
   const admin = await createKeyPairSignerFromBytes(parseSecretBytes(config.adminSecret, 'ADMIN_KEYPAIR_SECRET_KEY'));
@@ -83,7 +83,7 @@ export async function createFeeAdminService(
     const [mintAccount, curveAccount, sharingConfig] = await Promise.all([
       getOptionalAccount(config.rpcUrl, mint),
       getOptionalAccount(config.rpcUrl, bondingCurve),
-      derivePda(PUMP_FEE_PROGRAM, ['sharing-config', mint]).then(value => getOptionalAccount(config.rpcUrl, value)),
+      derivePumpFeeSharingConfig(mint).then(value => getOptionalAccount(config.rpcUrl, value)),
     ]);
     if (!mintAccount || ![String(TOKEN_PROGRAM), String(TOKEN_2022_PROGRAM)].includes(mintAccount.owner)) {
       throw new FeeAdminError('CA is not an initialized SPL mint.');
@@ -92,7 +92,10 @@ export async function createFeeAdminService(
     if (!curveAccount || curveAccount.owner !== String(PUMP_PROGRAM)) throw new FeeAdminError('Pump bonding curve was not found for this CA.');
     const curve = decodePumpBondingCurve(curveAccount.data);
     if (String(curve.creator) !== String(FIXED_FEE_RECIPIENT)) throw new FeeAdminError(`Creator must be ${FIXED_FEE_RECIPIENT}.`);
+    if (curve.mayhem) throw new FeeAdminError('Mayhem Mode tokens cannot be used as FARE.');
     if (curve.cashback) throw new FeeAdminError('Cashback tokens cannot be used as FARE.');
+    if (curve.holderRewards) throw new FeeAdminError('Holder Rewards tokens cannot be used as FARE.');
+    if (curve.creatorFeeBps !== 0n || curve.canEditCreatorFee) throw new FeeAdminError('Custom editable creator fees cannot be used as FARE.');
     if (String(curve.quoteMint) !== ZERO_ADDRESS) throw new FeeAdminError('FARE must use the SOL quote.');
     if (sharingConfig) throw new FeeAdminError('Pump fee sharing is enabled for this CA.');
     if (curve.complete) throw new FeeAdminError('CA must be fixed before pump.fun graduation.');
@@ -123,9 +126,143 @@ export async function createFeeAdminService(
     };
   }
 
+  async function reconcileActiveOperation() {
+    const active = await operations.findOne({ lock: 'creator-fee-write' });
+    if (!active) return null;
+    if (active.status === 'submitted') {
+      try {
+        return await reconcileSubmittedOperation(active);
+      } catch (error) {
+        if (error instanceof FeeAdminError && error.status === 409) return active;
+        throw error;
+      }
+    }
+    if (active.status === 'executing' && Date.now() - active.updatedAt.getTime() >= 120_000) {
+      await operations.updateOne(
+        { operationId: active.operationId, status: 'executing', updatedAt: active.updatedAt },
+        { $set: { status: 'failed', error: 'Unsigned operation expired after backend interruption.', updatedAt: new Date() }, $unset: { lock: '' } },
+      );
+      return null;
+    }
+    return active;
+  }
+
+  async function acquireOperation(rawOperationId: unknown, kind: 'claim' | 'deposit', mint: Address, amountLamports = '0') {
+    const operationId = normalizeOperationId(rawOperationId);
+    const now = new Date();
+    const operation: AdminFeeOperationDocument = {
+      operationId,
+      lock: 'creator-fee-write',
+      kind,
+      mint: String(mint),
+      amountLamports,
+      status: 'executing',
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      await operations.insertOne(operation);
+      return { operation, replay: null };
+    } catch (error) {
+      if (!isDuplicateKey(error)) throw error;
+    }
+
+    let existing: AdminFeeOperationDocument | null = await operations.findOne({ operationId });
+    if (!existing) throw new FeeAdminError('Another creator-fee operation is still active.', 409);
+    if (existing.kind !== kind || existing.mint !== String(mint) || (kind === 'deposit' && existing.amountLamports !== amountLamports)) {
+      throw new FeeAdminError('Idempotency key was already used for different operation parameters.', 409);
+    }
+    if (existing.status === 'finalized') return { operation: existing, replay: operationResult(existing) };
+    if (existing.status === 'submitted') {
+      const reconciled = await reconcileSubmittedOperation(existing);
+      if (reconciled.status === 'finalized') return { operation: reconciled, replay: operationResult(reconciled) };
+      existing = reconciled;
+    }
+    if (existing.status === 'executing' && Date.now() - existing.updatedAt.getTime() < 120_000) {
+      throw new FeeAdminError('This operation is already being processed. Retry with the same operation ID.', 409);
+    }
+    let reacquired: AdminFeeOperationDocument | null;
+    try {
+      reacquired = await operations.findOneAndUpdate(
+        { operationId, status: existing.status, updatedAt: existing.updatedAt },
+        { $set: { status: 'executing', lock: 'creator-fee-write', updatedAt: new Date() }, $unset: { error: '' } },
+        { returnDocument: 'after' },
+      );
+    } catch (error) {
+      if (isDuplicateKey(error)) throw new FeeAdminError('Another creator-fee operation is still active.', 409);
+      throw error;
+    }
+    if (!reacquired) throw new FeeAdminError('This operation is already being processed.', 409);
+    return { operation: reacquired, replay: null };
+  }
+
+  async function reconcileSubmittedOperation(operation: AdminFeeOperationDocument): Promise<AdminFeeOperationDocument> {
+    if (!operation.signature || operation.lastValidBlockHeight === undefined) {
+      throw new FeeAdminError('Submitted operation is missing reconciliation data.', 500);
+    }
+    const outcome = await finalizedTransactionOutcome(config.rpcUrl, operation.signature, operation.lastValidBlockHeight);
+    if (outcome.state === 'pending') throw new FeeAdminError('Transaction is still pending. Retry with the same operation ID.', 409);
+    if (outcome.state === 'finalized') return finalizeOperation({ ...operation, slot: outcome.slot });
+    const error = outcome.state === 'expired' ? 'Transaction expired before finalization.' : `Transaction failed: ${JSON.stringify(outcome.error)}`;
+    await operations.updateOne(
+      { operationId: operation.operationId },
+      { $set: { status: 'failed', error, updatedAt: new Date() }, $unset: { lock: '' } },
+    );
+    return { ...operation, status: 'failed' as const, error, updatedAt: new Date(), lock: undefined };
+  }
+
+  async function markSubmitted(operationId: string, details: { signature: string; lastValidBlockHeight: number }) {
+    const result = await operations.updateOne(
+      { operationId, status: 'executing' },
+      { $set: { status: 'submitted', signature: details.signature, lastValidBlockHeight: details.lastValidBlockHeight, updatedAt: new Date() } },
+    );
+    if (result.modifiedCount !== 1) throw new Error(`Could not persist signed transaction for operation ${operationId}`);
+  }
+
+  async function finalizeOperation(operation: AdminFeeOperationDocument) {
+    if (!operation.signature) throw new Error(`Operation ${operation.operationId} has no transaction signature`);
+    let slot = operation.slot;
+    if (slot === undefined && operation.lastValidBlockHeight !== undefined) {
+      const outcome = await finalizedTransactionOutcome(config.rpcUrl, operation.signature, operation.lastValidBlockHeight);
+      if (outcome.state !== 'finalized') throw new UnresolvedSolanaTransactionError(operation.signature);
+      slot = outcome.slot;
+    }
+    if (slot === undefined) throw new Error(`Finalized operation ${operation.operationId} has no slot`);
+    const walletAfter = await getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT);
+    const action: AdminFeeActionDocument = {
+      kind: operation.kind,
+      mint: operation.mint,
+      amountLamports: operation.amountLamports,
+      signature: operation.signature,
+      cluster: config.cluster,
+      slot,
+      bondingLamports: operation.bondingLamports,
+      ammLamports: operation.ammLamports,
+      walletBalanceBefore: operation.walletBalanceBefore,
+      walletBalanceAfter: walletAfter.toString(),
+      createdAt: operation.createdAt,
+    };
+    await actions.updateOne({ signature: operation.signature }, { $setOnInsert: action }, { upsert: true });
+    await operations.updateOne(
+      { operationId: operation.operationId },
+      { $set: { status: 'finalized', slot, walletBalanceAfter: walletAfter.toString(), updatedAt: new Date() }, $unset: { lock: '', error: '' } },
+    );
+    return { ...operation, status: 'finalized' as const, slot, walletBalanceAfter: walletAfter.toString(), lock: undefined, updatedAt: new Date() };
+  }
+
+  async function failOperation(operationId: string, error: unknown) {
+    if (error instanceof UnresolvedSolanaTransactionError) return;
+    const message = error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500);
+    await operations.updateOne(
+      { operationId },
+      { $set: { status: 'failed', error: message, updatedAt: new Date() }, $unset: { lock: '' } },
+    );
+  }
+
   return {
     inspectMint,
     async status() {
+      const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
       const [fees, history, storedToken] = await Promise.all([
@@ -135,7 +272,18 @@ export async function createFeeAdminService(
       ]);
       const lastClaim = history.find(item => item.kind === 'claim');
       const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
-      return { ...fees, ticker, lastClaimLamports: lastClaim?.amountLamports || '0', history: history.map(publicAction) };
+      return {
+        ...fees,
+        ticker,
+        lastClaimLamports: lastClaim?.amountLamports || '0',
+        activeOperation: activeOperation ? {
+          operationId: activeOperation.operationId,
+          kind: activeOperation.kind,
+          status: activeOperation.status,
+          signature: activeOperation.signature || null,
+        } : null,
+        history: history.map(publicAction),
+      };
     },
     async bindMint(rawMint: unknown, rawTicker: unknown) {
       let ticker: string;
@@ -156,6 +304,7 @@ export async function createFeeAdminService(
         return { signature, mint: String(inspected.mint), ticker };
       }
       const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram });
+      const feeSharingConfig = await derivePumpFeeSharingConfig(inspected.mint);
       const instructions: Instruction[] = [
         getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: fareVault, owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram }),
         buildSetFareMintInstruction({
@@ -166,6 +315,7 @@ export async function createFeeAdminService(
           fareMint: inspected.mint,
           fareVault,
           bondingCurve: inspected.bondingCurve,
+          feeSharingConfig,
           tokenProgram: inspected.tokenProgram,
         }),
       ];
@@ -175,51 +325,85 @@ export async function createFeeAdminService(
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker };
     },
-    async claim() {
+    async claim(rawOperationId: unknown) {
       const mint = await requireConfiguredMint();
+      const acquired = await acquireOperation(rawOperationId, 'claim', mint);
+      if (acquired.replay) return acquired.replay;
       const before = await feeSnapshot(mint);
       const bondingLamports = BigInt(before.bondingLamports);
       const ammLamports = BigInt(before.ammLamports);
       const pendingUnwrap = BigInt(before.pendingUnwrapLamports);
-      if (bondingLamports + ammLamports + pendingUnwrap === 0n) throw new FeeAdminError('There are no creator fees to claim.', 409);
+      if (pendingUnwrap > 0n) {
+        await failOperation(acquired.operation.operationId, new Error('Creator WSOL account is not empty.'));
+        throw new FeeAdminError('Creator WSOL account contains an existing balance. Unwrap or move it before claiming fees.', 409);
+      }
+      if (bondingLamports + ammLamports === 0n) {
+        await failOperation(acquired.operation.operationId, new Error('There are no creator fees to claim.'));
+        throw new FeeAdminError('There are no creator fees to claim.', 409);
+      }
+      const amount = bondingLamports + ammLamports;
+      const operation = {
+        ...acquired.operation,
+        amountLamports: amount.toString(),
+        bondingLamports: bondingLamports.toString(),
+        ammLamports: ammLamports.toString(),
+        pendingUnwrapLamports: pendingUnwrap.toString(),
+        walletBalanceBefore: before.walletLamports,
+      };
+      await operations.updateOne({ operationId: operation.operationId }, { $set: {
+        amountLamports: operation.amountLamports,
+        bondingLamports: operation.bondingLamports,
+        ammLamports: operation.ammLamports,
+        pendingUnwrapLamports: operation.pendingUnwrapLamports,
+        walletBalanceBefore: operation.walletBalanceBefore,
+        updatedAt: new Date(),
+      } });
       const pump = await derivePumpFeeAddresses(FIXED_FEE_RECIPIENT);
-      const instructions: Instruction[] = [];
+      const instructions: Instruction[] = [
+        getCreateAssociatedTokenIdempotentInstruction({ payer: feeRecipient, ata: pump.creatorWsolAta, owner: feeRecipient.address, mint: WSOL_MINT, tokenProgram: TOKEN_PROGRAM }),
+      ];
       if (bondingLamports > 0n) instructions.push(buildPumpBondingFeeCollection(FIXED_FEE_RECIPIENT, pump));
       if (ammLamports > 0n) {
-        instructions.push(getCreateAssociatedTokenIdempotentInstruction({ payer: feeRecipient, ata: pump.creatorWsolAta, owner: feeRecipient.address, mint: address('So11111111111111111111111111111111111111112'), tokenProgram: TOKEN_PROGRAM }));
         instructions.push(buildPumpAmmFeeCollection(FIXED_FEE_RECIPIENT, pump));
       }
-      if (ammLamports + pendingUnwrap > 0n) {
-        instructions.push(getCloseAccountInstruction({ account: pump.creatorWsolAta, destination: feeRecipient.address, owner: feeRecipient }));
+      instructions.push(getCloseAccountInstruction({ account: pump.creatorWsolAta, destination: feeRecipient.address, owner: feeRecipient }));
+      try {
+        const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions, [], {}, {
+          onSigned: details => markSubmitted(operation.operationId, details),
+        }));
+        return operationResult(await finalizeOperation({ ...operation, signature, status: 'submitted' }));
+      } catch (error) {
+        await failOperation(operation.operationId, error);
+        throw error;
       }
-      const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions));
-      const walletAfter = await getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT);
-      const amount = bondingLamports + ammLamports + pendingUnwrap;
-      await actions.insertOne({
-        kind: 'claim', mint: String(mint), amountLamports: amount.toString(), signature, cluster: config.cluster,
-        bondingLamports: bondingLamports.toString(), ammLamports: ammLamports.toString(),
-        walletBalanceBefore: before.walletLamports, walletBalanceAfter: walletAfter.toString(), createdAt: new Date(),
-      });
-      return { signature, amountLamports: amount.toString() };
     },
-    async deposit(rawAmount: unknown) {
+    async deposit(rawAmount: unknown, rawOperationId: unknown) {
       const mint = await requireConfiguredMint();
       if (typeof rawAmount !== 'string' || !/^[1-9]\d*$/.test(rawAmount)) throw new FeeAdminError('Amount must be a positive raw lamport string.');
       const amount = BigInt(rawAmount);
+      const acquired = await acquireOperation(rawOperationId, 'deposit', mint, amount.toString());
+      if (acquired.replay) return acquired.replay;
       const balanceBefore = await getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT);
-      if (balanceBefore < amount + minimumWalletLamports) throw new FeeAdminError('Amount leaves too little SOL for network fees.', 409);
+      if (balanceBefore < amount + minimumWalletLamports) {
+        await failOperation(acquired.operation.operationId, new Error('Amount leaves too little SOL for network fees.'));
+        throw new FeeAdminError('Amount leaves too little SOL for network fees.', 409);
+      }
+      const operation = { ...acquired.operation, walletBalanceBefore: balanceBefore.toString() };
+      await operations.updateOne({ operationId: operation.operationId }, { $set: { walletBalanceBefore: operation.walletBalanceBefore, updatedAt: new Date() } });
       const configuration = decodeWorkerConfiguration((await getAccount(config.rpcUrl, addresses.config)).data);
       const instructions: Instruction[] = [
         getTransferSolInstruction({ source: feeRecipient, destination: addresses.feeVault, amount }),
         collectFeesInstruction(config.programId, feeRecipient.address, addresses.config, addresses.feeVault, configuration.teamAccount),
       ];
-      const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions));
-      const balanceAfter = await getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT);
-      await actions.insertOne({
-        kind: 'deposit', mint: String(mint), amountLamports: amount.toString(), signature, cluster: config.cluster,
-        walletBalanceBefore: balanceBefore.toString(), walletBalanceAfter: balanceAfter.toString(), createdAt: new Date(),
-      });
-      return { signature, amountLamports: amount.toString() };
+      try {
+        const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions, [], {}, {
+          onSigned: details => markSubmitted(operation.operationId, details),
+        }));
+        return operationResult(await finalizeOperation({ ...operation, signature, status: 'submitted' }));
+      } catch (error) {
+        await failOperation(operation.operationId, error);
+        throw error;
+      }
     },
   };
 
@@ -231,18 +415,38 @@ export async function createFeeAdminService(
 }
 
 export function decodePumpBondingCurve(data: Uint8Array) {
-  if (data.length < 83 || !Buffer.from(data.subarray(0, 8)).equals(BONDING_CURVE_DISCRIMINATOR)) throw new FeeAdminError('Invalid Pump bonding curve account.');
+  if (data.length < 125 || !Buffer.from(data.subarray(0, 8)).equals(BONDING_CURVE_DISCRIMINATOR)) throw new FeeAdminError('Invalid or outdated Pump bonding curve account.');
   return {
     complete: data[48] !== 0,
     creator: addressDecoder.decode(data.subarray(49, 81)),
+    mayhem: data[81] !== 0,
     cashback: data[82] !== 0,
-    quoteMint: data.length >= 115 ? addressDecoder.decode(data.subarray(83, 115)) : address(ZERO_ADDRESS),
+    quoteMint: addressDecoder.decode(data.subarray(83, 115)),
+    creatorFeeBps: new DataView(data.buffer, data.byteOffset, data.byteLength).getBigUint64(115, true),
+    canEditCreatorFee: data[123] !== 0,
+    holderRewards: data[124] !== 0,
   };
 }
 
 export function tokenAmount(data: Uint8Array) {
   if (data.length < 165 || data[108] === 0) throw new FeeAdminError('Invalid token account.');
   return new DataView(data.buffer, data.byteOffset, data.byteLength).getBigUint64(64, true);
+}
+
+export function normalizeOperationId(value: unknown) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{16,100}$/.test(value)) {
+    throw new FeeAdminError('A valid idempotency operation ID is required.');
+  }
+  return value;
+}
+
+function operationResult(operation: AdminFeeOperationDocument) {
+  if (!operation.signature) throw new Error(`Finalized operation ${operation.operationId} has no signature`);
+  return { signature: operation.signature, amountLamports: operation.amountLamports, operationId: operation.operationId };
+}
+
+function isDuplicateKey(error: unknown) {
+  return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code?: number }).code === 11000);
 }
 
 function collectFeesInstruction(programId: Address, caller: Address, config: Address, feeVault: Address, teamAccount: Address): Instruction {

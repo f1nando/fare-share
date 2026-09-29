@@ -6,6 +6,7 @@ import {
   createKeyPairSignerFromBytes,
   createTransactionMessage,
   getBase64EncodedWireTransaction,
+  getSignatureFromTransaction,
   partiallySignTransaction,
   pipe,
   setTransactionMessageFeePayerSigner,
@@ -14,7 +15,19 @@ import {
   type KeyPairSigner,
   type AddressesByLookupTableAddress,
 } from '@solana/kit';
-import { solanaRpcCall, solanaSendTransactionCall } from './solanaRpc.js';
+import { AmbiguousSolanaWriteError, solanaRpcCall, solanaSendTransactionCall } from './solanaRpc.js';
+
+export class UnresolvedSolanaTransactionError extends Error {
+  constructor(public readonly signature: string, cause?: unknown) {
+    super(`Solana transaction ${signature} has an unresolved finalized status`, { cause });
+    this.name = 'UnresolvedSolanaTransactionError';
+  }
+}
+
+export interface SignedTransactionDetails {
+  signature: string;
+  lastValidBlockHeight: number;
+}
 
 export async function createWorkerSigner(secret: Uint8Array) {
   return createKeyPairSignerFromBytes(secret);
@@ -26,6 +39,7 @@ export async function sendInstructions(
   instructions: Instruction[],
   additionalSigners: KeyPairSigner[] = [],
   lookupTables: AddressesByLookupTableAddress = {},
+  options: { onSigned?: (details: SignedTransactionDetails) => Promise<void> } = {},
 ) {
   const { value: rawLatestBlockhash } = await solanaRpcCall<{
     value: { blockhash: string; lastValidBlockHeight: number };
@@ -46,27 +60,59 @@ export async function sendInstructions(
     [signer, ...additionalSigners].map(item => item.keyPair),
     compiled,
   );
+  const expectedSignature = String(getSignatureFromTransaction(signed));
+  await options.onSigned?.({
+    signature: expectedSignature,
+    lastValidBlockHeight: rawLatestBlockhash.lastValidBlockHeight,
+  });
   const encoded = getBase64EncodedWireTransaction(signed);
-  const signature = await solanaSendTransactionCall<string>(rpcUrl, [encoded, {
-    encoding: 'base64',
-    maxRetries: 3,
-    preflightCommitment: 'finalized',
-  }]);
-  await waitForFinalized(rpcUrl, signature);
-  return signature;
+  try {
+    const signature = await solanaSendTransactionCall<string>(rpcUrl, [encoded, {
+      encoding: 'base64',
+      maxRetries: 3,
+      preflightCommitment: 'finalized',
+    }]);
+    if (signature !== expectedSignature) throw new UnresolvedSolanaTransactionError(expectedSignature, new Error(`RPC returned unexpected transaction signature ${signature}`));
+    await waitForFinalized(rpcUrl, expectedSignature);
+    return expectedSignature;
+  } catch (error) {
+    if (!(error instanceof AmbiguousSolanaWriteError)) throw error;
+    try {
+      await waitForFinalized(rpcUrl, expectedSignature);
+      return expectedSignature;
+    } catch (reconciliationError) {
+      throw new UnresolvedSolanaTransactionError(expectedSignature, reconciliationError);
+    }
+  }
 }
 
 async function waitForFinalized(rpcUrl: string, signature: string) {
   const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
-    const result = await solanaRpcCall<{ value: Array<{
-      err: unknown;
-      confirmationStatus?: string | null;
-    } | null> }>(rpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
+    let result: { value: Array<{ err: unknown; confirmationStatus?: string | null } | null> };
+    try {
+      result = await solanaRpcCall(rpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
+    } catch (error) {
+      throw new UnresolvedSolanaTransactionError(signature, error);
+    }
     const status = result.value[0];
     if (status?.err) throw new Error(`Solana transaction ${signature} failed: ${JSON.stringify(status.err)}`);
     if (status?.confirmationStatus === 'finalized') return;
     await new Promise(resolve => setTimeout(resolve, 1_000));
   }
-  throw new Error(`Solana transaction ${signature} was not finalized within 45 seconds`);
+  throw new UnresolvedSolanaTransactionError(signature);
+}
+
+export async function finalizedTransactionOutcome(rpcUrl: string, signature: string, lastValidBlockHeight: number) {
+  const result = await solanaRpcCall<{ value: Array<{
+    err: unknown;
+    confirmationStatus?: string | null;
+    slot: number;
+  } | null> }>(rpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
+  const status = result.value[0];
+  if (status?.err) return { state: 'failed' as const, error: status.err };
+  if (status?.confirmationStatus === 'finalized') return { state: 'finalized' as const, slot: status.slot };
+  const blockHeight = await solanaRpcCall<number>(rpcUrl, 'getBlockHeight', [{ commitment: 'finalized' }]);
+  if (blockHeight > lastValidBlockHeight) return { state: 'expired' as const };
+  return { state: 'pending' as const };
 }

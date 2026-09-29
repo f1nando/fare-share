@@ -42,6 +42,26 @@ export interface AdminFeeActionDocument {
   createdAt: Date;
 }
 
+export interface AdminFeeOperationDocument {
+  operationId: string;
+  lock?: 'creator-fee-write';
+  kind: 'claim' | 'deposit';
+  mint: string;
+  amountLamports: string;
+  status: 'executing' | 'submitted' | 'finalized' | 'failed';
+  signature?: string;
+  slot?: number;
+  lastValidBlockHeight?: number;
+  bondingLamports?: string;
+  ammLamports?: string;
+  pendingUnwrapLamports?: string;
+  walletBalanceBefore?: string;
+  walletBalanceAfter?: string;
+  error?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -54,6 +74,7 @@ export interface TaxiDatabase {
   tradeState: Collection<TradeStateDocument>;
   adminLoginLimits: Collection<AdminLoginLimitDocument>;
   adminFeeActions: Collection<AdminFeeActionDocument>;
+  adminFeeOperations: Collection<AdminFeeOperationDocument>;
   tokenConfig: Collection<TokenConfigDocument>;
 }
 
@@ -70,6 +91,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const tradeState = db.collection<TradeStateDocument>('trade_state');
   const adminLoginLimits = db.collection<AdminLoginLimitDocument>('admin_login_limits');
   const adminFeeActions = db.collection<AdminFeeActionDocument>('admin_fee_actions');
+  const adminFeeOperations = db.collection<AdminFeeOperationDocument>('admin_fee_operations');
   const tokenConfig = db.collection<TokenConfigDocument>('token_config');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
@@ -87,7 +109,10 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     adminLoginLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     adminFeeActions.createIndex({ createdAt: -1 }),
     adminFeeActions.createIndex({ signature: 1 }, { unique: true }),
+    adminFeeOperations.createIndex({ operationId: 1 }, { unique: true }),
+    adminFeeOperations.createIndex({ lock: 1 }, { unique: true, sparse: true }),
+    adminFeeOperations.createIndex({ updatedAt: 1 }),
     tokenConfig.createIndex({ key: 1 }, { unique: true }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, tokenConfig };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig };
 }

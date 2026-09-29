@@ -42,12 +42,14 @@ test('FARE mint binding uses one-time Anchor instruction account order', () => {
     fareMint: VALUE,
     fareVault: PROGRAM,
     bondingCurve: CONFIG,
+    feeSharingConfig: ADMIN,
     tokenProgram: VALUE,
   });
   assert.deepEqual(instruction.accounts?.map(account => account.role), [
     AccountRole.READONLY_SIGNER,
     AccountRole.READONLY_SIGNER,
     AccountRole.WRITABLE,
+    AccountRole.READONLY,
     AccountRole.READONLY,
     AccountRole.READONLY,
     AccountRole.READONLY,

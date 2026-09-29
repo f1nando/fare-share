@@ -64,6 +64,7 @@ export function buildSetFareMintInstruction(input: {
   fareMint: Address;
   fareVault: Address;
   bondingCurve: Address;
+  feeSharingConfig: Address;
   tokenProgram: Address;
 }): Instruction {
   return {
@@ -75,6 +76,7 @@ export function buildSetFareMintInstruction(input: {
       meta(input.fareMint, AccountRole.READONLY),
       meta(input.fareVault, AccountRole.READONLY),
       meta(input.bondingCurve, AccountRole.READONLY),
+      meta(input.feeSharingConfig, AccountRole.READONLY),
       meta(input.tokenProgram, AccountRole.READONLY),
     ],
     data: discriminator('set_fare_mint'),

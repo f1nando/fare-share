@@ -11,7 +11,7 @@ import { parseSecretBytes } from '../server/signing.js';
 import { protocolAddresses } from '../server/setup.js';
 import { sendInstructions } from '../server/transaction.js';
 import { solanaRpcCall } from '../server/solanaRpc.js';
-import { derivePumpBondingCurve } from '../server/pump.js';
+import { derivePumpBondingCurve, derivePumpFeeSharingConfig } from '../server/pump.js';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -35,6 +35,7 @@ if (commandName === 'set-fare-mint') {
     required('PUMP_FEE_RECIPIENT_SECRET_KEY'), 'PUMP_FEE_RECIPIENT_SECRET_KEY',
   ));
   const bondingCurve = await derivePumpBondingCurve(fareMint);
+  const feeSharingConfig = await derivePumpFeeSharingConfig(fareMint);
   const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: fareMint, tokenProgram });
   instructions = [
     getCreateAssociatedTokenIdempotentInstruction({
@@ -52,6 +53,7 @@ if (commandName === 'set-fare-mint') {
       fareMint,
       fareVault,
       bondingCurve,
+      feeSharingConfig,
       tokenProgram,
     }),
   ];

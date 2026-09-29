@@ -11,6 +11,7 @@ import { findAssociatedTokenPda } from '@solana-program/token';
 
 export const PUMP_PROGRAM = address('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
 export const PUMP_AMM_PROGRAM = address('pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA');
+export const PUMP_FEE_PROGRAM = address('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
 export const WSOL_MINT = address('So11111111111111111111111111111111111111112');
 export const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 export const ASSOCIATED_TOKEN_PROGRAM = address('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
@@ -32,6 +33,10 @@ export interface PumpFeeAddresses {
 
 export async function derivePumpBondingCurve(mint: Address): Promise<Address> {
   return pda(PUMP_PROGRAM, 'bonding-curve', mint);
+}
+
+export async function derivePumpFeeSharingConfig(mint: Address): Promise<Address> {
+  return pda(PUMP_FEE_PROGRAM, 'sharing-config', mint);
 }
 
 export async function derivePumpFeeAddresses(creator: Address): Promise<PumpFeeAddresses> {

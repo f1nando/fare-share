@@ -7,6 +7,13 @@ export class SolanaRpcHttpError extends Error {
   }
 }
 
+export class SolanaRpcWriteRejectedError extends SolanaRpcHttpError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SolanaRpcWriteRejectedError';
+  }
+}
+
 export class AmbiguousSolanaWriteError extends Error {
   constructor(cause: unknown) {
     super('sendTransaction result is unknown; reconcile the signed transaction before another submission', { cause });
@@ -68,13 +75,14 @@ export async function solanaSendTransactionCall<T>(
       };
       if (payload.error) {
         const logs = payload.error.data?.logs?.length ? `\n${payload.error.data.logs.join('\n')}` : '';
-        throw new SolanaRpcHttpError(`Solana RPC sendTransaction: ${payload.error.message || 'unknown error'}${logs}`);
+        throw new SolanaRpcWriteRejectedError(`Solana RPC sendTransaction: ${payload.error.message || 'unknown error'}${logs}`);
       }
       if (payload.result === undefined) throw new SolanaRpcHttpError('Solana RPC sendTransaction returned no result');
       return payload.result;
     });
   } catch (error) {
-    if (error instanceof SolanaRpcHttpError) throw error;
+    if (error instanceof SolanaRpcWriteRejectedError) throw error;
+    if (error instanceof SolanaRpcHttpError && error.status !== undefined && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)) throw error;
     throw new AmbiguousSolanaWriteError(error);
   }
 }

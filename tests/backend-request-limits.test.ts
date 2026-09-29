@@ -114,6 +114,20 @@ test('ambiguous sendTransaction failure is not retried', async () => {
   assert.equal(attempts, 1);
 });
 
+test('sendTransaction HTTP 5xx remains ambiguous and is not retried', async () => {
+  let attempts = 0;
+  await assert.rejects(
+    solanaSendTransactionCall('https://rpc.test', ['signed'], {
+      fetchImplementation: async () => {
+        attempts += 1;
+        return new Response('upstream unavailable', { status: 503 });
+      },
+    }),
+    AmbiguousSolanaWriteError,
+  );
+  assert.equal(attempts, 1);
+});
+
 test('sendTransaction simulation errors retain program logs', async () => {
   await assert.rejects(
     solanaSendTransactionCall('https://rpc.test', ['signed'], {

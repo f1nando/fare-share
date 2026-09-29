@@ -125,6 +125,21 @@ Upgrade authority после smoke-тестов **не отзывается**. �
 6. Recovery-аудит отдельно показывает: возвращаемый ProgramData rent, невозвратный
    Program tombstone, balances всех SOL/token vault и ожидаемый итоговый баланс.
 
+Для target-specific read-only проверки используется:
+
+```sh
+npm run protocol:audit-mainnet-recovery
+npm run protocol:audit-mainnet-recovery -- --require-paused --require-empty-vaults
+```
+
+Команда намеренно не имеет адресных или signer defaults. В отдельном некоммитимом
+`.env.mainnet-recovery` нужно явно задать `SOLANA_RPC_URL`,
+`RECOVERY_PROGRAM_ID`, `RECOVERY_PROGRAMDATA_ADDRESS`,
+`RECOVERY_AUTHORITY_ADDRESS`, `RECOVERY_FEE_PAYER_ADDRESS`,
+`RECOVERY_RECIPIENT_ADDRESS`, `RECOVERY_BUFFER_ADDRESS`,
+`RECOVERY_WORKER_ADDRESS`, `RECOVERY_BACKEND_ADDRESS` и пути к keypair для
+authority, fee payer, buffer, worker и backend. Скрипт не отправляет транзакции.
+
 Для текущего SBF ожидается, что rent upload buffer `2,83779468 SOL` возвращается
 после deploy, а `2,83783532 SOL` ProgramData возвращается только при окончательном
 закрытии. `0,00083312 SOL` исполняемого Program account останется в loader-v3

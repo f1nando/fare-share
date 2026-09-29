@@ -35,7 +35,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   feeRecipientSecret: config.pumpFeeRecipientSecret!,
   cluster: config.solanaCluster,
   minimumWalletLamports: config.adminMinimumWalletLamports,
-}, database.adminFeeActions, database.tokenConfig) : null;
+}, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig) : null;
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -103,13 +103,14 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/api/admin/fees/claim') {
       const services = requireAdminServices();
       services.auth.require(request, true);
-      json(response, 200, await services.fees.claim());
+      json(response, 200, await services.fees.claim(asRecord(await readJson(request)).operationId));
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/fees/deposit') {
       const services = requireAdminServices();
       services.auth.require(request, true);
-      json(response, 200, await services.fees.deposit(asRecord(await readJson(request)).amountLamports));
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.deposit(body.amountLamports, body.operationId));
       return;
     }
     if (request.method === 'POST' && request.url === '/api/trainee/voucher') {
