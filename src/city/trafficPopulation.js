@@ -1,4 +1,4 @@
-import { streetTracks, laneOffset } from './roadProfile.js';
+import { streetTracks, laneOffset, tramRoad } from './roadProfile.js';
 import { seededRandom, TRACKS, TRAFFIC_SPACING, STOP_LINE } from './world.js';
 import { spawnRoadOpen } from './roadLayout.js';
 import { seedParking } from './parkingTraffic.js';
@@ -12,18 +12,22 @@ export function populateLane(axis, line, direction, settings, radius, centerPosi
   const random = seededRandom(line * 7 + axis + seed, direction * 991);
   const typeRandom = seededRandom(line * 31 + axis + seed, direction * 1777);
   const tracks=roadLayout?streetTracks(axis,line):[0,1];
+  const hasTrams = roadLayout && tramRoad(axis, line);
   const spacing = settings.density > 0 ? TRAFFIC_SPACING * 100 / settings.density * tracks.length/2 : Infinity;
   // Keep even two buses separated when the density slider is near its maximum.
-  const jitter = Math.min(1.5, Math.max(0, spacing - vehicleGap({ kind: 'bus' }, { kind: 'bus' })));
+  const largest = { kind: hasTrams ? 'tram' : 'bus' };
+  const jitter = Math.min(1.5, Math.max(0, spacing - vehicleGap(largest, largest)));
   const count = Math.floor((radius * 2 + 1) * settings.blockSize / spacing), cars = [];
   for (const track of tracks) for (let i = 0; i < count; i++) {
-    const taxi = random() < settings.taxiShare / 100;
-    const kind = chooseVehicleKind(taxi, typeRandom()), type = VEHICLE_TYPES[kind];
+    const tram = hasTrams && track === 0 && i % Math.max(2, Math.ceil(settings.blockSize * 2 / spacing)) === 0;
+    const taxi = random() < settings.taxiShare / 100 && !tram;
+    const ordinaryKind = chooseVehicleKind(taxi, typeRandom());
+    const kind = tram ? 'tram' : ordinaryKind, type = VEHICLE_TYPES[kind];
     const cruise = taxi ? 13 + random() * 2 : (3.4 + random() * 4.2) * type.speed;
     const acceleration = taxi ? 24 + random() * 5 : (2.2 + random() * 4) * type.acceleration;
     cars.push({ axis, line, direction,
       position: centerPosition - radius * settings.blockSize + i * spacing + tracks.indexOf(track) * spacing / tracks.length + random() * jitter,
-      taxi, kind, color: colors[Math.floor(random() * colors.length)],
+      taxi, kind, color: tram ? '#8caaa2' : colors[Math.floor(random() * colors.length)],
       track, fromTrack: track, offset: roadLayout ? laneOffset(axis,line,track) : TRACKS[track], cruise, speed: cruise, acceleration,
       baseCruise: cruise, baseAcceleration: acceleration,
       changing: false, merge: 1, cooldown: random(), steer: 0,

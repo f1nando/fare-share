@@ -153,7 +153,7 @@ export function updateNetwork(lanes, delta, time, { blockSize = 40, weaving = 0.
     // Let a pair finish its initial chase, then allow either taxi to break away
     // into a side street instead of blocking turns for the whole race.
     const required = car.roadEnd;
-    if (car.turn || car.changing || car.feint) continue;
+    if (car.kind === 'tram' || car.turn || car.changing || car.feint) continue;
     const ordinaryDiagonal = roadLayout && !car.taxi && car.track === (car.dividedRoad?THIRD_TRACK:1) && car.turnCooldown === 0 && greenLight(time, car.axis);
     if (car.roundaboutApproach) {
       // Both normal traffic and taxis use the circle, regardless of the lights.

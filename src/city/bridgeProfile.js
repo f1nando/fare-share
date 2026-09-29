@@ -27,19 +27,19 @@ export function bridgeHeightAt(x, z, block) {
 
 // Apply only to visible poses, after Worker interpolation. This keeps the
 // traffic simulation and its suspension fast; both render paths use one profile.
-export function liftBridgePose(pose, block) {
+export function liftBridgePose(pose, block, axleHalf = 0.69) {
   const column = Math.floor(pose.x / block), line = Math.round(pose.z / block);
   if (!canalColumn(column) || !canalBridge(line) || Math.abs(pose.z - line * block) > bridgeHalfWidth(line) + 1) return 0;
   const sin = Math.sin(pose.angle), cos = Math.cos(pose.angle);
   let sum = 0, sides = 0, axles = 0, index = 0;
-  for (const axle of [-0.69, 0.69]) for (const side of [-0.43, 0.43]) {
+  for (const axle of [-axleHalf, axleHalf]) for (const side of [-0.43, 0.43]) {
     const height = bridgeHeightAt(pose.x + side * cos + axle * sin, pose.z - side * sin + axle * cos, block);
     pose.wheels[index++] += height;
     sum += height; sides += Math.sign(side) * height; axles += Math.sign(axle) * height;
   }
   const lift = sum / 4;
   pose.lift += lift;
-  pose.pitch -= Math.atan2(axles / 2, 1.38);
+  pose.pitch -= Math.atan2(axles / 2, axleHalf * 2);
   pose.roll += Math.atan2(sides / 2, 0.86);
   return lift;
 }

@@ -1,7 +1,7 @@
 import { REVEAL } from './revealStages.js';
 import { MEDIAN_WIDTH, MEDIAN_INSET } from './roadLayout.js';
 
-export function populateMedian(batch, axis, x, z, blockSize) {
+export function populateMedian(batch, axis, x, z, blockSize, trees = true) {
   const length = blockSize - MEDIAN_INSET * 2;
   if (length <= 0) return;
   const put = (kind, along, y, width, height, depth, color, stage) => batch.add(kind,
@@ -9,6 +9,7 @@ export function populateMedian(batch, axis, x, z, blockSize) {
     axis === 0 ? depth : width, height, axis === 0 ? width : depth, color, 0, 0, 0, stage);
   put('box', blockSize / 2, 0.09, MEDIAN_WIDTH, 0.18, length, '#bdbdbd');
   put('paving', blockSize / 2, 0.19, MEDIAN_WIDTH - 0.08, 0.025, length - 0.25, '#999999');
+  if (!trees) return; // Keep the tall tram roof and pantograph clear of crowns.
   // Slender trunks fit between the inner lanes; crowns sit above car roofs.
   // A fixed count keeps large-block settings within the same object budget.
   for (const fraction of [0.2, 0.5, 0.8]) {

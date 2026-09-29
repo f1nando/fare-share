@@ -47,7 +47,7 @@ export function vehicleStunt(type, elapsed, variation = 1, reducedMotion = false
 export function stuntType(kind, taxi = false) {
   if (taxi) return 'taxi';
   if (kind === 'motorcycle' || kind === 'boat' || kind === 'helicopter') return kind;
-  if (kind === 'truck' || kind === 'bus') return 'heavy';
+  if (kind === 'truck' || kind === 'bus' || kind === 'tram') return 'heavy';
   return 'car';
 }
 

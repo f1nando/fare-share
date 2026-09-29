@@ -1,5 +1,5 @@
 import { SceneReveal, REVEAL } from './sceneReveal.js';
-import { streetHalf, laneDividers } from './roadProfile.js';
+import { streetHalf, laneDividers, tramRoad } from './roadProfile.js';
 import { boulevardSceneryBatch } from './boulevardGeometry.js';
 import * as THREE from 'three';
 import { Batches } from './Batches.js';
@@ -29,6 +29,8 @@ import { createCanalGround } from './canalGround.js';
 import { boatHullGeometry, addBoats } from './boats.js';
 import { AirTraffic } from './airTraffic.js';
 import { ParkBirds, birdWingGeometry } from './parkBirds.js';
+import { populateTramTracks } from './tramTracks.js';
+import { vehicleType } from './vehicleTypes.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
@@ -117,8 +119,9 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 
   populateRoadworks(batch, gx, gz, x, z, blockSize);
+  populateTramTracks(batch, gx, gz, x, z, blockSize);
   populateRoundabout(batch, gx, gz, x, z, blockSize);
-  if (northBoulevard && !canal) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 0, x, z, blockSize);
+  if (northBoulevard && !canal) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 0, x, z, blockSize, !tramRoad(0, gz));
   if (westBoulevard) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 1, x, z, blockSize);
   if (diagonal) {
     populateDiagonal(batch, diagonal, x, z, blockSize, gx, gz);
@@ -170,7 +173,7 @@ export function addCar(batch, car, originX, originZ, focus, camera, blockSize, h
 
 function drawCarPose(batch, car, pose, originX, originZ, camera, hornEffects, blockSize, visualEffect = null, onVisible = null,
   selectionKey = car) {
-  const bridgeLift = liftBridgePose(pose, blockSize);
+  const bridgeLift = liftBridgePose(pose, blockSize, car.kind === 'tram' ? vehicleType(car).length * 0.31 : 0.69);
   pose.x -= originX; pose.z -= originZ;
   const visualType = stuntType(car.kind, car.taxi);
   onVisible?.(pose.x, 0.65 + bridgeLift, pose.z, selectionKey, visualType);

@@ -5,6 +5,35 @@ export function drawTrafficVehicle(part, car, pose) {
   if (car.taxi || !car.kind || car.kind === 'car') return false;
   const { length, width } = vehicleType(car), color = car.color;
   const box = (x, y, z, w, h, d, tint = color) => part('car', x, y, z, w, h, d, tint);
+  if (car.kind === 'tram') {
+    // Two long carriages with a short accordion joint and roof pantograph.
+    box(0, 0.48, 0, width * 0.88, 0.25, length, '#414b49');
+    for (const center of [-1.9, 1.9]) {
+      box(0, 1.12, center, width, 1.18, 3.4);
+      box(0, 1.77, center, width * 1.02, 0.14, 3.4, '#e0e2d9');
+      for (const side of [-1, 1]) {
+        for (const along of [-1.15, -0.4, 0.4, 1.15])
+          box(side * (width / 2 + 0.01), 1.35, center + along, 0.025, 0.55, 0.6, '#354846');
+        box(side * (width / 2 + 0.02), 0.77, center, 0.025, 0.12, 3.3, '#e0e2d9');
+      }
+    }
+    box(0, 1.1, 0, width * 0.9, 1.15, 0.4, '#58635f');
+    for (const along of [-0.14, 0, 0.14]) box(0, 1.1, along, width * 0.96, 1.2, 0.045, '#89928b');
+    for (const side of [-1, 1]) {
+      box(0, 1.32, side * (length / 2 + 0.01), width * 0.85, 0.58, 0.025, '#354846');
+      box(side * 0.35, 0.72, length / 2 + 0.02, 0.16, 0.15, 0.035, '#fff2c2');
+      box(side * 0.35, 0.72, -length / 2 - 0.02, 0.14, 0.12, 0.035, '#9e5c4f');
+    }
+    box(0, 1.92, 1.2, 0.7, 0.18, 1, '#747e77');
+    for (const side of [-1, 1]) box(side * 0.25, 2.18, 1.2, 0.055, 0.42, 0.055, '#515c56');
+    box(0, 2.4, 1.2, 0.85, 0.06, 0.12, '#515c56');
+    for (const [axle, along] of [-length * 0.31, length * 0.31].entries()) {
+      for (const [index, side] of [-1, 1].entries())
+        part('wheel', side * 0.43, 0.25 + pose.wheels[axle * 2 + index], along,
+          0.14, 0.45, 0.45, '#343b38', false);
+    }
+    return true;
+  }
   if (car.kind === 'motorcycle') {
     for (const [index, z] of [-0.57, 0.57].entries()) {
       const height = (pose.wheels[index * 2] + pose.wheels[index * 2 + 1]) / 2;

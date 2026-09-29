@@ -14,7 +14,7 @@ const vehicle = (kind, position, direction = 1) => ({ kind, position: position *
 test('mixed traffic is deterministic, preserves taxis and survives worker transfer', () => {
   const lane = populateLane(0, 0, 1, settings, 10);
   assert.deepEqual(lane, populateLane(0, 0, 1, settings, 10));
-  assert.deepEqual(new Set(lane.cars.map(car => car.kind)), new Set(VEHICLE_KINDS));
+  assert.deepEqual(new Set(lane.cars.map(car => car.kind)), new Set(VEHICLE_KINDS.filter(kind => kind !== 'tram')));
   assert.ok(lane.cars.filter(car => car.taxi).every(car => car.kind === 'car'));
   assert.equal(populateLane(0, 0, 1, { ...settings, density: 0 }, 10).cars.length, 0);
   const frame = packTraffic(new Map([['lane', lane]]), { ids: new WeakMap(), next: 0, blockSize: 40 });

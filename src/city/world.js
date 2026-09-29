@@ -106,7 +106,7 @@ function updateSignals(cars, direction, delta) {
         gap = distance; leader = other;
       }
     }
-    if (!leader || leader.taxi || leader.changing || leader.yieldRemaining > 0 || taxi.cruise <= leader.speed + 1) continue;
+    if (!leader || leader.taxi || leader.kind === 'tram' || leader.changing || leader.yieldRemaining > 0 || taxi.cruise <= leader.speed + 1) continue;
     const mode = ['flash', 'horn', 'both'][(taxi.signalIndex ?? 0) % 3];
     taxi.signalIndex = (taxi.signalIndex ?? 0) + 1;
     taxi.signalMode = mode;
@@ -223,6 +223,7 @@ export function occupiesTrack(car, track) {
 
 // Test both the current gap and where its neighbours will be during the merge.
 export function canMerge(car, cars, targetTrack, direction, opposing = []) {
+  if (car.kind === 'tram') return false;
   if (!workMergeClear(car, targetTrack, direction, MERGE_DURATION)) return false;
   // Keep the return slot and borrowed lane free while an overtake is underway.
   if (cars.some(other => other !== car && other.overtake && targetTrack === (other.overtake.returnTrack ?? 0) &&
