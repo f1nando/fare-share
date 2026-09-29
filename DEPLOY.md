@@ -85,11 +85,12 @@ solana program deploy -u devnet \
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
 3. Зафиксировать точные mint-цены в lamports по согласованным долларовым ориентирам.
 4. Заполнить production RPC/DAS, MongoDB, домены, API key и три разных server keypair.
-5. Выполнить `npm run protocol:addresses`, создать основной `$FARE` с полученным `pumpCreator` и записать mint в `.env`.
+5. Выполнить `npm run protocol:addresses` и подготовить параметры будущего `$FARE` с полученным `pumpCreator`, не создавая токен заранее.
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.
-7. Выполнить `protocol:initialize`.
-8. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
-9. Проверить vault, collection, все mint и реальные минимальные денежные сценарии, включая Claim десяти машин. Только после этого вручную вызвать `start-sale`.
+7. Выполнить `protocol:initialize`; на этом этапе `$FARE` ещё может не существовать, а `fare_mint` в Configuration PDA останется пустым.
+8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. Команда атомарно создаёт canonical protocol ATA и одноразово фиксирует CA; заменить его после успешной транзакции нельзя.
+9. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
+10. Добавить тот же CA в `FARE_MINT` окружения backend/frontend, затем проверить vault, collection, все mint и реальные минимальные денежные сценарии, включая Claim десяти машин. Только после этого вручную вызвать `start-sale`; без привязанного CA контракт отклонит запуск продажи.
 
 ## 4. Сохранить upgrade authority и возможность вернуть rent
 

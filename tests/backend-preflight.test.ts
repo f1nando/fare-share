@@ -49,6 +49,14 @@ test('deployment preflight accepts a complete configuration without exposing sec
   assert.deepEqual(result, { errors: [], warnings: [] });
 });
 
+test('deployment preflight permits preparing the program before FARE mint exists', async () => {
+  const env = validEnvironment();
+  delete env.FARE_MINT;
+  const result = await validateDeploymentEnvironment(env);
+  assert.deepEqual(result.errors, []);
+  assert.match(result.warnings.join('\n'), /FARE_MINT.*одноразовой admin-инструкцией/);
+});
+
 test('deployment preflight rejects placeholders, wrong mint order and zero prices', async () => {
   const env = validEnvironment();
   env.BACKEND_SIGNER_SECRET_KEY = '[0,0]';

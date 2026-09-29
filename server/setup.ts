@@ -31,7 +31,6 @@ export interface InitializeProtocolInput {
   deploymentId: Uint8Array;
   collectionName: string;
   collectionUri: string;
-  fareMint: Address;
   stockMints: [Address, Address, Address, Address];
   mintPrices: [bigint, bigint, bigint, bigint];
   metadataUris: [string, string, string, string];
@@ -56,7 +55,7 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
     ));
   }
 
-  const mints = [WSOL_MINT, input.fareMint, ...input.stockMints];
+  const mints = [WSOL_MINT, ...input.stockMints];
   const mintAccounts = await Promise.all(mints.map(mint => getAccount(input.rpcUrl, mint)));
   if (mintAccounts.some(account => !account)) throw new Error('One or more configured token mints do not exist');
   const tokenPrograms = mintAccounts.map(account => address(account!.owner));
@@ -95,7 +94,6 @@ export function buildInitializeInstruction(
     input.deploymentId,
     stringBytes(input.collectionName),
     stringBytes(input.collectionUri),
-    key(input.fareMint),
     ...input.stockMints.map(key),
     ...input.mintPrices.map(u64),
     ...input.metadataUris.map(stringBytes),

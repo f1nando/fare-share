@@ -9,6 +9,8 @@ use crate::TaxiError;
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = pubkey!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 pub const NATIVE_MINT_ID: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
+pub const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
+    pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 
 const MINT_BASE_LEN: usize = 82;
 const TOKEN_ACCOUNT_BASE_LEN: usize = 165;

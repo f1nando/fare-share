@@ -44,7 +44,7 @@ pub mod taxi_park {
         config.jupiter_program = args.jupiter_program;
         config.deployment_id = args.deployment_id;
         config.collection = ctx.accounts.collection.key();
-        config.fare_mint = args.fare_mint;
+        config.fare_mint = Pubkey::default();
         config.stock_mints = args.stock_mints;
         require!(
             args.metadata_uris
@@ -114,9 +114,35 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn set_fare_mint(ctx: Context<SetFareMint>) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        let fare_mint = ctx.accounts.fare_mint.key();
+        validate_fare_assignment(config, fare_mint)?;
+        let config_key = config.key();
+        let token_program_key = ctx.accounts.token_program.key();
+        token::assert_program(&ctx.accounts.token_program)?;
+        token::mint_view(&ctx.accounts.fare_mint, &token_program_key)?;
+        let expected_vault = Pubkey::find_program_address(
+            &[config_key.as_ref(), token_program_key.as_ref(), fare_mint.as_ref()],
+            &token::ASSOCIATED_TOKEN_PROGRAM_ID,
+        )
+        .0;
+        require_keys_eq!(
+            ctx.accounts.fare_vault.key(),
+            expected_vault,
+            TaxiError::InvalidTokenAccount
+        );
+        let vault = token::account_view(&ctx.accounts.fare_vault, &token_program_key)?;
+        require_keys_eq!(vault.mint, fare_mint, TaxiError::InvalidTokenAccount);
+        require_keys_eq!(vault.owner, config_key, TaxiError::InvalidTokenAccount);
+        config.fare_mint = fare_mint;
+        Ok(())
+    }
+
     pub fn start_sale(ctx: Context<AdminState>) -> Result<()> {
         let config = &mut ctx.accounts.config;
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
+        require_fare_ready(config.fare_mint)?;
         require!(
             config.mint_prices.iter().all(|price| *price > 0),
             TaxiError::InvalidPrice
@@ -1622,7 +1648,6 @@ pub struct InitializeArgs {
     pub deployment_id: [u8; 32],
     pub collection_name: String,
     pub collection_uri: String,
-    pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
     pub metadata_uris: [String; CLASS_COUNT],
@@ -2034,6 +2059,19 @@ pub struct Claim<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SetFareMint<'info> {
+    pub admin: Signer<'info>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Box<Account<'info, Configuration>>,
+    /// CHECK: Owner and initialized mint layout are validated in the handler.
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Canonical ATA, mint and authority are validated in the handler.
+    pub fare_vault: UncheckedAccount<'info>,
+    /// CHECK: Must be the SPL Token or Token-2022 program that owns fare_mint.
+    pub token_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
 pub struct ClaimMany<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -2090,13 +2128,9 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
         args.jupiter_program != Pubkey::default(),
         TaxiError::InvalidJupiterProgram
     );
-    require!(
-        args.fare_mint != Pubkey::default(),
-        TaxiError::InvalidRewardMint
-    );
     for (index, mint) in args.stock_mints.iter().enumerate() {
         require!(
-            *mint != Pubkey::default() && *mint != args.fare_mint,
+            *mint != Pubkey::default(),
             TaxiError::InvalidRewardMint
         );
         require!(
@@ -2106,6 +2140,25 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
             TaxiError::InvalidRewardMint
         );
     }
+    Ok(())
+}
+
+fn validate_fare_assignment(config: &Configuration, fare_mint: Pubkey) -> Result<()> {
+    require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
+    require!(
+        config.fare_mint == Pubkey::default(),
+        TaxiError::FareMintAlreadySet
+    );
+    require!(
+        fare_mint != Pubkey::default()
+            && !config.stock_mints.iter().any(|mint| *mint == fare_mint),
+        TaxiError::InvalidRewardMint
+    );
+    Ok(())
+}
+
+fn require_fare_ready(fare_mint: Pubkey) -> Result<()> {
+    require!(fare_mint != Pubkey::default(), TaxiError::FareMintNotSet);
     Ok(())
 }
 
@@ -2123,7 +2176,6 @@ mod accounting_tests {
             deployment_id: [1; 32],
             collection_name: "Taxi".to_owned(),
             collection_uri: "uri".to_owned(),
-            fare_mint: Pubkey::new_unique(),
             stock_mints: [
                 repeated,
                 repeated,
@@ -2139,6 +2191,48 @@ mod accounting_tests {
             ],
         };
         assert!(validate_initial_addresses(&args).is_err());
+    }
+
+    #[test]
+    fn fare_mint_is_required_once_and_cannot_match_a_stock() {
+        let stock_mints = [
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+            Pubkey::new_unique(),
+        ];
+        let mut config = Configuration {
+            admin: Pubkey::new_unique(),
+            pending_admin: Pubkey::default(),
+            backend_signer: Pubkey::new_unique(),
+            team_account: Pubkey::new_unique(),
+            jupiter_program: Pubkey::new_unique(),
+            deployment_id: [1; 32],
+            fare_swap_nonce: 0,
+            stock_swap_nonces: [0; STOCK_COUNT],
+            collection: Pubkey::new_unique(),
+            fare_mint: Pubkey::default(),
+            stock_mints,
+            economy_uri: "a".to_owned(),
+            comfort_uri: "b".to_owned(),
+            business_uri: "c".to_owned(),
+            legend_uri: "d".to_owned(),
+            mint_prices: [1; CLASS_COUNT],
+            minted_by_class: [0; CLASS_COUNT],
+            sale_started: false,
+            paused_at: 0,
+            total_paused_seconds: 0,
+            bump: 1,
+        };
+        let fare_mint = Pubkey::new_unique();
+        assert!(require_fare_ready(config.fare_mint).is_err());
+        assert!(validate_fare_assignment(&config, Pubkey::default()).is_err());
+        assert!(validate_fare_assignment(&config, stock_mints[0]).is_err());
+        assert!(validate_fare_assignment(&config, fare_mint).is_ok());
+
+        config.fare_mint = fare_mint;
+        assert!(require_fare_ready(config.fare_mint).is_ok());
+        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
     }
 }
 

@@ -3,6 +3,7 @@ import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction }
 import {
   buildRescueSolInstruction,
   buildRescueTokenInstruction,
+  buildSetFareMintInstruction,
   buildSimpleAdminInstruction,
   type SimpleAdminCommand,
 } from '../server/admin.js';
@@ -24,7 +25,29 @@ const [commandName, ...args] = process.argv.slice(2);
 if (!commandName) usage();
 
 let instructions;
-if (commandName === 'rescue-sol') {
+if (commandName === 'set-fare-mint') {
+  exactArgs(args, 1);
+  const fareMint = address(args[0]);
+  const tokenProgram = await mintOwner(rpcUrl, fareMint);
+  const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: fareMint, tokenProgram });
+  instructions = [
+    getCreateAssociatedTokenIdempotentInstruction({
+      payer: admin,
+      ata: fareVault,
+      owner: addresses.config,
+      mint: fareMint,
+      tokenProgram,
+    }),
+    buildSetFareMintInstruction({
+      programId,
+      admin: admin.address,
+      config: addresses.config,
+      fareMint,
+      fareVault,
+      tokenProgram,
+    }),
+  ];
+} else if (commandName === 'rescue-sol') {
   exactArgs(args, 2);
   instructions = [buildRescueSolInstruction(
     programId, admin.address, addresses.config, addresses.feeVault, address(args[0]), positiveBigInt(args[1]),
@@ -96,6 +119,7 @@ function usage(): never {
   throw new Error([
     'Usage: npm run protocol:admin -- <command> [arguments]',
     'Commands: start-sale | pause | unpause | set-mint-prices <a,b,c,d>',
+    'set-fare-mint <mint> (one-time; atomically creates the protocol FARE vault)',
     'propose-admin <pubkey> | accept-admin | set-team <pubkey>',
     'set-backend-signer <pubkey> | set-jupiter <program>',
     'rescue-sol <recipient> <lamports> | rescue-token <mint> <recipient-wallet> <raw-amount>',

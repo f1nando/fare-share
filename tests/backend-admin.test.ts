@@ -5,6 +5,7 @@ import { AccountRole, address, getAddressEncoder } from '@solana/kit';
 import {
   buildRescueSolInstruction,
   buildRescueTokenInstruction,
+  buildSetFareMintInstruction,
   buildSimpleAdminInstruction,
 } from '../server/admin.js';
 
@@ -30,6 +31,25 @@ test('simple admin commands encode Anchor discriminators and arguments', () => {
   assert.deepEqual([0, 1, 2, 3].map(index => (
     new DataView(prices.data!.buffer, prices.data!.byteOffset).getBigUint64(8 + index * 8, true)
   )), [1n, 2n, 3n, 4n]);
+});
+
+test('FARE mint binding uses one-time Anchor instruction account order', () => {
+  const instruction = buildSetFareMintInstruction({
+    programId: PROGRAM,
+    admin: ADMIN,
+    config: CONFIG,
+    fareMint: VALUE,
+    fareVault: PROGRAM,
+    tokenProgram: VALUE,
+  });
+  assert.deepEqual(instruction.accounts?.map(account => account.role), [
+    AccountRole.READONLY_SIGNER,
+    AccountRole.WRITABLE,
+    AccountRole.READONLY,
+    AccountRole.READONLY,
+    AccountRole.READONLY,
+  ]);
+  assert.deepEqual(Buffer.from(instruction.data!), discriminator('set_fare_mint'));
 });
 
 test('rescue commands use paused-contract account order and raw u64 amount', () => {

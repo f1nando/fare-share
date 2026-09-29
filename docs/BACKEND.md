@@ -79,7 +79,7 @@ npm run protocol:initialize
 
 Команда атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`, затем идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Если первая транзакция уже прошла, а создание token accounts прервалось, повторный запуск безопасно завершает только отсутствующий этап.
 
-До выполнения нужны реальные `FARE_MINT`, четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Заглушки из `.env.example` использовать нельзя.
+До выполнения нужны четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` можно создать позже: после появления CA выполните `npm run protocol:admin -- set-fare-mint <CA>`. Команда в одной атомарной транзакции создаёт protocol ATA и необратимо привязывает mint; до этого `start-sale` запрещён. Затем добавьте тот же адрес в `FARE_MINT` окружения backend/frontend. Заглушки из `.env.example` использовать нельзя.
 
 ## Ручное управление через SSH
 

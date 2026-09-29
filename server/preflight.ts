@@ -102,7 +102,11 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');
   validAddress('TEAM_ACCOUNT');
   validAddress('JUPITER_PROGRAM_ID');
-  const fareMint = validAddress('FARE_MINT');
+  const rawFareMint = value('FARE_MINT');
+  const fareMint = rawFareMint ? validAddress('FARE_MINT', rawFareMint) : '';
+  if (!rawFareMint) {
+    warnings.push('FARE_MINT: будет привязан одноразовой admin-инструкцией после создания токена');
+  }
   if (programId && frontendProgramId && programId !== frontendProgramId) {
     errors.push('VITE_TAXI_PROGRAM_ID: должен совпадать с TAXI_PROGRAM_ID');
   }

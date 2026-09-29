@@ -17,8 +17,9 @@
 - [x] Удалить on-chain `credit_devnet_rewards` и соответствующий backend/admin tooling из production-кода.
 - [x] Собрать baseline SBF после удаления: `641720` байт, SHA-256 `35b3a37dfbb2b130cd88440bad105b3cb88d536732bd12a9c02d55761cdd635c`.
 - [x] Проверить бинарник: имя и discriminator `credit_devnet_rewards` отсутствуют; других test/devnet handlers в исходниках нет.
-- [x] После назначения disposable Program ID собрать SBF: `641720` байт, SHA-256 `d67d068c5840671d2c12da71c387c5aee85cb0329a2632b3171b4994996bc54c`.
-- [ ] Повторно зафиксировать hash после полного release freeze: текущий SBF является RC, а не разрешённым deploy artifact.
+- [x] После назначения disposable Program ID был собран первый SBF: `641720` байт, SHA-256 `d67d068c5840671d2c12da71c387c5aee85cb0329a2632b3171b4994996bc54c`.
+- [ ] Пересобрать disposable SBF после добавления отложенной привязки `$FARE`; предыдущий hash устарел и не является deploy artifact.
+- [ ] Повторно зафиксировать hash после полного release freeze.
 
 ### Gate 2 — изолированная идентичность теста
 
@@ -37,7 +38,7 @@
 - [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
 - [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.
 - [x] Проверить official xStocks mint: все четыре существуют в mainnet и принадлежат Token-2022.
-- [ ] Создать onchain отдельный test `$FARE` mint `BQsZXADvs8EXFWpPZzSi4LQX6ieVHAsZ7JMzAcd6bauX`; пока существует только offline keypair, реальные Jupiter/pump.fun flows такой mint не подтверждает.
+- [ ] Создать финальный `$FARE` в последний момент и только после этого привязать его CA; ранее созданный offline test-mint keypair не использовать как обязательную часть запуска.
 
 ### Gate 4 — assets и микроцены
 
@@ -45,6 +46,8 @@
 - [ ] Зафиксировать точные микроцены в lamports для четырёх классов.
 - [ ] Подтвердить ожидаемый максимальный расход на mint, rent и комиссии.
 - [ ] До `start-sale` проверить collection, team recipient, mint prices и все caps непосредственно из Configuration PDA.
+- [x] Разделить запуск на два этапа: `initialize` сохраняет пустой `$FARE`, а одноразовый `set-fare-mint <CA>` после создания токена атомарно создаёт/проверяет canonical vault и фиксирует CA навсегда.
+- [ ] После создания финального токена выполнить `set-fare-mint`, записать тот же CA в backend/frontend environment и проверить Configuration PDA; до этого `start-sale` обязан отклоняться.
 
 ### Gate 5 — regression и release artifact
 

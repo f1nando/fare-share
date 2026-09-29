@@ -25,7 +25,6 @@ const result = await initializeProtocol({
   deploymentId: Uint8Array.from(Buffer.from(deploymentHex, 'hex')),
   collectionName: process.env.COLLECTION_NAME || 'FARE Taxi Park',
   collectionUri: required('COLLECTION_URI'),
-  fareMint: address(required('FARE_MINT')),
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
   mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
   metadataUris: tuple(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),

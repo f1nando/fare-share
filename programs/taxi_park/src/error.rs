@@ -14,6 +14,10 @@ pub enum TaxiError {
     NotPaused,
     #[msg("Sale has already started")]
     SaleAlreadyStarted,
+    #[msg("FARE mint has not been configured")]
+    FareMintNotSet,
+    #[msg("FARE mint is already configured and cannot be replaced")]
+    FareMintAlreadySet,
     #[msg("Mint price must be greater than zero")]
     InvalidPrice,
     #[msg("Admin address cannot be the zero address")]

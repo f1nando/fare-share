@@ -56,6 +56,27 @@ export function buildRescueSolInstruction(
   };
 }
 
+export function buildSetFareMintInstruction(input: {
+  programId: Address;
+  admin: Address;
+  config: Address;
+  fareMint: Address;
+  fareVault: Address;
+  tokenProgram: Address;
+}): Instruction {
+  return {
+    programAddress: input.programId,
+    accounts: [
+      meta(input.admin, AccountRole.READONLY_SIGNER),
+      meta(input.config, AccountRole.WRITABLE),
+      meta(input.fareMint, AccountRole.READONLY),
+      meta(input.fareVault, AccountRole.READONLY),
+      meta(input.tokenProgram, AccountRole.READONLY),
+    ],
+    data: discriminator('set_fare_mint'),
+  };
+}
+
 export function buildRescueTokenInstruction(input: {
   programId: Address;
   admin: Address;

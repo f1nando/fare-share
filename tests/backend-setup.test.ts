@@ -23,7 +23,6 @@ test('initialize instruction matches Anchor account and field order', async () =
     deploymentId: Uint8Array.from({ length: 32 }, (_, index) => index),
     collectionName: 'Taxi Park',
     collectionUri: 'https://example.test/collection.json',
-    fareMint: SYSTEM_ADDRESS,
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
     mintPrices: [49n, 129n, 399n, 1099n],
     metadataUris: ['economy', 'comfort', 'business', 'legend'],
@@ -51,7 +50,7 @@ test('initialize instruction matches Anchor account and field order', async () =
   };
   assert.equal(readString(), 'Taxi Park');
   assert.equal(readString(), 'https://example.test/collection.json');
-  offset += 32 * 5;
+  offset += 32 * 4;
   assert.deepEqual(
     [0, 1, 2, 3].map(index => data.readBigUInt64LE(offset + (index * 8))),
     [49n, 129n, 399n, 1099n],
