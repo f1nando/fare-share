@@ -38,7 +38,7 @@
 
 ### Gate 3 — конфигурация и preflight
 
-- [ ] Завершить `protocol:preflight`: семь rate-limit значений, официальный порядок `STOCK_MINTS` и Program ID уже исправлены; остаются только неутверждённые `MINT_PRICES_LAMPORTS`.
+- [ ] Создать отдельный некоммитимый target `.env` для `mainnet-test-rc` и завершить `protocol:preflight`. В RC worktree файла пока нет; текущий корневой dev `.env` не является release-конфигурацией и ожидаемо не проходит по admin secrets, `STOCK_MINTS` и Program ID. После заполнения также остаётся утвердить `MINT_PRICES_LAMPORTS`.
 - [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
 - [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.
 - [x] Проверить official xStocks mint: все четыре существуют в mainnet и принадлежат Token-2022.
@@ -79,7 +79,8 @@
 4. Утвердить максимальный бюджет теста. Текущий ориентир до новой freeze-сборки — пополнение `2NUN…` минимум до `7 SOL`; точная сумма будет пересчитана по финальному SBF.
 5. Создать `$FARE` на pump.fun только в согласованное окно: SOL pair, direct creator строго `2NUN…`, без Mayhem/Cashback/Holder Rewards/custom fee/fee sharing. После создания передать только CA и желаемый ticker.
 6. Подтвердить точный recovery recipient и fee payer для disposable теста. Планируемое значение для обоих — `2NUN…`, но audit/deploy не используют это как default.
-7. Дать отдельное явное разрешение на расход mainnet SOL и disposable deploy. Создание токена, deploy и любые внешние mainnet-транзакции до этого не выполняются.
+7. Передать параметры целевого окружения: private mainnet RPC/DAS endpoints, разрешённый frontend origin, имя admin-пользователя и пароль через безопасный канал. API keys, пароль и keypair в Git или чат не отправлять; на сервере сохраняются только password hash и secret-storage values.
+8. Дать отдельное явное разрешение на расход mainnet SOL и disposable deploy. Создание токена, deploy и любые внешние mainnet-транзакции до этого не выполняются.
 
 ### Gate 7 — явно разрешённый test-mainnet deploy
 
