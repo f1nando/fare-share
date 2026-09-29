@@ -38,3 +38,17 @@ directory and atomically point `/var/www/taxi-park/current` to it. Do not upload
 source files, `.env` files or keypairs. The public site remains a frontend demo
 until the Solana program, `$FARE`, permanent metadata and backend configuration
 are initialized separately.
+
+## ownataxi.com
+
+Host: `feeserv`. Static releases live in `/var/www/ownataxi/releases/` and the
+backend source releases in `/srv/ownataxi/releases/`; both use an atomic `current`
+symlink. Install `deploy/ownataxi.nginx.conf` as the enabled `ownataxi.com` site
+and `deploy/ownataxi-backend.service` as `/etc/systemd/system/ownataxi-backend.service`.
+
+The ignored production environment is installed separately as
+`/etc/ownataxi/ownataxi.env` with mode `640`, owned by `root:ownataxi`. Never put
+that file, keypairs or secret values in a frontend release or Git. The frontend
+uses same-origin `https://ownataxi.com/api/`; nginx proxies it to the backend on
+`127.0.0.1:8787`. Validate with `nginx -t`, restart the backend, atomically switch
+both symlinks, then smoke `/`, `/admin/`, `/api/token` and the Solana mint state.
