@@ -222,6 +222,7 @@ async function processPendingSwaps(
       const wsolVault = callerWsolVault;
       const rewardVault = rewardVaults[pending.kind === 0 ? 0 : pending.assetIndex + 1];
       const fixedWritable = new Set<string>([
+        String(caller.address),
         String(addresses.config), String(addresses.feeVault), String(addresses.pool),
         String(wsolVault), String(rewardVault),
         ...(pending.kind === 0 ? [String(addresses.traineePool), String(configuration.fareMint)] : []),
