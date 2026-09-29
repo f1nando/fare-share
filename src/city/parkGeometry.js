@@ -20,19 +20,23 @@ export function populatePark(batch, x, z, block, park) {
     at('paving', long / 2, 0.72, short / 2, long * 0.27 - 0.7, 0.025, short * 0.25 - 0.7, '#858585', REVEAL.water);
   }
   const cx = width / 2, cz = depth / 2;
-  put('island', cx, 0.74, cz, 4.4, 0.34, 4.4, '#bdbdbd', REVEAL.lots);
-  put('island', cx, 0.92, cz, 3.75, 0.035, 3.75, '#929fa0', REVEAL.water);
-  put('island', cx, 1.07, cz, 0.65, 0.3, 0.65, '#d4d4d4', REVEAL.lots);
-  put('island', cx, 1.76, cz, 0.14, 1.1, 0.14, '#e0ebeb', REVEAL.water);
+  const scale = 3, baseY = 0.57;
+  const fountainPart = (dx, y, dz, w, h, d, color, stage, rotation = 0, pitch = 0) =>
+    batch.add('island', x + cx + dx * scale, baseY + (y - baseY) * scale, z + cz + dz * scale,
+      w * scale, h * scale, d * scale, color, rotation, pitch, 0, stage);
+  fountainPart(0, 0.74, 0, 4.4, 0.34, 4.4, '#bdbdbd', REVEAL.lots);
+  fountainPart(0, 0.92, 0, 3.75, 0.035, 3.75, '#929fa0', REVEAL.water);
+  fountainPart(0, 1.07, 0, 0.65, 0.3, 0.65, '#d4d4d4', REVEAL.lots);
+  fountainPart(0, 1.76, 0, 0.14, 1.1, 0.14, '#e0ebeb', REVEAL.water);
   // Four low, faceted arcs reuse the existing cylinder instances; no particles.
   for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
     const points = [[0, 2.1], [0.65, 1.95], [1.45, 0.95]];
     for (let i = 1; i < points.length; i++) {
       const [a, ay] = points[i - 1], [b, by] = points[i];
       const radius = (a + b) / 2;
-      batch.add('island', x + cx + Math.sin(angle) * radius, (ay + by) / 2,
-        z + cz + Math.cos(angle) * radius, 0.075, Math.hypot(b - a, by - ay), 0.075,
-        '#e0ebeb', angle, Math.atan2(b - a, by - ay), 0, REVEAL.water);
+      fountainPart(Math.sin(angle) * radius, (ay + by) / 2,
+        Math.cos(angle) * radius, 0.075, Math.hypot(b - a, by - ay), 0.075,
+        '#e0ebeb', REVEAL.water, angle, Math.atan2(b - a, by - ay));
     }
   }
   for (let i = 0; i < 6; i++) for (const side of [-1, 1]) {
