@@ -293,6 +293,10 @@ const server = createServer(async (request, response) => {
 server.listen(config.port, () => {
   console.log(`Taxi backend listening on http://127.0.0.1:${config.port}`);
   publicData.sync().catch(error => console.error('Initial public data sync failed', error));
+  const publicDataTimer = setInterval(() => {
+    publicData.sync().catch(error => console.error('Scheduled public data sync failed', error));
+  }, 5 * 60 * 1_000);
+  publicDataTimer.unref();
 });
 
 async function readJson(request: IncomingMessage, maximumSize = 16_384): Promise<unknown> {
