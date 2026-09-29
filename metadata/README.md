@@ -1,6 +1,6 @@
 # NFT metadata
 
-The supplied collection cover lives at `original-assets/nft/collection.png`. Machine artwork must be supplied as 16 final static road images; frontend renders are not canonical NFT metadata sources.
+The collection cover lives at `original-assets/nft/collection.png`. The 16 canonical machine images are the unmodified WebP files in `original-assets/driving-scenes/`; the road-marking and flashing-light runtime overlays are not part of those files and must not be added to NFT artwork. Names and source filenames are fixed by `original-assets/driving-scenes/manifest.json`.
 
 Generate `collection.json` and the 16 machine JSON files only after the corresponding images have been uploaded to permanent storage:
 

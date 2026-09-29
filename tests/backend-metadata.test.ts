@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { buildMetadataFiles, NFT_CLASSES } from '../scripts/build-nft-metadata.js';
 
 const imageUris = Array.from({ length: 17 }, (_, index) => `https://example.test/image-${index}.png`);
+const drivingSceneManifest = JSON.parse(readFileSync(
+  new URL('../original-assets/driving-scenes/manifest.json', import.meta.url),
+  'utf8',
+)) as Array<{ name: string; file: string; lightsOn: boolean }>;
 
 test('metadata generator creates collection plus 16 ordered machine variants', () => {
   const files = buildMetadataFiles(imageUris);
@@ -26,6 +31,19 @@ test('metadata generator creates collection plus 16 ordered machine variants', (
         { trait_type: 'Weight', value: definition.weight },
         { trait_type: 'Max Supply', value: definition.supply },
       ]);
+    }
+  }
+});
+
+test('metadata class order matches all 16 canonical driving-scene sources with lights off', () => {
+  const byName = new Map(drivingSceneManifest.map(item => [item.name, item]));
+  assert.equal(byName.size, 16);
+  for (const definition of NFT_CLASSES) {
+    for (const model of definition.models) {
+      const source = byName.get(model);
+      assert.ok(source, `${model} must exist in the driving-scene manifest`);
+      assert.equal(source.lightsOn, false);
+      assert.match(source.file, /\.webp$/);
     }
   }
 });
