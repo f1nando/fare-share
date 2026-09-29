@@ -7,6 +7,7 @@ import {
   loadProtocolStatus,
   mintMachine,
 } from './protocol/solana.js';
+import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 1000, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -48,6 +49,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [quantity, setQuantity] = useState(1);
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const [status, setStatus] = useState(null);
+  const [databaseMint, setDatabaseMint] = useState(null);
   const [notice, setNotice] = useState('Loading live Solana mint state…');
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
@@ -58,19 +60,20 @@ export function MintPage({ wallet, connectWallet }) {
   const selectedClassIndex = preview.current.classIndex;
   const previewSceneIndex = preview.current.sceneIndex;
   const selectedClass = MINT_CLASSES[selectedClassIndex];
-  const mintedByClass = status?.deployed ? status.config.mintedByClass.map(Number) : [0, 0, 0, 0];
+  const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
   const selectedMinted = mintedByClass[selectedClassIndex];
   const remaining = Math.max(0, selectedClass.supply - selectedMinted);
-  const priceLamports = status?.deployed ? status.config.mintPrices[selectedClassIndex] : 0n;
-  const paused = Boolean(status?.deployed && status.config.pausedAt !== 0n);
+  const priceLamports = databaseMint?.pricesLamports?.[selectedClassIndex] ? BigInt(databaseMint.pricesLamports[selectedClassIndex]) : 0n;
+  const paused = Boolean(databaseMint?.paused);
 
   useEffect(() => {
     let active = true;
-    loadProtocolStatus()
-      .then(next => {
+    Promise.all([loadProtocolStatus(), loadPublicOverview()])
+      .then(([next, overview]) => {
         if (!active) return;
         setStatus(next);
-        setNotice(next.deployed ? '' : 'The mint program is not deployed on this network.');
+        setDatabaseMint(overview.mint);
+        setNotice(next.deployed && overview.mint?.saleStarted ? '' : 'The mint program is not available.');
       })
       .catch(error => active && setNotice(error.message || 'Could not load the live mint state.'));
     return () => { active = false; };
@@ -87,13 +90,22 @@ export function MintPage({ wallet, connectWallet }) {
     setBusy(true);
     setSignature('');
     setNotice(`Approve ${quantity} transaction${quantity === 1 ? '' : 's'} in Phantom…`);
+    let lastSignature = '';
+    let mintedCount = 0;
     try {
       const connection = wallet || await connectWallet();
       let currentStatus = status;
-      let lastSignature = '';
       for (let index = 0; index < quantity; index += 1) {
         const result = await mintMachine(connection, selectedClassIndex, currentStatus);
         lastSignature = result.signature;
+        mintedCount += 1;
+        setSignature(lastSignature);
+        await saveMintToDatabase({
+          signature: result.signature,
+          asset: String(result.asset),
+          owner: String(connection.account.address),
+        });
+        setDatabaseMint((await loadPublicOverview()).mint);
         currentStatus = await loadProtocolStatus();
         setStatus(currentStatus);
       }
@@ -101,7 +113,9 @@ export function MintPage({ wallet, connectWallet }) {
       setNotice(`${quantity} ${selectedClass.name} taxi${quantity === 1 ? '' : 's'} minted. The onchain serial selects the variant automatically.`);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
-      setNotice(error.message || 'Mint failed.');
+      setNotice(mintedCount
+        ? `${mintedCount} taxi${mintedCount === 1 ? '' : 's'} minted onchain, but database synchronization needs to retry: ${error.message || 'unknown error'}`
+        : error.message || 'Mint failed.');
     } finally {
       setBusy(false);
     }
@@ -225,14 +239,14 @@ export function MintPage({ wallet, connectWallet }) {
 
               <div className="fare-mint-summary">
                 <div><span>Class</span><strong>{selectedClass.name}</strong></div>
-                <div><span>Mint price</span><strong>{status?.deployed ? `${formatSolAmount(priceLamports)} SOL` : '—'}</strong></div>
+                <div><span>Mint price</span><strong>{databaseMint ? `${formatSolAmount(priceLamports)} SOL` : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
-                <div className="is-total"><span>Total</span><strong>{status?.deployed ? `${formatSolAmount(priceLamports * BigInt(quantity))} SOL` : '—'}</strong></div>
+                <div className="is-total"><span>Total</span><strong>{databaseMint ? `${formatSolAmount(priceLamports * BigInt(quantity))} SOL` : '—'}</strong></div>
               </div>
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
               {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
-              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || paused || remaining === 0} onClick={handleMint}>
+              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0} onClick={handleMint}>
                 <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>

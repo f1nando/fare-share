@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
-import drivingScenes from './drivingScenes.json';
+import { loadPublicMarket } from './publicData.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -9,24 +9,6 @@ const CLASS_BY_NAME = new Map([
   ...['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'].map(name => [name, { name: 'Business', tone: 'business' }]),
   ...['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'].map(name => [name, { name: 'Legend', tone: 'legend' }]),
 ]);
-
-const PRICE_BY_INDEX = [0.82, 0.94, 1.18, 0.76, 1.05, 5.9, 4.25, 1.72, 7.4, 3.85, 1.48, 4.7, 3.35, 1.36, 2.95, 3.65];
-const SELLERS = [
-  'Y6pC9TG4dLCopFYzRVMZS4gyTMxLNMtnydsydS63ELn',
-  'C42ji8Es48xNtt6Q59SyqVUVShcRGUYo2gxxbsp6ipc8',
-  '6pNdUXC7e9Ljxi5SLZkqnwAMuVB5P7J4HMojFWQqA26H',
-  '4hCsoP8bjQ1qEVBMjXs1sSN65khGHLEvzj6WCKaB3NzE',
-  'HSCjmAt6MqfmMrqswa5MACknbRW3fHMpdFaRgS4u5Wjj',
-];
-
-const listings = drivingScenes.map((scene, index) => ({
-  ...scene,
-  nftNumber: 1042 + index * 37,
-  price: PRICE_BY_INDEX[index],
-  seller: SELLERS[index % SELLERS.length],
-  listedAt: 16 - index,
-  vehicleClass: CLASS_BY_NAME.get(scene.name) || { name: 'Economy', tone: 'economy' },
-}));
 
 const SORTERS = {
   featured: (left, right) => left.listedAt - right.listedAt,
@@ -54,6 +36,19 @@ export function MarketPage({ wallet, connectWallet }) {
   const [vehicleClass, setVehicleClass] = useState('all');
   const [sort, setSort] = useState('featured');
   const [notice, setNotice] = useState('');
+  const [market, setMarket] = useState({ listings: [], floorLamports: null, totalVolumeLamports: '0' });
+
+  useEffect(() => {
+    let active = true;
+    loadPublicMarket().then(value => active && setMarket(value)).catch(error => active && setNotice(error.message));
+    return () => { active = false; };
+  }, []);
+
+  const listings = market.listings.map(listing => ({
+    ...listing,
+    price: Number(listing.priceLamports) / 1_000_000_000,
+    vehicleClass: CLASS_BY_NAME.get(listing.name) || { name: listing.className || 'Economy', tone: String(listing.className || 'economy').toLowerCase() },
+  }));
 
   const visibleListings = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -61,7 +56,7 @@ export function MarketPage({ wallet, connectWallet }) {
       .filter(listing => vehicleClass === 'all' || listing.vehicleClass.tone === vehicleClass)
       .filter(listing => !normalizedQuery || `${listing.name} ${listing.vehicleClass.name} ${listing.nftNumber}`.toLocaleLowerCase().includes(normalizedQuery))
       .sort(SORTERS[sort]);
-  }, [query, sort, vehicleClass]);
+  }, [listings, query, sort, vehicleClass]);
   const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
 
   async function handleBuy(listing) {
@@ -93,8 +88,8 @@ export function MarketPage({ wallet, connectWallet }) {
             <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE MARKET</span></div>
             <div className="fare-market-summary" aria-label="Marketplace summary">
               <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
-              <div><strong>0.76 <small>SOL</small></strong><span>FLOOR PRICE</span></div>
-              <div><strong>41.2 <small>SOL</small></strong><span>TOTAL VOLUME</span></div>
+              <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
+              <div><strong>{(Number(market.totalVolumeLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>VERIFIED VOLUME</span></div>
             </div>
           </div>
 

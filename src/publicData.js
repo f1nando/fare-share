@@ -1,0 +1,64 @@
+import {
+  calculateDurabilityPercent,
+  calculateRepairQuote,
+  formatTokenAmount,
+} from './protocol/solana.js';
+
+const API_URL = String(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
+const MAX_DURABILITY = 5 * 24 * 60 * 60;
+
+export const loadPublicOverview = () => request('/api/public/overview');
+export const loadPublicMarket = () => request('/api/public/market');
+
+export async function loadDatabaseFleet(owner) {
+  const result = await request(`/api/fleet/wallet/${encodeURIComponent(owner)}`);
+  const protocolNow = Number(result.protocolNow);
+  const decimals = Array.isArray(result.assets) ? result.assets.map(asset => Number(asset.decimals)) : [6, 8, 8, 8, 8];
+  return result.machines.map(machine => {
+    const rewards = machine.claimable.map(BigInt);
+    const pending = machine.pending.map(BigInt);
+    const fareBase = BigInt(machine.fareBase);
+    const secondsLeft = Math.max(0, Number(machine.activeUntil) - protocolNow);
+    const repairCost = calculateRepairQuote(fareBase, pending[0] || 0n, secondsLeft);
+    return {
+      asset: machine.asset,
+      machineAddress: machine.machine,
+      name: machine.name,
+      image: machine.image,
+      weight: machine.weight,
+      durability: calculateDurabilityPercent(secondsLeft),
+      rewards,
+      rewardDisplay: {
+        fare: formatTokenAmount(rewards[0], decimals[0]),
+        stocks: ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'].map((symbol, index) => ({
+          symbol,
+          amount: formatTokenAmount(rewards[index + 1], decimals[index + 1]),
+          rawFallback: false,
+        })),
+      },
+      fareBase,
+      repairCost,
+      repairCostDisplay: formatTokenAmount(repairCost, decimals[0]),
+      missingSeconds: MAX_DURABILITY - secondsLeft,
+      calculatedUntil: BigInt(result.protocolNow),
+      closed: machine.closed,
+    };
+  });
+}
+
+export function saveMintToDatabase({ signature, asset, owner }) {
+  return request('/api/fleet/mints', {
+    method: 'POST',
+    body: JSON.stringify({ signature, asset, owner }),
+  });
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `Public data API failed with HTTP ${response.status}`);
+  return body;
+}

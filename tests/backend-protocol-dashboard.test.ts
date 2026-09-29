@@ -24,13 +24,16 @@ test('admin dashboard projects finalized machine rewards from pool accumulators'
   for (let index = 1; index < 5; index += 1) machine.u128(0n);
   machine.u64(5n);
   for (let index = 1; index < 5; index += 1) machine.u64(0n);
+  machine.u64(123n);
 
   const decodedPool = decodeDashboardPool(poolBytes);
   const decodedMachine = decodeDashboardMachine(machineBytes, decodedPool);
   assert.equal(decodedPool.nextPool[0], 25n);
   assert.equal(decodedPool.seriesRemaining[0], 7n);
   assert.equal(decodedMachine.asset, asset);
+  assert.equal(decodedMachine.pending[0], 6n);
   assert.equal(decodedMachine.claimable[0], 11n);
+  assert.equal(decodedMachine.fareBase, 123n);
 });
 
 class Writer {

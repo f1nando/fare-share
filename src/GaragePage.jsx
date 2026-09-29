@@ -5,38 +5,15 @@ import {
   claimAllMachines,
   claimMachine,
   explorerTransaction,
-  loadOwnedMachines,
   loadProtocolStatus,
   MAX_CLAIM_MACHINES_PER_TRANSACTION,
   MAX_REPAIR_MACHINES_PER_TRANSACTION,
   repairAllMachines,
   repairMachine,
 } from './protocol/solana.js';
+import { loadDatabaseFleet } from './publicData.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
-const CLASS_BY_SCENE = new Map([
-  ...['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'].map(name => [name, { name: 'Economy', tone: 'economy' }]),
-  ...['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'].map(name => [name, { name: 'Comfort', tone: 'comfort' }]),
-  ...['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'].map(name => [name, { name: 'Business', tone: 'business' }]),
-  ...['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'].map(name => [name, { name: 'Legend', tone: 'legend' }]),
-]);
-const GARAGE_STATS = [
-  { durability: 84, fare: '12.48', stocks: '$3.20 in stocks' },
-  { durability: 62, fare: '8.14', stocks: '$2.05 in stocks' },
-  { durability: 28, fare: '19.72', stocks: '$4.91 in stocks' },
-  { durability: 100, fare: '3.06', stocks: '$0.78 in stocks' },
-  { durability: 47, fare: '6.83', stocks: '$1.69 in stocks' },
-  { durability: 73, fare: '31.44', stocks: '$7.86 in stocks' },
-  { durability: 91, fare: '74.20', stocks: '$18.55 in stocks' },
-  { durability: 36, fare: '11.57', stocks: '$2.88 in stocks' },
-  { durability: 15, fare: '52.09', stocks: '$13.02 in stocks' },
-];
-const garageCars = drivingScenes.slice(0, 9).map((scene, index) => ({
-  ...scene,
-  ...GARAGE_STATS[index],
-  vehicleClass: CLASS_BY_SCENE.get(scene.name) || { name: 'Economy', tone: 'economy' },
-}));
-const earningsBars = [38, 46, 34, 51, 62, 73, 71, 72, 70, 69, 58, 57, 59, 56, 55, 57, 56, 64, 63, 62, 94, 94, 94, 108];
 const CLASS_BY_WEIGHT = {
   1: { name: 'Economy', tone: 'economy' },
   3: { name: 'Comfort', tone: 'comfort' },
@@ -67,7 +44,7 @@ export function GaragePage({ wallet }) {
     }
     let active = true;
     setBusy('load');
-    loadOwnedMachines(wallet.account.address, status)
+    loadDatabaseFleet(wallet.account.address)
       .then(next => {
         if (!active) return;
         setMachines(next);
@@ -95,7 +72,7 @@ export function GaragePage({ wallet }) {
       stocks: machine.rewardDisplay.stocks.map(stock => `${stock.amount} ${stock.symbol}`).join(' · '),
       machine,
     }))
-    : garageCars.map(car => ({ ...car, scene: car }));
+    : [];
   const paused = Boolean(status?.config?.pausedAt !== 0n);
 
   async function runAction(key, action, success) {
@@ -110,7 +87,7 @@ export function GaragePage({ wallet }) {
       setSignature(nextSignature);
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
-      setMachines(await loadOwnedMachines(wallet.account.address, nextStatus));
+      setMachines(await loadDatabaseFleet(wallet.account.address));
       setNotice(success);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
@@ -141,9 +118,9 @@ export function GaragePage({ wallet }) {
           <section className="fare-garage-overview" aria-label="Fleet earnings overview">
             <div className="fare-garage-overview-main">
               <div className="fare-garage-overview-copy">
-                <span>Total fleet earnings</span>
-                <strong>{wallet && status?.deployed ? `${claimable.length} claimable car${claimable.length === 1 ? '' : 's'}` : `219.53 ${ticker}`}</strong>
-                <p>{wallet && status?.deployed ? 'All rewards shown below are read from finalized Solana accounts.' : '+$12.48 today · $54.94 earned in stocks'}</p>
+                <span>Fleet status</span>
+                <strong>{wallet && status?.deployed ? `${claimable.length} claimable car${claimable.length === 1 ? '' : 's'}` : 'Connect your wallet'}</strong>
+                <p>{wallet && status?.deployed ? 'The database read model is refreshed from finalized Solana accounts.' : 'Your verified onchain fleet will appear here.'}</p>
                 <div className="fare-garage-overview-actions">
                   <button type="button" disabled={Boolean(busy) || paused || claimBatch.length === 0} onClick={() => runAction(
                     'claim-all',
@@ -158,23 +135,13 @@ export function GaragePage({ wallet }) {
                 </div>
               </div>
 
-              <div className="fare-garage-chart">
-                <div className="fare-garage-periods" aria-label="Earnings period">
-                  <button className="is-active" type="button">24H</button>
-                  <button type="button">7D</button>
-                  <button type="button">30D</button>
-                </div>
-                <div className="fare-garage-bars" aria-hidden="true">
-                  {earningsBars.map((height, index) => <i className={index > 9 ? 'is-accent' : undefined} style={{ height: `${height}px` }} key={`${height}-${index}`} />)}
-                </div>
-                <div className="fare-garage-chart-labels"><span>00:00</span><span>06:00</span><span>12:30</span><span>16:30</span><span>20:00</span><span>00:00</span></div>
-              </div>
+              <div className="fare-garage-chart"><p>Historical earnings will appear after verified distribution events are stored.</p></div>
             </div>
 
             <div className="fare-garage-overview-stats">
-              <div><span>Earned this hour</span><strong>4.82 {ticker}</strong><small className="is-positive">↗ 8.4%</small></div>
-              <div><span>Projected today</span><strong>57.60 {ticker}</strong><small>Estimate</small></div>
-              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${machines.length - repairable.length}/${machines.length}` : '7/9'}</strong><small>{wallet && status?.deployed ? `${repairable.length} need repair` : '2 need repair'}</small></div>
+              <div><span>Claimable cars</span><strong>{wallet && status?.deployed ? claimable.length : 0}</strong><small>Finalized state</small></div>
+              <div><span>Fleet weight</span><strong>{wallet && status?.deployed ? machines.reduce((sum, machine) => sum + machine.weight, 0) : 0}</strong><small>Current total</small></div>
+              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${machines.length - repairable.length}/${machines.length}` : '0/0'}</strong><small>{wallet && status?.deployed ? `${repairable.length} need repair` : 'Connect wallet'}</small></div>
             </div>
           </section>
 
@@ -209,6 +176,7 @@ export function GaragePage({ wallet }) {
               </article>
             ))}
           </div>
+          {wallet && status?.deployed && !busy && displayedCars.length === 0 && <p className="fare-garage-notice">This wallet has no verified taxis.</p>}
         </section>
       </main>
     </>

@@ -6,6 +6,7 @@ import { FareFaq } from './FareFaq.jsx';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+import { loadPublicOverview } from './publicData.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -542,6 +543,13 @@ export function FareShareLanding() {
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
   const copyReturnTimerRef = useRef(null);
+  const [overview, setOverview] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    loadPublicOverview().then(value => active && setOverview(value)).catch(error => console.error('Could not load public protocol data', error));
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => () => {
     window.clearTimeout(copyResetTimerRef.current);
@@ -587,21 +595,15 @@ export function FareShareLanding() {
   ];
 
   const treasuryStats = [
-    { label: 'TRADING / 24H', value: '$482,918', accent: true },
-    { label: 'FEES COLLECTED', value: '$18,482' },
-    { label: 'IN TREASURY', value: '$84,218' },
-    { label: 'PAID TODAY', value: '$12,204' },
-    { label: 'TOKENS BURNED', value: '1.82M' },
-    { label: 'STOCKS PURCHASED', value: '$9,241' },
+    { label: 'MINTED CARS', value: overview ? String(overview.stats.mintedCars) : '—', accent: true },
+    { label: 'ACTIVE CARS', value: overview ? String(overview.stats.activeCars) : '—' },
+    { label: 'UNIQUE OWNERS', value: overview ? String(overview.stats.uniqueOwners) : '—' },
+    { label: 'ACTIVE WEIGHT', value: overview ? overview.stats.activeWeight : '—' },
+    { label: 'TREASURY SOL', value: overview ? formatLandingSol(overview.stats.treasurySolLamports) : '—' },
+    { label: 'FUNDED REWARD ASSETS', value: overview ? `${overview.stats.fundedRewardAssets}/5` : '—' },
   ];
 
-  const leaders = [
-    ['1', '24 430$'],
-    ['2', '16 842$'],
-    ['3', '24 430$'],
-    ['4', '16 842$'],
-    ['5', '24 430$'],
-  ];
+  const leaders = overview?.leaders?.slice(0, 5) || [];
 
   return (
     <>
@@ -707,14 +709,15 @@ export function FareShareLanding() {
 
           <div className="fare-leaderboard" id="leaderboard">
             <div className="fare-leaderboard-row fare-leaderboard-header">
-              <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>TOTAL EARNINGS</span>
+              <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>ACTIVE WEIGHT</span>
             </div>
-            {leaders.map(([position, earnings]) => <div className="fare-leaderboard-row" key={position}>
-              <span data-label="#">{position}</span>
-              <span className="fare-driver-cell" data-label="WALLET"><a href="https://solscan.io/account/User_4312234" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textDecorationThickness: '1px', textUnderlineOffset: '3px' }}>User_4312234</a></span>
-              <span data-label="CARS">12 Cars</span>
-              <span data-label="TOTAL EARNED">{earnings}</span>
+            {leaders.map((leader, index) => <div className="fare-leaderboard-row" key={leader.owner}>
+              <span data-label="#">{index + 1}</span>
+              <span className="fare-driver-cell" data-label="WALLET"><a href={`https://solscan.io/account/${leader.owner}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textDecorationThickness: '1px', textUnderlineOffset: '3px' }}>{shortLandingWallet(leader.owner)}</a></span>
+              <span data-label="CARS">{leader.cars} {leader.cars === 1 ? 'Car' : 'Cars'}</span>
+              <span data-label="ACTIVE WEIGHT">{leader.activeWeight}</span>
             </div>)}
+            {overview && leaders.length === 0 && <div className="fare-leaderboard-row"><span>—</span><span>No verified owners yet</span><span>0 Cars</span><span>0</span></div>}
           </div>
           </div>
         </section>
@@ -723,4 +726,13 @@ export function FareShareLanding() {
       </main>
     </>
   );
+}
+
+function formatLandingSol(lamports) {
+  const value = Number(lamports) / 1_000_000_000;
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(value)} SOL`;
+}
+
+function shortLandingWallet(wallet) {
+  return `${wallet.slice(0, 4)}…${wallet.slice(-4)}`;
 }

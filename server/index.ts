@@ -8,6 +8,7 @@ import { createTradeService, TradeError } from './trade.js';
 import { AdminAuthError, createAdminAuth } from './adminAuth.js';
 import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
+import { createPublicDataService, PublicDataError } from './publicData.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -37,6 +38,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
+const publicData = createPublicDataService(config, database);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -54,6 +56,23 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && url.pathname === '/api/token') {
       json(response, 200, publicToken);
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/public/overview') {
+      json(response, 200, await publicData.overview());
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/public/market') {
+      json(response, 200, await publicData.market());
+      return;
+    }
+    const walletFleetRoute = /^\/api\/fleet\/wallet\/([^/]+)$/.exec(url.pathname);
+    if (request.method === 'GET' && walletFleetRoute) {
+      json(response, 200, await publicData.walletFleet(decodeURIComponent(walletFleetRoute[1])));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/fleet/mints') {
+      json(response, 201, await publicData.recordMint(await readJson(request)));
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/login') {
@@ -257,7 +276,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }
@@ -265,6 +284,7 @@ const server = createServer(async (request, response) => {
 
 server.listen(config.port, () => {
   console.log(`Taxi backend listening on http://127.0.0.1:${config.port}`);
+  publicData.sync().catch(error => console.error('Initial public data sync failed', error));
 });
 
 async function readJson(request: IncomingMessage, maximumSize = 16_384): Promise<unknown> {

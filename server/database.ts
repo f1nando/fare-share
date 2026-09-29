@@ -75,6 +75,47 @@ export interface WorkerStatusDocument {
   updatedAt: Date;
 }
 
+export interface FleetMachineDocument {
+  asset: string;
+  machine: string;
+  owner: string;
+  name: string;
+  image: string;
+  className: string;
+  classIndex: number;
+  weight: number;
+  activeUntil: string;
+  rewardActive: boolean;
+  closed: boolean;
+  claimable: string[];
+  pending: string[];
+  fareBase: string;
+  mintSignature?: string;
+  mintedAt?: Date;
+  lastSeenAt: Date;
+  updatedAt: Date;
+}
+
+export interface PublicSnapshotDocument {
+  key: 'overview';
+  protocol: Record<string, unknown>;
+  distribution: Record<string, unknown>;
+  vaults: Record<string, unknown>;
+  observedAt: Date;
+  updatedAt: Date;
+}
+
+export interface FleetMintReceiptDocument {
+  signature: string;
+  asset: string;
+  owner: string;
+  slot: number;
+  blockTime: Date;
+  status: 'pending' | 'indexed';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -90,6 +131,9 @@ export interface TaxiDatabase {
   adminFeeOperations: Collection<AdminFeeOperationDocument>;
   tokenConfig: Collection<TokenConfigDocument>;
   workerStatus: Collection<WorkerStatusDocument>;
+  fleetMachines: Collection<FleetMachineDocument>;
+  publicSnapshots: Collection<PublicSnapshotDocument>;
+  fleetMintReceipts: Collection<FleetMintReceiptDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -108,6 +152,9 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const adminFeeOperations = db.collection<AdminFeeOperationDocument>('admin_fee_operations');
   const tokenConfig = db.collection<TokenConfigDocument>('token_config');
   const workerStatus = db.collection<WorkerStatusDocument>('worker_status');
+  const fleetMachines = db.collection<FleetMachineDocument>('fleet_machines');
+  const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
+  const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
@@ -129,6 +176,13 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     adminFeeOperations.createIndex({ updatedAt: 1 }),
     tokenConfig.createIndex({ key: 1 }, { unique: true }),
     workerStatus.createIndex({ key: 1 }, { unique: true }),
+    fleetMachines.createIndex({ asset: 1 }, { unique: true }),
+    fleetMachines.createIndex({ owner: 1, closed: 1 }),
+    fleetMachines.createIndex({ classIndex: 1, closed: 1 }),
+    fleetMachines.createIndex({ mintSignature: 1 }, { unique: true, sparse: true }),
+    publicSnapshots.createIndex({ key: 1 }, { unique: true }),
+    fleetMintReceipts.createIndex({ signature: 1 }, { unique: true }),
+    fleetMintReceipts.createIndex({ asset: 1, status: 1 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, publicSnapshots, fleetMintReceipts };
 }

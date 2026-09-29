@@ -117,10 +117,10 @@ export function UIKitPage() {
               </div>
             </Specimen>
             <Specimen name="Treasury stat" meta="Label 20px · value 47px">
-              <div className="fare-stat-card ui-stat-type"><span>FEES COLLECTED</span><strong className="is-accent">$18,482</strong></div>
+              <div className="fare-stat-card ui-stat-type"><span>VERIFIED VALUE</span><strong className="is-accent">—</strong></div>
             </Specimen>
             <Specimen name="Leaderboard row" meta="Header 18px · row 22px">
-              <div className="ui-table-type"><div><span>#</span><span>DRIVER</span><span>TOTAL EARNINGS</span></div><p><span>1</span><span>User_4312234</span><strong>24 430$</strong></p></div>
+              <div className="ui-table-type"><div><span>#</span><span>DRIVER</span><span>ACTIVE WEIGHT</span></div><p><span>—</span><span>No verified data</span><strong>—</strong></p></div>
             </Specimen>
             <Specimen name="FAQ copy" meta="Question 29px · answer 20px / 28px">
               <div className="ui-faq-type"><strong>WHAT ARE THE FEES?</strong><p>Every charge is shown before you confirm an action.</p></div>

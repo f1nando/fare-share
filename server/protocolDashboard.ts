@@ -49,6 +49,7 @@ export async function loadProtocolDashboard(
       saleStarted: configuration.saleStarted,
       teamAccount: String(configuration.teamAccount),
       fareMint: String(configuration.fareMint),
+      mintPrices: configuration.mintPrices.map(String),
       mintedByClass: configuration.mintedByClass,
       machineCount: machines.length,
     },
@@ -76,6 +77,7 @@ export async function loadProtocolDashboard(
       nextPool: pool.nextPool.map(String),
       seriesRemaining: pool.seriesRemaining.map(String),
       obligations: pool.obligations.map(String),
+      protocolNow: nowSeconds.toString(),
     },
     vaults: {
       solLamports: String(Math.max(0, feeVaultAccount.lamports - feeVaultRent)),
@@ -128,10 +130,12 @@ export function decodeDashboardMachine(bytes: Uint8Array, pool: DashboardPool) {
   const closed = reader.u8() !== 0;
   const checkpoints = Array.from({ length: 5 }, () => reader.u128());
   const storedClaimable = Array.from({ length: 5 }, () => reader.u64());
-  const claimable = storedClaimable.map((amount, index) => (
-    rewardActive ? amount + ((pool.accumulators[index] - checkpoints[index]) * BigInt(weight)) / ACCUMULATOR_SCALE : amount
+  const pending = checkpoints.map((checkpoint, index) => (
+    rewardActive ? ((pool.accumulators[index] - checkpoint) * BigInt(weight)) / ACCUMULATOR_SCALE : 0n
   ));
-  return { asset, weight, activeUntil, rewardActive, closed, claimable };
+  const claimable = storedClaimable.map((amount, index) => amount + pending[index]);
+  const fareBase = reader.u64();
+  return { asset, weight, activeUntil, rewardActive, closed, claimable, pending, fareBase };
 }
 
 function machineSummary(machine: string, bytes: Uint8Array, pool: DashboardPool) {
@@ -145,6 +149,8 @@ function machineSummary(machine: string, bytes: Uint8Array, pool: DashboardPool)
     rewardActive: state.rewardActive,
     closed: state.closed,
     claimable: state.claimable.map(String),
+    pending: state.pending.map(String),
+    fareBase: state.fareBase.toString(),
   };
 }
 
