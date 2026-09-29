@@ -101,6 +101,7 @@
 - [x] PDA/Collection/vault rent составляет `0.038237160 SOL`, transaction fees ALT+initialize `0.000025000 SOL`; общий невозвратный либо пока не закрываемый расход `0.045955280 / 0.5 SOL`. ProgramData `3.392002360 SOL` и ALT rent остаются recoverable; finalized liquid balance `3.610125714 SOL`.
 - [x] Initialize dry-run без ALT безопасно отклонён до отправки: raw transaction `1296 > 1232` байт. Добавлен отдельный recoverable initialize ALT flow; metadata не сокращаются и не подменяются.
 - [x] Тестовый `$TAXI` CA `4fg5Nh…Mpump` прошёл повторную finalized проверку immutable active sharing `100% → 2NUN…` и привязан до старта sale: signature `3Si92p…2nY9`, slot `451702950`. FARE vault создан; CA по-прежнему заменяем до `start-sale`.
+- [x] MongoDB runtime config сохранён только после finalized bind; локальный backend smoke вернул `/api/token` → `{ configured: true, mint: "4fg5Nh…Mpump", ticker: "TAXI" }`.
 - [x] Тот же ALT расширен 12 claim-адресами без создания второго ALT: signature `5dFo1C…Fxrm`; полный ALT rent `0.004348480 SOL` recoverable.
 - [x] Реальный V2 fee-sharing claim распределил `0.002097787 SOL` из Pump vault на `2NUN…`: signature `4kUfhW…D2AEF`, slot `451703275`. Повтор с тем же operation ID вернул сохранённый результат без второй транзакции; Pump vault теперь пуст.
 - [x] Исправлен immediate-finalization edge: backend при отсутствии slot в локальном объекте читает finalized slot по signature и не требует повторного запроса. Backend `62/62`, typecheck PASS.
