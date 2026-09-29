@@ -28,6 +28,9 @@ export interface WorkerConfiguration {
   collection: Address;
   fareMint: Address;
   stockMints: [Address, Address, Address, Address];
+  mintPrices: [bigint, bigint, bigint, bigint];
+  mintedByClass: [number, number, number, number];
+  saleStarted: boolean;
   pausedAt: bigint;
   totalPausedSeconds: bigint;
 }
@@ -82,7 +85,9 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
   const fareMint = reader.pubkey();
   const stockMints = Array.from({ length: 4 }, () => reader.pubkey()) as [Address, Address, Address, Address];
   for (let index = 0; index < 4; index += 1) reader.string();
-  reader.skip(8 * 4 + 2 * 4 + 1);
+  const mintPrices = Array.from({ length: 4 }, () => reader.u64()) as [bigint, bigint, bigint, bigint];
+  const mintedByClass = Array.from({ length: 4 }, () => reader.u16()) as [number, number, number, number];
+  const saleStarted = reader.u8() !== 0;
   const pausedAt = reader.i64();
   const totalPausedSeconds = reader.i64();
   return {
@@ -95,6 +100,9 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
     collection,
     fareMint,
     stockMints,
+    mintPrices,
+    mintedByClass,
+    saleStarted,
     pausedAt,
     totalPausedSeconds,
   };
@@ -115,6 +123,8 @@ class Reader {
   skip(length: number) { this.take(length); }
   i64(): bigint { const value = this.view.getBigInt64(this.offset, true); this.offset += 8; return value; }
   u64(): bigint { const value = this.view.getBigUint64(this.offset, true); this.offset += 8; return value; }
+  u16(): number { const value = this.view.getUint16(this.offset, true); this.offset += 2; return value; }
+  u8(): number { return this.bytes[this.offset++]; }
   pubkey(): Address { return address(addressDecoder.decode(this.take(32))); }
   string() {
     const length = this.view.getUint32(this.offset, true);

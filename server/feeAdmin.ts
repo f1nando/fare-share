@@ -17,12 +17,13 @@ import {
 } from '@solana/kit';
 import type { Collection } from 'mongodb';
 import { buildSetFareMintInstruction } from './admin.js';
-import type { AdminFeeActionDocument, AdminFeeOperationDocument } from './database.js';
+import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
 import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
 import { decodeWorkerConfiguration } from './solanaState.js';
 import { protocolAddresses } from './setup.js';
+import { loadProtocolDashboard } from './protocolDashboard.js';
 import { finalizedTransactionOutcome, sendInstructions, UnresolvedSolanaTransactionError } from './transaction.js';
 import { normalizeTicker, savePrimaryTokenConfig, type TokenConfigDocument } from './tokenConfig.js';
 
@@ -40,6 +41,7 @@ interface FeeAdminConfig {
   feeRecipientSecret: string;
   cluster: 'mainnet-beta' | 'devnet';
   minimumWalletLamports?: bigint;
+  workerIntervalMs: number;
 }
 
 interface RpcAccount {
@@ -61,6 +63,7 @@ export async function createFeeAdminService(
   actions: Collection<AdminFeeActionDocument>,
   operations: Collection<AdminFeeOperationDocument>,
   tokenConfig: Collection<TokenConfigDocument>,
+  workerStatus: Collection<WorkerStatusDocument>,
 ) {
   const admin = await createKeyPairSignerFromBytes(parseSecretBytes(config.adminSecret, 'ADMIN_KEYPAIR_SECRET_KEY'));
   const feeRecipient = await createKeyPairSignerFromBytes(parseSecretBytes(config.feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
@@ -265,11 +268,13 @@ export async function createFeeAdminService(
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
-      const [fees, history, storedToken] = await Promise.all([
+      const [fees, history, storedToken, worker] = await Promise.all([
         feeSnapshot(mint),
         actions.find({}, { sort: { createdAt: -1 }, limit: 20 }).toArray(),
         tokenConfig.findOne({ key: 'primary' }),
+        workerStatus.findOne({ key: 'protocol-worker' }),
       ]);
+      const dashboard = await loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs);
       const lastClaim = history.find(item => item.kind === 'claim');
       const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
       return {
@@ -282,6 +287,7 @@ export async function createFeeAdminService(
           status: activeOperation.status,
           signature: activeOperation.signature || null,
         } : null,
+        dashboard,
         history: history.map(publicAction),
       };
     },

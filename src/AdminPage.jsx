@@ -15,6 +15,7 @@ export function AdminPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [machineQuery, setMachineQuery] = useState('');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const selectedCa = status?.mint || ca;
 
@@ -116,7 +117,7 @@ export function AdminPage() {
   </form></main>;
 
   return <main className="admin-shell">
-    <header><div><p className="eyebrow">FARE SHARE</p><h1>Creator fees</h1></div><div className="header-actions"><button className="secondary" onClick={refresh}>Refresh</button><button className="ghost" onClick={logout}>Sign out</button></div></header>
+    <header><div><p className="eyebrow">FARE SHARE</p><h1>Protocol control</h1></div><div className="header-actions"><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button><button className="ghost" onClick={logout}>Sign out</button></div></header>
     {error && <p className="message error">{error}</p>}{notice && <p className="message success">{notice}</p>}
     {!status ? <section className="admin-card">Loading on-chain state…</section> : <>
       <section className="metrics">
@@ -125,6 +126,7 @@ export function AdminPage() {
         <Metric label="PumpSwap" value={formatSol(status.ammLamports)} />
         <Metric label="2NUN balance" value={formatSol(status.walletLamports)} />
       </section>
+      <LiveOverview dashboard={status.dashboard} />
       <section className="admin-grid">
         <div className="admin-card"><p className="eyebrow">PRIMARY TOKEN</p>{status.mint && status.ticker ? <><h2>${status.ticker}</h2><p className="mono break">{status.mint}</p><p className="status-ok">● CA and ticker are bound</p></> : <>
           <h2>{status.mint ? 'Enter the ticker for the on-chain CA' : 'Waiting for the client CA and ticker'}</h2><label>Contract address<input className="mono" value={selectedCa} disabled={Boolean(status.mint)} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste CA" /></label>
@@ -138,6 +140,8 @@ export function AdminPage() {
           <p className="muted">Transfer and distribution are completed in one atomic transaction.</p>
         </div>
       </section>
+      <Distribution dashboard={status.dashboard} />
+      <MachineBalances dashboard={status.dashboard} query={machineQuery} setQuery={setMachineQuery} />
       <section className="admin-card"><div className="section-title"><div><p className="eyebrow">HISTORY</p><h2>Recent operations</h2></div><span>Refreshes every 15 sec.</span></div>
         <div className="history">{status.history.length ? status.history.map(item => <div className="history-row" key={item.signature}><span className={`tag ${item.kind}`}>{labels[item.kind] || item.kind}</span><span>{formatSol(item.amountLamports)}</span><time>{new Date(item.createdAt).toLocaleString('en-US')}</time><a href={explorer(item.signature, item.cluster)} target="_blank" rel="noreferrer">{short(item.signature)} ↗</a></div>) : <p className="muted">No operations yet.</p>}</div>
       </section>
@@ -146,9 +150,56 @@ export function AdminPage() {
 }
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
+function LiveOverview({ dashboard }) {
+  if (!dashboard) return null;
+  const protocol = dashboard.protocol;
+  const worker = dashboard.worker;
+  return <section className="live-grid">
+    <div className="admin-card live-card"><div className="section-title"><div><p className="eyebrow">PROTOCOL</p><h2>Current status</h2></div><StatusPill state={protocol.state} /></div>
+      <LiveLine label="Sale" value={protocol.saleStarted ? 'Started' : 'Not started'} />
+      <LiveLine label="Machines" value={String(protocol.machineCount)} />
+      <LiveLine label="Minted" value={protocol.mintedByClass.join(' / ')} hint="Economy / Comfort / Business / Legend" />
+    </div>
+    <div className="admin-card live-card"><div className="section-title"><div><p className="eyebrow">WORKER</p><h2>Automation</h2></div><StatusPill state={worker.state} /></div>
+      <LiveLine label="Last successful cycle" value={worker.lastSuccessAt ? time(worker.lastSuccessAt) : 'No completed cycle'} />
+      <LiveLine label="Next cycle" value={worker.nextRunAt ? time(worker.nextRunAt) : 'Waiting for worker'} />
+      {worker.error && <p className="worker-error">{worker.error}</p>}
+    </div>
+    <div className="admin-card live-card"><p className="eyebrow">EVENT QUEUES</p><h2>Waiting events</h2>
+      <QueueBar label="Fleet" queue={dashboard.queues.main} />
+      <QueueBar label="Trainee" queue={dashboard.queues.trainee} />
+    </div>
+  </section>;
+}
+function Distribution({ dashboard }) {
+  if (!dashboard) return null;
+  const { distribution, worker } = dashboard;
+  return <section className="admin-card distribution-card"><div className="section-title"><div><p className="eyebrow">DISTRIBUTION</p><h2>Money flow</h2></div><span>{distribution.seriesActive ? 'Distribution in progress' : distribution.nextPool.some(value => BigInt(value) > 0n) ? `Queued for ${worker.nextRunAt ? time(worker.nextRunAt) : 'the next worker cycle'}` : 'Waiting for funds'}</span></div>
+    <div className="distribution-grid">{distribution.assets.map((asset, index) => <div className="asset-card" key={asset.symbol}><strong>{asset.symbol === 'FARE' ? '$FARE' : asset.symbol}</strong><Amount label="Next distribution" value={distribution.nextPool[index]} asset={asset} /><Amount label="In active series" value={distribution.seriesRemaining[index]} asset={asset} /><Amount label="Owed to machines" value={distribution.obligations[index]} asset={asset} /></div>)}</div>
+    <div className="distribution-foot"><span>Active fleet weight: <b>{distribution.activeWeight}</b></span><span>Calculated through: <b>{unixTime(distribution.calculatedUntil)}</b></span></div>
+  </section>;
+}
+function MachineBalances({ dashboard, query, setQuery }) {
+  if (!dashboard) return null;
+  const normalized = query.trim().toLowerCase();
+  const machines = dashboard.machines.filter(item => !normalized || item.asset.toLowerCase().includes(normalized) || item.machine.toLowerCase().includes(normalized) || item.className.toLowerCase().includes(normalized));
+  return <section className="admin-card machines-card"><div className="section-title"><div><p className="eyebrow">FLEET BALANCES</p><h2>Money by machine</h2></div><span>{machines.length} of {dashboard.machines.length}</span></div>
+    <input className="machine-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search asset, machine or class" />
+    <div className="machine-table-wrap"><table className="machine-table"><thead><tr><th>Machine</th><th>Status</th>{dashboard.distribution.assets.map(asset => <th key={asset.symbol}>{asset.symbol === 'FARE' ? '$FARE' : asset.symbol}</th>)}</tr></thead><tbody>{machines.length ? machines.map(machine => <tr key={machine.machine}><td><b>{machine.className}</b><a href={accountExplorer(machine.asset)} target="_blank" rel="noreferrer" className="mono">{short(machine.asset)} ↗</a></td><td><span className={machine.rewardActive ? 'machine-active' : 'machine-idle'}>{machine.closed ? 'Closed' : machine.rewardActive ? 'Earning' : 'Idle'}</span><small>{machine.activeUntil !== '0' ? `Until ${unixTime(machine.activeUntil)}` : 'No active shift'}</small></td>{machine.claimable.map((value, index) => <td className="mono" key={index}>{formatToken(value, dashboard.distribution.assets[index].decimals)}</td>)}</tr>) : <tr><td colSpan={7} className="empty-cell">No matching machines.</td></tr>}</tbody></table></div>
+    <p className="muted">Balances include stored claimable rewards and rewards already accrued in the current finalized pool. Amounts still waiting in “Next distribution” are not assigned until the worker processes them.</p>
+  </section>;
+}
+function StatusPill({ state }) { return <span className={`status-pill ${state}`}>{state.toUpperCase()}</span>; }
+function LiveLine({ label, value, hint }) { return <div className="live-line"><span>{label}{hint && <small>{hint}</small>}</span><b>{value}</b></div>; }
+function QueueBar({ label, queue }) { const percent = Math.min(100, queue.count / queue.capacity * 100); return <div className="queue"><div><span>{label}</span><b>{queue.count} events · {queue.readyPages} ready pages</b></div><div className="queue-track"><i style={{ width: `${percent}%` }} /></div></div>; }
+function Amount({ label, value, asset }) { return <div><span>{label}</span><b className="mono">{formatToken(value, asset.decimals)}</b></div>; }
 const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA' };
 function short(value) { return `${value.slice(0, 7)}…${value.slice(-7)}`; }
 function explorer(signature, cluster) { return `https://solscan.io/tx/${signature}${cluster === 'devnet' ? '?cluster=devnet' : ''}`; }
+function accountExplorer(value) { return `https://solscan.io/account/${value}`; }
+function time(value) { return new Date(value).toLocaleString('en-US'); }
+function unixTime(value) { const seconds = Number(value); return seconds > 0 ? new Date(seconds * 1000).toLocaleString('en-US') : 'Not started'; }
+function formatToken(raw, decimals) { const value = BigInt(raw || 0); const scale = 10n ** BigInt(decimals); const whole = value / scale; const fraction = (value % scale).toString().padStart(decimals, '0').replace(/0+$/, '').slice(0, 6); return fraction ? `${whole}.${fraction}` : String(whole); }
 function formatSol(raw) { return `${formatSolInput(BigInt(raw || 0))} SOL`; }
 function formatSolInput(raw) { const whole = raw / 1_000_000_000n; const fraction = (raw % 1_000_000_000n).toString().padStart(9, '0').replace(/0+$/, ''); return fraction ? `${whole}.${fraction}` : String(whole); }
 function parseSol(value) { if (!/^\d+(?:\.\d{1,9})?$/.test(value)) throw new Error('Enter a SOL amount with no more than 9 decimal places.'); const [whole, fraction = ''] = value.split('.'); const result = BigInt(whole) * 1_000_000_000n + BigInt(fraction.padEnd(9, '0')); if (result <= 0n) throw new Error('The amount must be greater than zero.'); return result; }

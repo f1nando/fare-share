@@ -35,7 +35,8 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   feeRecipientSecret: config.pumpFeeRecipientSecret!,
   cluster: config.solanaCluster,
   minimumWalletLamports: config.adminMinimumWalletLamports,
-}, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig) : null;
+  workerIntervalMs: config.workerIntervalMs,
+}, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 
 const server = createServer(async (request, response) => {
   setCors(request, response);

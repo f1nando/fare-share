@@ -62,6 +62,17 @@ export interface AdminFeeOperationDocument {
   updatedAt: Date;
 }
 
+export interface WorkerStatusDocument {
+  key: 'protocol-worker';
+  state: 'running' | 'idle' | 'error';
+  cycleStartedAt?: Date;
+  lastSuccessAt?: Date;
+  lastErrorAt?: Date;
+  nextRunAt?: Date;
+  error?: string;
+  updatedAt: Date;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -76,6 +87,7 @@ export interface TaxiDatabase {
   adminFeeActions: Collection<AdminFeeActionDocument>;
   adminFeeOperations: Collection<AdminFeeOperationDocument>;
   tokenConfig: Collection<TokenConfigDocument>;
+  workerStatus: Collection<WorkerStatusDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -93,6 +105,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const adminFeeActions = db.collection<AdminFeeActionDocument>('admin_fee_actions');
   const adminFeeOperations = db.collection<AdminFeeOperationDocument>('admin_fee_operations');
   const tokenConfig = db.collection<TokenConfigDocument>('token_config');
+  const workerStatus = db.collection<WorkerStatusDocument>('worker_status');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
@@ -113,6 +126,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     adminFeeOperations.createIndex({ lock: 1 }, { unique: true, sparse: true }),
     adminFeeOperations.createIndex({ updatedAt: 1 }),
     tokenConfig.createIndex({ key: 1 }, { unique: true }),
+    workerStatus.createIndex({ key: 1 }, { unique: true }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus };
 }
