@@ -14,6 +14,12 @@ const tuple = <T>(values: T[], name: string): [T, T, T, T] => {
   if (values.length !== 4) throw new Error(`${name} must contain exactly four comma-separated values`);
   return values as [T, T, T, T];
 };
+const metadataUris = (values: string[], name: string) => {
+  if (values.length !== 16 || values.some(value => !value)) {
+    throw new Error(`${name} must contain exactly 16 comma-separated values in class/variant order`);
+  }
+  return values;
+};
 
 const deploymentHex = required('DEPLOYMENT_ID_HEX');
 if (!/^[0-9a-fA-F]{64}$/.test(deploymentHex)) throw new Error('DEPLOYMENT_ID_HEX must contain 64 hex characters');
@@ -32,7 +38,7 @@ const result = await initializeProtocol({
   collectionUri: required('COLLECTION_URI'),
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
   mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
-  metadataUris: tuple(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
+  metadataUris: metadataUris(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
   lookupTables,
 });
 

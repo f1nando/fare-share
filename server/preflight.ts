@@ -64,6 +64,16 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     }
     return parts;
   };
+  const fixedList = (name: string, count: number) => {
+    const raw = required(name);
+    if (!raw) return [];
+    const parts = raw.split(',').map(part => part.trim());
+    if (parts.length !== count || parts.some(part => !part)) {
+      errors.push(`${name}: exactly ${count} comma-separated values are required`);
+      return [];
+    }
+    return parts;
+  };
   const requestLimit = (name: string, maximum: number) => {
     const raw = required(name);
     const parsed = Number(raw);
@@ -189,10 +199,10 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const collectionName = required('COLLECTION_NAME');
   if (collectionName.length > 64) errors.push('COLLECTION_NAME: maximum length is 64 characters');
   validateMetadataUri('COLLECTION_URI', required('COLLECTION_URI'), errors);
-  const metadataUris = tuple('MACHINE_METADATA_URIS');
+  const metadataUris = fixedList('MACHINE_METADATA_URIS', 16);
   metadataUris.forEach((uri, index) => validateMetadataUri(`MACHINE_METADATA_URIS[${index}]`, uri, errors));
-  if (metadataUris.length === 4 && new Set(metadataUris).size !== 4) {
-    warnings.push('MACHINE_METADATA_URIS: multiple classes use the same URI');
+  if (metadataUris.length === 16 && new Set(metadataUris).size !== 16) {
+    errors.push('MACHINE_METADATA_URIS: every class/variant entry must use a distinct URI');
   }
 
   if (value('SOLANA_RPC_URL') !== value('VITE_SOLANA_RPC_URL')) {
@@ -207,6 +217,10 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
 
 function validateMetadataUri(name: string, raw: string, errors: string[]) {
   if (!raw) return;
+  if (Buffer.byteLength(raw, 'utf8') > 200) {
+    errors.push(`${name}: maximum length is 200 UTF-8 bytes`);
+    return;
+  }
   if (raw.startsWith('ar://')) return;
   try {
     const parsed = new URL(raw);

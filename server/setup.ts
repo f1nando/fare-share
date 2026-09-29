@@ -21,6 +21,9 @@ const addressEncoder = getAddressEncoder();
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 const WSOL_MINT = address('So11111111111111111111111111111111111111112');
+export const CLASS_COUNT = 4;
+export const VARIANTS_PER_CLASS = 4;
+export const METADATA_URI_COUNT = CLASS_COUNT * VARIANTS_PER_CLASS;
 
 export interface InitializeProtocolInput {
   rpcUrl: string;
@@ -34,12 +37,13 @@ export interface InitializeProtocolInput {
   collectionUri: string;
   stockMints: [Address, Address, Address, Address];
   mintPrices: [bigint, bigint, bigint, bigint];
-  metadataUris: [string, string, string, string];
+  metadataUris: readonly string[];
   lookupTables?: AddressesByLookupTableAddress;
 }
 
 export async function initializeProtocol(input: InitializeProtocolInput) {
   if (input.deploymentId.length !== 32) throw new Error('deploymentId must contain 32 bytes');
+  assertMetadataUris(input.metadataUris);
   const addresses = await protocolAddresses(input.programId);
   const existing = await getAccount(input.rpcUrl, addresses.config);
   let initializeSignature: string | undefined;
@@ -56,6 +60,20 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
       [collectionSigner],
       input.lookupTables || {},
     ));
+  }
+
+  const metadataSignatures: string[] = [];
+  for (let classIndex = 0; classIndex < CLASS_COUNT; classIndex += 1) {
+    const start = classIndex * VARIANTS_PER_CLASS;
+    metadataSignatures.push(String(await sendInstructions(input.rpcUrl, input.admin, [
+      buildSetMetadataUrisInstruction(
+        input.programId,
+        input.admin.address,
+        addresses.config,
+        classIndex,
+        input.metadataUris.slice(start, start + VARIANTS_PER_CLASS),
+      ),
+    ])));
   }
 
   const mints = [WSOL_MINT, ...input.stockMints];
@@ -80,7 +98,7 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
     }));
   }
   const vaultSignature = String(await sendInstructions(input.rpcUrl, input.admin, ataInstructions));
-  return { addresses, collection, vaults, initializeSignature, vaultSignature };
+  return { addresses, collection, vaults, initializeSignature, metadataSignatures, vaultSignature };
 }
 
 export function buildInitializeInstruction(
@@ -99,7 +117,6 @@ export function buildInitializeInstruction(
     stringBytes(input.collectionUri),
     ...input.stockMints.map(key),
     ...input.mintPrices.map(u64),
-    ...input.metadataUris.map(stringBytes),
   );
   return {
     programAddress: input.programId,
@@ -117,6 +134,47 @@ export function buildInitializeInstruction(
     ],
     data,
   };
+}
+
+export function buildSetMetadataUrisInstruction(
+  programId: Address,
+  admin: Address,
+  config: Address,
+  classIndex: number,
+  metadataUris: readonly string[],
+): Instruction {
+  if (!Number.isInteger(classIndex) || classIndex < 0 || classIndex >= CLASS_COUNT) {
+    throw new Error('classIndex must be an integer from 0 to 3');
+  }
+  if (metadataUris.length !== VARIANTS_PER_CLASS
+    || metadataUris.some(uri => !uri || Buffer.byteLength(uri, 'utf8') > 200)
+    || new Set(metadataUris).size !== VARIANTS_PER_CLASS) {
+    throw new Error('metadataUris must contain exactly four distinct variant URIs of 1 to 200 UTF-8 bytes');
+  }
+  return {
+    programAddress: programId,
+    accounts: [
+      meta(admin, AccountRole.READONLY_SIGNER),
+      meta(config, AccountRole.WRITABLE),
+    ],
+    data: concat(
+      anchorDiscriminator('set_metadata_uris'),
+      Uint8Array.of(classIndex),
+      ...metadataUris.map(stringBytes),
+    ),
+  };
+}
+
+export function assertMetadataUris(metadataUris: readonly string[]) {
+  if (metadataUris.length !== METADATA_URI_COUNT) {
+    throw new Error('metadataUris must contain exactly 16 values in class/variant order');
+  }
+  if (metadataUris.some(uri => !uri || Buffer.byteLength(uri, 'utf8') > 200)) {
+    throw new Error('every metadata URI must contain 1 to 200 UTF-8 bytes');
+  }
+  if (new Set(metadataUris).size !== METADATA_URI_COUNT) {
+    throw new Error('every class/variant metadata URI must be distinct');
+  }
 }
 
 export async function protocolAddresses(programAddress: Address) {

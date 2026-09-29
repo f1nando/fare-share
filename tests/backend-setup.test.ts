@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { AccountRole, address, type KeyPairSigner } from '@solana/kit';
-import { buildInitializeInstruction, protocolAddresses, type InitializeProtocolInput } from '../server/setup.js';
+import {
+  buildInitializeInstruction,
+  buildSetMetadataUrisInstruction,
+  assertMetadataUris,
+  protocolAddresses,
+  type InitializeProtocolInput,
+} from '../server/setup.js';
 
 const PROGRAM_ID = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
 const SYSTEM_ADDRESS = address('11111111111111111111111111111111');
@@ -25,7 +31,7 @@ test('initialize instruction matches Anchor account and field order', async () =
     collectionUri: 'https://example.test/collection.json',
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
     mintPrices: [49n, 129n, 399n, 1099n],
-    metadataUris: ['economy', 'comfort', 'business', 'legend'],
+    metadataUris: Array.from({ length: 16 }, (_, index) => `uri-${index}`),
   };
   const collection = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
   const instruction = buildInitializeInstruction(input, addresses, collection);
@@ -56,8 +62,51 @@ test('initialize instruction matches Anchor account and field order', async () =
     [49n, 129n, 399n, 1099n],
   );
   offset += 8 * 4;
-  assert.deepEqual([readString(), readString(), readString(), readString()], input.metadataUris);
   assert.equal(offset, data.length);
+
+  for (let classIndex = 0; classIndex < 4; classIndex += 1) {
+    const start = classIndex * 4;
+    const metadataInstruction = buildSetMetadataUrisInstruction(
+      PROGRAM_ID,
+      SYSTEM_ADDRESS,
+      addresses.config,
+      classIndex,
+      input.metadataUris.slice(start, start + 4),
+    );
+    const metadataData = Buffer.from(metadataInstruction.data!);
+    assert.deepEqual(
+      metadataData.subarray(0, 8),
+      createHash('sha256').update('global:set_metadata_uris').digest().subarray(0, 8),
+    );
+    assert.equal(metadataData[8], classIndex);
+    let metadataOffset = 9;
+    const values = Array.from({ length: 4 }, () => {
+      const length = metadataData.readUInt32LE(metadataOffset);
+      metadataOffset += 4;
+      const value = metadataData.subarray(metadataOffset, metadataOffset + length).toString();
+      metadataOffset += length;
+      return value;
+    });
+    assert.deepEqual(values, input.metadataUris.slice(start, start + 4));
+    assert.equal(metadataOffset, metadataData.length);
+  }
+});
+
+test('metadata setup rejects missing variants and invalid classes', async () => {
+  const addresses = await protocolAddresses(PROGRAM_ID);
+  assert.throws(
+    () => buildSetMetadataUrisInstruction(PROGRAM_ID, SYSTEM_ADDRESS, addresses.config, 0, ['a', 'b', 'c']),
+    /exactly four/,
+  );
+  assert.throws(
+    () => buildSetMetadataUrisInstruction(PROGRAM_ID, SYSTEM_ADDRESS, addresses.config, 4, ['a', 'b', 'c', 'd']),
+    /0 to 3/,
+  );
+  assert.throws(() => assertMetadataUris(Array.from({ length: 16 }, () => 'same')), /distinct/);
+  assert.throws(
+    () => assertMetadataUris(Array.from({ length: 16 }, (_, index) => index === 15 ? 'x'.repeat(201) : `uri-${index}`)),
+    /200 UTF-8 bytes/,
+  );
 });
 
 test('protocol PDA derivation is deterministic and separates all roots', async () => {

@@ -66,7 +66,7 @@ test('backend signer accepts the standard Solana 64-byte secret format', () => {
 
 test('server decodes protocol pause clock after variable metadata strings', () => {
   const chunks = [Buffer.alloc(8), Buffer.alloc(32 * 5), Buffer.alloc(32, 9), Buffer.alloc(8 + 8 * 4 + 32 * 6)];
-  for (const text of ['a', 'longer-uri', '', 'z']) {
+  for (const text of Array.from({ length: 16 }, (_, index) => index === 1 ? 'longer-uri' : `uri-${index}`)) {
     const value = Buffer.from(text);
     const length = Buffer.alloc(4);
     length.writeUInt32LE(value.length);

@@ -34,6 +34,7 @@ import {
 } from '../src/protocol/solana.js';
 import {
   buildActivateTraineeInstructions,
+  buildMintMachine,
   buildClaimAllInstructions,
   buildClaimInstructions,
   claimLookupTableAddresses,
@@ -42,6 +43,7 @@ import {
   buildTransferCoreAssetInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
+  decodeConfiguration,
   decodeEventQueue,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
@@ -122,6 +124,43 @@ test('durability uses finalized Solana time and freezes during pause', () => {
   assert.equal(calculateDurabilityPercent(5 * 24 * 60 * 60), 100);
   assert.equal(calculateDurabilityPercent(5 * 24 * 60 * 60 - 1), 99.9);
   assert.equal(calculateDurabilityPercent(4 * 24 * 60 * 60 + 6 * 60 * 60), 85);
+});
+
+test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
+  const owner = address('11111111111111111111111111111111');
+  const configAddress = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+  const result = await buildMintMachine({
+    programAddress: configAddress,
+    owner,
+    configAddress,
+    config: { collection: owner, teamAccount: owner },
+    queue: owner,
+    classIndex: 2,
+    pageIndex: 7,
+  });
+  assert.deepEqual([...result.instruction.data], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
+});
+
+test('configuration decoder reads all 16 metadata URIs in class and variant order', () => {
+  const strings = Array.from({ length: 16 }, (_, index) => `uri-${index}`);
+  const stringBytes = strings.map(value => {
+    const bytes = Buffer.from(value);
+    const length = Buffer.alloc(4);
+    length.writeUInt32LE(bytes.length);
+    return Buffer.concat([length, bytes]);
+  });
+  const bytes = Buffer.concat([
+    Buffer.alloc(8),
+    Buffer.alloc(32 * 5),
+    Buffer.alloc(32),
+    Buffer.alloc(8 + 8 * 4),
+    Buffer.alloc(32 + 32 + 32 * 4),
+    ...stringBytes,
+    Buffer.alloc(8 * 4),
+    Buffer.alloc(2 * 4),
+    Buffer.alloc(1 + 8 + 8 + 1),
+  ]);
+  assert.deepEqual(decodeConfiguration(bytes).metadataUris, strings);
 });
 
 test('trainee reward uses processed start/end bucket boundaries', () => {

@@ -11,7 +11,7 @@
     "dev:server": "node --env-file-if-exists=.env --watch --import tsx server/index.ts",
     "server": "node --env-file-if-exists=.env --import tsx server/index.ts",
     "server:typecheck": "tsc -p tsconfig.server.json",
-    "test:backend": "node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-protocol-dashboard.test.ts tests/backend-setup.test.ts tests/backend-jupiter.test.ts tests/backend-pump.test.ts tests/backend-admin.test.ts tests/backend-admin-auth.test.ts tests/backend-fee-admin.test.ts tests/backend-preflight.test.ts tests/backend-scenes.test.ts tests/backend-request-limits.test.ts tests/backend-trade.test.ts",
+    "test:backend": "node --import tsx --test tests/backend-voucher.test.ts tests/backend-worker.test.ts tests/backend-protocol-dashboard.test.ts tests/backend-setup.test.ts tests/backend-metadata.test.ts tests/backend-jupiter.test.ts tests/backend-pump.test.ts tests/backend-admin.test.ts tests/backend-admin-auth.test.ts tests/backend-fee-admin.test.ts tests/backend-preflight.test.ts tests/backend-scenes.test.ts tests/backend-request-limits.test.ts tests/backend-trade.test.ts",
     "campaign:create": "node --env-file-if-exists=.env --import tsx scripts/create-trainee-campaign.ts",
     "worker": "node --env-file-if-exists=.env --import tsx scripts/run-worker.ts",
     "protocol:initialize": "node --env-file-if-exists=.env --import tsx scripts/initialize-protocol.ts",

@@ -44,7 +44,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     JUPITER_REQUESTS_PER_SECOND: '10',
     COLLECTION_NAME: 'FARE Taxi Park',
     COLLECTION_URI: 'https://arweave.net/collection',
-    MACHINE_METADATA_URIS: 'ar://economy,ar://comfort,ar://business,ar://legend',
+    MACHINE_METADATA_URIS: Array.from({ length: 16 }, (_, index) => `ar://machine-${index}`).join(','),
   };
 }
 
@@ -105,6 +105,16 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
   env.WORKER_KEYPAIR_SECRET_KEY = JSON.stringify(Array.from({ length: 64 }, (_, index) => index));
   const result = await validateDeploymentEnvironment(env);
   assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match/);
+});
+
+test('deployment preflight requires 16 distinct ordered machine metadata URIs', async () => {
+  const missing = validEnvironment();
+  missing.MACHINE_METADATA_URIS = Array.from({ length: 15 }, (_, index) => `ar://machine-${index}`).join(',');
+  assert.match((await validateDeploymentEnvironment(missing)).errors.join('\n'), /exactly 16/);
+
+  const duplicate = validEnvironment();
+  duplicate.MACHINE_METADATA_URIS = Array.from({ length: 16 }, () => 'ar://same').join(',');
+  assert.match((await validateDeploymentEnvironment(duplicate)).errors.join('\n'), /distinct URI/);
 });
 
 test('deployment preflight detects program id drift between Rust, Anchor and environment', () => {

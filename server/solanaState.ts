@@ -84,7 +84,7 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
   const collection = reader.pubkey();
   const fareMint = reader.pubkey();
   const stockMints = Array.from({ length: 4 }, () => reader.pubkey()) as [Address, Address, Address, Address];
-  for (let index = 0; index < 4; index += 1) reader.string();
+  for (let index = 0; index < 16; index += 1) reader.string();
   const mintPrices = Array.from({ length: 4 }, () => reader.u64()) as [bigint, bigint, bigint, bigint];
   const mintedByClass = Array.from({ length: 4 }, () => reader.u16()) as [number, number, number, number];
   const saleStarted = reader.u8() !== 0;

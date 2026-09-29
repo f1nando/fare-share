@@ -5,6 +5,8 @@ use crate::{math, TaxiError};
 pub const ASSET_COUNT: usize = 5;
 pub const STOCK_COUNT: usize = 4;
 pub const CLASS_COUNT: usize = 4;
+pub const VARIANTS_PER_CLASS: usize = 4;
+pub const METADATA_URI_COUNT: usize = CLASS_COUNT * VARIANTS_PER_CLASS;
 pub const CLASS_CAPS: [u16; CLASS_COUNT] = [1000, 300, 100, 25];
 pub const CLASS_WEIGHTS: [u16; CLASS_COUNT] = [1, 3, 10, 30];
 pub const MAX_DURABILITY_SECONDS: i64 = 5 * 24 * 60 * 60;
@@ -33,13 +35,7 @@ pub struct Configuration {
     pub fare_mint: Pubkey,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     #[max_len(MAX_METADATA_URI_LEN)]
-    pub economy_uri: String,
-    #[max_len(MAX_METADATA_URI_LEN)]
-    pub comfort_uri: String,
-    #[max_len(MAX_METADATA_URI_LEN)]
-    pub business_uri: String,
-    #[max_len(MAX_METADATA_URI_LEN)]
-    pub legend_uri: String,
+    pub metadata_uris: [String; METADATA_URI_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
     pub minted_by_class: [u16; CLASS_COUNT],
     pub sale_started: bool,
@@ -72,15 +68,19 @@ impl Configuration {
         }
     }
 
-    pub fn metadata_uri(&self, class: usize) -> Result<&str> {
-        match class {
-            0 => Ok(&self.economy_uri),
-            1 => Ok(&self.comfort_uri),
-            2 => Ok(&self.business_uri),
-            3 => Ok(&self.legend_uri),
-            _ => err!(TaxiError::InvalidClass),
-        }
+    pub fn metadata_uri(&self, class: usize, variant: usize) -> Result<&str> {
+        let index = metadata_uri_index(class, variant)?;
+        Ok(&self.metadata_uris[index])
     }
+}
+
+pub fn metadata_uri_index(class: usize, variant: usize) -> Result<usize> {
+    require!(class < CLASS_COUNT, TaxiError::InvalidClass);
+    require!(variant < VARIANTS_PER_CLASS, TaxiError::InvalidClass);
+    class
+        .checked_mul(VARIANTS_PER_CLASS)
+        .and_then(|offset| offset.checked_add(variant))
+        .ok_or_else(|| error!(TaxiError::MathOverflow))
 }
 
 #[account]

@@ -46,17 +46,7 @@ pub mod taxi_park {
         config.collection = ctx.accounts.collection.key();
         config.fare_mint = Pubkey::default();
         config.stock_mints = args.stock_mints;
-        require!(
-            args.metadata_uris
-                .iter()
-                .all(|uri| !uri.is_empty() && uri.len() <= MAX_METADATA_URI_LEN),
-            TaxiError::InvalidMetadataUri
-        );
-        let [economy_uri, comfort_uri, business_uri, legend_uri] = args.metadata_uris;
-        config.economy_uri = economy_uri;
-        config.comfort_uri = comfort_uri;
-        config.business_uri = business_uri;
-        config.legend_uri = legend_uri;
+        config.metadata_uris = std::array::from_fn(|_| String::new());
         config.mint_prices = args.mint_prices;
         config.sale_started = false;
         config.paused_at = 0;
@@ -114,6 +104,41 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn set_metadata_uris(
+        ctx: Context<AdminState>,
+        class: u8,
+        metadata_uris: [String; VARIANTS_PER_CLASS],
+    ) -> Result<()> {
+        let class_index = usize::from(class);
+        require!(class_index < CLASS_COUNT, TaxiError::InvalidClass);
+        require!(
+            metadata_uris
+                .iter()
+                .enumerate()
+                .all(|(index, uri)| {
+                    !uri.is_empty()
+                        && uri.len() <= MAX_METADATA_URI_LEN
+                        && metadata_uris[..index]
+                            .iter()
+                            .all(|previous| previous != uri)
+                }),
+            TaxiError::InvalidMetadataUri
+        );
+        let start = metadata_uri_index(class_index, 0)?;
+        if ctx.accounts.config.sale_started {
+            require!(
+                ctx.accounts.config.metadata_uris[start..start + VARIANTS_PER_CLASS]
+                    == metadata_uris[..],
+                TaxiError::SaleAlreadyStarted
+            );
+            return Ok(());
+        }
+        for (offset, uri) in metadata_uris.into_iter().enumerate() {
+            ctx.accounts.config.metadata_uris[start + offset] = uri;
+        }
+        Ok(())
+    }
+
     pub fn set_fare_mint(ctx: Context<SetFareMint>) -> Result<()> {
         let config = &mut ctx.accounts.config;
         let fare_mint = ctx.accounts.fare_mint.key();
@@ -152,6 +177,10 @@ pub mod taxi_park {
         require!(
             config.mint_prices.iter().all(|price| *price > 0),
             TaxiError::InvalidPrice
+        );
+        require!(
+            metadata_uris_are_valid(&config.metadata_uris),
+            TaxiError::InvalidMetadataUri
         );
         config.sale_started = true;
         Ok(())
@@ -800,11 +829,14 @@ pub mod taxi_park {
         let class_index = usize::from(class);
         let (weight, cap) = class_terms(class)?;
         let minted = ctx.accounts.config.minted_by_class[class_index];
-        require!(minted < cap, TaxiError::ClassSoldOut);
         let price = ctx.accounts.config.mint_prices[class_index];
-        let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        let (serial, variant) = next_mint_selection(minted, cap)?;
         let name = format!("FARE {} #{:04}", class_name(class)?, serial);
-        let uri = ctx.accounts.config.metadata_uri(class_index)?.to_owned();
+        let uri = ctx
+            .accounts
+            .config
+            .metadata_uri(class_index, usize::from(variant))?
+            .to_owned();
 
         let payment = anchor_lang::system_program::Transfer {
             from: ctx.accounts.owner.to_account_info(),
@@ -866,6 +898,7 @@ pub mod taxi_park {
             asset: ctx.accounts.asset.key(),
             owner: ctx.accounts.owner.key(),
             class,
+            variant,
             serial,
             weight,
             active_until: ctx.accounts.machine.active_until,
@@ -1713,7 +1746,6 @@ pub struct InitializeArgs {
     pub collection_uri: String,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
-    pub metadata_uris: [String; CLASS_COUNT],
 }
 
 #[derive(Accounts)]
@@ -2340,12 +2372,6 @@ mod accounting_tests {
                 Pubkey::new_unique(),
             ],
             mint_prices: [1; CLASS_COUNT],
-            metadata_uris: [
-                "a".to_owned(),
-                "b".to_owned(),
-                "c".to_owned(),
-                "d".to_owned(),
-            ],
         };
         assert!(validate_initial_addresses(&args).is_err());
     }
@@ -2370,10 +2396,7 @@ mod accounting_tests {
             collection: Pubkey::new_unique(),
             fare_mint: Pubkey::default(),
             stock_mints,
-            economy_uri: "a".to_owned(),
-            comfort_uri: "b".to_owned(),
-            business_uri: "c".to_owned(),
-            legend_uri: "d".to_owned(),
+            metadata_uris: std::array::from_fn(|index| format!("uri-{index}")),
             mint_prices: [1; CLASS_COUNT],
             minted_by_class: [0; CLASS_COUNT],
             sale_started: false,
@@ -2392,6 +2415,88 @@ mod accounting_tests {
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
         config.sale_started = true;
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
+    }
+
+    #[test]
+    fn variants_are_bounded_balanced_and_use_class_scoped_uris() {
+        let metadata_uris = std::array::from_fn(|index| format!("uri-{index}"));
+        let config = Configuration {
+            admin: Pubkey::new_unique(),
+            pending_admin: Pubkey::default(),
+            backend_signer: Pubkey::new_unique(),
+            team_account: Pubkey::new_unique(),
+            jupiter_program: Pubkey::new_unique(),
+            deployment_id: [1; 32],
+            fare_swap_nonce: 0,
+            stock_swap_nonces: [0; STOCK_COUNT],
+            collection: Pubkey::new_unique(),
+            fare_mint: Pubkey::new_unique(),
+            stock_mints: std::array::from_fn(|_| Pubkey::new_unique()),
+            metadata_uris,
+            mint_prices: [1, 2, 3, 4],
+            minted_by_class: [0; CLASS_COUNT],
+            sale_started: false,
+            paused_at: 0,
+            total_paused_seconds: 0,
+            bump: 1,
+        };
+
+        for class in 0..CLASS_COUNT {
+            for serial in 1..=12_u16 {
+                let variant = variant_for_serial(serial).unwrap();
+                assert!(usize::from(variant) < VARIANTS_PER_CLASS);
+                assert_eq!(
+                    config.metadata_uri(class, usize::from(variant)).unwrap(),
+                    format!("uri-{}", class * VARIANTS_PER_CLASS + usize::from(variant)),
+                );
+            }
+        }
+        assert_eq!(CLASS_CAPS, [1000, 300, 100, 25]);
+        assert_eq!(CLASS_WEIGHTS, [1, 3, 10, 30]);
+        assert_eq!(
+            (1..=8)
+                .map(|serial| variant_for_serial(serial).unwrap())
+                .collect::<Vec<_>>(),
+            [0, 1, 2, 3, 0, 1, 2, 3]
+        );
+        assert_eq!(next_mint_selection(0, 1000).unwrap(), (1, 0));
+        assert_eq!(next_mint_selection(999, 1000).unwrap(), (1000, 3));
+        assert!(next_mint_selection(1000, 1000).is_err());
+        assert!(metadata_uris_are_valid(&config.metadata_uris));
+        let mut duplicate_uris = config.metadata_uris.clone();
+        duplicate_uris[15] = duplicate_uris[0].clone();
+        assert!(!metadata_uris_are_valid(&duplicate_uris));
+        assert!(variant_for_serial(0).is_err());
+        assert!(config.metadata_uri(4, 0).is_err());
+        assert!(config.metadata_uri(0, 4).is_err());
+    }
+
+    #[test]
+    fn configuration_layout_requires_new_initialization() {
+        const LEGACY_CONFIGURATION_INIT_SPACE: usize = 1298;
+        assert_eq!(Configuration::INIT_SPACE, 3746);
+        assert_eq!(
+            Configuration::INIT_SPACE - LEGACY_CONFIGURATION_INIT_SPACE,
+            12 * (4 + MAX_METADATA_URI_LEN),
+        );
+    }
+
+    #[test]
+    fn machine_minted_event_serializes_class_variant_and_serial() {
+        let event = MachineMinted {
+            asset: Pubkey::new_unique(),
+            owner: Pubkey::new_unique(),
+            class: 2,
+            variant: 3,
+            serial: 17,
+            weight: 10,
+            active_until: 42,
+            paid_lamports: 99,
+        };
+        let bytes = event.try_to_vec().unwrap();
+        assert_eq!(bytes[64], 2);
+        assert_eq!(bytes[65], 3);
+        assert_eq!(u16::from_le_bytes(bytes[66..68].try_into().unwrap()), 17);
     }
 
     #[test]
@@ -2550,6 +2655,28 @@ fn class_name(class: u8) -> Result<&'static str> {
     }
 }
 
+fn variant_for_serial(serial: u16) -> Result<u8> {
+    require!(serial > 0, TaxiError::MathOverflow);
+    u8::try_from((serial - 1) % VARIANTS_PER_CLASS as u16)
+        .map_err(|_| error!(TaxiError::MathOverflow))
+}
+
+fn next_mint_selection(minted: u16, cap: u16) -> Result<(u16, u8)> {
+    require!(minted < cap, TaxiError::ClassSoldOut);
+    let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+    Ok((serial, variant_for_serial(serial)?))
+}
+
+fn metadata_uris_are_valid(metadata_uris: &[String; METADATA_URI_COUNT]) -> bool {
+    metadata_uris.iter().enumerate().all(|(index, uri)| {
+        !uri.is_empty()
+            && uri.len() <= MAX_METADATA_URI_LEN
+            && metadata_uris[..index]
+                .iter()
+                .all(|previous| previous != uri)
+    })
+}
+
 fn initialize_trainee_bucket(
     bucket: &mut Account<TraineeBucket>,
     timestamp: i64,
@@ -2679,6 +2806,7 @@ pub struct MachineMinted {
     pub asset: Pubkey,
     pub owner: Pubkey,
     pub class: u8,
+    pub variant: u8,
     pub serial: u16,
     pub weight: u16,
     pub active_until: i64,

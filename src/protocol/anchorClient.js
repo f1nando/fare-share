@@ -115,7 +115,7 @@ export function decodeConfiguration(bytes) {
     collection: reader.pubkey(),
     fareMint: reader.pubkey(),
     stockMints: Array.from({ length: 4 }, () => reader.pubkey()),
-    metadataUris: Array.from({ length: 4 }, () => reader.string()),
+    metadataUris: Array.from({ length: 16 }, () => reader.string()),
     mintPrices: Array.from({ length: 4 }, () => reader.u64()),
     mintedByClass: Array.from({ length: 4 }, () => reader.u16()),
     saleStarted: reader.bool(),
