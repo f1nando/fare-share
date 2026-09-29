@@ -1,12 +1,18 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
+import {
+  explorerTransaction,
+  formatSolAmount,
+  loadProtocolStatus,
+  mintMachine,
+} from './protocol/solana.js';
 
 const MINT_CLASSES = [
-  { name: 'Economy', tone: 'economy', weight: 1, priceSol: 0.5, supply: 1000, minted: 680, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
-  { name: 'Comfort', tone: 'comfort', weight: 3, priceSol: 1.2, supply: 300, minted: 112, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
-  { name: 'Business', tone: 'business', weight: 10, priceSol: 3.3, supply: 100, minted: 35, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
-  { name: 'Legend', tone: 'legend', weight: 30, priceSol: 7.9, supply: 25, minted: 8, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
+  { name: 'Economy', tone: 'economy', weight: 1, supply: 1000, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', tone: 'comfort', weight: 3, supply: 300, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', tone: 'business', weight: 10, supply: 100, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', tone: 'legend', weight: 30, supply: 25, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ].map(item => ({
   ...item,
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
@@ -37,10 +43,14 @@ function ArrowIcon() {
   );
 }
 
-export function MintPage() {
+export function MintPage({ wallet, connectWallet }) {
   const previewRef = useRef(null);
-  const [quantity, setQuantity] = useState(2);
+  const [quantity, setQuantity] = useState(1);
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [notice, setNotice] = useState('Loading live Solana mint state…');
+  const [busy, setBusy] = useState(false);
+  const [signature, setSignature] = useState('');
   const [preview, dispatchPreview] = useReducer(previewReducer, {
     current: { classIndex: 0, sceneIndex: 0 },
     previous: null,
@@ -48,6 +58,54 @@ export function MintPage() {
   const selectedClassIndex = preview.current.classIndex;
   const previewSceneIndex = preview.current.sceneIndex;
   const selectedClass = MINT_CLASSES[selectedClassIndex];
+  const mintedByClass = status?.deployed ? status.config.mintedByClass.map(Number) : [0, 0, 0, 0];
+  const selectedMinted = mintedByClass[selectedClassIndex];
+  const remaining = Math.max(0, selectedClass.supply - selectedMinted);
+  const priceLamports = status?.deployed ? status.config.mintPrices[selectedClassIndex] : 0n;
+  const paused = Boolean(status?.deployed && status.config.pausedAt !== 0n);
+
+  useEffect(() => {
+    let active = true;
+    loadProtocolStatus()
+      .then(next => {
+        if (!active) return;
+        setStatus(next);
+        setNotice(next.deployed ? '' : 'The mint program is not deployed on this network.');
+      })
+      .catch(error => active && setNotice(error.message || 'Could not load the live mint state.'));
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    setQuantity(value => Math.max(1, Math.min(value, Math.max(1, remaining))));
+  }, [remaining, selectedClassIndex]);
+
+  async function handleMint() {
+    if (!status?.deployed) return setNotice('The mint program is not available.');
+    if (paused) return setNotice('The protocol is paused. Minting is temporarily disabled.');
+    if (remaining === 0) return setNotice(`${selectedClass.name} is sold out.`);
+    setBusy(true);
+    setSignature('');
+    setNotice(`Approve ${quantity} transaction${quantity === 1 ? '' : 's'} in Phantom…`);
+    try {
+      const connection = wallet || await connectWallet();
+      let currentStatus = status;
+      let lastSignature = '';
+      for (let index = 0; index < quantity; index += 1) {
+        const result = await mintMachine(connection, selectedClassIndex, currentStatus);
+        lastSignature = result.signature;
+        currentStatus = await loadProtocolStatus();
+        setStatus(currentStatus);
+      }
+      setSignature(lastSignature);
+      setNotice(`${quantity} ${selectedClass.name} taxi${quantity === 1 ? '' : 's'} minted. The onchain serial selects the variant automatically.`);
+    } catch (error) {
+      if (error.signature) setSignature(error.signature);
+      setNotice(error.message || 'Mint failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (isPreviewHovered) return undefined;
@@ -118,7 +176,8 @@ export function MintPage() {
 
               <div className="fare-mint-classes" aria-label="Taxi class">
                 {MINT_CLASSES.map((item, index) => {
-                  const progress = item.minted / item.supply * 100;
+                  const minted = mintedByClass[index];
+                  const progress = minted / item.supply * 100;
                   const isSelected = index === selectedClassIndex;
 
                   return (
@@ -133,14 +192,14 @@ export function MintPage() {
                       >
                         {item.name}
                       </button>
-                      <div className="fare-mint-class-count"><span>Minted</span><strong>{item.minted}/{item.supply}</strong></div>
+                      <div className="fare-mint-class-count"><span>Minted</span><strong>{minted}/{item.supply}</strong></div>
                       <div
                         className="fare-mint-progress"
                         role="progressbar"
-                        aria-label={`${item.name}: ${item.minted} of ${item.supply} taxis minted`}
+                        aria-label={`${item.name}: ${minted} of ${item.supply} taxis minted`}
                         aria-valuemin="0"
                         aria-valuemax={item.supply}
-                        aria-valuenow={item.minted}
+                        aria-valuenow={minted}
                       >
                         <span style={{ width: `${progress}%` }} />
                       </div>
@@ -155,7 +214,7 @@ export function MintPage() {
                   <div className="fare-mint-quantity">
                     <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(value => Math.max(1, value - 1))}>−</button>
                     <strong>{quantity}</strong>
-                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(value => value + 1)}>+</button>
+                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(value => Math.min(Math.max(1, remaining), value + 1))}>+</button>
                   </div>
                 </div>
                 <div className="fare-mint-weight" aria-label={`Class weight ${selectedClass.weight}`}>
@@ -166,13 +225,15 @@ export function MintPage() {
 
               <div className="fare-mint-summary">
                 <div><span>Class</span><strong>{selectedClass.name}</strong></div>
-                <div><span>Mint price</span><strong>{selectedClass.priceSol.toFixed(1)} SOL</strong></div>
+                <div><span>Mint price</span><strong>{status?.deployed ? `${formatSolAmount(priceLamports)} SOL` : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
-                <div className="is-total"><span>Total</span><strong>{(quantity * selectedClass.priceSol).toFixed(1)} SOL</strong></div>
+                <div className="is-total"><span>Total</span><strong>{status?.deployed ? `${formatSolAmount(priceLamports * BigInt(quantity))} SOL` : '—'}</strong></div>
               </div>
 
-              <button className="fare-mint-submit" type="button">
-                <span>Mint taxi NFT</span>
+              {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
+              {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
+              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || paused || remaining === 0} onClick={handleMint}>
+                <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>
               <p className="fare-mint-note">The minted car appears in your garage and starts working automatically with a full tank.</p>
