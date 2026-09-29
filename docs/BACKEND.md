@@ -146,7 +146,7 @@ Swaps используют актуальный Jupiter Swap API V2 `/build`. Wo
 
 Перед devnet/mainnet запуском выполняется `npm run protocol:check-xstocks`. Команда проверяет публичной котировкой Jupiter наличие маршрута `0.1 SOL → xStock` для каждого из четырёх официальных mint. Размер можно переопределить через `XSTOCKS_CHECK_LAMPORTS`. Эта проверка подтверждает наличие маршрута, но не заменяет production-проверку Jupiter V2 `/build` с реальным `JUPITER_API_KEY` и program-controlled destination account.
 
-До создания тестового или основного `$FARE` выполните `npm run protocol:addresses` с целевым `TAXI_PROGRAM_ID`. Значение `pumpCreator` — это точный `FeeVault` PDA, который нужно передать как creator при создании обычного SOL-paired токена через официальный pump.fun program. Не включайте holder rewards и не мигрируйте creator vault в Pump Fees sharing config: в этих режимах стандартные permissionless-инструкции сбора на `FeeVault` не работают.
+До создания тестового или основного `$FARE` выполните `npm run protocol:addresses` с целевым `TAXI_PROGRAM_ID`. Для creator fees используется `2NUN…`: напрямую либо через canonical Pump Fees sharing config, который необратимо назначает этому кошельку 100%. Backend автоматически выбирает direct collect или permissionless V2 distribution. Holder rewards, изменяемые shares и любые другие recipients запрещены.
 
 `BACKEND_SIGNER_SECRET_KEY` только подписывает ваучеры и swap-планы и не нуждается в SOL. Отдельный `WORKER_KEYPAIR_SECRET_KEY` является обычным permissionless caller/fee payer: на нём должен быть небольшой запас SOL для служебных транзакций, но он не получает административных прав и не контролирует vault.
 

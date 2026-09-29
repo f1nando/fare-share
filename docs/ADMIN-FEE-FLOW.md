@@ -1,13 +1,13 @@
 # Сценарий назначения `$FARE` и работы с pump.fun fees
 
-Статус: backend, on-chain проверка direct creator и страница `/admin/` реализованы локально; mainnet smoke ещё не выполнен.
+Статус: backend, on-chain проверка direct/immutable-sharing recipient и страница `/admin/` реализованы локально; mainnet smoke ещё не выполнен.
 
 ## Зафиксированные адреса и ограничения
 
 - Получатель pump.fun Creator Fees: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`.
-- Заказчик самостоятельно создаёт SOL-paired токен на pump.fun и указывает этот адрес direct creator.
-- Кошелёк `2NUN…` должен использоваться только для одного `$FARE`: pump.fun vault агрегирует fees по creator, а не разделяет их по CA.
-- Mayhem Mode, Cashback, Holder Rewards, изменяемая custom creator fee и Pump Fees sharing config для `$FARE` запрещены: такой токен не соответствует выбранному direct-creator flow.
+- Заказчик самостоятельно создаёт SOL-paired токен на pump.fun. Поддерживаются direct creator `2NUN…` и Pump Fees sharing config, который активен, необратимо зафиксирован и назначает ровно 100% этому же кошельку.
+- Direct creator wallet `2NUN…` следует использовать только для одного `$FARE`, потому что direct vault агрегирует fees по creator. Безопасный immutable sharing config имеет отдельный vault конкретного CA.
+- Mayhem Mode, Cashback, Holder Rewards, изменяемая custom creator fee, редактируемый fee sharing и распределение кому-либо кроме `2NUN…` запрещены.
 - Приватный ключ `2NUN…` хранится только в server secret storage как `PUMP_FEE_RECIPIENT_SECRET_KEY`. Backend при запуске обязан получить из него public key и строго сравнить с зафиксированным адресом.
 
 ## 1. Подготовка до получения CA
@@ -27,10 +27,10 @@ Backend проверяет finalized on-chain состояние:
 1. Mint существует и принадлежит поддерживаемому SPL Token Program.
 2. Pump bonding-curve PDA действительно выведен из этого mint и принадлежит официальной Pump Program.
 3. Токен имеет SOL quote.
-4. `BondingCurve.creator` равен `2NUN…`.
+4. `BondingCurve.creator` равен `2NUN…` либо canonical sharing-config PDA данного mint.
 5. Токен не использует Mayhem Mode, Cashback или Holder Rewards.
 6. Custom creator fee равна нулю и не может редактироваться.
-7. Активного fee sharing config нет.
+7. Если fee sharing config существует, он принадлежит официальной Pump Fees Program, имеет version 2/active, `admin_revoked = true` и единственную долю `2NUN… = 10_000 bps`.
 8. Токен ещё не graduated. CA фиксируется до graduation, чтобы PumpSwap не успел получить несогласованного `coin_creator`.
 9. On-chain `Configuration.fare_mint` ещё пуст.
 
@@ -140,9 +140,9 @@ Private keys, пароль, cookie и полные RPC payload в MongoDB не �
 ## 8. Блокирующие release gates
 
 - подтверждён backup hot key `2NUN…`;
-- `2NUN…` не используется creator-адресом других токенов;
+- при direct mode `2NUN…` не используется creator-адресом других токенов; sharing mode использует отдельный vault конкретного CA;
 - admin password hash/session secret установлены через secret storage;
-- проверены direct creator, отсутствие cashback/sharing и SOL quote;
-- CA зафиксирован on-chain ровно один раз;
+- проверены direct creator либо immutable 100% sharing recipient, отсутствие cashback и SOL quote;
+- CA зафиксирован on-chain и остаётся заменяемым только до `start-sale`;
 - выполнен mainnet smoke: небольшая торговля → появление fee → claim → атомарный deposit/distribution → запись истории;
 - `start-sale` выполняется только после этого smoke.

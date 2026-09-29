@@ -20,6 +20,8 @@ import {
   WSOL_MINT,
   buildPumpAmmFeeCollection,
   buildPumpBondingFeeCollection,
+  buildPumpSharedAmmFeeTransfer,
+  buildPumpSharedFeeDistribution,
   derivePumpFeeAddresses,
   derivePumpFeeSharingConfig,
 } from '../server/pump.js';
@@ -48,6 +50,25 @@ test('pump.fun fee instructions use the official programs, discriminators, and P
   assert.equal(amm.accounts?.[5].address, addresses.creatorWsolAta);
   assert.notEqual(addresses.bondingCreatorVault, addresses.ammCreatorVaultAuthority);
   assert.equal(await derivePumpFeeSharingConfig(address('5xF68yQmQ6p9uQitrf8shxGXqTt5CouXXi19cNHvpump')), '43uWECi43atPx7sb7dzwhKDg4pCC9mbGMVtnVkyWTkaR');
+});
+
+test('shared creator fee instructions use official V2 account order', async () => {
+  const payer = await generateKeyPairSigner();
+  const mint = address('4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump');
+  const sharingConfig = address('4uiVRDnSqh1jcByFcEit3FpTw8qFoCh8HiLxDotJi9Fx');
+  const recipient = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
+  const bondingCurve = address('G4ZPPzWratZrtHVSRcf3iWYCFnQJxqHzzpMVcfEmdodV');
+  const addresses = await derivePumpFeeAddresses(sharingConfig);
+  const transfer = buildPumpSharedAmmFeeTransfer(payer.address, sharingConfig, addresses);
+  const distribute = buildPumpSharedFeeDistribution({ payer: payer.address, mint, bondingCurve, sharingConfig, recipient, addresses });
+
+  assert.deepEqual([...(transfer.data || [])], [1, 33, 78, 185, 33, 67, 44, 92]);
+  assert.equal(transfer.accounts?.length, 12);
+  assert.deepEqual([...(distribute.data || [])], [255, 203, 19, 79, 244, 68, 8, 159, 0]);
+  assert.equal(distribute.accounts?.length, 13);
+  assert.equal(distribute.accounts?.[0].role, AccountRole.WRITABLE_SIGNER);
+  assert.equal(distribute.accounts?.[12].address, recipient);
+  assert.equal(distribute.accounts?.[12].role, AccountRole.WRITABLE);
 });
 
 test('taxi program absorbs collected PumpSwap WSOL into its fee vault', () => {

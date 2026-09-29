@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { address, getAddressEncoder } from '@solana/kit';
-import { decodePumpBondingCurve, normalizeOperationId, tokenAmount } from '../server/feeAdmin.js';
+import { decodePumpBondingCurve, decodePumpFeeSharingConfig, normalizeOperationId, tokenAmount } from '../server/feeAdmin.js';
 import { normalizeTicker, tokenConfigFromDocument } from '../server/tokenConfig.js';
 
 test('Pump curve decoder reads direct creator and all prohibited reward flags', () => {
@@ -26,6 +26,32 @@ test('Pump curve decoder rejects legacy layouts that cannot prove reward setting
   const data = new Uint8Array(115);
   data.set([23, 183, 248, 55, 96, 216, 172, 96]);
   assert.throws(() => decodePumpBondingCurve(data), /outdated Pump bonding curve/);
+});
+
+test('Pump fee sharing decoder reads an immutable 100% wallet recipient', () => {
+  const mint = address('4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump');
+  const admin = address('FuDZGBHsZwDNWiQNy1bvYHawKEiTnZ91dkA49zxGcmmG');
+  const recipient = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
+  const data = new Uint8Array(1024);
+  data.set([216, 74, 9, 0, 56, 140, 93, 75]);
+  data[8] = 252;
+  data[9] = 2;
+  data[10] = 1;
+  data.set(getAddressEncoder().encode(mint), 11);
+  data.set(getAddressEncoder().encode(admin), 43);
+  data[75] = 1;
+  new DataView(data.buffer).setUint32(76, 1, true);
+  data.set(getAddressEncoder().encode(recipient), 80);
+  new DataView(data.buffer).setUint16(112, 10_000, true);
+
+  assert.deepEqual(decodePumpFeeSharingConfig(data), {
+    version: 2,
+    active: true,
+    mint,
+    admin,
+    adminRevoked: true,
+    shareholders: [{ address: recipient, shareBps: 10_000 }],
+  });
 });
 
 test('token amount parser reads initialized legacy and Token-2022 base layouts', () => {

@@ -18,6 +18,8 @@ export const ASSOCIATED_TOKEN_PROGRAM = address('ATokenGPvbdGVxr1b2hvZbsiqW5xWH2
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 const PUMP_COLLECT_CREATOR_FEE_V2 = Uint8Array.from([207, 17, 138, 242, 4, 34, 19, 56]);
 const PUMP_AMM_COLLECT_COIN_CREATOR_FEE = Uint8Array.from([160, 57, 89, 42, 181, 139, 43, 66]);
+const PUMP_DISTRIBUTE_CREATOR_FEES_V2 = Uint8Array.from([255, 203, 19, 79, 244, 68, 8, 159, 0]);
+const PUMP_AMM_TRANSFER_CREATOR_FEES_TO_PUMP_V2 = Uint8Array.from([1, 33, 78, 185, 33, 67, 44, 92]);
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
 
@@ -107,6 +109,60 @@ export function buildPumpAmmFeeCollection(
       meta(PUMP_AMM_PROGRAM, AccountRole.READONLY),
     ],
     data: PUMP_AMM_COLLECT_COIN_CREATOR_FEE,
+  };
+}
+
+export function buildPumpSharedAmmFeeTransfer(
+  payer: Address,
+  sharingConfig: Address,
+  addresses: PumpFeeAddresses,
+): Instruction {
+  return {
+    programAddress: PUMP_AMM_PROGRAM,
+    accounts: [
+      meta(payer, AccountRole.WRITABLE_SIGNER),
+      meta(WSOL_MINT, AccountRole.READONLY),
+      meta(TOKEN_PROGRAM, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+      meta(ASSOCIATED_TOKEN_PROGRAM, AccountRole.READONLY),
+      meta(sharingConfig, AccountRole.READONLY),
+      meta(addresses.ammCreatorVaultAuthority, AccountRole.WRITABLE),
+      meta(addresses.ammCreatorVaultWsolAta, AccountRole.WRITABLE),
+      meta(addresses.bondingCreatorVault, AccountRole.WRITABLE),
+      meta(addresses.bondingCreatorVaultWsolAta, AccountRole.WRITABLE),
+      meta(addresses.ammEventAuthority, AccountRole.READONLY),
+      meta(PUMP_AMM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: PUMP_AMM_TRANSFER_CREATOR_FEES_TO_PUMP_V2,
+  };
+}
+
+export function buildPumpSharedFeeDistribution(input: {
+  payer: Address;
+  mint: Address;
+  bondingCurve: Address;
+  sharingConfig: Address;
+  recipient: Address;
+  addresses: PumpFeeAddresses;
+}): Instruction {
+  return {
+    programAddress: PUMP_PROGRAM,
+    accounts: [
+      meta(input.payer, AccountRole.WRITABLE_SIGNER),
+      meta(input.mint, AccountRole.READONLY),
+      meta(input.bondingCurve, AccountRole.READONLY),
+      meta(input.sharingConfig, AccountRole.READONLY),
+      meta(input.addresses.bondingCreatorVault, AccountRole.WRITABLE),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+      meta(input.addresses.bondingEventAuthority, AccountRole.READONLY),
+      meta(PUMP_PROGRAM, AccountRole.READONLY),
+      meta(input.addresses.bondingCreatorVaultWsolAta, AccountRole.WRITABLE),
+      meta(WSOL_MINT, AccountRole.READONLY),
+      meta(TOKEN_PROGRAM, AccountRole.READONLY),
+      meta(ASSOCIATED_TOKEN_PROGRAM, AccountRole.READONLY),
+      meta(input.recipient, AccountRole.WRITABLE),
+    ],
+    data: PUMP_DISTRIBUTE_CREATOR_FEES_V2,
   };
 }
 

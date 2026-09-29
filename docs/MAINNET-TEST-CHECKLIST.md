@@ -79,7 +79,7 @@
 2. Передать четыре точные микроцены в raw lamports в порядке `Economy, Comfort, Business, Legend`.
 3. Передать отдельные test-mainnet Collection name/URI и четыре immutable machine metadata URI; изображения и metadata не должны использовать production Collection.
 4. Утвердить максимальный бюджет теста. Текущий ориентир до новой freeze-сборки — пополнение `2NUN…` минимум до `7 SOL`; точная сумма будет пересчитана по финальному SBF.
-5. Создать `$FARE` на pump.fun только в согласованное окно: SOL pair, direct creator строго `2NUN…`, без Mayhem/Cashback/Holder Rewards/custom fee/fee sharing. После создания передать только CA и желаемый ticker.
+5. Создать `$FARE` на pump.fun только в согласованное окно: SOL pair, direct creator `2NUN…` либо immutable active sharing config с единственной долей `2NUN… = 100%`; без Mayhem/Cashback/Holder Rewards/custom fee. После создания передать только CA и желаемый ticker.
 6. Подтвердить точный recovery recipient и fee payer для disposable теста. Планируемое значение для обоих — `2NUN…`, но audit/deploy не используют это как default.
 7. Передать параметры целевого окружения: private mainnet RPC/DAS endpoints, разрешённый frontend origin, имя admin-пользователя и пароль через безопасный канал. API keys, пароль и keypair в Git или чат не отправлять; на сервере сохраняются только password hash и secret-storage values.
 8. Дать отдельное явное разрешение на расход mainnet SOL и disposable deploy. Создание токена, deploy и любые внешние mainnet-транзакции до этого не выполняются.

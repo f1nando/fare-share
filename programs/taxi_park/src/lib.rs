@@ -118,12 +118,12 @@ pub mod taxi_park {
         let config = &mut ctx.accounts.config;
         let fare_mint = ctx.accounts.fare_mint.key();
         validate_fare_assignment(config, fare_mint)?;
-        validate_pump_creator(
+        validate_pump_fee_recipient(
             fare_mint,
             &ctx.accounts.fee_recipient.key(),
             &ctx.accounts.bonding_curve,
+            &ctx.accounts.fee_sharing_config,
         )?;
-        validate_no_pump_fee_sharing(fare_mint, &ctx.accounts.fee_sharing_config)?;
         let config_key = config.key();
         let token_program_key = ctx.accounts.token_program.key();
         token::assert_program(&ctx.accounts.token_program)?;
@@ -2077,7 +2077,7 @@ pub struct SetFareMint<'info> {
     pub fare_vault: UncheckedAccount<'info>,
     /// CHECK: Pump ownership, PDA, creator, stage and flags are validated in the handler.
     pub bonding_curve: UncheckedAccount<'info>,
-    /// CHECK: Canonical Pump Fees PDA is validated and must not be initialized.
+    /// CHECK: Canonical Pump Fees PDA is validated; an initialized config must be immutable and assign 100% to fee_recipient.
     pub fee_sharing_config: UncheckedAccount<'info>,
     /// CHECK: Must be the SPL Token or Token-2022 program that owns fare_mint.
     pub token_program: UncheckedAccount<'info>,
@@ -2170,12 +2170,14 @@ fn require_fare_ready(fare_mint: Pubkey) -> Result<()> {
     Ok(())
 }
 
-fn validate_pump_creator(
+fn validate_pump_fee_recipient(
     fare_mint: Pubkey,
     fee_recipient: &Pubkey,
     bonding_curve: &AccountInfo<'_>,
+    sharing_config: &AccountInfo<'_>,
 ) -> Result<()> {
     const PUMP_PROGRAM: Pubkey = pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+    const PUMP_FEE_PROGRAM: Pubkey = pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
     let expected = Pubkey::find_program_address(
         &[b"bonding-curve", fare_mint.as_ref()],
         &PUMP_PROGRAM,
@@ -2186,22 +2188,40 @@ fn validate_pump_creator(
     let data = bonding_curve.try_borrow_data()?;
     let (creator, complete) = decode_direct_pump_curve(&data)?;
     require!(!complete, TaxiError::PumpTokenAlreadyGraduated);
-    require_keys_eq!(creator, *fee_recipient, TaxiError::InvalidPumpCreator);
-    Ok(())
-}
-
-fn validate_no_pump_fee_sharing(fare_mint: Pubkey, sharing_config: &AccountInfo<'_>) -> Result<()> {
-    const PUMP_FEE_PROGRAM: Pubkey = pubkey!("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ");
-    let expected = Pubkey::find_program_address(
+    let expected_sharing_config = Pubkey::find_program_address(
         &[b"sharing-config", fare_mint.as_ref()],
         &PUMP_FEE_PROGRAM,
     )
     .0;
-    require_keys_eq!(sharing_config.key(), expected, TaxiError::InvalidPumpToken);
-    require!(
-        sharing_config.lamports() == 0 && sharing_config.data_is_empty(),
-        TaxiError::InvalidPumpToken
+    require_keys_eq!(sharing_config.key(), expected_sharing_config, TaxiError::InvalidPumpToken);
+    if sharing_config.lamports() == 0 && sharing_config.data_is_empty() {
+        require_keys_eq!(creator, *fee_recipient, TaxiError::InvalidPumpCreator);
+        return Ok(());
+    }
+    require_keys_eq!(*sharing_config.owner, PUMP_FEE_PROGRAM, TaxiError::InvalidPumpToken);
+    require_keys_eq!(creator, expected_sharing_config, TaxiError::InvalidPumpCreator);
+    let sharing_data = sharing_config.try_borrow_data()?;
+    validate_fixed_fee_sharing(&sharing_data, fare_mint, *fee_recipient)?;
+    Ok(())
+}
+
+fn validate_fixed_fee_sharing(data: &[u8], fare_mint: Pubkey, fee_recipient: Pubkey) -> Result<()> {
+    const DISCRIMINATOR: [u8; 8] = [216, 74, 9, 0, 56, 140, 93, 75];
+    const MIN_LENGTH: usize = 114;
+    require!(data.len() >= MIN_LENGTH, TaxiError::InvalidPumpToken);
+    require!(data[..8] == DISCRIMINATOR, TaxiError::InvalidPumpToken);
+    require!(data[9] == 2 && data[10] == 1, TaxiError::InvalidPumpToken);
+    require!(data[11..43] == fare_mint.to_bytes(), TaxiError::InvalidPumpToken);
+    require!(data[75] == 1, TaxiError::InvalidPumpToken);
+    let shareholder_count = u32::from_le_bytes(
+        data[76..80].try_into().map_err(|_| TaxiError::InvalidPumpToken)?,
     );
+    require!(shareholder_count == 1, TaxiError::InvalidPumpToken);
+    require!(data[80..112] == fee_recipient.to_bytes(), TaxiError::InvalidPumpCreator);
+    let share_bps = u16::from_le_bytes(
+        data[112..114].try_into().map_err(|_| TaxiError::InvalidPumpToken)?,
+    );
+    require!(share_bps == 10_000, TaxiError::InvalidPumpCreator);
     Ok(())
 }
 
@@ -2336,6 +2356,33 @@ mod accounting_tests {
         data[81] = 0;
         data[115] = 1;
         assert!(decode_direct_pump_curve(&data).is_err());
+    }
+
+    #[test]
+    fn pump_fee_sharing_must_be_immutable_and_pay_only_the_fee_recipient() {
+        let mint = Pubkey::new_unique();
+        let recipient = Pubkey::new_unique();
+        let mut data = vec![0_u8; 1024];
+        data[..8].copy_from_slice(&[216, 74, 9, 0, 56, 140, 93, 75]);
+        data[8] = 252;
+        data[9] = 2;
+        data[10] = 1;
+        data[11..43].copy_from_slice(mint.as_ref());
+        data[43..75].copy_from_slice(Pubkey::new_unique().as_ref());
+        data[75] = 1;
+        data[76..80].copy_from_slice(&1_u32.to_le_bytes());
+        data[80..112].copy_from_slice(recipient.as_ref());
+        data[112..114].copy_from_slice(&10_000_u16.to_le_bytes());
+
+        assert!(validate_fixed_fee_sharing(&data, mint, recipient).is_ok());
+        data[75] = 0;
+        assert!(validate_fixed_fee_sharing(&data, mint, recipient).is_err());
+        data[75] = 1;
+        data[112..114].copy_from_slice(&9_999_u16.to_le_bytes());
+        assert!(validate_fixed_fee_sharing(&data, mint, recipient).is_err());
+        data[112..114].copy_from_slice(&10_000_u16.to_le_bytes());
+        data[80..112].copy_from_slice(Pubkey::new_unique().as_ref());
+        assert!(validate_fixed_fee_sharing(&data, mint, recipient).is_err());
     }
 }
 

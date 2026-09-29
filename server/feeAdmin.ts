@@ -18,7 +18,7 @@ import {
 import type { Collection } from 'mongodb';
 import { buildRescueSolInstruction, buildRescueTokenInstruction, buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
 import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
-import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
+import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, buildPumpSharedAmmFeeTransfer, buildPumpSharedFeeDistribution, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_FEE_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
 import { decodeWorkerConfiguration } from './solanaState.js';
@@ -98,27 +98,34 @@ export async function createFeeAdminService(
     if (mintAccount.data.length < 82 || mintAccount.data[45] !== 1) throw new FeeAdminError('CA mint is not initialized.');
     if (!curveAccount || curveAccount.owner !== String(PUMP_PROGRAM)) throw new FeeAdminError('Pump bonding curve was not found for this CA.');
     const curve = decodePumpBondingCurve(curveAccount.data);
-    if (String(curve.creator) !== String(FIXED_FEE_RECIPIENT)) throw new FeeAdminError(`Creator must be ${FIXED_FEE_RECIPIENT}.`);
+    let feeMode: 'direct' | 'sharing' = 'direct';
+    if (sharingConfig) {
+      validateFixedFeeSharing(sharingConfig, mint);
+      if (String(curve.creator) !== String(await derivePumpFeeSharingConfig(mint))) throw new FeeAdminError('Pump creator does not point to the canonical fee sharing config.');
+      feeMode = 'sharing';
+    } else if (String(curve.creator) !== String(FIXED_FEE_RECIPIENT)) {
+      throw new FeeAdminError(`Creator must be ${FIXED_FEE_RECIPIENT} or an immutable 100% fee sharing config for that wallet.`);
+    }
     if (curve.mayhem) throw new FeeAdminError('Mayhem Mode tokens cannot be used as FARE.');
     if (curve.cashback) throw new FeeAdminError('Cashback tokens cannot be used as FARE.');
     if (curve.holderRewards) throw new FeeAdminError('Holder Rewards tokens cannot be used as FARE.');
     if (curve.creatorFeeBps !== 0n || curve.canEditCreatorFee) throw new FeeAdminError('Custom editable creator fees cannot be used as FARE.');
     if (String(curve.quoteMint) !== ZERO_ADDRESS) throw new FeeAdminError('FARE must use the SOL quote.');
-    if (sharingConfig) throw new FeeAdminError('Pump fee sharing is enabled for this CA.');
     if (curve.complete) throw new FeeAdminError('CA must be fixed before pump.fun graduation.');
     const current = await configuredState();
     if (current.saleStarted && String(current.fareMint) !== String(mint)) {
       throw new FeeAdminError(`The sale has started and $FARE is locked as ${current.fareMint}. Use a paused migration instead of direct replacement.`, 409);
     }
-    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), creator: curve.creator, complete: curve.complete };
+    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), creator: curve.creator, complete: curve.complete, feeMode };
   }
 
   async function feeSnapshot(mint?: Address) {
-    const pump = await derivePumpFeeAddresses(FIXED_FEE_RECIPIENT);
+    const route = await feeRoute(mint);
+    const pump = await derivePumpFeeAddresses(route.creator);
     const [bonding, amm, claimedWsol, walletBalance] = await Promise.all([
       getOptionalAccount(config.rpcUrl, pump.bondingCreatorVault),
       getOptionalAccount(config.rpcUrl, pump.ammCreatorVaultWsolAta),
-      getOptionalAccount(config.rpcUrl, pump.creatorWsolAta),
+      route.mode === 'direct' ? getOptionalAccount(config.rpcUrl, pump.creatorWsolAta) : Promise.resolve(null),
       getBalance(config.rpcUrl, FIXED_FEE_RECIPIENT),
     ]);
     const bondingLamports = bonding ? availableLamports(bonding, await rent(config.rpcUrl, bonding.data.length)) : 0n;
@@ -126,6 +133,7 @@ export async function createFeeAdminService(
     const pendingUnwrapLamports = claimedWsol ? tokenAmount(claimedWsol.data) : 0n;
     return {
       mint: mint ? String(mint) : null,
+      feeMode: route.mode,
       feeRecipient: String(FIXED_FEE_RECIPIENT),
       bondingLamports: bondingLamports.toString(),
       ammLamports: ammLamports.toString(),
@@ -133,6 +141,24 @@ export async function createFeeAdminService(
       availableLamports: (bondingLamports + ammLamports).toString(),
       walletLamports: walletBalance.toString(),
     };
+  }
+
+  async function feeRoute(mint?: Address) {
+    if (!mint) return { mode: 'direct' as const, creator: FIXED_FEE_RECIPIENT, bondingCurve: null, sharingConfig: null };
+    const bondingCurve = await derivePumpBondingCurve(mint);
+    const sharingConfigAddress = await derivePumpFeeSharingConfig(mint);
+    const [curveAccount, sharingConfig] = await Promise.all([
+      getAccount(config.rpcUrl, bondingCurve),
+      getOptionalAccount(config.rpcUrl, sharingConfigAddress),
+    ]);
+    const curve = decodePumpBondingCurve(curveAccount.data);
+    if (!sharingConfig) {
+      if (String(curve.creator) !== String(FIXED_FEE_RECIPIENT)) throw new FeeAdminError('Configured token no longer pays creator fees to the fixed recipient.', 409);
+      return { mode: 'direct' as const, creator: FIXED_FEE_RECIPIENT, bondingCurve, sharingConfig: null };
+    }
+    validateFixedFeeSharing(sharingConfig, mint);
+    if (String(curve.creator) !== String(sharingConfigAddress)) throw new FeeAdminError('Configured token does not route creator fees through its canonical sharing config.', 409);
+    return { mode: 'sharing' as const, creator: sharingConfigAddress, bondingCurve, sharingConfig: sharingConfigAddress };
   }
 
   async function reconcileActiveOperation() {
@@ -420,6 +446,7 @@ export async function createFeeAdminService(
       const acquired = await acquireOperation(rawOperationId, 'claim', mint);
       if (acquired.replay) return acquired.replay;
       const before = await feeSnapshot(mint);
+      const route = await feeRoute(mint);
       const bondingLamports = BigInt(before.bondingLamports);
       const ammLamports = BigInt(before.ammLamports);
       const pendingUnwrap = BigInt(before.pendingUnwrapLamports);
@@ -448,15 +475,24 @@ export async function createFeeAdminService(
         walletBalanceBefore: operation.walletBalanceBefore,
         updatedAt: new Date(),
       } });
-      const pump = await derivePumpFeeAddresses(FIXED_FEE_RECIPIENT);
-      const instructions: Instruction[] = [
-        getCreateAssociatedTokenIdempotentInstruction({ payer: feeRecipient, ata: pump.creatorWsolAta, owner: feeRecipient.address, mint: WSOL_MINT, tokenProgram: TOKEN_PROGRAM }),
-      ];
-      if (bondingLamports > 0n) instructions.push(buildPumpBondingFeeCollection(FIXED_FEE_RECIPIENT, pump));
-      if (ammLamports > 0n) {
-        instructions.push(buildPumpAmmFeeCollection(FIXED_FEE_RECIPIENT, pump));
+      const pump = await derivePumpFeeAddresses(route.creator);
+      const instructions: Instruction[] = [];
+      if (route.mode === 'sharing') {
+        if (ammLamports > 0n) instructions.push(buildPumpSharedAmmFeeTransfer(feeRecipient.address, route.creator, pump));
+        instructions.push(buildPumpSharedFeeDistribution({
+          payer: feeRecipient.address,
+          mint,
+          bondingCurve: route.bondingCurve,
+          sharingConfig: route.creator,
+          recipient: FIXED_FEE_RECIPIENT,
+          addresses: pump,
+        }));
+      } else {
+        instructions.push(getCreateAssociatedTokenIdempotentInstruction({ payer: feeRecipient, ata: pump.creatorWsolAta, owner: feeRecipient.address, mint: WSOL_MINT, tokenProgram: TOKEN_PROGRAM }));
+        if (bondingLamports > 0n) instructions.push(buildPumpBondingFeeCollection(FIXED_FEE_RECIPIENT, pump));
+        if (ammLamports > 0n) instructions.push(buildPumpAmmFeeCollection(FIXED_FEE_RECIPIENT, pump));
+        instructions.push(getCloseAccountInstruction({ account: pump.creatorWsolAta, destination: feeRecipient.address, owner: feeRecipient }));
       }
-      instructions.push(getCloseAccountInstruction({ account: pump.creatorWsolAta, destination: feeRecipient.address, owner: feeRecipient }));
       try {
         const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions, [], {}, {
           onSigned: details => markSubmitted(operation.operationId, details),
@@ -516,6 +552,43 @@ export function decodePumpBondingCurve(data: Uint8Array) {
     canEditCreatorFee: data[123] !== 0,
     holderRewards: data[124] !== 0,
   };
+}
+
+export function decodePumpFeeSharingConfig(data: Uint8Array) {
+  const discriminator = Buffer.from([216, 74, 9, 0, 56, 140, 93, 75]);
+  if (data.length < 80 || !Buffer.from(data.subarray(0, 8)).equals(discriminator)) throw new FeeAdminError('Invalid Pump fee sharing config.');
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const shareholderCount = view.getUint32(76, true);
+  if (shareholderCount > 10 || data.length < 80 + shareholderCount * 34) throw new FeeAdminError('Invalid Pump fee sharing shareholders.');
+  return {
+    version: data[9],
+    active: data[10] === 1,
+    mint: addressDecoder.decode(data.subarray(11, 43)),
+    admin: addressDecoder.decode(data.subarray(43, 75)),
+    adminRevoked: data[75] !== 0,
+    shareholders: Array.from({ length: shareholderCount }, (_, index) => {
+      const offset = 80 + index * 34;
+      return {
+        address: addressDecoder.decode(data.subarray(offset, offset + 32)),
+        shareBps: view.getUint16(offset + 32, true),
+      };
+    }),
+  };
+}
+
+function validateFixedFeeSharing(account: RpcAccount, mint: Address) {
+  if (account.owner !== String(PUMP_FEE_PROGRAM)) throw new FeeAdminError('Fee sharing config is not owned by the official Pump Fees program.');
+  const sharing = decodePumpFeeSharingConfig(account.data);
+  if (sharing.version !== 2 || !sharing.active || !sharing.adminRevoked) {
+    throw new FeeAdminError('Fee sharing must be active, version 2, and permanently immutable.');
+  }
+  if (String(sharing.mint) !== String(mint)) throw new FeeAdminError('Fee sharing config belongs to another mint.');
+  if (sharing.shareholders.length !== 1
+    || String(sharing.shareholders[0].address) !== String(FIXED_FEE_RECIPIENT)
+    || sharing.shareholders[0].shareBps !== 10_000) {
+    throw new FeeAdminError(`Fee sharing must assign exactly 100% to ${FIXED_FEE_RECIPIENT}.`);
+  }
+  return sharing;
 }
 
 export function tokenAmount(data: Uint8Array) {
