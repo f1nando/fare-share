@@ -18,3 +18,9 @@ The generated files are written to `.qa/nft-metadata/` and are intentionally not
 
 Dynamic durability, rewards and repair cost do not belong in NFT metadata. They are read from the Solana program.
 Machine JSON deliberately omits `name`: the immutable Core Asset name is assigned on-chain as `FARE <Class> #<serial>`, while the model is represented by the `Model` attribute.
+
+The verified production metadata manifest is permanently available at:
+
+`https://gateway.irys.xyz/9evKWgrS3Jp6cGdDD3oBMRCoy7SYJ7gb6jBupX7ZMsaE/`
+
+Its `collection.json` and all 16 machine JSON files use symbol `FARE`, contain no disposable-test wording, and reference the canonical image manifest `DUxuuswdW5GvAaSejz35vmGa1G6S8xcjbb1EmqQamc5i`.

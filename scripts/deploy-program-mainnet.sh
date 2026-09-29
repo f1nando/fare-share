@@ -3,15 +3,18 @@
 set -euo pipefail
 
 EXPECTED_PROGRAM_ID="9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv"
+EXPECTED_PROGRAMDATA="F7Nn6JS8bwZpL5cYWXs4m2DzZnkh8BAnA78X9gcCUATr"
 EXPECTED_DEPLOYER="2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr"
-EXPECTED_PROGRAM_SHA256="fd50b5de5cdd703dc961fd43d422b9eba418df8387debc9b25b9206a2deb4d47"
-EXPECTED_PROGRAM_BYTES=558456
-MIN_BALANCE_LAMPORTS=6000000000
+EXPECTED_BUFFER="5uK9HMPXw7mhr8D5darUMvJnRL9gunQw9p1FWWk6TuoQ"
+MAINNET_GENESIS="5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+EXPECTED_PROGRAM_SHA256="0e7a1573d67f09ad148f8c3f19bdc1f5650eea3e203159f3619c23ff164f1eed"
+EXPECTED_PROGRAM_BYTES=669552
+MIN_BALANCE_LAMPORTS=6830000000
 
-PROGRAM_SO="${PROGRAM_SO:-/mnt/d/codex-taxi-sbf/deploy/taxi_park.so}"
-PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivan/Documents/fare-taxi-park-keys/program-keypair.json}"
-DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/mnt/c/Users/ivan/Documents/fare-taxi-park-keys/admin-keypair.json}"
-BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/mnt/c/Users/ivan/Documents/fare-taxi-park-keys/deploy-buffer-keypair.json}"
+PROGRAM_SO="${PROGRAM_SO:-/home/ivand/taxi-sbf-production-0e7a157/taxi_park.so}"
+PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/program-keypair.json}"
+DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/admin-keypair.json}"
+BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/home/ivand/.config/solana/taxi-mainnet-production-buffer.json}"
 RPC_URL="${SOLANA_RPC_URL:-mainnet-beta}"
 
 for required_file in "$PROGRAM_SO" "$PROGRAM_KEYPAIR" "$DEPLOYER_KEYPAIR"; do
@@ -20,6 +23,11 @@ for required_file in "$PROGRAM_SO" "$PROGRAM_KEYPAIR" "$DEPLOYER_KEYPAIR"; do
     exit 1
   fi
 done
+
+if [[ "$(solana genesis-hash --url "$RPC_URL")" != "$MAINNET_GENESIS" ]]; then
+  echo "RPC is not mainnet-beta; refusing deployment." >&2
+  exit 1
+fi
 
 program_id="$(solana-keygen pubkey "$PROGRAM_KEYPAIR")"
 deployer_id="$(solana-keygen pubkey "$DEPLOYER_KEYPAIR")"
@@ -62,6 +70,10 @@ if [[ ! -f "$BUFFER_KEYPAIR" ]]; then
   solana-keygen new --no-bip39-passphrase --silent --outfile "$BUFFER_KEYPAIR"
 fi
 buffer_id="$(solana-keygen pubkey "$BUFFER_KEYPAIR")"
+if [[ "$buffer_id" != "$EXPECTED_BUFFER" ]]; then
+  echo "Buffer key mismatch: expected $EXPECTED_BUFFER, got $buffer_id" >&2
+  exit 1
+fi
 
 deployment_complete=false
 report_recoverable_buffer() {
@@ -83,8 +95,10 @@ solana program deploy "$PROGRAM_SO" \
   --fee-payer "$DEPLOYER_KEYPAIR" \
   --upgrade-authority "$DEPLOYER_KEYPAIR" \
   --buffer "$BUFFER_KEYPAIR" \
+  --max-len "$EXPECTED_PROGRAM_BYTES" \
   --commitment finalized \
-  --max-sign-attempts 10
+  --max-sign-attempts 10 \
+  --use-rpc
 
 program_output="$(solana program show "$EXPECTED_PROGRAM_ID" \
   --url "$RPC_URL" \
@@ -93,6 +107,20 @@ program_output="$(solana program show "$EXPECTED_PROGRAM_ID" \
 echo "$program_output"
 if ! grep -Fq "Authority: $EXPECTED_DEPLOYER" <<<"$program_output"; then
   echo "Deployment finalized with an unexpected upgrade authority; refusing to continue." >&2
+  exit 1
+fi
+if ! grep -Fq "ProgramData Address: $EXPECTED_PROGRAMDATA" <<<"$program_output"; then
+  echo "Deployment finalized with an unexpected ProgramData address." >&2
+  exit 1
+fi
+
+onchain_binary="/home/ivand/taxi-sbf-production-0e7a157/onchain-taxi_park.so"
+rm -f "$onchain_binary"
+solana program dump "$EXPECTED_PROGRAM_ID" "$onchain_binary" \
+  --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR"
+if [[ "$(stat -c '%s' "$onchain_binary")" != "$EXPECTED_PROGRAM_BYTES" ]] ||
+   [[ "$(sha256sum "$onchain_binary" | cut -d ' ' -f 1)" != "$EXPECTED_PROGRAM_SHA256" ]]; then
+  echo "On-chain program binary does not match the frozen release." >&2
   exit 1
 fi
 

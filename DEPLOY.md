@@ -11,7 +11,7 @@
 - worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
 - `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
 
-Для первой mainnet-публикации admin/deployer должен иметь примерно `6 SOL`: release-профиль `opt-level = "z"`, ограниченная heap-очередь и минимальные проверенные CPI к Metaplex/SPL уменьшают SBF до 558 456 байт без stack warning в коде Taxi Park. При deploy одновременно финансируются известный нам upload buffer и upgradeable ProgramData. Пиковая потребность — примерно `5,677 SOL`; rent временного buffer возвращается после успешного deploy, а в ProgramData остаётся примерно `2,838 SOL`. Пока upgrade authority сохранён, депозит ProgramData можно вернуть, навсегда закрыв программу; небольшой исполняемый Program account остаётся невозвратным loader-v3 tombstone.
+Для первой mainnet-публикации admin/deployer должен иметь минимум `6.83 SOL`. Frozen production SBF занимает `669552` байт. При deploy одновременно финансируются известный upload buffer (`3.402162360 SOL`), upgradeable ProgramData (`3.402203000 SOL`) и Program tombstone (`0.000833120 SOL`); точный peak до transaction fees — `6.805198480 SOL`. Buffer возвращается после успешного deploy, а ProgramData rent остаётся recoverable, пока сохранена upgrade authority.
 
 ## 1. Сначала зафиксировать Program ID
 
@@ -81,7 +81,7 @@ solana program deploy -u devnet \
 
 Перед любым тестовым mainnet-развёртыванием пройти отдельный пошаговый checklist: [`docs/MAINNET-TEST-CHECKLIST.md`](docs/MAINNET-TEST-CHECKLIST.md). Тест микроцен выполняется только на disposable Program ID и отдельной Collection.
 
-1. Подготовить окончательные четыре изображения/metadata JSON и загрузить их в Arweave через Irys.
+1. Проверить окончательные collection cover, 16 изображений и 17 metadata JSON в production Irys manifest `9evKWgrS3Jp6cGdDD3oBMRCoy7SYJ7gb6jBupX7ZMsaE`.
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
 3. Зафиксировать точные mint-цены в lamports по согласованным долларовым ориентирам.
 4. Заполнить production RPC/DAS, MongoDB, домены, API key и три разных server keypair.
@@ -148,8 +148,8 @@ npm run protocol:audit-mainnet-recovery -- --require-paused --require-empty-vaul
 `RECOVERY_WORKER_ADDRESS`, `RECOVERY_BACKEND_ADDRESS` и пути к keypair для
 authority, fee payer, buffer, worker и backend. Скрипт не отправляет транзакции.
 
-Для текущего SBF ожидается, что rent upload buffer `2,83779468 SOL` возвращается
-после deploy, а `2,83783532 SOL` ProgramData возвращается только при окончательном
+Для текущего SBF ожидается, что rent upload buffer `3.402162360 SOL` возвращается
+после deploy, а `3.402203000 SOL` ProgramData возвращается только при окончательном
 закрытии. `0,00083312 SOL` исполняемого Program account останется в loader-v3
 tombstone и считается заранее известной невозвратной стоимостью. Комиссии также
 невозвратны. Эти суммы перед реальным deploy обязательно пересчитываются по точному
@@ -208,12 +208,12 @@ authority keypair. После close тот же Program ID использова�
 
 # Публикация программы в mainnet
 
-Актуальный SBF-файл собран вне диска C по пути
-`D:\codex-taxi-sbf\deploy\taxi_park.so`; его размер — 558 456 байт, SHA-256 —
-`fd50b5de5cdd703dc961fd43d422b9eba418df8387debc9b25b9206a2deb4d47`.
-При текущей ставке аренды временный buffer (`2,83779468 SOL`), ProgramData
-(`2,83783532 SOL`) и аккаунт программы (`0,00083312 SOL`) одновременно требуют
-примерно `5,67646312 SOL`. На deploy следует положить 6 SOL, чтобы остался запас
+Актуальный frozen SBF-файл собран в WSL по пути
+`/home/ivand/taxi-sbf-production-0e7a157/taxi_park.so`; его размер — `669552` байт, SHA-256 —
+`0e7a1573d67f09ad148f8c3f19bdc1f5650eea3e203159f3619c23ff164f1eed`.
+При текущей ставке аренды временный buffer (`3.402162360 SOL`), ProgramData
+(`3.402203000 SOL`) и аккаунт программы (`0.000833120 SOL`) одновременно требуют
+`6.805198480 SOL`. На deploy следует положить минимум `6.83 SOL`, чтобы остался запас
 на комиссии и повторные транзакции.
 
 Deploy сохраняет upgrade authority постоянно, чтобы обновление или окончательное
@@ -227,7 +227,7 @@ bash scripts/deploy-program-mainnet.sh
 
 Скрипт откажется выполнять deploy, если ключ программы или плательщика не
 совпадает с зафиксированным адресом, размер или хеш бинарника изменился,
-программа уже существует либо на кошельке меньше 6 SOL. Для upload используется
+программа уже существует либо на кошельке меньше `6.83 SOL`. Для upload используется
 постоянный локальный buffer keypair вне репозитория. Поэтому даже при обрыве
 deploy временный депозит не становится бесхозным: повторный запуск продолжит
 работу с тем же buffer, а скрипт напечатает точную команду его закрытия и возврата
@@ -240,14 +240,9 @@ admin, и никогда не передаёт `--final`.
 
 ## Проверка возврата rent
 
-Перед mainnet тот же SBF был проверен на локальном validator с feature set,
-скопированным из mainnet. Тест отдельно создал и закрыл upload buffer, затем
-развернул программу, проверил точный размер `558 456` байт, upgrade authority и
-побайтовое совпадение выгруженного ELF, после чего закрыл программу.
-
-Локальный genesis использовал более высокую ставку rent: buffer удержал
-`3,88800216 SOL`, ProgramData вместе с program account — `3,88805784 SOL`.
+Актуальная 16-variant логика прошла полный disposable mainnet lifecycle, включая
+deploy/upgrade, побайтовую проверку ELF, закрытие buffer и подтверждение возврата
+ProgramData rent старого disposable deployment. Frozen production SBF отличается
+Program ID и поэтому имеет отдельный SHA-256, который жёстко проверяет deploy script.
 Rent buffer и ProgramData возвращается плательщику, но rent исполняемого Program
-account штатная loader-v3 команда оставляет в необратимом tombstone. Mainnet-команда
-`solana rent` для актуального размера по-прежнему показывает соответственно
-`2,83779468 SOL` и `2,83783532 SOL`.
+account loader-v3 оставляет в необратимом tombstone.
