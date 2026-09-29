@@ -57,6 +57,7 @@ export function loadServerConfig() {
     swapSlippageBps: boundedInteger('SWAP_SLIPPAGE_BPS', 500, 1, 10_000),
     swapPlanTtlSeconds: integer('SWAP_PLAN_TTL_SECONDS', 600, 30),
     jupiterMaxAccounts: boundedInteger('JUPITER_MAX_ACCOUNTS', 48, 1, 64),
+    protocolLookupTable: optional('VITE_TAXI_LOOKUP_TABLE'),
     burnScanIntervalMs: integer('BURN_SCAN_INTERVAL_MS', 300_000, 60_000),
     burnCleanupLimit: boundedInteger('BURN_CLEANUP_LIMIT', 10, 1, 50),
     adminUsername: optional('ADMIN_USERNAME'),

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   AccountRole,
   address,
+  getAddressDecoder,
   getAddressEncoder,
   getProgramDerivedAddress,
   getUtf8Encoder,
@@ -40,6 +41,7 @@ import { solanaRpcCall } from './solanaRpc.js';
 
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
+const addressDecoder = getAddressDecoder();
 const WSOL_MINT = address('So11111111111111111111111111111111111111112');
 const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
@@ -178,6 +180,7 @@ async function processPendingSwaps(
   addresses: Awaited<ReturnType<typeof deriveAddresses>>,
   chainTime: bigint,
 ) {
+  const protocolLookupTables = await loadProtocolLookupTable(config.solanaRpcUrl, config.protocolLookupTable);
   const [configurationAccount, feeAccount] = await getAccounts(config.solanaRpcUrl, [
     addresses.config,
     addresses.feeVault,
@@ -258,13 +261,14 @@ async function processPendingSwaps(
         plan,
         route,
       });
+      const lookupTables = { ...route.lookupTables, ...protocolLookupTables };
       if (route.setupInstructions.length > 0) {
         const setupSignature = await sendInstructions(
           config.solanaRpcUrl,
           caller,
           route.setupInstructions,
           [],
-          route.lookupTables,
+          lookupTables,
         );
         console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} vault setup finalized: ${setupSignature}`);
       }
@@ -273,13 +277,27 @@ async function processPendingSwaps(
         caller,
         [computeUnitLimitInstruction(), signatureInstruction, processInstruction],
         [],
-        route.lookupTables,
+        lookupTables,
       );
       console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap finalized: ${signature}`);
     } catch (error) {
       console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap skipped:`, error);
     }
   }
+}
+
+async function loadProtocolLookupTable(rpcUrl: string, rawAddress?: string) {
+  if (!rawAddress) return {};
+  const lookupTable = address(rawAddress);
+  const account = await getAccount(rpcUrl, lookupTable);
+  if (account.data.length < 56 || (account.data.length - 56) % 32 !== 0) {
+    throw new Error(`Invalid protocol lookup table ${lookupTable}`);
+  }
+  const addresses = [];
+  for (let offset = 56; offset < account.data.length; offset += 32) {
+    addresses.push(addressDecoder.decode(account.data.subarray(offset, offset + 32)));
+  }
+  return { [lookupTable]: addresses };
 }
 
 function buildProcessSwapInstruction(input: {
