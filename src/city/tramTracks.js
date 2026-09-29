@@ -4,6 +4,12 @@ import { REVEAL } from './revealStages.js';
 
 // Embedded rails share the existing road batch: no extra materials or draw calls.
 export function populateTramTracks(batch, gx, gz, x, z, block) {
+  if (tramRoad(1, gx)) {
+    for (const direction of [-1, 1]) for (const side of [-1, 1]) {
+      batch.add('paint', x + direction * laneOffset(1, gx, 0) + side * 0.43,
+        0.045, z + block / 2, 0.075, 0.025, block, '#6b7373', 0, 0, 0, REVEAL.roads);
+    }
+  }
   if (!tramRoad(0, gz)) return;
   const bridge = canalColumn(gx);
   const points = bridge ? [0, ...Array.from({ length: BRIDGE_SEGMENTS + 1 }, (_, i) =>

@@ -235,7 +235,7 @@ test('a stopped exit queue cannot be hit by following circulating cars', () => {
 });
 
 test('T rings close their missing arm visually and route all traffic through existing exits', () => {
-  for(const block of [24,40,48])for(const [cx,cz] of [[-6,1],[9,10]]) {
+  for(const block of [24,40,48])for(const [cx,cz] of [[-6,1],[33,10]]) {
     const arms=junctionArms(cx,cz),closed=roundaboutClosedArm(cx,cz),lanes=new Map(),cars=[];
     assert.ok(roundaboutAt(cx,cz)&&closed>=0);
     const geometry=[];populateBlock({add:(...p)=>geometry.push(p)},cx,cz,0,0,block);

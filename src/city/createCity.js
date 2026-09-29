@@ -122,7 +122,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   populateTramTracks(batch, gx, gz, x, z, blockSize);
   populateRoundabout(batch, gx, gz, x, z, blockSize);
   if (northBoulevard && !canal) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 0, x, z, blockSize, !tramRoad(0, gz));
-  if (westBoulevard) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 1, x, z, blockSize);
+  if (westBoulevard) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 1, x, z, blockSize, !tramRoad(1, gx));
   if (diagonal) {
     populateDiagonal(batch, diagonal, x, z, blockSize, gx, gz);
     return;

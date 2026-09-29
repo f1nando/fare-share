@@ -31,6 +31,16 @@ test('tram avenues have three lanes per direction and a continuous straight rout
   }
   assert.equal(tramRoad(0, 6), false);
   assert.equal(tramRoad(1, 3), false);
+  for (const line of [-27, -9, 9, 27]) {
+    assert.ok(tramRoad(1, line));
+    assert.equal(tramRoad(1, line - 6), false);
+    assert.equal(tramRoad(1, line + 6), false);
+    assert.equal(streetTracks(1, line).length, 3);
+    for (let cross = -50; cross <= 50; cross++) {
+      assert.ok(roadOpen(1, line, cross));
+      assert.equal(roundaboutAt(line, cross), false);
+    }
+  }
 });
 
 test('trams replace a small part of inner-lane traffic, with safe initial gaps at maximum density', () => {
@@ -112,4 +122,64 @@ test('cross traffic waits for the rear of a long tram when the light changes', (
   }
   assert.ok(waited);
   assert.ok(train.position > 12 && cross.position > 12, 'both streams make progress');
+});
+
+test('vertical trams stay on their rails, obey lights and pass former ring locations', () => {
+  for (const line of [-9, 9]) for (const direction of [-1, 1]) {
+    const lane = populateLane(1, line, direction, settings, 3, 0, 0, true);
+    const car = lane.cars.find(c => c.kind === 'tram');
+    assert.ok(car);
+    Object.assign(car, { position: -direction * 20, speed: 6, cruise: 6, acceleration: 3 });
+    lane.cars = [car];
+    const lanes = network([car]);
+    for (let i = 0; i < 240; i++) updateNetwork(lanes, 1 / 30, 0, { blockSize: 40, roadLayout: true });
+    assert.ok(car.speed < 0.01);
+    assert.ok(car.position * direction <= -(junctionStop(line, 0) + extraHalfLength(car)) + 1e-6);
+    const stopped = car.position;
+    for (let i = 0; i < 900; i++) {
+      updateNetwork(lanes, 1 / 30, 12, { blockSize: 40, roadLayout: true });
+      assert.equal(car.axis, 1); assert.equal(car.line, line);
+      assert.equal(car.track, 0); assert.equal(car.offset, laneOffset(1, line, 0));
+      assert.ok(!car.turn && !car.changing);
+    }
+    assert.ok((car.position - stopped) * direction > 100);
+  }
+});
+
+test('vertical rails are continuous across tiles and meet horizontal rails at crossings', () => {
+  for (const line of [-9, 9]) for (const block of [24, 40, 64]) {
+    const first = [], next = [];
+    populateTramTracks({ add: (...p) => first.push(p) }, line, 0, 0, 0, block);
+    populateTramTracks({ add: (...p) => next.push(p) }, line, 1, 0, block, block);
+    const rails = first.filter(p => p[6] === block);
+    assert.equal(rails.length, 4);
+    assert.equal(first.length, 8, 'both rail directions share the same crossing');
+    assert.equal(next.length, 4);
+    rails.forEach((rail, i) => {
+      assert.equal(rail[1], next[i][1]);
+      assert.equal(rail[3] + rail[6] / 2, next[i][3] - next[i][6] / 2);
+      assert.equal(rail[2], 0.045);
+      assert.ok(Math.abs(Math.abs(rail[1]) - laneOffset(1, line, 0) - 0.43) < 1e-8 ||
+        Math.abs(Math.abs(rail[1]) - laneOffset(1, line, 0) + 0.43) < 1e-8);
+    });
+  }
+});
+
+test('perpendicular tram routes share signal-controlled crossings without body overlap', () => {
+  for (const horizontalDirection of [-1, 1]) for (const verticalDirection of [-1, 1]) {
+    const horizontal = tram(horizontalDirection);
+    horizontal.position = 360 - horizontalDirection * 20;
+    const vertical = populateLane(1, 9, verticalDirection, settings, 3, 0, 0, true).cars.find(c => c.kind === 'tram');
+    Object.assign(vertical, { position: -verticalDirection * 20, speed: 6, cruise: 6, acceleration: 3 });
+    const lanes = network([horizontal, vertical]);
+    for (let i = 0; i < 900; i++) {
+      updateNetwork(lanes, 1 / 30, i / 30, { blockSize: 40, roadLayout: true });
+      const dx = Math.abs(horizontal.position - (360 - verticalDirection * vertical.offset));
+      const dz = Math.abs(horizontalDirection * horizontal.offset - vertical.position);
+      const half = (vehicleType(horizontal).length + vehicleType(vertical).width) / 2;
+      assert.ok(dx >= half || dz >= half, 'crossing must remain reserved until the long rear clears');
+    }
+    assert.ok((horizontal.position - 360) * horizontalDirection > 12);
+    assert.ok(vertical.position * verticalDirection > 12);
+  }
 });

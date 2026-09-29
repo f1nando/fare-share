@@ -4,8 +4,9 @@ export const NORMAL_TRACKS = Object.freeze([0.82, 2.45, undefined, 4.08]);
 export const BOULEVARD_LANE_SCALE = 1.3;
 export const BOULEVARD_HALF = (NORMAL_TRACKS[3] + (NORMAL_TRACKS[1] - NORMAL_TRACKS[0]) / 2) * BOULEVARD_LANE_SCALE + .55;
 export const boulevardRoad = (axis,line) => ((line-axis*3)%6+6)%6===0;
-// These existing avenues stay open across parks, canals and roundabouts.
-export const tramRoad = (axis, line) => axis === 0 && line % 12 === 0;
+// Every second horizontal and every third vertical avenue carries trams.
+// The route coordinates avoid missing park roads and unbridged canals.
+export const tramRoad = (axis, line) => axis === 0 ? line % 12 === 0 : ((line - 9) % 18 + 18) % 18 === 0;
 // Shared centres for scenery, spawning, lane changes and all route endpoints.
 export const laneOffset = (axis,line,track) => {
   const scale = boulevardRoad(axis,line) ? BOULEVARD_LANE_SCALE : 1;

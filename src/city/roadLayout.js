@@ -1,4 +1,4 @@
-import { boulevardRoad } from './roadProfile.js';
+import { boulevardRoad, tramRoad } from './roadProfile.js';
 export { boulevardRoad } from './roadProfile.js';
 import { approachAtRing } from './diagonalLayout.js';
 import { canalColumn, canalBridge } from './bridgeProfile.js';
@@ -40,6 +40,8 @@ export function roundaboutClosedArm(x, z) { return junctionArms(x,z).indexOf(fal
 // Keep the existing four-arm locations and add sparse park-side T junctions.
 // Neighbouring rings are excluded so even small blocks retain queue space.
 export function roundaboutAt(x, z) {
+  // Rail corridors use ordinary signal-controlled crossings, never a curved ring.
+  if (tramRoad(0, z) || tramRoad(1, x)) return false;
   const mod = (n,d) => ((n%d)+d)%d;
   const regular = mod(x,6)===3 && mod(z,6)===1;
   const tCandidate = mod(x,8)===2 && mod(z,8)===1 || mod(x,8)===1 && mod(z,8)===2;
