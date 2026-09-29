@@ -1,10 +1,13 @@
 import { PAVED_ROAD } from './world.js';
+import { streetHalf } from './roadProfile.js';
 
 export const canalColumn = column => column % 12 === 0;
 export const canalBridge = line => line % 2 === 0;
 export const BRIDGE_SEGMENTS = 8;
 export const BRIDGE_START = PAVED_ROAD / 2 + 2.5;
 export const BRIDGE_HALF = PAVED_ROAD / 2 + 1.75;
+// The deck and wheel support must include the boulevard's third lane.
+export const bridgeHalfWidth = line => streetHalf(0, line) + 1.75;
 
 export function bridgeHeight(localX, block) {
   const t = (localX - BRIDGE_START) / (block - 2 * BRIDGE_START);
@@ -18,7 +21,7 @@ export function bridgeHeight(localX, block) {
 
 export function bridgeHeightAt(x, z, block) {
   const column = Math.floor(x / block), line = Math.round(z / block);
-  if (!canalColumn(column) || !canalBridge(line) || Math.abs(z - line * block) > BRIDGE_HALF) return 0;
+  if (!canalColumn(column) || !canalBridge(line) || Math.abs(z - line * block) > bridgeHalfWidth(line)) return 0;
   return bridgeHeight(x - column * block, block);
 }
 
@@ -26,7 +29,7 @@ export function bridgeHeightAt(x, z, block) {
 // traffic simulation and its suspension fast; both render paths use one profile.
 export function liftBridgePose(pose, block) {
   const column = Math.floor(pose.x / block), line = Math.round(pose.z / block);
-  if (!canalColumn(column) || !canalBridge(line) || Math.abs(pose.z - line * block) > BRIDGE_HALF + 1) return 0;
+  if (!canalColumn(column) || !canalBridge(line) || Math.abs(pose.z - line * block) > bridgeHalfWidth(line) + 1) return 0;
   const sin = Math.sin(pose.angle), cos = Math.cos(pose.angle);
   let sum = 0, sides = 0, axles = 0, index = 0;
   for (const axle of [-0.69, 0.69]) for (const side of [-0.43, 0.43]) {

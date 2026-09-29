@@ -1,4 +1,4 @@
-import { streetHalf, laneOffset } from '../src/city/roadProfile.js';
+import { streetHalf, laneOffset, streetTracks } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { canalColumn, canalDimensions, CANAL_BRIDGE_HALF, CANAL_WATER_LEVEL, populateCanal } from '../src/city/canal.js';
@@ -8,7 +8,7 @@ import { parkAt, roadOpen } from '../src/city/roadLayout.js';
 import { PAVED_ROAD, TRACKS, trackOffset, vehiclePose, MAX_MERGE_ANGLE } from '../src/city/world.js';
 import { carCoordinates } from '../src/city/trafficNetwork.js';
 import { populateBlock } from '../src/city/createCity.js';
-import { canalBridge, bridgeHeight, liftBridgePose, BRIDGE_START, BRIDGE_SEGMENTS } from '../src/city/bridgeProfile.js';
+import { canalBridge, bridgeHeight, bridgeHeightAt, liftBridgePose, BRIDGE_START, BRIDGE_SEGMENTS } from '../src/city/bridgeProfile.js';
 
 test('canal columns have uninterrupted bank roads and bridges, never overlapping a merged park', () => {
   for (let x = -36; x <= 36; x++) {
@@ -126,5 +126,24 @@ test('cars climb and descend with all wheels on the bridge, including reversed t
     }
     const flat = { x: column * block + block / 2, z: block, angle: 0, lift: 0, pitch: 0, roll: 0, wheels: [0, 0, 0, 0] };
     assert.equal(liftBridgePose(flat, block), 0, 'no phantom bridge at the removed crossing');
+  }
+});
+
+test('every bridge lane supports both sides of the car without a false roll', () => {
+  for (const block of [24, 40, 48]) for (const line of [-6, -2, 0, 2, 6]) {
+    for (const direction of [-1, 1]) for (const track of [...streetTracks(0, line), 2]) {
+      for (let local = BRIDGE_START + 1; local < block - BRIDGE_START - 1; local += 0.5) {
+        const pose = { x: local, z: line * block + direction * laneOffset(0, line, track),
+          angle: direction * Math.PI / 2, lift: 0, pitch: 0, roll: 0, wheels: [0, 0, 0, 0] };
+        liftBridgePose(pose, block);
+        assert.ok(Math.abs(pose.roll) < 1e-8, `false roll: line=${line}, track=${track}, direction=${direction}`);
+        assert.ok(pose.wheels.every(height => height > 0), 'all wheels stay on the raised deck');
+      }
+    }
+    const edge = streetHalf(0, line) + 1.75;
+    for (const side of [-1, 1]) {
+      assert.ok(bridgeHeightAt(block / 2, line * block + side * (edge - 0.01), block) > 0);
+      assert.equal(bridgeHeightAt(block / 2, line * block + side * (edge + 0.01), block), 0);
+    }
   }
 });

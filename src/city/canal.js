@@ -1,7 +1,7 @@
 import { REVEAL } from './revealStages.js';
 import { streetHalf } from './roadProfile.js';
 import { PAVED_ROAD } from './world.js';
-import { canalBridge, bridgeHeight, BRIDGE_START, BRIDGE_HALF, BRIDGE_SEGMENTS } from './bridgeProfile.js';
+import { canalBridge, bridgeHeight, bridgeHalfWidth, BRIDGE_START, BRIDGE_HALF, BRIDGE_SEGMENTS } from './bridgeProfile.js';
 import { MEDIAN_WIDTH } from './roadLayout.js';
 
 export { canalColumn } from './bridgeProfile.js';
@@ -15,11 +15,11 @@ export function canalDimensions(block) {
 }
 
 export function populateCanal(batch, x, z, block, line = 0, divided = false) {
-  const { width, left, right } = canalDimensions(block), roadHalf = streetHalf(0,line),bridgeHalf=roadHalf+1.75;
+  const { width, left, right } = canalDimensions(block), roadHalf = streetHalf(0,line),bridgeHalf=bridgeHalfWidth(line);
   const north = canalBridge(line), south = canalBridge(line + 1);
   const bankStart = north ? roadHalf : 0, bankEnd = block - (south ? streetHalf(0,line+1) : 0);
   const walkStart = bankStart + (north ? 0.21 : 0), walkEnd = bankEnd - (south ? 0.21 : 0);
-  const wallStart = north ? bridgeHalf : 0, wallEnd = block - (south ? streetHalf(0,line+1)+1.75 : 0);
+  const wallStart = north ? bridgeHalf : 0, wallEnd = block - (south ? bridgeHalfWidth(line+1) : 0);
   const put = (kind, px, y, pz, w, h, d, color, roll = 0, stage = REVEAL.lots) => batch.add(kind, x + px, y, z + pz, w, h, d, color, 0, 0, roll, stage);
   put('paving', block / 2, CANAL_WATER_LEVEL - 0.01, block / 2, width, 0.02, block, '#777777', 0, REVEAL.water);
   for (const [across, along] of [[0.42, 0.3], [0.58, 0.68]]) {
