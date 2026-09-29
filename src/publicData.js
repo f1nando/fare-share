@@ -41,6 +41,7 @@ export async function loadDatabaseFleet(owner) {
       repairCostDisplay: formatTokenAmount(repairCost, decimals[0]),
       missingSeconds: MAX_DURABILITY - secondsLeft,
       calculatedUntil: BigInt(result.protocolNow),
+      rewardActive: machine.rewardActive,
       closed: machine.closed,
     };
   });

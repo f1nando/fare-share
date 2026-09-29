@@ -66,12 +66,14 @@ export function GaragePage({ wallet }) {
     machine.rewards.some(amount => BigInt(amount) > 0n)
   )), [machines]);
   const repairable = useMemo(() => machines.filter(machine => machine.missingSeconds > 0), [machines]);
+  const activeCars = useMemo(() => machines.filter(machine => machine.rewardActive), [machines]);
   const claimBatch = claimable.slice(0, MAX_CLAIM_MACHINES_PER_TRANSACTION);
   const repairBatch = repairable.slice(0, MAX_REPAIR_MACHINES_PER_TRANSACTION);
   const displayedCars = wallet && status?.deployed
-    ? machines.map((machine, index) => ({
+    ? machines.map(machine => ({
       id: machine.asset,
-      scene: drivingScenes[index % drivingScenes.length],
+      scene: garageScene(machine),
+      serial: machine.name.match(/#(\d+)$/)?.[1] || '',
       name: machine.name,
       vehicleClass: CLASS_BY_WEIGHT[machine.weight] || CLASS_BY_WEIGHT[1],
       durability: machine.durability,
@@ -169,7 +171,7 @@ export function GaragePage({ wallet }) {
             <div className="fare-garage-overview-stats">
               <div><span>Claimable cars</span><strong>{wallet && status?.deployed ? claimable.length : 0}</strong><small>Finalized state</small></div>
               <div><span>Fleet weight</span><strong>{wallet && status?.deployed ? machines.reduce((sum, machine) => sum + machine.weight, 0) : 0}</strong><small>Current total</small></div>
-              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${machines.length - repairable.length}/${machines.length}` : '0/0'}</strong><small>{wallet && status?.deployed ? `${repairable.length} need repair` : 'Connect wallet'}</small></div>
+              <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${activeCars.length}/${machines.length}` : '0/0'}</strong><small>{wallet && status?.deployed ? `${repairable.length} can be repaired` : 'Connect wallet'}</small></div>
             </div>
           </section>
 
@@ -177,7 +179,7 @@ export function GaragePage({ wallet }) {
             {displayedCars.map((car, index) => (
               <article className="fare-step-card fare-garage-card" key={car.id}>
                 <FareStepDrivingScene scene={car.scene} />
-                <span className="fare-step-number fare-garage-number">#{String(index + 1).padStart(2, '0')}</span>
+                <span className="fare-step-number fare-garage-number">#{car.serial || String(index + 1).padStart(2, '0')}</span>
                 <span className={`fare-fleet-class fare-garage-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span>
                 <h2>{car.name}</h2>
                 <div className="fare-garage-durability-copy"><span>Durability</span><strong>{car.durability}%</strong></div>
@@ -216,4 +218,16 @@ function formatHistoryTime(value, period) {
   return period === '24h'
     ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function garageScene(machine) {
+  const imageName = String(machine.image || '').split('/').at(-1)?.split('?')[0];
+  const configuredScene = imageName
+    ? drivingScenes.find(scene => scene.imageUrl.endsWith(`/${imageName}`))
+    : undefined;
+  return {
+    ...(configuredScene || drivingScenes[0]),
+    name: machine.name,
+    imageUrl: machine.image || configuredScene?.imageUrl || drivingScenes[0].imageUrl,
+  };
 }
