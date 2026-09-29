@@ -238,6 +238,7 @@ async function processPendingSwaps(
         jupiterProgram: configuration.jupiterProgram,
         slippageBps: config.swapSlippageBps,
         maxAccounts: config.jupiterMaxAccounts,
+        excludeDexes: config.jupiterExcludeDexes,
         fixedWritableAccounts: fixedWritable,
       });
       const deadline = chainTime + BigInt(config.swapPlanTtlSeconds);

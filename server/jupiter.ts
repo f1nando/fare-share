@@ -71,6 +71,7 @@ export interface BuildJupiterSwapInput {
   jupiterProgram: Address;
   slippageBps: number;
   maxAccounts: number;
+  excludeDexes?: string;
   fixedWritableAccounts: ReadonlySet<string>;
   fetchImplementation?: typeof fetch;
 }
@@ -97,6 +98,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
     restrictIntermediateTokens: 'true',
   });
   const headers: Record<string, string> = { accept: 'application/json' };
+  if (input.excludeDexes) query.set('excludeDexes', input.excludeDexes);
   if (input.apiKey) headers['x-api-key'] = input.apiKey;
   const response = await jupiterRequest(`${input.apiBaseUrl || 'https://api.jup.ag/swap/v2'}/build?${query}`, {
     headers,
