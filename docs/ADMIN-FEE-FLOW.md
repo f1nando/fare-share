@@ -1,6 +1,6 @@
 # Сценарий назначения `$FARE` и работы с pump.fun fees
 
-Статус: согласованный сценарий, админка и новый fee flow ещё не реализованы.
+Статус: backend, on-chain проверка direct creator и страница `/admin/` реализованы локально; mainnet smoke ещё не выполнен.
 
 ## Зафиксированные адреса и ограничения
 
@@ -30,7 +30,7 @@ Backend проверяет finalized on-chain состояние:
 4. `BondingCurve.creator` равен `2NUN…`.
 5. Токен не является cashback/holder-reward coin.
 6. Активного fee sharing config нет.
-7. Если токен уже graduated, canonical PumpSwap pool существует и его `coin_creator` также равен `2NUN…`.
+7. Токен ещё не graduated. CA фиксируется до graduation, чтобы PumpSwap не успел получить несогласованного `coin_creator`.
 8. On-chain `Configuration.fare_mint` ещё пуст.
 
 Баланс fees не является доказательством права на fees: сразу после создания он может быть нулевым. Источником истины служат Pump/PumpSwap accounts.

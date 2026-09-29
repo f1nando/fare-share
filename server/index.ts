@@ -5,11 +5,29 @@ import { connectDatabase } from './database.js';
 import { createVoucherService, VoucherError } from './voucherService.js';
 import { DrivingSceneError, listScenes, parseSceneInput, sceneSummary, type DrivingSceneDocument } from './drivingScenes.js';
 import { createTradeService, TradeError } from './trade.js';
+import { AdminAuthError, createAdminAuth } from './adminAuth.js';
+import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
 const issueVoucher = createVoucherService(config, database);
 const trade = createTradeService(config, database);
+const adminValues = [config.adminUsername, config.adminPasswordScrypt, config.adminSessionSecret, config.protocolAdminSecret, config.pumpFeeRecipientSecret];
+if (adminValues.some(Boolean) && !adminValues.every(Boolean)) throw new Error('Admin configuration is incomplete');
+const adminAuth = adminValues.every(Boolean) ? createAdminAuth({
+  username: config.adminUsername!,
+  passwordScrypt: config.adminPasswordScrypt!,
+  sessionSecret: config.adminSessionSecret!,
+  secureCookies: config.adminSecureCookies,
+}, database.adminLoginLimits) : null;
+const feeAdmin = adminAuth ? await createFeeAdminService({
+  rpcUrl: config.solanaRpcUrl,
+  programId: config.programId,
+  adminSecret: config.protocolAdminSecret!,
+  feeRecipientSecret: config.pumpFeeRecipientSecret!,
+  cluster: config.solanaCluster,
+  minimumWalletLamports: config.adminMinimumWalletLamports,
+}, database.adminFeeActions) : null;
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -19,9 +37,61 @@ const server = createServer(async (request, response) => {
   }
   try {
     const url = new URL(request.url || '/', 'http://localhost');
+    if (url.pathname.startsWith('/api/admin')) requireAdminOrigin(request);
     if (url.pathname.startsWith('/api/driving-scenes')) requireLocalSceneAccess(request);
     if (request.method === 'GET' && request.url === '/api/health') {
       json(response, 200, { ok: true });
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/login') {
+      const services = requireAdminServices();
+      const body = asRecord(await readJson(request));
+      const session = await services.auth.login(body.username, body.password, request.socket.remoteAddress || 'unknown');
+      services.auth.setSessionCookie(response, session.token);
+      json(response, 200, { csrf: session.csrf, expiresAt: session.expiresAt });
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/logout') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      services.auth.clearSessionCookie(response);
+      response.writeHead(204).end();
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/admin/session') {
+      const services = requireAdminServices();
+      json(response, 200, services.auth.require(request));
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/admin/status') {
+      const services = requireAdminServices();
+      services.auth.require(request);
+      json(response, 200, await services.fees.status());
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/inspect') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const inspected = await services.fees.inspectMint(asRecord(await readJson(request)).ca);
+      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ready: true });
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/bind') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 200, await services.fees.bindMint(asRecord(await readJson(request)).ca));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/fees/claim') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 200, await services.fees.claim());
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/fees/deposit') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 200, await services.fees.deposit(asRecord(await readJson(request)).amountLamports));
       return;
     }
     if (request.method === 'POST' && request.url === '/api/trainee/voucher') {
@@ -145,7 +215,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }
@@ -173,7 +243,8 @@ function setCors(request: IncomingMessage, response: ServerResponse) {
   const localOrigin = typeof origin === 'string' && /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin);
   response.setHeader('access-control-allow-origin', localOrigin ? origin : config.allowedOrigin);
   response.setHeader('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.setHeader('access-control-allow-headers', 'content-type');
+  response.setHeader('access-control-allow-credentials', 'true');
+  response.setHeader('access-control-allow-headers', 'content-type, x-csrf-token');
   response.setHeader('vary', 'origin');
 }
 
@@ -207,4 +278,22 @@ function numberParam(url: URL, name: string, fallback: number) {
   const value = Number(raw);
   if (!Number.isSafeInteger(value)) throw new TradeError(`${name} must be an integer.`);
   return value;
+}
+
+function requireAdminServices() {
+  if (!adminAuth || !feeAdmin) throw new FeeAdminError('Admin service is not configured.', 503);
+  return { auth: adminAuth, fees: feeAdmin };
+}
+
+function requireAdminOrigin(request: IncomingMessage) {
+  if (request.method === 'GET') return;
+  const origin = request.headers.origin;
+  if (typeof origin !== 'string') throw new AdminAuthError('Origin header is required.', 403);
+  const local = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin);
+  if (!local && origin !== config.allowedOrigin) throw new AdminAuthError('Origin is not allowed.', 403);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VoucherError('JSON object is required.', 400);
+  return value as Record<string, unknown>;
 }

@@ -59,5 +59,13 @@ export function loadServerConfig() {
     jupiterMaxAccounts: boundedInteger('JUPITER_MAX_ACCOUNTS', 48, 1, 64),
     burnScanIntervalMs: integer('BURN_SCAN_INTERVAL_MS', 300_000, 60_000),
     burnCleanupLimit: boundedInteger('BURN_CLEANUP_LIMIT', 10, 1, 50),
+    adminUsername: optional('ADMIN_USERNAME'),
+    adminPasswordScrypt: optional('ADMIN_PASSWORD_SCRYPT'),
+    adminSessionSecret: optional('ADMIN_SESSION_SECRET'),
+    adminSecureCookies: process.env.ADMIN_SECURE_COOKIES !== 'false',
+    protocolAdminSecret: optional('ADMIN_KEYPAIR_SECRET_KEY'),
+    pumpFeeRecipientSecret: optional('PUMP_FEE_RECIPIENT_SECRET_KEY'),
+    adminMinimumWalletLamports: BigInt(integer('ADMIN_MINIMUM_WALLET_LAMPORTS', 10_000_000, 1)),
+    solanaCluster: process.env.VITE_SOLANA_CHAIN === 'solana:mainnet' ? 'mainnet-beta' as const : 'devnet' as const,
   };
 }

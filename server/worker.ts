@@ -9,7 +9,7 @@ import {
   type Instruction,
   type KeyPairSigner,
 } from '@solana/kit';
-import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
+import { findAssociatedTokenPda } from '@solana-program/token';
 import { loadServerConfig } from './config.js';
 import {
   buildEd25519Instruction,
@@ -37,11 +37,6 @@ import { parseBackendSigner, parseSecretBytes, type BackendSigner } from './sign
 import { decodeWorkerConfiguration, loadProtocolClock } from './solanaState.js';
 import { createWorkerSigner, sendInstructions } from './transaction.js';
 import { solanaRpcCall } from './solanaRpc.js';
-import {
-  buildPumpAmmFeeCollection,
-  buildPumpBondingFeeCollection,
-  derivePumpFeeAddresses,
-} from './pump.js';
 
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
@@ -72,7 +67,6 @@ export async function runWorkerCycle() {
   }
   const configurationAccount = await getAccount(config.solanaRpcUrl, addresses.config);
   const configuration = decodeWorkerConfiguration(configurationAccount.data);
-  await sweepPumpCreatorFees(config.solanaRpcUrl, config.programId, signer, addresses);
   if (await hasCollectableFees(config.solanaRpcUrl, addresses.feeVault)) {
     const signature = await sendInstructions(config.solanaRpcUrl, signer, [collectFeesInstruction(
       config.programId,
@@ -173,69 +167,6 @@ export function buildCleanupBurnedMachineInstruction(input: {
     ],
     data: Buffer.concat([anchorDiscriminator('cleanup_burned_machine'), Buffer.from([input.pageIndex])]),
   };
-}
-
-async function sweepPumpCreatorFees(
-  rpcUrl: string,
-  programId: Address,
-  caller: KeyPairSigner,
-  addresses: Awaited<ReturnType<typeof deriveAddresses>>,
-) {
-  const pump = await derivePumpFeeAddresses(addresses.feeVault);
-  const bondingVault = await getOptionalAccount(rpcUrl, pump.bondingCreatorVault);
-  if (bondingVault) {
-    const rent = BigInt(await rpcCall(rpcUrl, 'getMinimumBalanceForRentExemption', [
-      bondingVault.data.length,
-      { commitment: 'finalized' },
-    ]) as number);
-    if (bondingVault.lamports > rent) {
-      try {
-        const signature = await sendInstructions(rpcUrl, caller, [
-          buildPumpBondingFeeCollection(addresses.feeVault, pump),
-        ]);
-        console.log(`pump bonding creator fees finalized: ${signature}`);
-      } catch (error) {
-        console.warn('pump bonding creator fee collection lost a finalized-state race; retrying next cycle', error);
-      }
-    }
-  }
-
-  const ammSource = await getOptionalAccount(rpcUrl, pump.ammCreatorVaultWsolAta);
-  if (ammSource && legacyTokenAmount(ammSource.data) > 0n) {
-    try {
-      const createDestination = getCreateAssociatedTokenIdempotentInstruction({
-        payer: caller,
-        ata: pump.creatorWsolAta,
-        owner: addresses.feeVault,
-        mint: WSOL_MINT,
-        tokenProgram: TOKEN_PROGRAM,
-      });
-      const signature = await sendInstructions(rpcUrl, caller, [
-        createDestination,
-        buildPumpAmmFeeCollection(addresses.feeVault, pump),
-        absorbPumpWsolFeesInstruction(
-          programId,
-          caller.address,
-          addresses,
-          pump.creatorWsolAta,
-        ),
-      ]);
-      console.log(`pump AMM creator fees collected and absorbed: ${signature}`);
-    } catch (error) {
-      console.warn('pump AMM creator fee collection lost a finalized-state race; retrying next cycle', error);
-    }
-  }
-
-  const receivedWsol = await getOptionalAccount(rpcUrl, pump.creatorWsolAta);
-  if (receivedWsol && legacyTokenAmount(receivedWsol.data) > 0n) {
-    const signature = await sendInstructions(rpcUrl, caller, [absorbPumpWsolFeesInstruction(
-      programId,
-      caller.address,
-      addresses,
-      pump.creatorWsolAta,
-    )]);
-    console.log(`pump WSOL fees absorbed: ${signature}`);
-  }
 }
 
 async function processPendingSwaps(
@@ -642,11 +573,6 @@ async function getOptionalAccountsInChunks(rpcUrl: string, accounts: Address[]) 
     } : null));
   }
   return result;
-}
-
-function legacyTokenAmount(data: Uint8Array) {
-  if (data.length < 72) throw new Error('Invalid legacy SPL token account');
-  return new DataView(data.buffer, data.byteOffset, data.byteLength).getBigUint64(64, true);
 }
 
 function encodePruneStaleEvents(pageIndex: number, eventNumbers: bigint[]) {

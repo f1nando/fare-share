@@ -20,6 +20,12 @@ npm run protocol:preflight
 
 Проверка доступности: `GET /api/health`.
 
+### Закрытая админка creator fees
+
+Страница `/admin/` включается только при полной конфигурации `ADMIN_USERNAME`, `ADMIN_PASSWORD_SCRYPT`, `ADMIN_SESSION_SECRET`, `ADMIN_KEYPAIR_SECRET_KEY` и `PUMP_FEE_RECIPIENT_SECRET_KEY`.
+
+Хеш пароля создаётся локально командой `npm run admin:hash-password -- <password>`; пароль и выведенный hash не отправлять в чат. Fee-recipient key обязан соответствовать `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`. Полный flow CA, claim и атомарного направления средств описан в [`ADMIN-FEE-FLOW.md`](ADMIN-FEE-FLOW.md).
+
 ## Live trade API
 
 Для `/trade/` backend индексирует заданный `TRADE_MINT` на mainnet через Helius, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. Нужны `HELIUS_API_KEY`, `JUPITER_API_KEY` и `TRADE_MINT`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
