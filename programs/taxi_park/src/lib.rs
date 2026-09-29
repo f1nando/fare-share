@@ -776,9 +776,10 @@ pub mod taxi_park {
             ctx.remaining_accounts,
             route_data,
         )?;
-        let source_after =
-            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
-                .amount;
+        let source_after = token::account_amount_or_zero(
+            &ctx.accounts.wsol_vault,
+            &ctx.accounts.token_program.key(),
+        )?;
         let output_after = token::account_view(
             &ctx.accounts.reward_vault,
             &ctx.accounts.stock_token_program.key(),

@@ -82,12 +82,10 @@ pub fn account_view(account: &AccountInfo<'_>, token_program: &Pubkey) -> Result
 }
 
 pub fn account_amount_or_zero(account: &AccountInfo<'_>, token_program: &Pubkey) -> Result<u64> {
-    let data = account.try_borrow_data()?;
-    if data.len() < TOKEN_ACCOUNT_BASE_LEN || data[TOKEN_ACCOUNT_STATE_OFFSET] == 0 {
+    if *account.owner == Pubkey::default() {
         return Ok(0);
     }
-    require_keys_eq!(*account.owner, *token_program, TaxiError::InvalidTokenProgram);
-    Ok(parse_account_data(&data)?.amount)
+    Ok(account_view(account, token_program)?.amount)
 }
 
 fn parse_account_data(data: &[u8]) -> Result<TokenAccountView> {
