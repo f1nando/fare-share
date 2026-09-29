@@ -1,6 +1,6 @@
 export const COLOR_SCHEMES = Object.freeze({
-  classic: { label: 'Исходная — удачная', background: '#dedede', fade: 0 },
-  pale: { label: 'Мягкая серая', background: '#f0f0f0', fade: 0.84 },
+  classic: { label: 'Classic', background: '#dedede', fade: 0 },
+  pale: { label: 'Soft gray', background: '#f0f0f0', fade: 0.84 },
 });
 
 // Compress displayed contrast, including lighting and shadows, without an extra

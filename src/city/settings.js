@@ -15,19 +15,19 @@ export const DEFAULT_SETTINGS = Object.freeze({
 });
 
 export const SETTING_GROUPS = [
-  { title: 'Поток', controls: [
-    { key: 'density', label: 'Количество машин', min: 0, max: 200, step: 5, unit: '%' },
-    { key: 'trafficSpeed', label: 'Скорость потока', min: 10, max: 250, step: 5, unit: '%' },
+  { title: 'Traffic', controls: [
+    { key: 'density', label: 'Number of cars', min: 0, max: 200, step: 5, unit: '%' },
+    { key: 'trafficSpeed', label: 'Traffic speed', min: 10, max: 250, step: 5, unit: '%' },
   ] },
-  { title: 'Такси', controls: [
-    { key: 'taxiShare', label: 'Доля такси', min: 0, max: 100, step: 1, unit: '%' },
-    { key: 'taxiSpeed', label: 'Скорость такси', min: 10, max: 250, step: 5, unit: '%' },
-    { key: 'weaving', label: 'Дополнительное лихачество', min: 0, max: 200, step: 10, unit: '%' },
+  { title: 'Taxis', controls: [
+    { key: 'taxiShare', label: 'Taxi share', min: 0, max: 100, step: 1, unit: '%' },
+    { key: 'taxiSpeed', label: 'Taxi speed', min: 10, max: 250, step: 5, unit: '%' },
+    { key: 'weaving', label: 'Extra wild driving', min: 0, max: 200, step: 10, unit: '%' },
   ] },
-  { title: 'Город и камера', controls: [
-    { key: 'blockSize', label: 'Размер кварталов', min: 24, max: 64, step: 2, unit: '' },
-    { key: 'zoom', label: 'Приближение', min: 50, max: 200, step: 5, unit: '%' },
-    { key: 'cameraSpeed', label: 'Движение камеры', min: 0, max: 400, step: 10, unit: '%' },
+  { title: 'City and camera', controls: [
+    { key: 'blockSize', label: 'Block size', min: 24, max: 64, step: 2, unit: '' },
+    { key: 'zoom', label: 'Zoom', min: 50, max: 200, step: 5, unit: '%' },
+    { key: 'cameraSpeed', label: 'Camera movement', min: 0, max: 400, step: 10, unit: '%' },
   ] },
 ];
 

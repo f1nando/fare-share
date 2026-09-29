@@ -40,16 +40,16 @@ function gpuTimer() {
 }
 
 const cases = [
-  { name: 'Текущий город' },
-  { name: 'Без расчёта движения', simulate: false },
-  { name: 'Без теней', shadows: false },
-  { name: 'Разрешение 1×', pixelRatio: 1 },
-  { name: 'Зона 7 × 7 кварталов', radius: 3 },
-  { name: 'Бордюры без скруглений', simpleCurbs: true },
-  { name: '7 × 7 + простые бордюры', radius: 3, simpleCurbs: true },
-  { name: 'Расчёт на каждом кадре', fixedStep: false },
-  { name: 'Симуляция 60 Гц', simulationHz: 60 },
-  { name: 'Без Worker (30 Гц)', worker: false },
+  { name: 'Current city' },
+  { name: 'No movement simulation', simulate: false },
+  { name: 'No shadows', shadows: false },
+  { name: '1× resolution', pixelRatio: 1 },
+  { name: '7 × 7 block area', radius: 3 },
+  { name: 'Curbs without rounded corners', simpleCurbs: true },
+  { name: '7 × 7 + simple curbs', radius: 3, simpleCurbs: true },
+  { name: 'Calculate every frame', fixedStep: false },
+  { name: '60 Hz simulation', simulationHz: 60 },
+  { name: 'No Worker (30 Hz)', worker: false },
 ];
 
 export function startBenchmark(root) {
@@ -67,19 +67,19 @@ export function startBenchmark(root) {
     .perf-panel button { padding:8px 12px; border:0; border-radius:6px; background:#ffce21; cursor:pointer; }
     .perf-panel a { color:#ffce21; } .perf-panel pre { white-space:pre-wrap; }
   </style><div class="perf-scene ${phone ? 'perf-phone' : ''}"></div>
-    <section class="perf-panel"><h1>Тест производительности города</h1>
-    <p>Один вариант: 5 секунд прогрева и 60 секунд замера. Держите вкладку видимой. Настройки города сохранятся.
-    Это замер устройства, на котором открыт тест. Размер 393 × 852 на ПК не эмулирует процессор iPhone.</p>
-    <p><label>Сценарий <select id="perf-scenario">${Object.entries(SCENARIOS).map(([id, item]) => `<option value="${id}">${item.name}</option>`).join('')}<option value="saved">Мои настройки</option></select></label>
-    <label>Вариант <select id="perf-case">${cases.map((item, index) => `<option value="${index}">${item.name}</option>`).join('')}<option value="all">Все варианты</option></select></label>
-    <label>Длительность <select id="perf-duration"><option value="60">60 секунд</option><option value="300">5 минут</option><option value="20">20 секунд</option></select></label></p>
-    <p><label>Условия устройства <input id="perf-conditions" placeholder="Ориентация, питание, яркость" maxlength="200"></label></p>
-    <button id="perf-start">Запустить тест</button> <a href="/">Вернуться к городу</a>
-    <button id="perf-export" disabled>Скачать JSON</button>
-    <p id="perf-status">Готов к запуску</p><p id="perf-device"></p>
-    <div style="overflow:auto"><table><thead><tr><th>Вариант</th><th>FPS</th><th>Кадр p95, мс</th>
-    <th>CPU, мс</th><th>Трафик</th><th>Worker CPU, мс/с</th><th>Буфер, мс</th><th>Исчерпания</th><th>Модели</th><th>Render CPU</th><th>GPU, мс</th><th>Машин всего / видно</th><th>Треугольников</th></tr></thead><tbody></tbody></table></div>
-    <details><summary>Данные замера</summary><pre id="perf-json"></pre></details></section>`;
+    <section class="perf-panel"><h1>City performance test</h1>
+    <p>One case uses a 5-second warmup and a 60-second measurement. Keep the tab visible. City settings are preserved.
+    This measures the device running the test. A 393 × 852 viewport on a PC does not emulate an iPhone processor.</p>
+    <p><label>Scenario <select id="perf-scenario">${Object.entries(SCENARIOS).map(([id, item]) => `<option value="${id}">${item.name}</option>`).join('')}<option value="saved">My settings</option></select></label>
+    <label>Case <select id="perf-case">${cases.map((item, index) => `<option value="${index}">${item.name}</option>`).join('')}<option value="all">All cases</option></select></label>
+    <label>Duration <select id="perf-duration"><option value="60">60 seconds</option><option value="300">5 minutes</option><option value="20">20 seconds</option></select></label></p>
+    <p><label>Device conditions <input id="perf-conditions" placeholder="Orientation, power, brightness" maxlength="200"></label></p>
+    <button id="perf-start">Start test</button> <a href="/">Return to city</a>
+    <button id="perf-export" disabled>Download JSON</button>
+    <p id="perf-status">Ready to start</p><p id="perf-device"></p>
+    <div style="overflow:auto"><table><thead><tr><th>Case</th><th>FPS</th><th>Frame p95, ms</th>
+    <th>CPU, ms</th><th>Traffic</th><th>Worker CPU, ms/s</th><th>Buffer, ms</th><th>Underruns</th><th>Models</th><th>Render CPU</th><th>GPU, ms</th><th>Cars total / visible</th><th>Triangles</th></tr></thead><tbody></tbody></table></div>
+    <details><summary>Measurement data</summary><pre id="perf-json"></pre></details></section>`;
   const container = root.querySelector('.perf-scene'), button = root.querySelector('button');
   const scenarioSelect = root.querySelector('#perf-scenario'), caseSelect = root.querySelector('#perf-case'), durationSelect = root.querySelector('#perf-duration');
   if (SCENARIOS[params.get('scenario')]) scenarioSelect.value = params.get('scenario');
@@ -96,7 +96,7 @@ export function startBenchmark(root) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && button.disabled) {
       cancelled = true;
-      status.textContent = 'Тест прерван: вкладка была скрыта. Запустите заново.';
+      status.textContent = 'Test cancelled because the tab was hidden. Start it again.';
     }
   });
   button.onclick = async () => {
@@ -116,11 +116,11 @@ export function startBenchmark(root) {
       scenario, seed: 0, duration, warmup, conditions: root.querySelector('#perf-conditions').value,
       width: container.clientWidth, height: container.clientHeight, pixelRatio, settings, cases: [], status: 'running' };
     latestReport = results;
-    root.querySelector('#perf-device').textContent = `${results.width} × ${results.height} CSS px; DPR ${pixelRatio}; плотность ${settings.density}%; такси ${settings.taxiShare}%; лихачество ${settings.weaving}%`;
+    root.querySelector('#perf-device').textContent = `${results.width} × ${results.height} CSS px; DPR ${pixelRatio}; density ${settings.density}%; taxis ${settings.taxiShare}%; wild driving ${settings.weaving}%`;
     try {
       for (const variant of selectedCases) {
         if (cancelled) break;
-        status.textContent = `${variant.name} — идёт замер…`;
+        status.textContent = `${variant.name} — measuring…`;
         const rows = [], gpu = gpuTimer();
         const start = performance.now();
         let warm = false, initial, final;
@@ -144,7 +144,7 @@ export function startBenchmark(root) {
         }); } finally { clearInterval(timer); gpu.dispose(); city?.dispose(); city = null; }
         if (cancelled) break;
         const cadence = assessFrameCadence(rows), valid = cadence.valid;
-        if (!rows.length) throw new Error('Нет кадров для измерения');
+        if (!rows.length) throw new Error('No frames were captured for measurement');
         const metrics = {};
         for (const key of ['rafMs', 'cpuMs', 'simulationMs', 'workerSimulationMs', 'workerPackMs', 'workerReceiveMs', 'bufferMs', 'playbackRate', 'prepareMs', 'renderSubmitMs', 'totalCars', 'visibleCars', 'triangles', 'calls', 'blocks', 'geometries', 'textures']) {
           metrics[key] = summarize(rows.map(row => row[key]));
@@ -153,7 +153,7 @@ export function startBenchmark(root) {
           workerStatus: rows.at(-1).workerStatus, workerFailure: rows.at(-1).workerFailure,
           bufferUnderruns: rows.at(-1).bufferUnderruns - rows[0].bufferUnderruns,
           workerCpuMsPerSecond: rows.reduce((sum, row) => sum + row.workerSimulationMs + row.workerPackMs, 0) / (rows.reduce((sum, row) => sum + row.rafMs, 0) / 1000),
-          warning: valid ? null : 'В прогоне есть слишком редкие кадры или серия длинных интервалов при малой работе CPU. Проверьте условия браузера; общий FPS непоказателен.',
+          warning: valid ? null : 'The run contains very sparse frames or a series of long intervals with little CPU work. Check browser conditions; the overall FPS is not representative.',
           options: variant, simulationHz: variant.fixedStep === false ? 'frame' : variant.simulationHz ?? 30,
           pixelRatio: variant.pixelRatio ?? pixelRatio, initial, final, samples: rows,
           frames: rows.length, ...metrics, gpuMs: summarize(gpu.values),
@@ -167,22 +167,22 @@ export function startBenchmark(root) {
           over50Percent: rows.filter(row => row.rafMs > 50).length / rows.length * 100 };
         results.cases.push(result);
         const tr = document.createElement('tr');
-        for (const value of [variant.name, valid ? (1000 / metrics.rafMs.mean).toFixed(1) : 'недостоверно', metrics.rafMs.p95,
+        for (const value of [variant.name, valid ? (1000 / metrics.rafMs.mean).toFixed(1) : 'unreliable', metrics.rafMs.p95,
           metrics.cpuMs.mean, metrics.simulationMs.mean, result.workerCpuMsPerSecond.toFixed(1),
           metrics.bufferMs.mean, result.bufferUnderruns, metrics.prepareMs.mean, metrics.renderSubmitMs.mean,
-          result.gpuMs?.mean ?? 'н/д', `${Math.round(metrics.totalCars.mean)} / ${Math.round(metrics.visibleCars.mean)}`,
-          Math.round(metrics.triangles.mean).toLocaleString('ru')]) {
+          result.gpuMs?.mean ?? 'n/a', `${Math.round(metrics.totalCars.mean)} / ${Math.round(metrics.visibleCars.mean)}`,
+          Math.round(metrics.triangles.mean).toLocaleString('en-US')]) {
           const td = document.createElement('td'); td.textContent = value; tr.append(td);
         }
         root.querySelector('tbody').append(tr);
         output.textContent = JSON.stringify(results, null, 2);
       }
       results.status = cancelled ? 'cancelled' : results.cases.every(item => item.valid) ? 'complete' : 'invalid';
-      if (!cancelled) status.textContent = 'Готово. CPU и GPU работают параллельно — их время нельзя складывать. GPU н/д означает, что браузер не поддерживает таймер.';
-      if (results.status === 'invalid') status.textContent = 'Слишком редкие кадры: FPS недостоверен. Оставьте окно видимым и повторите тест. Диагностические данные доступны в JSON.';
+      if (!cancelled) status.textContent = 'Done. CPU and GPU run in parallel, so their times cannot be added. GPU n/a means the browser does not support the timer.';
+      if (results.status === 'invalid') status.textContent = 'Frames are too sparse, so FPS is unreliable. Keep the window visible and repeat the test. Diagnostic data is available in JSON.';
     } catch (error) {
       results.status = 'error'; results.error = error.message;
-      status.textContent = `Не удалось завершить тест: ${error.message}`;
+      status.textContent = `Could not complete the test: ${error.message}`;
     } finally {
       city?.dispose(); city = null;
       button.disabled = false;

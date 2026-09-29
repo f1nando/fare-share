@@ -2,9 +2,9 @@ import { DEFAULT_SETTINGS, normalizeSettings } from './settings.js';
 import { populateLane } from './trafficPopulation.js';
 
 export const SCENARIOS = Object.freeze({
-  main: { name: 'Основной', settings: { ...DEFAULT_SETTINGS, density: 65, taxiShare: 6, trafficSpeed: 135, taxiSpeed: 140, weaving: 200, zoom: 70 } },
-  defaults: { name: 'По умолчанию', settings: { ...DEFAULT_SETTINGS } },
-  stress: { name: 'Высокая нагрузка', settings: { ...DEFAULT_SETTINGS, density: 150, taxiShare: 30, weaving: 200, zoom: 70 } },
+  main: { name: 'Main', settings: { ...DEFAULT_SETTINGS, density: 65, taxiShare: 6, trafficSpeed: 135, taxiSpeed: 140, weaving: 200, zoom: 70 } },
+  defaults: { name: 'Defaults', settings: { ...DEFAULT_SETTINGS } },
+  stress: { name: 'High load', settings: { ...DEFAULT_SETTINGS, density: 150, taxiShare: 30, weaving: 200, zoom: 70 } },
 });
 
 export function scenarioSettings(name = 'main') {

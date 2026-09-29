@@ -34,14 +34,14 @@ const SOURCE_IMAGE_SIZE = 1254;
 const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legendary', 'Trainee'];
 const DIRECTION_PRESETS = [
-  { angle: -135, label: '↖', title: 'Вверх-влево', column: 1, row: 1 },
-  { angle: -90, label: '↑', title: 'Вверх', column: 2, row: 1 },
-  { angle: -45, label: '↗', title: 'Вверх-вправо', column: 3, row: 1 },
-  { angle: -180, label: '←', title: 'Влево', column: 1, row: 2 },
-  { angle: 0, label: '→', title: 'Вправо', column: 3, row: 2 },
-  { angle: 135, label: '↙', title: 'Вниз-влево', column: 1, row: 3 },
-  { angle: 90, label: '↓', title: 'Вниз', column: 2, row: 3 },
-  { angle: 45, label: '↘', title: 'Вниз-вправо', column: 3, row: 3 },
+  { angle: -135, label: '↖', title: 'Up and left', column: 1, row: 1 },
+  { angle: -90, label: '↑', title: 'Up', column: 2, row: 1 },
+  { angle: -45, label: '↗', title: 'Up and right', column: 3, row: 1 },
+  { angle: -180, label: '←', title: 'Left', column: 1, row: 2 },
+  { angle: 0, label: '→', title: 'Right', column: 3, row: 2 },
+  { angle: 135, label: '↙', title: 'Down and left', column: 1, row: 3 },
+  { angle: 90, label: '↓', title: 'Down', column: 2, row: 3 },
+  { angle: 45, label: '↘', title: 'Down and right', column: 3, row: 3 },
 ];
 
 function normalizeAngle(angle) {
@@ -117,14 +117,14 @@ async function imageFileToWebPDataUrl(file) {
   canvas.getContext('2d').drawImage(bitmap, 0, 0);
   bitmap.close();
   const webp = await new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error('Браузер не смог создать WebP.')),
+    (blob) => blob ? resolve(blob) : reject(new Error('The browser could not create a WebP image.')),
     'image/webp',
     .84,
   ));
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Не удалось подготовить WebP.'));
+    reader.onerror = () => reject(new Error('Could not prepare the WebP image.'));
     reader.readAsDataURL(webp);
   });
 }
@@ -210,7 +210,7 @@ function DrivingDemo() {
   const [compactSpacingPreview, setCompactSpacingPreview] = useState(false);
   const [scenes, setScenes] = useState([]);
   const [activeSceneId, setActiveSceneId] = useState('');
-  const [sceneName, setSceneName] = useState('Локальное демо');
+  const [sceneName, setSceneName] = useState('Local demo');
   const [sceneStatus, setSceneStatus] = useState('');
   const marksRef = useRef(null);
   const headlightRefs = useRef([]);
@@ -230,7 +230,7 @@ function DrivingDemo() {
 
   const selectScene = (scene) => {
     setActiveSceneId(scene?.id || '');
-    setSceneName(scene?.name || 'Локальное демо');
+    setSceneName(scene?.name || 'Local demo');
     if (scene) {
       setSettings(normalizeSettings(scene.settings));
       setVehicleClass(normalizeVehicleClass(scene.vehicleClass));
@@ -260,24 +260,24 @@ function DrivingDemo() {
       setScenes(body.scenes);
       const selected = body.scenes.find((scene) => scene.id === (preferredId || activeSceneId)) || body.scenes[0];
       if (selected) selectScene(selected);
-      setSceneStatus(body.scenes.length ? '' : 'В базе пока нет сцен. Загрузите первую картинку.');
+      setSceneStatus(body.scenes.length ? '' : 'There are no scenes in the database yet. Upload the first image.');
     } catch (error) {
-      setSceneStatus(`Backend недоступен: ${error.message}`);
+      setSceneStatus(`Backend unavailable: ${error.message}`);
     }
   };
 
   useEffect(() => { refreshScenes(); }, []);
 
   const saveScene = async () => {
-    if (!activeSceneId) { setSceneStatus('Сначала загрузите и выберите сцену.'); return; }
-    setSceneStatus('Сохраняю…');
+    if (!activeSceneId) { setSceneStatus('Upload and select a scene first.'); return; }
+    setSceneStatus('Saving…');
     try {
       const body = await request(`/api/driving-scenes/${activeSceneId}`, {
         method: 'PUT',
         body: JSON.stringify({ name: sceneName, settings, vehicleClass, lightsOn: false }),
       });
       setScenes((current) => current.map((scene) => scene.id === body.scene.id ? body.scene : scene));
-      setSceneStatus('Настройки сцены сохранены в MongoDB.');
+      setSceneStatus('Scene settings saved to MongoDB.');
     } catch (error) { setSceneStatus(error.message); }
   };
 
@@ -285,14 +285,14 @@ function DrivingDemo() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { setSceneStatus('Файл должен быть не больше 8 MB.'); return; }
-    setSceneStatus('Конвертирую картинку в WebP…');
+    if (file.size > 8 * 1024 * 1024) { setSceneStatus('The file must not exceed 8 MB.'); return; }
+    setSceneStatus('Converting the image to WebP…');
     try {
       const imageDataUrl = await imageFileToWebPDataUrl(file);
       const body = await request('/api/driving-scenes', {
         method: 'POST',
         body: JSON.stringify({
-          name: file.name.replace(/\.[^.]+$/, '').slice(0, 80) || 'Новая сцена',
+          name: file.name.replace(/\.[^.]+$/, '').slice(0, 80) || 'New scene',
           imageDataUrl,
           settings: DEFAULTS,
           vehicleClass,
@@ -300,22 +300,22 @@ function DrivingDemo() {
         }),
       });
       await refreshScenes(body.scene.id);
-      setSceneStatus('Сцена загружена. Настройте её и нажмите «Сохранить».');
+      setSceneStatus('Scene uploaded. Configure it and click Save.');
     } catch (error) { setSceneStatus(error.message); }
   };
 
   const deleteScene = async () => {
-    if (!activeSceneId || !window.confirm(`Удалить сцену «${sceneName}»?`)) return;
+    if (!activeSceneId || !window.confirm(`Delete the scene “${sceneName}”?`)) return;
     try {
       await request(`/api/driving-scenes/${activeSceneId}`, { method: 'DELETE' });
       setActiveSceneId('');
       await refreshScenes();
-      setSceneStatus('Сцена удалена.');
+      setSceneStatus('Scene deleted.');
     } catch (error) { setSceneStatus(error.message); }
   };
 
   const applySettingsBundle = (bundle, message) => {
-    if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('Файл не содержит настроек сцены.');
+    if (!bundle?.settings || typeof bundle.settings !== 'object') throw new Error('The file does not contain scene settings.');
     const imported = normalizeSettings(bundle.settings);
     setSettings(imported);
     if (bundle.vehicleClass) setVehicleClass(normalizeVehicleClass(bundle.vehicleClass));
@@ -333,10 +333,10 @@ function DrivingDemo() {
     const url = URL.createObjectURL(file);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${sceneName.trim().replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g, '-') || 'taxi'}-settings.json`;
+    link.download = `${sceneName.trim().replace(/[^a-zA-Z0-9_-]+/g, '-') || 'taxi'}-settings.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setSceneStatus('Настройки экспортированы в JSON.');
+    setSceneStatus('Settings exported to JSON.');
   };
 
   const importSettings = async (event) => {
@@ -345,8 +345,8 @@ function DrivingDemo() {
     if (!file) return;
     try {
       const bundle = JSON.parse(await file.text());
-      if (bundle.format !== 'taxi-driving-settings') throw new Error('Это не файл настроек Taxi Driving.');
-      applySettingsBundle(bundle, 'Настройки импортированы. Нажмите «Сохранить», чтобы записать их для этой машины.');
+      if (bundle.format !== 'taxi-driving-settings') throw new Error('This is not a Taxi Driving settings file.');
+      applySettingsBundle(bundle, 'Settings imported. Click Save to store them for this car.');
     } catch (error) { setSceneStatus(error.message); }
   };
 
@@ -370,7 +370,7 @@ function DrivingDemo() {
       blackCarLayerRef.current = blackLayer;
       drawCar(canvas, image, blackLayer, blacknessRef.current);
     };
-    image.onerror = () => { if (active) setSceneStatus('Не удалось загрузить картинку сцены.'); };
+    image.onerror = () => { if (active) setSceneStatus('Could not load the scene image.'); };
     image.src = sceneImageUrl;
     return () => { active = false; };
   }, [sceneImageUrl]);
@@ -463,7 +463,7 @@ function DrivingDemo() {
               ref={carCanvasRef}
               className="car-shot"
               role="img"
-              aria-label="Такси BMW M3 E46 на дороге"
+              aria-label="BMW M3 E46 taxi on the road"
               style={{
                 filter: `hue-rotate(${settings.backgroundHue}deg) saturate(${settings.backgroundSaturation}%) grayscale(${settings.backgroundGrayscale}%)`,
               }}
@@ -489,19 +489,19 @@ function DrivingDemo() {
                 }}
               />
             ))}
-            <div className="scene-status"><i />{paused ? 'Пауза' : 'Симуляция движения'}</div>
+            <div className="scene-status"><i />{paused ? 'Paused' : 'Driving simulation'}</div>
           </div>
           <div className="scene-actions">
-            <button className="primary-action" onClick={() => blink('single')}>✦ Моргнуть</button>
-            <button onClick={() => blink('double')}>✦✦ Двойной сигнал</button>
-            <button onClick={() => setPaused((value) => !value)}>{paused ? '▶ Продолжить' : 'Ⅱ Пауза'}</button>
+            <button className="primary-action" onClick={() => blink('single')}>✦ Flash</button>
+            <button onClick={() => blink('double')}>✦✦ Double flash</button>
+            <button onClick={() => setPaused((value) => !value)}>{paused ? '▶ Resume' : 'Ⅱ Pause'}</button>
           </div>
         </div>
 
         <aside className="demo-controls">
           <div className="controls-title">
-            <div><small>Настройки сцены</small><h2>Конфигуратор</h2></div>
-            <button onClick={() => setSettings(DEFAULTS)}>Сбросить</button>
+            <div><small>Scene settings</small><h2>Configurator</h2></div>
+            <button onClick={() => setSettings(DEFAULTS)}>Reset</button>
           </div>
 
           <div className="global-light-control">
@@ -512,61 +512,61 @@ function DrivingDemo() {
               aria-checked={lightsOn}
               onClick={() => setLightsOn((value) => !value)}
             >
-              <span><i />Свет фар для всех машин</span>
-              <b>{lightsOn ? 'Включён' : 'Выключен'}</b>
+              <span><i />Headlights for all cars</span>
+              <b>{lightsOn ? 'On' : 'Off'}</b>
             </button>
-            <small>Только предпросмотр редактора, в настройки машин не сохраняется.</small>
+            <small>Editor preview only. This is not saved to the car settings.</small>
           </div>
 
           <fieldset className="scene-library">
-            <legend>Библиотека сцен</legend>
-            <label className="text-control">Сцена
+            <legend>Scene library</legend>
+            <label className="text-control">Scene
               <select value={activeSceneId} onChange={(event) => selectScene(scenes.find((scene) => scene.id === event.target.value))}>
-                <option value="">Локальное демо</option>
+                <option value="">Local demo</option>
                 {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.name}</option>)}
               </select>
             </label>
-            <label className="text-control">Класс машины
+            <label className="text-control">Car class
               <select value={vehicleClass} onChange={(event) => setVehicleClass(event.target.value)}>
                 {VEHICLE_CLASSES.map((className) => <option key={className} value={className}>{className}</option>)}
               </select>
             </label>
-            <label className="text-control">Название<input value={sceneName} maxLength={80} onChange={(event) => setSceneName(event.target.value)} /></label>
+            <label className="text-control">Name<input value={sceneName} maxLength={80} onChange={(event) => setSceneName(event.target.value)} /></label>
             <div className="scene-library-actions">
-              <label className="upload-button">＋ Загрузить<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadScene} /></label>
-              <button className="save-scene" type="button" onClick={saveScene}>Сохранить</button>
+              <label className="upload-button">＋ Upload<input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadScene} /></label>
+              <button className="save-scene" type="button" onClick={saveScene}>Save</button>
               <button
                 className={`spacing-preview-action ${compactSpacingPreview ? 'active' : ''}`}
                 type="button"
                 aria-pressed={compactSpacingPreview}
-                title="Временно установить расстояние между центрами 15% и положение Y 77%"
+                title="Temporarily set center spacing to 15% and Y position to 77%"
                 onClick={() => setCompactSpacingPreview((value) => !value)}
               >15% / Y 77%</button>
-              <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Удалить</button>
+              <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Delete</button>
             </div>
             <div className="settings-transfer">
               <button type="button" onClick={() => applySettingsBundle(
                 { settings: databaseBmwM3E46?.settings || bmwM3E46Reference.settings },
-                `${databaseBmwM3E46 ? 'Эталон из сцены BMW M3 E46' : 'Локальный эталон BMW M3 E46'} применён. Нажмите «Сохранить» для записи в MongoDB.`,
-              )}>Применить эталон BMW M3 E46</button>
-              <button type="button" onClick={exportSettings}>Экспорт JSON</button>
-              <label>Импорт JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
+                `${databaseBmwM3E46 ? 'BMW M3 E46 scene reference' : 'Local BMW M3 E46 reference'} applied. Click Save to store it in MongoDB.`,
+              )}>Apply BMW M3 E46 reference</button>
+              <button type="button" onClick={exportSettings}>Export JSON</button>
+              <label>Import JSON<input type="file" accept="application/json,.json" onChange={importSettings} /></label>
             </div>
             {sceneStatus && <p className="scene-message">{sceneStatus}</p>}
           </fieldset>
 
           <fieldset>
-            <legend>Движение</legend>
-            <Range label="Скорость разметки" value={settings.markSpeed} min={0} max={60} step={0.5} unit="%/с" onChange={update('markSpeed')} />
-            <Range label="Угол траектории" value={settings.pathAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('pathAngle')} />
-            <div className="angle-stepper" aria-label="Изменить угол траектории">
+            <legend>Movement</legend>
+            <Range label="Marking speed" value={settings.markSpeed} min={0} max={60} step={0.5} unit="%/s" onChange={update('markSpeed')} />
+            <Range label="Path angle" value={settings.pathAngle} min={-180} max={180} step={0.1} unit="°" onChange={update('pathAngle')} />
+            <div className="angle-stepper" aria-label="Adjust path angle">
               <button onClick={() => update('pathAngle')(Math.max(-180, Math.round((settings.pathAngle - 0.1) * 10) / 10))}>−0.1°</button>
               <span>{settings.pathAngle}°</span>
               <button onClick={() => update('pathAngle')(Math.min(180, Math.round((settings.pathAngle + 0.1) * 10) / 10))}>+0.1°</button>
             </div>
             <div className="direction-control">
-              <span>Куда движутся полоски</span>
-              <div className="direction-pad" aria-label="Направление движения разметки">
+              <span>Marking movement direction</span>
+              <div className="direction-pad" aria-label="Road marking movement direction">
                 {DIRECTION_PRESETS.map((preset) => (
                   <button
                     key={preset.angle}
@@ -582,14 +582,14 @@ function DrivingDemo() {
           </fieldset>
 
           <fieldset>
-            <legend>Разметка</legend>
-            <Range label="Положение по X" value={settings.markX} min={0} max={100} unit="%" onChange={update('markX')} />
-            <Range label="Положение по Y" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
-            <Range label="Размер полоски" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
-            <Range label="Между центрами" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
-            <Range label="Прозрачность" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
-            <Range label="Доп. поворот элементов" value={settings.markAngleOffset} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngleOffset')} />
-            <div className="angle-stepper" aria-label="Скорректировать поворот элементов">
+            <legend>Road markings</legend>
+            <Range label="X position" value={settings.markX} min={0} max={100} unit="%" onChange={update('markX')} />
+            <Range label="Y position" value={settings.markY} min={65} max={100} unit="%" onChange={update('markY')} />
+            <Range label="Mark width" value={settings.markWidth} min={3} max={35} step={0.5} unit="%" onChange={update('markWidth')} />
+            <Range label="Center spacing" value={settings.markSpacing} min={6} max={72} step={0.5} unit="%" onChange={update('markSpacing')} />
+            <Range label="Opacity" value={settings.markOpacity} min={0} max={100} step={5} unit="%" onChange={update('markOpacity')} />
+            <Range label="Additional element rotation" value={settings.markAngleOffset} min={-180} max={180} step={0.1} unit="°" onChange={update('markAngleOffset')} />
+            <div className="angle-stepper" aria-label="Adjust element rotation">
               <button onClick={() => update('markAngleOffset')(Math.max(-180, Math.round((settings.markAngleOffset - 0.1) * 10) / 10))}>−0.1°</button>
               <span>{settings.markAngleOffset}°</span>
               <button onClick={() => update('markAngleOffset')(Math.min(180, Math.round((settings.markAngleOffset + 0.1) * 10) / 10))}>+0.1°</button>
@@ -597,13 +597,13 @@ function DrivingDemo() {
           </fieldset>
 
           <fieldset>
-            <legend>Цвет машины</legend>
-            <Range label="Чернота жёлтых частей" value={settings.carBlackness} min={0} max={100} step={5} unit="%" onChange={update('carBlackness')} />
-            <p className="control-note">Меняется только жёлтый кузов, тени и блики сохраняются.</p>
+            <legend>Car color</legend>
+            <Range label="Black level of yellow parts" value={settings.carBlackness} min={0} max={100} step={5} unit="%" onChange={update('carBlackness')} />
+            <p className="control-note">Only the yellow body changes; shadows and highlights are preserved.</p>
           </fieldset>
 
           <fieldset>
-            <legend>Фоновая картинка</legend>
+            <legend>Background image</legend>
             <button
               type="button"
               className="filter-reset"
@@ -614,7 +614,7 @@ function DrivingDemo() {
                 backgroundGrayscale: DEFAULTS.backgroundGrayscale,
               }))}
             >
-              Сбросить только цвета
+              Reset colors only
             </button>
             <button
               className={`lights-toggle color-toggle ${settings.backgroundGrayscale === 100 ? 'active' : ''}`}
@@ -623,32 +623,32 @@ function DrivingDemo() {
               aria-checked={settings.backgroundGrayscale === 100}
               onClick={() => update('backgroundGrayscale')(settings.backgroundGrayscale === 100 ? 0 : 100)}
             >
-              <span><i />Градации серого</span>
-              <b>{settings.backgroundGrayscale === 100 ? 'Включены' : 'Выключены'}</b>
+              <span><i />Grayscale</span>
+              <b>{settings.backgroundGrayscale === 100 ? 'On' : 'Off'}</b>
             </button>
             <Range label="Hue rotate" value={settings.backgroundHue} min={0} max={360} unit="°" onChange={update('backgroundHue')} />
-            <Range label="Насыщенность" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
+            <Range label="Saturation" value={settings.backgroundSaturation} min={0} max={250} step={5} unit="%" onChange={update('backgroundSaturation')} />
           </fieldset>
 
           <fieldset>
-            <legend>Фары</legend>
-            <Range label="Размер блика" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
-            <Range label="Скорость вспышки" value={settings.blinkSpeed} min={0.25} max={3} step={0.05} unit="×" onChange={update('blinkSpeed')} />
-            <Range label="Макс. непрозрачность" value={settings.blinkOpacity} min={5} max={100} step={5} unit="%" onChange={update('blinkOpacity')} />
-            <div className="control-subsection">Двойной сигнал</div>
-            <Range label="Длительность импульса" value={settings.doublePulseDuration} min={80} max={600} step={10} unit=" мс" onChange={update('doublePulseDuration')} />
-            <Range label="Пауза между импульсами" value={settings.doublePulseGap} min={0} max={1000} step={10} unit=" мс" onChange={update('doublePulseGap')} />
-            <Range label="Яркость второго" value={settings.doubleSecondOpacity} min={10} max={100} step={5} unit="%" onChange={update('doubleSecondOpacity')} />
+            <legend>Headlights</legend>
+            <Range label="Flare size" value={settings.blinkSize} min={3} max={25} unit="%" onChange={update('blinkSize')} />
+            <Range label="Flash speed" value={settings.blinkSpeed} min={0.25} max={3} step={0.05} unit="×" onChange={update('blinkSpeed')} />
+            <Range label="Maximum opacity" value={settings.blinkOpacity} min={5} max={100} step={5} unit="%" onChange={update('blinkOpacity')} />
+            <div className="control-subsection">Double flash</div>
+            <Range label="Pulse duration" value={settings.doublePulseDuration} min={80} max={600} step={10} unit=" ms" onChange={update('doublePulseDuration')} />
+            <Range label="Gap between pulses" value={settings.doublePulseGap} min={0} max={1000} step={10} unit=" ms" onChange={update('doublePulseGap')} />
+            <Range label="Second flash brightness" value={settings.doubleSecondOpacity} min={10} max={100} step={5} unit="%" onChange={update('doubleSecondOpacity')} />
             <div className="light-grid">
               <div>
-                <b>Левая</b>
+                <b>Left</b>
                 <Range label="X" value={settings.leftX} min={0} max={100} step={0.1} unit="%" onChange={update('leftX')} />
                 <FinePositionButtons value={settings.leftX} onChange={update('leftX')} />
                 <Range label="Y" value={settings.leftY} min={0} max={100} step={0.1} unit="%" onChange={update('leftY')} />
                 <FinePositionButtons value={settings.leftY} onChange={update('leftY')} />
               </div>
               <div>
-                <b>Правая</b>
+                <b>Right</b>
                 <Range label="X" value={settings.rightX} min={0} max={100} step={0.1} unit="%" onChange={update('rightX')} />
                 <FinePositionButtons value={settings.rightX} onChange={update('rightX')} />
                 <Range label="Y" value={settings.rightY} min={0} max={100} step={0.1} unit="%" onChange={update('rightY')} />

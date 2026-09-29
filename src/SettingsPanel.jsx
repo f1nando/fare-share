@@ -9,16 +9,16 @@ function SlidersIcon() {
 export function SettingsPanel({ settings, onChange }) {
   const [open, setOpen] = useState(false);
   return (
-    <aside className={`settings ${open ? 'is-open' : ''}`} aria-label="Настройки города">
+    <aside className={`settings ${open ? 'is-open' : ''}`} aria-label="City settings">
       <button className="settings-toggle" aria-expanded={open} aria-controls="city-settings" onClick={() => setOpen(!open)}>
         <span className="settings-toggle-icon"><SlidersIcon /></span>
-        <span>Настройки города</span>
+        <span>City settings</span>
         <span className="settings-chevron" aria-hidden="true">{open ? '−' : '+'}</span>
       </button>
       {open && <div id="city-settings" className="settings-body">
-        <p className="settings-intro">Такси лихачат всегда. Добавь ещё драйва.</p>
+        <p className="settings-intro">Taxis always drive wild. Add even more action.</p>
         <label className="setting palette-setting" htmlFor="setting-colorScheme">
-          <span className="setting-label">Цветовая гамма</span>
+          <span className="setting-label">Color scheme</span>
           <select id="setting-colorScheme" value={settings.colorScheme}
             onChange={event => onChange({ ...settings, colorScheme: event.target.value })}>
             {Object.entries(COLOR_SCHEMES).map(([value, scheme]) => <option key={value} value={value}>{scheme.label}</option>)}
@@ -27,9 +27,9 @@ export function SettingsPanel({ settings, onChange }) {
         <button className="palette-preview" onClick={() => onChange({
           ...settings, colorScheme: settings.colorScheme === 'classic' ? 'pale' : 'classic',
         })}>
-          {settings.colorScheme === 'classic' ? 'Плавно к блёклой →' : '← Плавно к исходной'}
+          {settings.colorScheme === 'classic' ? 'Fade to soft gray →' : '← Return to classic'}
         </button>
-        <p className="palette-preview-note">Тест перехода 0 ↔ 84% · 1,2 секунды</p>
+        <p className="palette-preview-note">Transition preview 0 ↔ 84% · 1.2 seconds</p>
         {SETTING_GROUPS.map(group => <fieldset key={group.title}>
           <legend>{group.title}</legend>
           {group.controls.map(control => <label className="setting" key={control.key} htmlFor={`setting-${control.key}`}>
@@ -41,11 +41,11 @@ export function SettingsPanel({ settings, onChange }) {
         </fieldset>)}
         <div className="settings-actions">
           <button className="pause-button" aria-pressed={settings.paused} onClick={() => onChange({ ...settings, paused: !settings.paused })}>
-            <span aria-hidden="true">{settings.paused ? '▶' : 'Ⅱ'}</span> {settings.paused ? 'Продолжить' : 'Пауза'}
+            <span aria-hidden="true">{settings.paused ? '▶' : 'Ⅱ'}</span> {settings.paused ? 'Resume' : 'Pause'}
           </button>
-          <button className="reset-button" onClick={() => onChange({ ...DEFAULT_SETTINGS })}>Сбросить</button>
+          <button className="reset-button" onClick={() => onChange({ ...DEFAULT_SETTINGS })}>Reset</button>
         </div>
-        <p className="settings-note">Настройки запоминаются на этом устройстве</p>
+        <p className="settings-note">Settings are saved on this device</p>
       </div>}
     </aside>
   );

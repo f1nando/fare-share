@@ -58,7 +58,7 @@ test('deployment preflight permits preparing the program before FARE mint exists
   delete env.FARE_MINT;
   const result = await validateDeploymentEnvironment(env);
   assert.deepEqual(result.errors, []);
-  assert.match(result.warnings.join('\n'), /FARE_MINT.*одноразовой admin-инструкцией/);
+  assert.match(result.warnings.join('\n'), /FARE_MINT.*one-time admin instruction/);
 });
 
 test('deployment preflight rejects placeholders, wrong mint order and zero prices', async () => {
@@ -74,7 +74,7 @@ test('deployment preflight rejects placeholders, wrong mint order and zero price
   assert.match(combined, /TRAINEE_WORD_PEPPER/);
   assert.match(combined, /DEPLOYMENT_ID_HEX/);
   assert.match(combined, /MINT_PRICES_LAMPORTS\[1\]/);
-  assert.match(combined, /порядок UBERx,TSLAx,GOOGLx,AMZNx/);
+  assert.match(combined, /expected UBERx,TSLAx,GOOGLx,AMZNx order/);
   assert.doesNotMatch(combined, /a-secure-random-pepper/);
 });
 
@@ -90,13 +90,13 @@ test('deployment preflight permits explicit test mints only on devnet', async ()
   env.JUPITER_API_KEY = '';
   const devnet = await validateDeploymentEnvironment(env);
   assert.deepEqual(devnet.errors, []);
-  assert.match(devnet.warnings.join('\n'), /тестовые Devnet mint/);
-  assert.match(devnet.warnings.join('\n'), /swap worker будет отключён/);
+  assert.match(devnet.warnings.join('\n'), /test Devnet mints/);
+  assert.match(devnet.warnings.join('\n'), /swap worker will be disabled/);
 
   env.VITE_SOLANA_CHAIN = 'solana:mainnet';
   const mainnet = await validateDeploymentEnvironment(env);
-  assert.match(mainnet.errors.join('\n'), /DEVNET_ALLOW_TEST_MINTS: разрешено только/);
-  assert.match(mainnet.errors.join('\n'), /официальными mint/);
+  assert.match(mainnet.errors.join('\n'), /DEVNET_ALLOW_TEST_MINTS: allowed only/);
+  assert.match(mainnet.errors.join('\n'), /official mints/);
   assert.match(mainnet.errors.join('\n'), /JUPITER_API_KEY/);
 });
 
@@ -104,7 +104,7 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
   const env = validEnvironment();
   env.WORKER_KEYPAIR_SECRET_KEY = JSON.stringify(Array.from({ length: 64 }, (_, index) => index));
   const result = await validateDeploymentEnvironment(env);
-  assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: приватная и публичная части keypair не совпадают/);
+  assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match/);
 });
 
 test('deployment preflight detects program id drift between Rust, Anchor and environment', () => {

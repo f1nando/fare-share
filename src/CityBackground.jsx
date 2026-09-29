@@ -29,8 +29,8 @@ export function CityBackground({ className = '', showSettings = true, fixed = fa
 
   return (
     <div className={`city-background ${fixed ? 'is-fixed' : ''} ${className}`}>
-      <div className="city-canvas" ref={container} role="img" aria-label="Бесконечный лоу-поли город: деревья, серые домики и жёлтые такси в движении" />
-      {failed && <p className="city-error">Для отображения города нужен браузер с поддержкой WebGL 2.</p>}
+      <div className="city-canvas" ref={container} role="img" aria-label="An endless low-poly city with trees, gray buildings, and yellow taxis in motion" />
+      {failed && <p className="city-error">A browser with WebGL 2 support is required to display the city.</p>}
       {showSettings && <SettingsPanel settings={settings} onChange={setSettings} />}
     </div>
   );

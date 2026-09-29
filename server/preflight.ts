@@ -17,10 +17,10 @@ export function validateProgramIdSources(programId: string, anchorToml: string, 
   const errors: string[] = [];
   const anchorId = anchorToml.match(/taxi_park\s*=\s*"([1-9A-HJ-NP-Za-km-z]+)"/)?.[1];
   const rustId = rustSource.match(/declare_id!\("([1-9A-HJ-NP-Za-km-z]+)"\)/)?.[1];
-  if (!anchorId) errors.push('Anchor.toml: не найден programs.*.taxi_park');
-  else if (anchorId !== programId) errors.push('Anchor.toml: taxi_park не совпадает с TAXI_PROGRAM_ID');
-  if (!rustId) errors.push('programs/taxi_park/src/lib.rs: не найден declare_id!');
-  else if (rustId !== programId) errors.push('declare_id!: адрес не совпадает с TAXI_PROGRAM_ID');
+  if (!anchorId) errors.push('Anchor.toml: programs.*.taxi_park was not found');
+  else if (anchorId !== programId) errors.push('Anchor.toml: taxi_park does not match TAXI_PROGRAM_ID');
+  if (!rustId) errors.push('programs/taxi_park/src/lib.rs: declare_id! was not found');
+  else if (rustId !== programId) errors.push('declare_id!: address does not match TAXI_PROGRAM_ID');
   return errors;
 }
 
@@ -30,7 +30,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const value = (name: string) => env[name]?.trim() || '';
   const required = (name: string) => {
     const result = value(name);
-    if (!result) errors.push(`${name}: значение обязательно`);
+    if (!result) errors.push(`${name}: value is required`);
     return result;
   };
   const validAddress = (name: string, raw = required(name)) => {
@@ -39,7 +39,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
       address(raw);
       return raw;
     } catch {
-      errors.push(`${name}: некорректный Solana-адрес`);
+      errors.push(`${name}: invalid Solana address`);
       return '';
     }
   };
@@ -50,7 +50,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
       if (!protocols.includes(parsed.protocol)) throw new Error('protocol');
       return raw;
     } catch {
-      errors.push(`${name}: нужен URL с протоколом ${protocols.join(' или ')}`);
+      errors.push(`${name}: URL must use ${protocols.join(' or ')}`);
       return '';
     }
   };
@@ -59,7 +59,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     if (!raw) return [];
     const parts = raw.split(',').map(part => part.trim());
     if (parts.length !== 4 || parts.some(part => !part)) {
-      errors.push(`${name}: нужно ровно четыре значения через запятую`);
+      errors.push(`${name}: exactly four comma-separated values are required`);
       return [];
     }
     return parts;
@@ -68,7 +68,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     const raw = required(name);
     const parsed = Number(raw);
     if (raw && (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum)) {
-      errors.push(`${name}: нужно целое значение от 1 до ${maximum}`);
+      errors.push(`${name}: must be an integer from 1 to ${maximum}`);
     }
   };
 
@@ -87,15 +87,15 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   requestLimit('VITE_SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10);
   const frontendChain = required('VITE_SOLANA_CHAIN');
   if (frontendChain && frontendChain !== 'solana:devnet' && frontendChain !== 'solana:mainnet') {
-    errors.push('VITE_SOLANA_CHAIN: допустимы только solana:devnet или solana:mainnet');
+    errors.push('VITE_SOLANA_CHAIN: only solana:devnet or solana:mainnet is allowed');
   }
   const testMintSetting = value('DEVNET_ALLOW_TEST_MINTS');
   if (testMintSetting && testMintSetting !== 'true' && testMintSetting !== 'false') {
-    errors.push('DEVNET_ALLOW_TEST_MINTS: допустимы только true или false');
+    errors.push('DEVNET_ALLOW_TEST_MINTS: only true or false is allowed');
   }
   const allowDevnetTestMints = testMintSetting === 'true' && frontendChain === 'solana:devnet';
   if (testMintSetting === 'true' && frontendChain !== 'solana:devnet') {
-    errors.push('DEVNET_ALLOW_TEST_MINTS: разрешено только для solana:devnet');
+    errors.push('DEVNET_ALLOW_TEST_MINTS: allowed only for solana:devnet');
   }
 
   const programId = validAddress('TAXI_PROGRAM_ID');
@@ -105,35 +105,35 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   const rawFareMint = value('FARE_MINT');
   const fareMint = rawFareMint ? validAddress('FARE_MINT', rawFareMint) : '';
   if (!rawFareMint) {
-    warnings.push('FARE_MINT: будет привязан одноразовой admin-инструкцией после создания токена');
+    warnings.push('FARE_MINT: will be bound with a one-time admin instruction after token creation');
   }
   if (programId && frontendProgramId && programId !== frontendProgramId) {
-    errors.push('VITE_TAXI_PROGRAM_ID: должен совпадать с TAXI_PROGRAM_ID');
+    errors.push('VITE_TAXI_PROGRAM_ID: must match TAXI_PROGRAM_ID');
   }
 
   const stockMints = tuple('STOCK_MINTS');
   stockMints.forEach((mint, index) => validAddress(`STOCK_MINTS[${index}]`, mint));
   if (stockMints.length === 4 && stockMints.some((mint, index) => mint !== OFFICIAL_XSTOCK_MINTS[index])) {
     if (allowDevnetTestMints) {
-      warnings.push('STOCK_MINTS: используются тестовые Devnet mint вместо официальных xStocks');
+      warnings.push('STOCK_MINTS: test Devnet mints are used instead of official xStocks');
     } else {
-      errors.push('STOCK_MINTS: ожидается порядок UBERx,TSLAx,GOOGLx,AMZNx с зафиксированными официальными mint');
+      errors.push('STOCK_MINTS: expected UBERx,TSLAx,GOOGLx,AMZNx order with the fixed official mints');
     }
   }
   if (fareMint && new Set([fareMint, ...stockMints]).size !== stockMints.length + 1) {
-    errors.push('FARE_MINT и STOCK_MINTS должны быть разными адресами');
+    errors.push('FARE_MINT and STOCK_MINTS must use different addresses');
   }
 
   const prices = tuple('MINT_PRICES_LAMPORTS');
   for (const [index, price] of prices.entries()) {
     if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
-      errors.push(`MINT_PRICES_LAMPORTS[${index}]: нужна положительная целая сумма lamports`);
+      errors.push(`MINT_PRICES_LAMPORTS[${index}]: must be a positive integer amount of lamports`);
     }
   }
 
   const deploymentId = required('DEPLOYMENT_ID_HEX');
   if (deploymentId && (!/^[0-9a-fA-F]{64}$/.test(deploymentId) || /^0+$/.test(deploymentId))) {
-    errors.push('DEPLOYMENT_ID_HEX: нужны 32 случайных ненулевых байта в hex');
+    errors.push('DEPLOYMENT_ID_HEX: must contain 32 random non-zero bytes in hex');
   }
 
   const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY', 'WORKER_KEYPAIR_SECRET_KEY'] as const;
@@ -149,18 +149,18 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
       const message = (error as Error).message;
       errors.push(message.startsWith(`${name} `)
         ? message
-        : `${name}: приватная и публичная части keypair не совпадают`);
+        : `${name}: private and public keypair parts do not match`);
     }
   }
   if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
-    errors.push('ADMIN, BACKEND_SIGNER и WORKER должны использовать разные keypair');
+    errors.push('ADMIN, BACKEND_SIGNER, and WORKER must use different keypairs');
   }
   const feeRecipientSecret = required('PUMP_FEE_RECIPIENT_SECRET_KEY');
   if (feeRecipientSecret) {
     try {
       const signer = await createKeyPairSignerFromBytes(parseSecretBytes(feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
       if (frontendChain === 'solana:mainnet' && String(signer.address) !== '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF') {
-        errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: должен соответствовать зафиксированному mainnet-кошельку 2NUN…');
+        errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: must match the fixed 2NUN… mainnet wallet');
       }
     } catch (error) {
       errors.push(String((error as Error).message));
@@ -169,37 +169,37 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   required('ADMIN_USERNAME');
   const adminPassword = required('ADMIN_PASSWORD_SCRYPT');
   if (adminPassword && !/^scrypt\$[a-f0-9]{32}\$[a-f0-9]{64}$/i.test(adminPassword)) {
-    errors.push('ADMIN_PASSWORD_SCRYPT: используйте npm run admin:hash-password');
+    errors.push('ADMIN_PASSWORD_SCRYPT: use npm run admin:hash-password');
   }
   const adminSessionSecret = required('ADMIN_SESSION_SECRET');
   if (adminSessionSecret && adminSessionSecret.length < 32) {
-    errors.push('ADMIN_SESSION_SECRET: нужен случайный секрет длиной не менее 32 символов');
+    errors.push('ADMIN_SESSION_SECRET: must be a random secret at least 32 characters long');
   }
 
   const pepper = required('TRAINEE_WORD_PEPPER');
   if (pepper && (pepper === 'replace-with-a-long-random-secret' || pepper.length < 32)) {
-    errors.push('TRAINEE_WORD_PEPPER: нужен случайный секрет длиной не менее 32 символов');
+    errors.push('TRAINEE_WORD_PEPPER: must be a random secret at least 32 characters long');
   }
   if (!value('JUPITER_API_KEY') && allowDevnetTestMints) {
-    warnings.push('JUPITER_API_KEY: не задан; Devnet swap worker будет отключён');
+    warnings.push('JUPITER_API_KEY: not set; the Devnet swap worker will be disabled');
   } else {
     required('JUPITER_API_KEY');
   }
 
   const collectionName = required('COLLECTION_NAME');
-  if (collectionName.length > 64) errors.push('COLLECTION_NAME: максимум 64 символа');
+  if (collectionName.length > 64) errors.push('COLLECTION_NAME: maximum length is 64 characters');
   validateMetadataUri('COLLECTION_URI', required('COLLECTION_URI'), errors);
   const metadataUris = tuple('MACHINE_METADATA_URIS');
   metadataUris.forEach((uri, index) => validateMetadataUri(`MACHINE_METADATA_URIS[${index}]`, uri, errors));
   if (metadataUris.length === 4 && new Set(metadataUris).size !== 4) {
-    warnings.push('MACHINE_METADATA_URIS: несколько классов используют одинаковый URI');
+    warnings.push('MACHINE_METADATA_URIS: multiple classes use the same URI');
   }
 
   if (value('SOLANA_RPC_URL') !== value('VITE_SOLANA_RPC_URL')) {
-    warnings.push('SOLANA_RPC_URL и VITE_SOLANA_RPC_URL различаются; убедитесь, что это одна сеть');
+    warnings.push('SOLANA_RPC_URL and VITE_SOLANA_RPC_URL differ; make sure they use the same network');
   }
   if (value('VITE_SOLANA_DAS_URL') && value('VITE_SOLANA_DAS_URL') === value('VITE_SOLANA_RPC_URL')) {
-    warnings.push('VITE_SOLANA_DAS_URL совпадает с обычным RPC; endpoint обязан поддерживать getAssetsByOwner');
+    warnings.push('VITE_SOLANA_DAS_URL matches the regular RPC; the endpoint must support getAssetsByOwner');
   }
 
   return { errors, warnings };
@@ -212,6 +212,6 @@ function validateMetadataUri(name: string, raw: string, errors: string[]) {
     const parsed = new URL(raw);
     if (parsed.protocol !== 'https:') throw new Error('protocol');
   } catch {
-    errors.push(`${name}: нужен постоянный ar:// или https:// URI`);
+    errors.push(`${name}: must use a permanent ar:// or https:// URI`);
   }
 }
