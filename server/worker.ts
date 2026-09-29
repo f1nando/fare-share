@@ -17,6 +17,7 @@ import {
   buildJupiterRoute,
   buildSwapPlanMessage,
   computeUnitLimitInstruction,
+  encodeFundSwapData,
   encodeProcessSwapData,
   hashJupiterRoute,
   type SwapPlan,
@@ -249,6 +250,13 @@ async function processPendingSwaps(
       };
       const message = buildSwapPlanMessage(config.programId, configuration.deploymentId, plan);
       const signatureInstruction = buildEd25519Instruction(backendSigner, message);
+      const fundInstruction = buildFundSwapWsolInstruction({
+        programId: config.programId,
+        caller: caller.address,
+        addresses,
+        wsolVault,
+        plan,
+      });
       const processInstruction = buildProcessSwapInstruction({
         programId: config.programId,
         caller: caller.address,
@@ -275,7 +283,7 @@ async function processPendingSwaps(
       const signature = await sendInstructions(
         config.solanaRpcUrl,
         caller,
-        [computeUnitLimitInstruction(), signatureInstruction, processInstruction],
+        [computeUnitLimitInstruction(), fundInstruction, signatureInstruction, processInstruction],
         [],
         lookupTables,
       );
@@ -284,6 +292,26 @@ async function processPendingSwaps(
       console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap skipped:`, error);
     }
   }
+}
+
+function buildFundSwapWsolInstruction(input: {
+  programId: Address;
+  caller: Address;
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>;
+  wsolVault: Address;
+  plan: SwapPlan;
+}): Instruction {
+  return {
+    programAddress: input.programId,
+    accounts: [
+      meta(input.caller, AccountRole.READONLY_SIGNER),
+      meta(input.addresses.config, AccountRole.READONLY),
+      meta(input.addresses.feeVault, AccountRole.WRITABLE),
+      meta(input.wsolVault, AccountRole.WRITABLE),
+      meta(INSTRUCTIONS_SYSVAR, AccountRole.READONLY),
+    ],
+    data: encodeFundSwapData(anchorDiscriminator('fund_swap_wsol'), input.plan),
+  };
 }
 
 async function loadProtocolLookupTable(rpcUrl: string, rawAddress?: string) {

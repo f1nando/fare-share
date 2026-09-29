@@ -7,6 +7,7 @@ import {
   buildEd25519Instruction,
   buildJupiterRoute,
   buildSwapPlanMessage,
+  encodeFundSwapData,
   encodeProcessSwapData,
   hashJupiterRoute,
   type SwapPlan,
@@ -196,6 +197,8 @@ test('swap plan bytes, route hash, and Ed25519 envelope match the Rust contract'
   const message = buildSwapPlanMessage(PROGRAM, deployment, plan);
   assert.equal(Buffer.from(message.slice(0, 12)).toString(), 'TAXI_SWAP_V1');
   const instructionData = encodeProcessSwapData(Uint8Array.from({ length: 8 }, () => 1), plan, routeData);
+  const fundData = encodeFundSwapData(Uint8Array.from({ length: 8 }, () => 2), plan);
+  assert.deepEqual([...fundData.slice(8)], [...instructionData.slice(8, 74)]);
   assert.equal(new DataView(instructionData.buffer).getUint32(74, true), 3);
   assert.deepEqual([...instructionData.slice(78)], [7, 8, 9]);
 

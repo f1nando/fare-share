@@ -436,6 +436,33 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn fund_swap_wsol(ctx: Context<FundSwapWsol>, plan: SwapPlan) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        require!(plan.amount_in > 0, TaxiError::InvalidSwapInput);
+        let reserve = if plan.kind == FARE_SWAP_KIND && plan.asset_index == 0 {
+            require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
+            ctx.accounts.fee_vault.fare_sol_reserve
+        } else {
+            let stock_index = usize::from(plan.asset_index);
+            require!(plan.kind == STOCK_SWAP_KIND && stock_index < STOCK_COUNT, TaxiError::InvalidSwapPlan);
+            ctx.accounts.fee_vault.stock_sol_reserves[stock_index]
+        };
+        require!(plan.amount_in <= reserve, TaxiError::InvalidSwapInput);
+        let wsol = token::account_view(&ctx.accounts.wsol_vault, &token::TOKEN_PROGRAM_ID)?;
+        require_keys_eq!(wsol.mint, token::NATIVE_MINT_ID, TaxiError::InvalidRewardMint);
+        require_keys_eq!(wsol.owner, ctx.accounts.config.key(), TaxiError::InvalidTokenAccount);
+        verify_following_swap(
+            &ctx.accounts.instructions,
+            ctx.program_id,
+            &plan,
+        )?;
+        move_lamports_to_wsol(
+            &ctx.accounts.fee_vault.to_account_info(),
+            &ctx.accounts.wsol_vault.to_account_info(),
+            plan.amount_in,
+        )
+    }
+
     pub fn process_fare_swap<'info>(
         ctx: Context<'_, '_, 'info, 'info, ProcessFareSwap<'info>>,
         plan: SwapPlan,
@@ -514,11 +541,9 @@ pub mod taxi_park {
             TaxiError::InvalidTokenAccount
         );
 
-        fund_wsol(
-            &ctx.accounts.fee_vault.to_account_info(),
-            &ctx.accounts.wsol_vault.to_account_info(),
+        token::sync_native(
             &ctx.accounts.token_program.to_account_info(),
-            plan.amount_in,
+            &ctx.accounts.wsol_vault.to_account_info(),
         )?;
         let source_before =
             token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
@@ -685,11 +710,9 @@ pub mod taxi_park {
             TaxiError::InvalidTokenAccount
         );
 
-        fund_wsol(
-            &ctx.accounts.fee_vault.to_account_info(),
-            &ctx.accounts.wsol_vault.to_account_info(),
+        token::sync_native(
             &ctx.accounts.token_program.to_account_info(),
-            plan.amount_in,
+            &ctx.accounts.wsol_vault.to_account_info(),
         )?;
         let source_before =
             token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
@@ -1788,6 +1811,21 @@ pub struct AbsorbPumpWsolFees<'info> {
 }
 
 #[derive(Accounts)]
+pub struct FundSwapWsol<'info> {
+    pub caller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
+    pub fee_vault: Account<'info, FeeVault>,
+    /// CHECK: Legacy WSOL mint and authority are validated in the handler.
+    #[account(mut)]
+    pub wsol_vault: UncheckedAccount<'info>,
+    /// CHECK: Fixed Solana instructions sysvar used to bind funding to the following swap.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
 pub struct ProcessFareSwap<'info> {
     pub caller: Signer<'info>,
     #[account(mut, seeds = [b"config"], bump = config.bump, has_one = fare_mint @ TaxiError::InvalidRewardMint)]
@@ -2406,10 +2444,37 @@ mod accounting_tests {
     }
 }
 
-fn fund_wsol<'info>(
+fn verify_following_swap(
+    instructions: &UncheckedAccount<'_>,
+    program_id: &Pubkey,
+    plan: &SwapPlan,
+) -> Result<()> {
+    const PROCESS_FARE_SWAP: [u8; 8] = [132, 236, 100, 80, 1, 220, 9, 61];
+    const PROCESS_STOCK_SWAP: [u8; 8] = [139, 227, 181, 243, 162, 165, 81, 70];
+    let instructions_info = instructions.to_account_info();
+    let current_index = usize::from(load_current_index_checked(&instructions_info)?);
+    let process_index = current_index.checked_add(2).ok_or(TaxiError::MathOverflow)?;
+    let process = load_instruction_at_checked(process_index, &instructions_info)?;
+    require_keys_eq!(process.program_id, *program_id, TaxiError::InvalidSwapPlan);
+    let discriminator = if plan.kind == FARE_SWAP_KIND {
+        PROCESS_FARE_SWAP
+    } else {
+        PROCESS_STOCK_SWAP
+    };
+    let mut encoded_plan = Vec::new();
+    plan.serialize(&mut encoded_plan)?;
+    require!(
+        process.data.len() >= 8 + encoded_plan.len()
+            && process.data[..8] == discriminator
+            && process.data[8..8 + encoded_plan.len()] == encoded_plan,
+        TaxiError::InvalidSwapPlan
+    );
+    Ok(())
+}
+
+fn move_lamports_to_wsol<'info>(
     fee_vault: &AccountInfo<'info>,
     wsol_vault: &AccountInfo<'info>,
-    token_program: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
     let rent_floor = Rent::get()?.minimum_balance(fee_vault.data_len());
@@ -2428,7 +2493,6 @@ fn fund_wsol<'info>(
         .ok_or(TaxiError::MathOverflow)?;
     **fee_vault.try_borrow_mut_lamports()? = fee_after;
     **wsol_vault.try_borrow_mut_lamports()? = wsol_after;
-    token::sync_native(token_program, wsol_vault, fee_vault)?;
     Ok(())
 }
 

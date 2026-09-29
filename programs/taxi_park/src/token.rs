@@ -208,7 +208,6 @@ pub fn close_account<'info>(
 pub fn sync_native<'info>(
     program: &AccountInfo<'info>,
     account: &AccountInfo<'info>,
-    balance_source: &AccountInfo<'info>,
 ) -> Result<()> {
     assert_program(program)?;
     require_keys_eq!(
@@ -218,22 +217,10 @@ pub fn sync_native<'info>(
     );
     let instruction = Instruction {
         program_id: TOKEN_PROGRAM_ID,
-        // The token program ignores the trailing source meta, while the
-        // runtime includes it in the CPI lamport-balance checkpoint.
-        accounts: vec![
-            AccountMeta::new(account.key(), false),
-            AccountMeta::new(balance_source.key(), false),
-        ],
+        accounts: vec![AccountMeta::new(account.key(), false)],
         data: vec![SYNC_NATIVE],
     };
-    // The source is intentionally included in the CPI account-info slice even
-    // though SyncNative has no source meta. Solana's CPI balance checkpoint
-    // must observe both sides of the preceding direct lamport transfer.
-    invoke_signed(
-        &instruction,
-        &[program.clone(), account.clone(), balance_source.clone()],
-        &[],
-    )?;
+    invoke_signed(&instruction, &[program.clone(), account.clone()], &[])?;
     Ok(())
 }
 
