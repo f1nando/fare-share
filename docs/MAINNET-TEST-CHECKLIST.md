@@ -111,8 +111,11 @@
 
 ### Gate 8 — тест микроцен и экономики
 
-- [ ] Непосредственно перед `start-sale` повторить freeze и проверить микроцены.
-- [ ] Выпустить минимальный набор NFT каждого класса и сразу поставить протокол на паузу после тестового mint-окна.
+- [x] Непосредственно перед `start-sale` повторён freeze: disposable Program ID `3EAw…5JHMv`, permanent `9ZLA…6eVv` отсутствует, CA/Collection/metadata совпадают, supply `[0,0,0,0]`, микроцены `0.001 / 0.003 / 0.01 / 0.03 SOL`.
+- [x] Sale запущена signature `P7puFT…N6JCH`. Выпущено по одной машине каждого класса: Economy `EhiDiw…cRND`, Comfort `61kM48…EjmM`, Business `BWnQiG…fB2y`, Legend `3bgwY5…5Rwq`; mint signatures `2gRv55…VsjVu`, `whjJRA…xq7nm`, `L17p9t…n2e3n`, `XeoRsn…oGai`.
+- [x] DAS подтвердил владельца всех четырёх assets `2NUN…EGVnF`, Collection `7uxq…4TiF` и имена `FARE <class> #0001`; все machine PDA ссылаются на правильные Core assets, веса `1/3/10/30`, supply `[1,1,1,1]`.
+- [x] Сразу после mint-окна протокол поставлен на паузу: signature `3bouTf…YDcPL`. Recovery audit с `--require-paused --require-empty-vaults` PASS; buffer и все шесть vault закрыты/пусты.
+- [x] Консервативный outflow всего disposable теста после sale/mint/pause `0.145336600 / 0.5 SOL`; сюда включены `0.044 SOL` цены машин, account rents и fees. Finalized liquid balance `3.510681683 SOL`, запас лимита `0.354663400 SOL`; ProgramData `3.392002360 SOL` и ALT `0.004348480 SOL` остаются recoverable.
 - [ ] Проверить ownership, transfer, reward calculation через реальные разрешённые flows, Claim 10 с ALT и Repair `8 + остаток`.
 - [ ] Проверить намеренно ошибочный batch: транзакция отклонена, Machine PDA и token balances неизменны.
 - [ ] Проверить frontend Garage с Phantom на mainnet-beta и отсутствие console/RPC ошибок.
