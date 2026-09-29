@@ -104,7 +104,9 @@
 - [x] Тот же ALT расширен 12 claim-адресами без создания второго ALT: signature `5dFo1C…Fxrm`; полный ALT rent `0.004348480 SOL` recoverable.
 - [x] Реальный V2 fee-sharing claim распределил `0.002097787 SOL` из Pump vault на `2NUN…`: signature `4kUfhW…D2AEF`, slot `451703275`. Повтор с тем же operation ID вернул сохранённый результат без второй транзакции; Pump vault теперь пуст.
 - [x] Исправлен immediate-finalization edge: backend при отсутствии slot в локальном объекте читает finalized slot по signature и не требует повторного запроса. Backend `62/62`, typecheck PASS.
-- [x] После CA/ALT/claim общий невозвратный либо пока не закрываемый расход `0.047484120 / 0.5 SOL`; ProgramData `3.392002360 SOL` и ALT `0.004348480 SOL` recoverable, buffer закрыт, finalized liquid balance `3.608743941 SOL`. Recovery dry-run повторно PASS, все шесть vault balances нулевые.
+- [x] Atomic deposit smoke внёс те же `0.002097787 SOL`: signature `vNZSnp…VSLRi`; повтор с тем же operation ID не создал вторую транзакцию. On-chain split: FARE reserve `0.001468453 SOL`, каждый из четырёх stock reserves `0.000104889 SOL`, team `0.000209778 SOL`; всего в FeeVault recoverable `0.001888009 SOL`.
+- [x] Emergency recovery smoke завершён: pause `SnF8kF…VMk8`, точный rescue всех `0.001888009 SOL` из FeeVault на `2NUN…` — `2C9Yti…4K5s`, затем unpause `5rxnNt…PjeN8`. Резервы и все шесть token vault снова нулевые; `--require-empty-vaults` audit PASS.
+- [x] После CA/ALT/claim/deposit/recovery общий невозвратный либо пока не закрываемый расход `0.047504120 / 0.5 SOL`; ProgramData `3.392002360 SOL` и ALT `0.004348480 SOL` recoverable, buffer закрыт, finalized authority balance `3.608514163 SOL`. Sale, token swaps и NFT mint не запускались.
 
 ### Gate 8 — тест микроцен и экономики
 
