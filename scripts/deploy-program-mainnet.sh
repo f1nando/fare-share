@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+PATH=/home/ivand/.local/share/solana/install/active_release/bin:/home/ivand/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-EXPECTED_PROGRAM_ID="9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv"
-EXPECTED_PROGRAMDATA="F7Nn6JS8bwZpL5cYWXs4m2DzZnkh8BAnA78X9gcCUATr"
-EXPECTED_DEPLOYER="2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr"
+EXPECTED_PROGRAM_ID="GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4"
+EXPECTED_PROGRAMDATA="3mUafcsMtJmQBym8AzguUQPZSV5yNgTjYsc3cpuReazU"
+EXPECTED_DEPLOYER="2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
 EXPECTED_BUFFER="5uK9HMPXw7mhr8D5darUMvJnRL9gunQw9p1FWWk6TuoQ"
 MAINNET_GENESIS="5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
-EXPECTED_PROGRAM_SHA256="0e7a1573d67f09ad148f8c3f19bdc1f5650eea3e203159f3619c23ff164f1eed"
+EXPECTED_PROGRAM_SHA256="61abf9dad7389db5f28c6b149d4a20cd9cf5a30a6f5e84c650e329e7251ab2f1"
 EXPECTED_PROGRAM_BYTES=669552
-MIN_BALANCE_LAMPORTS=6830000000
+MIN_BALANCE_LAMPORTS=6820000000
 
-PROGRAM_SO="${PROGRAM_SO:-/home/ivand/taxi-sbf-production-0e7a157/taxi_park.so}"
+PROGRAM_SO="${PROGRAM_SO:-/home/ivand/taxi-sbf-production-61abf9d/taxi_park.so}"
 PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/program-keypair.json}"
 DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/admin-keypair.json}"
-BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/home/ivand/.config/solana/taxi-mainnet-production-buffer.json}"
+BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/deploy-buffer-keypair.json}"
 RPC_URL="${SOLANA_RPC_URL:-mainnet-beta}"
 
 for required_file in "$PROGRAM_SO" "$PROGRAM_KEYPAIR" "$DEPLOYER_KEYPAIR"; do
@@ -61,7 +62,7 @@ fi
 
 balance_lamports="$(solana balance "$EXPECTED_DEPLOYER" --url "$RPC_URL" --lamports | tr -cd '0-9')"
 if [[ -z "$balance_lamports" || "$balance_lamports" -lt "$MIN_BALANCE_LAMPORTS" ]]; then
-  echo "Deployer needs at least 6 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
+  echo "Deployer needs at least 6.82 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
   exit 1
 fi
 
@@ -114,7 +115,7 @@ if ! grep -Fq "ProgramData Address: $EXPECTED_PROGRAMDATA" <<<"$program_output";
   exit 1
 fi
 
-onchain_binary="/home/ivand/taxi-sbf-production-0e7a157/onchain-taxi_park.so"
+onchain_binary="/home/ivand/taxi-sbf-production-61abf9d/onchain-taxi_park.so"
 rm -f "$onchain_binary"
 solana program dump "$EXPECTED_PROGRAM_ID" "$onchain_binary" \
   --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR"

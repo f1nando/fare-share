@@ -5,7 +5,7 @@
 ## Зафиксированная стратегия
 
 - [x] Использовать отдельный disposable Program ID и отдельную Core Collection.
-- [x] Не использовать постоянный Program ID `9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv` для тестовой продажи.
+- [x] Не использовать постоянный Program ID `GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4` для тестовой продажи.
 - [x] Не вызывать `start-sale` постоянной программы с микроценами: старт продажи и счётчики выпущенных NFT необратимы.
 - [x] Сохранить upgrade authority; никогда не передавать `--final`.
 - [x] После теста выполнить `pause → empty vaults → recovery audit → close`, понимая, что disposable Program ID станет непригоден навсегда.

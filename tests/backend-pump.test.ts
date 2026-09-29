@@ -27,7 +27,7 @@ import {
 } from '../server/pump.js';
 import { absorbPumpWsolFeesInstruction } from '../server/worker.js';
 
-const taxiProgram = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+const taxiProgram = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 const creator = address('2GuMXi3T7smF1Gndvq3LS4vC54sN2r7BnbHFMc75RPBw');
 const configAddress = address('J1ZKaM1We1aGnGyxnQzt5wqKAJjPeokca7tP2VSiMA7X');
 const caller = address('11111111111111111111111111111111');

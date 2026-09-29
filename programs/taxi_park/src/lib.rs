@@ -20,7 +20,7 @@ pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
 pub use voucher::ActivateTraineeArgs;
 
-declare_id!("9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv");
+declare_id!("GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4");
 
 #[program]
 pub mod taxi_park {

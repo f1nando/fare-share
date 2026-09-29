@@ -24,7 +24,7 @@ import {
 } from '../server/transaction.js';
 
 const targetA = address('11111111111111111111111111111111');
-const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+const targetB = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 
 function event(timestamp: bigint, eventNumber: bigint, target: Address = targetA) {
   return { timestamp, eventNumber, target, kind: 1, generation: 1 };

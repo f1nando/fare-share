@@ -97,7 +97,7 @@ test('every wallet instruction uses the current Anchor discriminator', () => {
 });
 
 test('wallet addresses are shortened for the primitive UI', () => {
-  assert.equal(shortAddress('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv'), '9ZLA…6eVv');
+  assert.equal(shortAddress('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4'), 'GHGq…i3i4');
   assert.equal(shortAddress('short'), 'short');
 });
 
@@ -128,7 +128,7 @@ test('durability uses finalized Solana time and freezes during pause', () => {
 
 test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
   const owner = address('11111111111111111111111111111111');
-  const configAddress = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+  const configAddress = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
   const result = await buildMintMachine({
     programAddress: configAddress,
     owner,

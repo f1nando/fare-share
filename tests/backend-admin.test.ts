@@ -11,7 +11,7 @@ import {
   buildSimpleAdminInstruction,
 } from '../server/admin.js';
 
-const PROGRAM = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+const PROGRAM = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 const ADMIN = address('11111111111111111111111111111111');
 const CONFIG = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 const VALUE = address('So11111111111111111111111111111111111111112');

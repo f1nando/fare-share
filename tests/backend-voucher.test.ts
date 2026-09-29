@@ -14,7 +14,7 @@ import { consumeRateLimit, VoucherError, voucherExpiresAt } from '../server/vouc
 
 test('voucher message matches the Rust field order and little-endian values', () => {
   const message = buildTraineeVoucherMessage(
-    address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv'),
+    address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4'),
     Uint8Array.from({ length: 32 }, (_, index) => index),
     address('11111111111111111111111111111111'),
     {

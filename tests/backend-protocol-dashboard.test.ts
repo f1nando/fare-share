@@ -3,7 +3,7 @@ import test from 'node:test';
 import { getAddressEncoder, address } from '@solana/kit';
 import { decodeDashboardMachine, decodeDashboardPool } from '../server/protocolDashboard.js';
 
-const asset = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+const asset = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 
 test('admin dashboard projects finalized machine rewards from pool accumulators', () => {
   const poolBytes = new Uint8Array(298);

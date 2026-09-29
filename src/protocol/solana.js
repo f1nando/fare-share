@@ -34,7 +34,7 @@ import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } 
 const env = import.meta.env ?? {};
 
 export const PROGRAM_ID = address(
-  env.VITE_TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
+  env.VITE_TAXI_PROGRAM_ID || 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
 );
 export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 export const SOLANA_CHAIN = resolveSolanaChain(env.VITE_SOLANA_CHAIN, RPC_URL);

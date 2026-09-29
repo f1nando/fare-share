@@ -2,16 +2,20 @@
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
-Постоянный публичный Program ID подготовлен: `9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
+Постоянный публичный Program ID подготовлен: `GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
 
 Подготовленные публичные адреса:
 
-- admin/deployer: `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`;
-- backend signer: `5PbbDrUdCBfGtVXMKJLqnTieFBKLC5CbHxeaasNGjMZK`;
-- worker: `5p7KyaZjr4ET5RcFN4U8zcG7JjFhgqAEzMT3BzUJ2vW3`;
-- `FeeVault` и pump.fun creator PDA: `Buzxr6WtSxBmi7kZawxZ6KEjZ1465AhvYg6ZKPm4HR65`.
+- admin/deployer: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`;
+- backend signer: `DixHreV9jd2wdnA1FJYcrN5kdfuv5TbYGk7XEd2pxG6w`;
+- worker: `4KxGWNpEiyZTNhcRtJGMYERniHDH6rSb1Mwk8pFxa6Cq`;
+- `FeeVault` и pump.fun creator PDA: `Hi8JVmmHZmyDnQg8JH3i4jVPcN8GNfGC4KsoQWMvNLT6`.
 
-Для первой mainnet-публикации admin/deployer должен иметь минимум `6.83 SOL`. Frozen production SBF занимает `669552` байт. При deploy одновременно финансируются известный upload buffer (`3.402162360 SOL`), upgradeable ProgramData (`3.402203000 SOL`) и Program tombstone (`0.000833120 SOL`); точный peak до transaction fees — `6.805198480 SOL`. Buffer возвращается после успешного deploy, а ProgramData rent остаётся recoverable, пока сохранена upgrade authority.
+Ранее зарезервированные пустые адреса `9ZLA…6eVv`, `2uGK…tAr`, `5Pbb…gMZK` и
+`5p7K…2vW3` выведены из использования из-за отсутствия keypair. На них не было
+deploy или SOL; они не являются частью release и не должны пополняться.
+
+Для первой mainnet-публикации admin/deployer должен иметь минимум `6.82 SOL`. Frozen production SBF занимает `669552` байт. При deploy одновременно финансируются известный upload buffer (`3.402162360 SOL`), upgradeable ProgramData (`3.402203000 SOL`) и Program tombstone (`0.000833120 SOL`); точный peak до transaction fees — `6.805198480 SOL`. Buffer возвращается после успешного deploy, а ProgramData rent остаётся recoverable, пока сохранена upgrade authority.
 
 ## 1. Сначала зафиксировать Program ID
 
@@ -120,7 +124,7 @@ creator `2NUN…` и immutable active version-2 sharing config с единств
 **Mainnet deploy запрещён**, пока одновременно не выполнены все условия:
 
 1. Upgrade authority остаётся у зафиксированного admin/deployer
-   `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`; локальный keypair проверен,
+   `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`; локальный keypair проверен,
    имеет защищённую резервную копию и не зависит от единственного сервера.
 2. В deploy-команде явно указан этот upgrade authority и отсутствует `--final`.
 3. Upload buffer создаётся постоянным известным keypair вне репозитория. При любом
@@ -209,11 +213,11 @@ authority keypair. После close тот же Program ID использова�
 # Публикация программы в mainnet
 
 Актуальный frozen SBF-файл собран в WSL по пути
-`/home/ivand/taxi-sbf-production-0e7a157/taxi_park.so`; его размер — `669552` байт, SHA-256 —
-`0e7a1573d67f09ad148f8c3f19bdc1f5650eea3e203159f3619c23ff164f1eed`.
+`/home/ivand/taxi-sbf-production-61abf9d/taxi_park.so`; его размер — `669552` байт, SHA-256 —
+`61abf9dad7389db5f28c6b149d4a20cd9cf5a30a6f5e84c650e329e7251ab2f1`.
 При текущей ставке аренды временный buffer (`3.402162360 SOL`), ProgramData
 (`3.402203000 SOL`) и аккаунт программы (`0.000833120 SOL`) одновременно требуют
-`6.805198480 SOL`. На deploy следует положить минимум `6.83 SOL`, чтобы остался запас
+`6.805198480 SOL`. На deploy следует положить минимум `6.82 SOL`, чтобы остался запас
 на комиссии и повторные транзакции.
 
 Deploy сохраняет upgrade authority постоянно, чтобы обновление или окончательное
@@ -227,7 +231,7 @@ bash scripts/deploy-program-mainnet.sh
 
 Скрипт откажется выполнять deploy, если ключ программы или плательщика не
 совпадает с зафиксированным адресом, размер или хеш бинарника изменился,
-программа уже существует либо на кошельке меньше `6.83 SOL`. Для upload используется
+программа уже существует либо на кошельке меньше `6.82 SOL`. Для upload используется
 постоянный локальный buffer keypair вне репозитория. Поэтому даже при обрыве
 deploy временный депозит не становится бесхозным: повторный запуск продолжит
 работу с тем же buffer, а скрипт напечатает точную команду его закрытия и возврата

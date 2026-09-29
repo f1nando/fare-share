@@ -24,7 +24,7 @@ import {
 } from '@solana/kit';
 import { requestQueues } from '../server/requestLimits.js';
 
-const PROGRAM_ID = address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
+const PROGRAM_ID = address(process.env.TAXI_PROGRAM_ID || 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const COMPUTE_BUDGET_PROGRAM = address('ComputeBudget111111111111111111111111111111');
 const utf8 = getUtf8Encoder();

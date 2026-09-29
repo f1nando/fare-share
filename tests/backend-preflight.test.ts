@@ -24,8 +24,8 @@ function validEnvironment(): NodeJS.ProcessEnv {
     VITE_SOLANA_DAS_MAX_REQUESTS_PER_SECOND: '10',
     VITE_BACKEND_URL: 'https://api.example.test',
     ALLOWED_ORIGIN: 'https://example.test',
-    TAXI_PROGRAM_ID: '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
-    VITE_TAXI_PROGRAM_ID: '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv',
+    TAXI_PROGRAM_ID: 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
+    VITE_TAXI_PROGRAM_ID: 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
     TEAM_ACCOUNT: '11111111111111111111111111111111',
     JUPITER_PROGRAM_ID: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
     FARE_MINT: 'So11111111111111111111111111111111111111112',
@@ -118,7 +118,7 @@ test('deployment preflight requires 16 distinct ordered machine metadata URIs', 
 });
 
 test('deployment preflight detects program id drift between Rust, Anchor and environment', () => {
-  const expected = '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv';
+  const expected = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
   assert.deepEqual(validateProgramIdSources(
     expected,
     `[programs.localnet]\ntaxi_park = "${expected}"`,
