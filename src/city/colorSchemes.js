@@ -3,8 +3,8 @@ export const COLOR_SCHEMES = Object.freeze({
   pale: { label: 'Soft gray', background: '#f0f0f0', fade: 0.84 },
 });
 
-// Compress displayed contrast, including lighting and shadows, without an extra
-// render pass. Taxi materials stay outside this treatment.
+// Desaturate the city and compress displayed contrast, including lighting and
+// shadows, without an extra render pass. Taxi materials stay outside this treatment.
 export function createBackgroundFade(scheme) {
   let from = COLOR_SCHEMES[scheme].fade;
   let target = from;
@@ -23,7 +23,7 @@ export function createBackgroundFade(scheme) {
         shader.uniforms.backgroundFade = strength;
         shader.fragmentShader = 'uniform float backgroundFade;\n' + shader.fragmentShader.replace(
           '#include <colorspace_fragment>',
-          '#include <colorspace_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(240.0 / 255.0), backgroundFade);',
+          '#include <colorspace_fragment>\nfloat cityGray = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));\ngl_FragColor.rgb = mix(vec3(cityGray), vec3(240.0 / 255.0), backgroundFade);',
         );
       };
     },
