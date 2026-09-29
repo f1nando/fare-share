@@ -14,6 +14,7 @@ export function AdminPage() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const selectedCa = status?.mint || ca;
 
   const refresh = useCallback(async () => {
     if (!csrf) return;
@@ -48,7 +49,7 @@ export function AdminPage() {
 
   async function inspect() {
     await action('inspect', async () => {
-      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca, ticker }, csrf });
+      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca: selectedCa, ticker }, csrf });
       setVerifiedCa(result.mint);
       setVerifiedTicker(result.ticker);
       setTicker(result.ticker);
@@ -117,10 +118,10 @@ export function AdminPage() {
         <Metric label="Баланс 2NUN" value={formatSol(status.walletLamports)} />
       </section>
       <section className="admin-grid">
-        <div className="admin-card"><p className="eyebrow">ГЛАВНЫЙ ТОКЕН</p>{status.mint ? <><h2>${status.ticker || '—'}</h2><p className="mono break">{status.mint}</p><p className="status-ok">● CA и тикер зафиксированы</p></> : <>
-          <h2>Ожидаем CA и тикер заказчика</h2><label>Contract address<input className="mono" value={ca} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Вставьте CA" /></label>
+        <div className="admin-card"><p className="eyebrow">ГЛАВНЫЙ ТОКЕН</p>{status.mint && status.ticker ? <><h2>${status.ticker}</h2><p className="mono break">{status.mint}</p><p className="status-ok">● CA и тикер зафиксированы</p></> : <>
+          <h2>{status.mint ? 'Укажите тикер для onchain CA' : 'Ожидаем CA и тикер заказчика'}</h2><label>Contract address<input className="mono" value={selectedCa} disabled={Boolean(status.mint)} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Вставьте CA" /></label>
           <label>Тикер<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Например, FARE" maxLength="10" /></label>
-          <div className="button-row"><button onClick={inspect} disabled={!ca || !ticker || busy === 'inspect'}>Проверить</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== ca || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Зафиксировать CA и тикер</button></div>
+          <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Проверить</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Зафиксировать CA и тикер</button></div>
         </>}</div>
         <div className="admin-card"><p className="eyebrow">ОПЕРАЦИИ</p><h2>Получение и распределение</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Получаем…' : 'Забрать fees'}</button>
