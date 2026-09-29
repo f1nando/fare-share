@@ -196,7 +196,7 @@ function FleetSceneCard({ scene, fleetClass }) {
   );
 }
 
-export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE }) {
+export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlights = true }) {
   const roadRef = useRef(null);
   const boundsRef = useRef(null);
   const rateFrameRef = useRef(0);
@@ -257,7 +257,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE }) {
     <div
       className="fare-step-media fare-step-driving"
       aria-hidden="true"
-      onClick={(event) => blinkSceneHeadlights(event.currentTarget, settings)}
+      onClick={showHeadlights ? (event) => blinkSceneHeadlights(event.currentTarget, settings) : undefined}
       onPointerEnter={(event) => { boundsRef.current = event.currentTarget.getBoundingClientRect(); }}
       onPointerMove={updateRoadRateFromPointer}
       onPointerLeave={() => setTargetRoadRate(1)}
@@ -271,7 +271,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE }) {
       }}>
         <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
-      {[
+      {showHeadlights && [
         ['left', settings.leftX, settings.leftY],
         ['right', settings.rightX, settings.rightY],
       ].map(([name, x, y]) => (

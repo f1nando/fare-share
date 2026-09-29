@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FareStepDrivingScene } from './FareShareLanding.jsx';
+import drivingScenes from './drivingScenes.json';
 import {
   claimAllMachines,
   claimMachine,
@@ -70,7 +72,7 @@ export function GaragePage({ wallet }) {
   const displayedCars = wallet && status?.deployed
     ? machines.map(machine => ({
       id: machine.asset,
-      image: machine.image,
+      scene: garageScene(machine),
       serial: machine.name.match(/#(\d+)$/)?.[1] || '',
       name: machine.name,
       vehicleClass: CLASS_BY_WEIGHT[machine.weight] || CLASS_BY_WEIGHT[1],
@@ -176,9 +178,7 @@ export function GaragePage({ wallet }) {
           <div className="fare-garage-grid">
             {displayedCars.map((car, index) => (
               <article className="fare-step-card fare-garage-card" key={car.id}>
-                <div className="fare-step-media fare-step-driving" aria-hidden="true">
-                  <img className="fare-step-driving-car" src={car.image} alt="" loading="lazy" decoding="async" />
-                </div>
+                <FareStepDrivingScene scene={car.scene} showHeadlights={false} />
                 <span className="fare-step-number fare-garage-number">#{car.serial || String(index + 1).padStart(2, '0')}</span>
                 <span className={`fare-fleet-class fare-garage-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span>
                 <h2>{car.name}</h2>
@@ -218,4 +218,16 @@ function formatHistoryTime(value, period) {
   return period === '24h'
     ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function garageScene(machine) {
+  const imageName = String(machine.image || '').split('/').at(-1)?.split('?')[0];
+  const configuredScene = imageName
+    ? drivingScenes.find(scene => scene.imageUrl.endsWith(`/${imageName}`))
+    : undefined;
+  return {
+    ...(configuredScene || drivingScenes[0]),
+    name: machine.name,
+    imageUrl: machine.image || configuredScene?.imageUrl || drivingScenes[0].imageUrl,
+  };
 }
