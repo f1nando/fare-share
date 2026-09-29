@@ -269,6 +269,15 @@ Onchain проверены admin/backend/team, четыре xStocks mint, все
 `fareMint` остаётся пустым до создания финального `$FARE`; после его привязки эта
 же ALT расширяется claim-адресами. Post-initialize balance — `3.370009257 SOL`.
 
+Для безопасной pre-sale проверки временно привязан ранее проверенный test mint
+`4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump` (`TAXI EMPIRE`, symbol `TAXI`):
+finalized bind `9AHbm4…opAv7W`. Повторная проверка подтвердила активную SOL bonding
+curve, Token-2022 и canonical immutable fee-sharing v2 `100% → 2NUN…EGVnF` без
+Mayhem/Cashback/Holder Rewards/custom fee. FARE vault `6abo81…TcrvRV` создан,
+ALT `95zx…AMsQ` расширена до 21 claim-адреса (`4w87QZ…L4nWMR`). Sale не запущена,
+supply `[0,0,0,0]`; поэтому CA можно заменить финальным `$FARE`. Запускать
+`start-sale` с этим тестовым CA запрещено без отдельного решения владельца.
+
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
 
