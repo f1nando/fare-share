@@ -88,12 +88,15 @@
 
 ### Gate 7 — явно разрешённый test-mainnet deploy
 
-- [ ] Получить отдельное разрешение владельца на расход real mainnet SOL и публикацию disposable Program ID.
+- [x] Получено отдельное разрешение владельца на расход real mainnet SOL и публикацию disposable Program ID.
 - [x] Получено условное разрешение с жёстким совокупным лимитом невозвратного расхода `0.5 SOL`; metadata upload уже использовал `0.000305 SOL`, доступный остаток лимита — `0.499695 SOL`.
-- [ ] Уточнить, разрешён ли временный recoverable lock около `6.68 SOL`: deploy не начинается, пока не подтверждено, что лимит `0.5 SOL` относится к итоговому невозвратному расходу, а не к временному outflow.
-- [ ] Deploy выполнять только с явными `--program-id`, `--upgrade-authority`, `--fee-payer`, RPC и постоянным buffer keypair.
-- [ ] После deploy проверить ProgramData, authority, ELF SHA-256 и вернуть rent upload buffer.
+- [x] Владелец разрешил временный recoverable lock до рассчитанного peak; лимит `0.5 SOL` относится к совокупному невозвратному расходу. Новый точный peak `6.680758800 SOL` плюс transaction fees.
+- [x] Disposable deploy выполнен с явными `--program-id`, `--upgrade-authority`, `--fee-payer`, private RPC и постоянным buffer keypair; signature `54UpuA6SXUqT7F6jXyDewD8EZYPZ7CeFkPUZgjiBiQBXEvVZkYn7ZRuTzDnFjrQyxhhZpchgqFJ21ZByr3nXo6rA`, finalized slot `451695060`.
+- [x] После deploy проверены ProgramData `5zDM1W…DE8V`, authority `2NUN…EGVnF`, data length `657304`, выгруженный on-chain ELF SHA-256 `6d1ca95d…401e3b`; buffer `7ZZc…9MCKE` закрыт и его rent возвращён.
+- [x] Finalized balance после deploy `3.706089834 SOL`; в ProgramData recoverable `3.339983160 SOL`. Фактический невозвратный deploy outflow, включая tombstone и upload/deploy fees, `0.004103120 SOL`; вместе с metadata использовано `0.004408120 SOL` из лимита `0.5 SOL`.
+- [x] Fee-sharing upgrade finalized: signature `uRXPFLtrVpGN55AJG3LgY5pVsnFuAsz3XiajM2UUAw6Ptsw5fReoF1qzBsdQHG2971YAVVteAoh4YXgECMPawvm`, slot `451700854`. Loader-v3 потребовал минимальное расширение ProgramData на `10240` байт: `0.052019200 SOL` добавлено к recoverable rent; buffer `3.356970680 SOL` закрыт и полностью возвращён. On-chain первые `660656` байт имеют SHA-256 `55dc1e29…6631a`, оставшиеся `6888` байт проверены как нулевой резерв. Upgrade/upload fees составили `0.003285000 SOL`; общий невозвратный расход с deploy и metadata теперь `0.007693120 / 0.5 SOL`. Finalized liquid balance `3.650785634 SOL`.
 - [ ] Инициализировать отдельные PDA/Collection/vault и создать ALT.
+- [x] Initialize dry-run без ALT безопасно отклонён до отправки: raw transaction `1296 > 1232` байт. Добавлен отдельный recoverable initialize ALT flow; metadata не сокращаются и не подменяются.
 
 ### Gate 8 — тест микроцен и экономики
 

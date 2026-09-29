@@ -15,6 +15,7 @@
     "campaign:create": "node --env-file-if-exists=.env --import tsx scripts/create-trainee-campaign.ts",
     "worker": "node --env-file-if-exists=.env --import tsx scripts/run-worker.ts",
     "protocol:initialize": "node --env-file-if-exists=.env --import tsx scripts/initialize-protocol.ts",
+    "protocol:create-initialize-lookup": "node --env-file-if-exists=.env --import tsx scripts/create-initialize-lookup-table.ts",
     "protocol:addresses": "node --env-file-if-exists=.env --import tsx scripts/show-protocol-addresses.ts",
     "protocol:claim-lookup-addresses": "node --env-file-if-exists=.env scripts/show-claim-lookup-addresses.mjs",
     "protocol:create-claim-lookup": "node --env-file-if-exists=.env --import tsx scripts/create-claim-lookup-table.ts",

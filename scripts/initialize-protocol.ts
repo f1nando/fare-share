@@ -1,6 +1,9 @@
 import { address, createKeyPairSignerFromBytes } from '@solana/kit';
 import { initializeProtocol } from '../server/setup.js';
 import { parseSecretBytes } from '../server/signing.js';
+import { solanaRpcCall } from '../server/solanaRpc.js';
+// @ts-expect-error The browser protocol client is intentionally plain JavaScript.
+import { base64Bytes, decodeAddressLookupTable } from '../src/protocol/anchorClient.js';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -15,6 +18,8 @@ const tuple = <T>(values: T[], name: string): [T, T, T, T] => {
 const deploymentHex = required('DEPLOYMENT_ID_HEX');
 if (!/^[0-9a-fA-F]{64}$/.test(deploymentHex)) throw new Error('DEPLOYMENT_ID_HEX must contain 64 hex characters');
 const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
+const lookupTableAddress = process.env.VITE_TAXI_LOOKUP_TABLE?.trim();
+const lookupTables = lookupTableAddress ? await loadLookupTable(lookupTableAddress) : {};
 const result = await initializeProtocol({
   rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
   programId: address(process.env.TAXI_PROGRAM_ID || '9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv'),
@@ -28,6 +33,7 @@ const result = await initializeProtocol({
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
   mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
   metadataUris: tuple(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
+  lookupTables,
 });
 
 console.log(JSON.stringify({
@@ -36,3 +42,10 @@ console.log(JSON.stringify({
   collection: result.collection && String(result.collection),
   vaults: result.vaults.map(String),
 }, null, 2));
+
+async function loadLookupTable(rawAddress: string) {
+  const table = address(rawAddress);
+  const result = await solanaRpcCall<{ value: { data: [string, string] } | null }>(required('SOLANA_RPC_URL'), 'getAccountInfo', [table, { commitment: 'finalized', encoding: 'base64' }]);
+  if (!result.value) throw new Error(`Initialize lookup table ${table} does not exist`);
+  return { [table]: decodeAddressLookupTable(base64Bytes(result.value.data[0])) };
+}

@@ -7,6 +7,7 @@ import {
   getProgramDerivedAddress,
   getUtf8Encoder,
   type Address,
+  type AddressesByLookupTableAddress,
   type Instruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -34,6 +35,7 @@ export interface InitializeProtocolInput {
   stockMints: [Address, Address, Address, Address];
   mintPrices: [bigint, bigint, bigint, bigint];
   metadataUris: [string, string, string, string];
+  lookupTables?: AddressesByLookupTableAddress;
 }
 
 export async function initializeProtocol(input: InitializeProtocolInput) {
@@ -52,6 +54,7 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
       input.admin,
       [instruction],
       [collectionSigner],
+      input.lookupTables || {},
     ));
   }
 

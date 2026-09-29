@@ -90,6 +90,9 @@ solana program deploy -u devnet \
 7. Выполнить `protocol:initialize`; на этом этапе `$FARE` ещё может не существовать, а `fare_mint` в Configuration PDA останется пустым.
 8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. Команда атомарно создаёт canonical protocol ATA и задаёт CA. До `start-sale` protocol admin может исправить CA повторной командой; после старта прямая замена запрещена и требует отдельной paused migration активов и обязательств.
 9. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
+   Если initialize с полными metadata превышает лимит транзакции, сначала выполнить
+   `npm run protocol:create-initialize-lookup`, сохранить выведенный адрес в
+   `VITE_TAXI_LOOKUP_TABLE`, и только затем запускать `protocol:initialize`.
 10. Проверить, что `/api/token`, hero и `/trade/` показывают тот же CA и введённый в админке тикер; затем проверить vault, collection, все mint и реальные минимальные денежные сценарии, включая Claim десяти машин. Только после этого вручную вызвать `start-sale`; без привязанного CA контракт отклонит запуск продажи.
 
 ## 4. Сохранить upgrade authority и возможность вернуть rent
