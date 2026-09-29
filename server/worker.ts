@@ -17,7 +17,6 @@ import {
   buildJupiterRoute,
   buildSwapPlanMessage,
   computeUnitLimitInstruction,
-  encodeFundSwapData,
   encodeProcessSwapData,
   hashJupiterRoute,
   type SwapPlan,
@@ -255,7 +254,6 @@ async function processPendingSwaps(
         caller: caller.address,
         addresses,
         wsolVault,
-        plan,
       });
       const processInstruction = buildProcessSwapInstruction({
         programId: config.programId,
@@ -288,10 +286,50 @@ async function processPendingSwaps(
         lookupTables,
       );
       console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap finalized: ${signature}`);
+      const cleanupInstructions = route.setupInstructions.flatMap(instruction => {
+        const ata = instruction.accounts?.[1]?.address;
+        const tokenProgram = instruction.accounts?.[5]?.address;
+        if (!ata || !tokenProgram || ata === wsolVault || ata === rewardVault) return [];
+        return [buildCloseRouteAtaInstruction({
+          programId: config.programId,
+          caller: caller.address,
+          addresses,
+          ata,
+          tokenProgram,
+        })];
+      });
+      if (cleanupInstructions.length > 0) {
+        try {
+          const cleanupSignature = await sendInstructions(config.solanaRpcUrl, caller, cleanupInstructions, [], lookupTables);
+          console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup finalized: ${cleanupSignature}`);
+        } catch (error) {
+          console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup deferred:`, error);
+        }
+      }
     } catch (error) {
       console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap skipped:`, error);
     }
   }
+}
+
+function buildCloseRouteAtaInstruction(input: {
+  programId: Address;
+  caller: Address;
+  addresses: Awaited<ReturnType<typeof deriveAddresses>>;
+  ata: Address;
+  tokenProgram: Address;
+}): Instruction {
+  return {
+    programAddress: input.programId,
+    accounts: [
+      meta(input.caller, AccountRole.WRITABLE_SIGNER),
+      meta(input.addresses.config, AccountRole.READONLY),
+      meta(input.addresses.feeVault, AccountRole.WRITABLE),
+      meta(input.ata, AccountRole.WRITABLE),
+      meta(input.tokenProgram, AccountRole.READONLY),
+    ],
+    data: anchorDiscriminator('absorb_pump_wsol_fees'),
+  };
 }
 
 function buildFundSwapWsolInstruction(input: {
@@ -299,18 +337,18 @@ function buildFundSwapWsolInstruction(input: {
   caller: Address;
   addresses: Awaited<ReturnType<typeof deriveAddresses>>;
   wsolVault: Address;
-  plan: SwapPlan;
 }): Instruction {
   return {
     programAddress: input.programId,
     accounts: [
-      meta(input.caller, AccountRole.READONLY_SIGNER),
+      meta(input.caller, AccountRole.WRITABLE_SIGNER),
       meta(input.addresses.config, AccountRole.READONLY),
       meta(input.addresses.feeVault, AccountRole.WRITABLE),
       meta(input.wsolVault, AccountRole.WRITABLE),
+      meta(TOKEN_PROGRAM, AccountRole.READONLY),
       meta(INSTRUCTIONS_SYSVAR, AccountRole.READONLY),
     ],
-    data: encodeFundSwapData(anchorDiscriminator('fund_swap_wsol'), input.plan),
+    data: anchorDiscriminator('absorb_pump_wsol_fees'),
   };
 }
 

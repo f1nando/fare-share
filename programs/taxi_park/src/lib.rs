@@ -387,6 +387,47 @@ pub mod taxi_park {
             token::NATIVE_MINT_ID,
             TaxiError::InvalidRewardMint
         );
+        if pump_vault.owner == ctx.accounts.config.key() && !ctx.remaining_accounts.is_empty() {
+            let instructions = ctx
+                .remaining_accounts
+                .first()
+                .ok_or(TaxiError::InvalidSwapPlan)?;
+            require_keys_eq!(
+                instructions.key(),
+                anchor_lang::solana_program::sysvar::instructions::ID,
+                TaxiError::InvalidSwapPlan
+            );
+            let (kind, asset_index, amount_in) = following_swap_funding(
+                instructions,
+                ctx.program_id,
+                &ctx.accounts.pump_wsol_vault.key(),
+            )?;
+            let reserve = if kind == FARE_SWAP_KIND && asset_index == 0 {
+                require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
+                ctx.accounts.fee_vault.fare_sol_reserve
+            } else {
+                let stock_index = usize::from(asset_index);
+                require!(kind == STOCK_SWAP_KIND && stock_index < STOCK_COUNT, TaxiError::InvalidSwapPlan);
+                ctx.accounts.fee_vault.stock_sol_reserves[stock_index]
+            };
+            require!(amount_in > 0 && amount_in <= reserve, TaxiError::InvalidSwapInput);
+            return move_lamports_to_wsol(
+                &ctx.accounts.fee_vault.to_account_info(),
+                &ctx.accounts.pump_wsol_vault.to_account_info(),
+                amount_in,
+            );
+        }
+        if pump_vault.owner == ctx.accounts.config.key() && pump_vault.amount == 0 {
+            let bump = [ctx.accounts.config.bump];
+            let seeds: &[&[u8]] = &[b"config", &bump];
+            return token::close_account(
+                &ctx.accounts.token_program,
+                &ctx.accounts.pump_wsol_vault,
+                &ctx.accounts.fee_vault.to_account_info(),
+                &ctx.accounts.config.to_account_info(),
+                &[seeds],
+            );
+        }
         require_keys_eq!(
             pump_vault.owner,
             ctx.accounts.fee_vault.key(),
@@ -434,33 +475,6 @@ pub mod taxi_park {
 
         emit!(PumpWsolFeesAbsorbed { amount });
         Ok(())
-    }
-
-    pub fn fund_swap_wsol(ctx: Context<FundSwapWsol>, plan: SwapPlan) -> Result<()> {
-        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
-        require!(plan.amount_in > 0, TaxiError::InvalidSwapInput);
-        let reserve = if plan.kind == FARE_SWAP_KIND && plan.asset_index == 0 {
-            require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
-            ctx.accounts.fee_vault.fare_sol_reserve
-        } else {
-            let stock_index = usize::from(plan.asset_index);
-            require!(plan.kind == STOCK_SWAP_KIND && stock_index < STOCK_COUNT, TaxiError::InvalidSwapPlan);
-            ctx.accounts.fee_vault.stock_sol_reserves[stock_index]
-        };
-        require!(plan.amount_in <= reserve, TaxiError::InvalidSwapInput);
-        let wsol = token::account_view(&ctx.accounts.wsol_vault, &token::TOKEN_PROGRAM_ID)?;
-        require_keys_eq!(wsol.mint, token::NATIVE_MINT_ID, TaxiError::InvalidRewardMint);
-        require_keys_eq!(wsol.owner, ctx.accounts.config.key(), TaxiError::InvalidTokenAccount);
-        verify_following_swap(
-            &ctx.accounts.instructions,
-            ctx.program_id,
-            &plan,
-        )?;
-        move_lamports_to_wsol(
-            &ctx.accounts.fee_vault.to_account_info(),
-            &ctx.accounts.wsol_vault.to_account_info(),
-            plan.amount_in,
-        )
     }
 
     pub fn process_fare_swap<'info>(
@@ -587,15 +601,6 @@ pub mod taxi_park {
                 &[seeds],
             )?;
         }
-        close_empty_route_accounts(
-            &ctx.accounts.config,
-            &ctx.accounts.fee_vault.to_account_info(),
-            &ctx.accounts.wsol_vault.key(),
-            &ctx.accounts.reward_vault.key(),
-            &ctx.accounts.token_program.to_account_info(),
-            &ctx.accounts.fare_token_program.to_account_info(),
-            ctx.remaining_accounts,
-        )?;
 
         ctx.accounts.pool.next_pool[0] = ctx.accounts.pool.next_pool[0]
             .checked_add(main_amount)
@@ -741,15 +746,6 @@ pub mod taxi_park {
             .checked_sub(output_before)
             .ok_or(TaxiError::InsufficientSwapOutput)?;
         require!(received >= plan.min_out, TaxiError::InsufficientSwapOutput);
-        close_empty_route_accounts(
-            &ctx.accounts.config,
-            &ctx.accounts.fee_vault.to_account_info(),
-            &ctx.accounts.wsol_vault.key(),
-            &ctx.accounts.reward_vault.key(),
-            &ctx.accounts.token_program.to_account_info(),
-            &ctx.accounts.stock_token_program.to_account_info(),
-            ctx.remaining_accounts,
-        )?;
 
         let asset_index = stock_index + 1;
         ctx.accounts.pool.next_pool[asset_index] = ctx.accounts.pool.next_pool[asset_index]
@@ -1805,24 +1801,8 @@ pub struct AbsorbPumpWsolFees<'info> {
     /// CHECK: Legacy WSOL mint, authority and amount are validated in the handler.
     #[account(mut)]
     pub pump_wsol_vault: UncheckedAccount<'info>,
-    /// CHECK: Fixed legacy SPL Token program.
-    #[account(address = token::TOKEN_PROGRAM_ID)]
+    /// CHECK: SPL Token program is validated in the handler.
     pub token_program: UncheckedAccount<'info>,
-}
-
-#[derive(Accounts)]
-pub struct FundSwapWsol<'info> {
-    pub caller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Box<Account<'info, Configuration>>,
-    #[account(mut, seeds = [b"fees"], bump = fee_vault.bump)]
-    pub fee_vault: Account<'info, FeeVault>,
-    /// CHECK: Legacy WSOL mint and authority are validated in the handler.
-    #[account(mut)]
-    pub wsol_vault: UncheckedAccount<'info>,
-    /// CHECK: Fixed Solana instructions sysvar used to bind funding to the following swap.
-    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
-    pub instructions: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -2444,32 +2424,36 @@ mod accounting_tests {
     }
 }
 
-fn verify_following_swap(
-    instructions: &UncheckedAccount<'_>,
+fn following_swap_funding(
+    instructions: &AccountInfo<'_>,
     program_id: &Pubkey,
-    plan: &SwapPlan,
-) -> Result<()> {
+    wsol_vault: &Pubkey,
+) -> Result<(u8, u8, u64)> {
     const PROCESS_FARE_SWAP: [u8; 8] = [132, 236, 100, 80, 1, 220, 9, 61];
     const PROCESS_STOCK_SWAP: [u8; 8] = [139, 227, 181, 243, 162, 165, 81, 70];
-    let instructions_info = instructions.to_account_info();
-    let current_index = usize::from(load_current_index_checked(&instructions_info)?);
+    let current_index = usize::from(load_current_index_checked(instructions)?);
     let process_index = current_index.checked_add(2).ok_or(TaxiError::MathOverflow)?;
-    let process = load_instruction_at_checked(process_index, &instructions_info)?;
+    let process = load_instruction_at_checked(process_index, instructions)?;
     require_keys_eq!(process.program_id, *program_id, TaxiError::InvalidSwapPlan);
-    let discriminator = if plan.kind == FARE_SWAP_KIND {
-        PROCESS_FARE_SWAP
+    require!(process.data.len() >= 74, TaxiError::InvalidSwapPlan);
+    let kind = process.data[8];
+    let asset_index = process.data[9];
+    let mut amount_bytes = [0_u8; 8];
+    amount_bytes.copy_from_slice(&process.data[18..26]);
+    let amount_in = u64::from_le_bytes(amount_bytes);
+    let (discriminator, wsol_index) = if kind == FARE_SWAP_KIND && asset_index == 0 {
+        (PROCESS_FARE_SWAP, 6_usize)
     } else {
-        PROCESS_STOCK_SWAP
+        require!(kind == STOCK_SWAP_KIND && usize::from(asset_index) < STOCK_COUNT, TaxiError::InvalidSwapPlan);
+        (PROCESS_STOCK_SWAP, 5_usize)
     };
-    let mut encoded_plan = Vec::new();
-    plan.serialize(&mut encoded_plan)?;
     require!(
-        process.data.len() >= 8 + encoded_plan.len()
-            && process.data[..8] == discriminator
-            && process.data[8..8 + encoded_plan.len()] == encoded_plan,
+        process.data[..8] == discriminator
+            && process.accounts.len() > wsol_index
+            && process.accounts[wsol_index].pubkey == *wsol_vault,
         TaxiError::InvalidSwapPlan
     );
-    Ok(())
+    Ok((kind, asset_index, amount_in))
 }
 
 fn move_lamports_to_wsol<'info>(
@@ -2493,51 +2477,6 @@ fn move_lamports_to_wsol<'info>(
         .ok_or(TaxiError::MathOverflow)?;
     **fee_vault.try_borrow_mut_lamports()? = fee_after;
     **wsol_vault.try_borrow_mut_lamports()? = wsol_after;
-    Ok(())
-}
-
-fn close_empty_route_accounts<'info>(
-    config: &Account<'info, Configuration>,
-    rent_recipient: &AccountInfo<'info>,
-    source: &Pubkey,
-    destination: &Pubkey,
-    legacy_token_program: &AccountInfo<'info>,
-    output_token_program: &AccountInfo<'info>,
-    route_accounts: &[AccountInfo<'info>],
-) -> Result<()> {
-    let mut closed = Vec::<Pubkey>::new();
-    let bump = [config.bump];
-    let seeds: &[&[u8]] = &[b"config", &bump];
-    for account in route_accounts {
-        if account.key == source || account.key == destination || closed.contains(account.key) {
-            continue;
-        }
-        let Some(view) = token::account_view_if_initialized(account)? else {
-            continue;
-        };
-        if view.owner != config.key() {
-            continue;
-        }
-        require!(view.amount == 0, TaxiError::InvalidTokenAccount);
-        let program = if account.owner == legacy_token_program.key {
-            legacy_token_program
-        } else {
-            require_keys_eq!(
-                *account.owner,
-                output_token_program.key(),
-                TaxiError::InvalidTokenProgram
-            );
-            output_token_program
-        };
-        token::close_account(
-            program,
-            account,
-            rent_recipient,
-            &config.to_account_info(),
-            &[seeds],
-        )?;
-        closed.push(account.key());
-    }
     Ok(())
 }
 

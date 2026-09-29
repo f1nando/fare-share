@@ -81,17 +81,6 @@ pub fn account_view(account: &AccountInfo<'_>, token_program: &Pubkey) -> Result
     parse_account_data(&data)
 }
 
-pub fn account_view_if_initialized(account: &AccountInfo<'_>) -> Result<Option<TokenAccountView>> {
-    if !is_supported_program(account.owner) {
-        return Ok(None);
-    }
-    let data = account.try_borrow_data()?;
-    if data.len() < TOKEN_ACCOUNT_BASE_LEN || data[TOKEN_ACCOUNT_STATE_OFFSET] == 0 {
-        return Ok(None);
-    }
-    Ok(Some(parse_account_data(&data)?))
-}
-
 fn parse_account_data(data: &[u8]) -> Result<TokenAccountView> {
     require!(
         data.len() >= TOKEN_ACCOUNT_BASE_LEN && data[TOKEN_ACCOUNT_STATE_OFFSET] != 0,

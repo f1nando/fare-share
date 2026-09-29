@@ -241,18 +241,6 @@ async function validateBuildResponse(build: BuildResponse, input: BuildJupiterSw
   }
 }
 
-export function encodeFundSwapData(discriminator: Uint8Array, plan: SwapPlan) {
-  return concat(
-    discriminator,
-    Uint8Array.of(plan.kind, plan.assetIndex),
-    u64(plan.nonce),
-    u64(plan.amountIn),
-    u64(plan.minOut),
-    i64(plan.deadline),
-    plan.routeHash,
-  );
-}
-
 async function isSafeIdempotentAtaSetup(instruction: ApiInstruction, input: BuildJupiterSwapInput) {
   const accounts = instruction.accounts;
   const data = Buffer.from(instruction.data, 'base64');
