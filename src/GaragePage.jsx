@@ -11,7 +11,7 @@ import {
   repairAllMachines,
   repairMachine,
 } from './protocol/solana.js';
-import { loadDatabaseFleet } from './publicData.js';
+import { loadDatabaseEarningHistory, loadDatabaseFleet } from './publicData.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const CLASS_BY_WEIGHT = {
@@ -28,6 +28,8 @@ export function GaragePage({ wallet }) {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [signature, setSignature] = useState('');
+  const [historyPeriod, setHistoryPeriod] = useState('24h');
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -40,20 +42,25 @@ export function GaragePage({ wallet }) {
   useEffect(() => {
     if (!wallet || !status?.deployed) {
       setMachines([]);
+      setHistory([]);
       return undefined;
     }
     let active = true;
     setBusy('load');
-    loadDatabaseFleet(wallet.account.address)
-      .then(next => {
+    Promise.all([
+      loadDatabaseFleet(wallet.account.address),
+      loadDatabaseEarningHistory(wallet.account.address, historyPeriod),
+    ])
+      .then(([next, earningHistory]) => {
         if (!active) return;
         setMachines(next);
+        setHistory(earningHistory.points);
         setNotice(next.length ? '' : 'This wallet has no Fare Share cars.');
       })
       .catch(error => active && setNotice(error.message))
       .finally(() => active && setBusy(''));
     return () => { active = false; };
-  }, [wallet, status?.deployed]);
+  }, [wallet, status?.deployed, historyPeriod]);
 
   const claimable = useMemo(() => machines.filter(machine => (
     machine.rewards.some(amount => BigInt(amount) > 0n)
@@ -74,6 +81,7 @@ export function GaragePage({ wallet }) {
     }))
     : [];
   const paused = Boolean(status?.config?.pausedAt !== 0n);
+  const maximumHistoryValue = Math.max(0, ...history.map(point => point.fare));
 
   async function runAction(key, action, success) {
     if (!wallet) return setNotice('Connect Phantom first.');
@@ -87,7 +95,12 @@ export function GaragePage({ wallet }) {
       setSignature(nextSignature);
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
-      setMachines(await loadDatabaseFleet(wallet.account.address));
+      const [nextMachines, nextHistory] = await Promise.all([
+        loadDatabaseFleet(wallet.account.address),
+        loadDatabaseEarningHistory(wallet.account.address, historyPeriod),
+      ]);
+      setMachines(nextMachines);
+      setHistory(nextHistory.points);
       setNotice(success);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
@@ -135,7 +148,22 @@ export function GaragePage({ wallet }) {
                 </div>
               </div>
 
-              <div className="fare-garage-chart"><p>Historical earnings will appear after verified distribution events are stored.</p></div>
+              <div className="fare-garage-chart">
+                <div className="fare-garage-periods" aria-label="Claimable rewards history period">
+                  {['24h', '7d', '30d'].map(period => <button className={historyPeriod === period ? 'is-active' : ''} type="button" onClick={() => setHistoryPeriod(period)} key={period}>{period.toUpperCase()}</button>)}
+                </div>
+                {history.length ? <>
+                  <div className="fare-garage-bars" aria-label={`Claimable ${ticker} history`}>
+                    {history.map(point => <i
+                      className="is-accent"
+                      style={{ height: `${maximumHistoryValue > 0 ? Math.max(3, point.fare / maximumHistoryValue * 108) : 3}px` }}
+                      title={`${formatHistoryTime(point.at, historyPeriod)}: ${point.fareDisplay} ${ticker}`}
+                      key={point.at}
+                    />)}
+                  </div>
+                  <div className="fare-garage-chart-labels"><span>{formatHistoryTime(history[0].at, historyPeriod)}</span><span>Claimable {ticker}</span><span>{formatHistoryTime(history.at(-1).at, historyPeriod)}</span></div>
+                </> : <p>{wallet ? 'The first finalized reward snapshot is being recorded.' : 'Connect your wallet to load verified reward history.'}</p>}
+              </div>
             </div>
 
             <div className="fare-garage-overview-stats">
@@ -181,4 +209,11 @@ export function GaragePage({ wallet }) {
       </main>
     </>
   );
+}
+
+function formatHistoryTime(value, period) {
+  const date = new Date(value);
+  return period === '24h'
+    ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }

@@ -67,8 +67,16 @@ const server = createServer(async (request, response) => {
       return;
     }
     const walletFleetRoute = /^\/api\/fleet\/wallet\/([^/]+)$/.exec(url.pathname);
+    const walletHistoryRoute = /^\/api\/fleet\/history\/([^/]+)$/.exec(url.pathname);
     if (request.method === 'GET' && walletFleetRoute) {
       json(response, 200, await publicData.walletFleet(decodeURIComponent(walletFleetRoute[1])));
+      return;
+    }
+    if (request.method === 'GET' && walletHistoryRoute) {
+      json(response, 200, await publicData.earningHistory(
+        decodeURIComponent(walletHistoryRoute[1]),
+        url.searchParams.get('period') || '24h',
+      ));
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/fleet/mints') {

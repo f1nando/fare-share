@@ -46,6 +46,19 @@ export async function loadDatabaseFleet(owner) {
   });
 }
 
+export async function loadDatabaseEarningHistory(owner, period = '24h') {
+  const result = await request(`/api/fleet/history/${encodeURIComponent(owner)}?period=${encodeURIComponent(period)}`);
+  const decimals = Number(result.assets?.[0]?.decimals ?? 6);
+  return {
+    period: result.period,
+    points: result.points.map(point => ({
+      ...point,
+      fare: Number(point.claimable[0] || 0) / (10 ** decimals),
+      fareDisplay: formatTokenAmount(BigInt(point.claimable[0] || 0), decimals),
+    })),
+  };
+}
+
 export function saveMintToDatabase({ signature, asset, owner }) {
   return request('/api/fleet/mints', {
     method: 'POST',

@@ -116,6 +116,17 @@ export interface FleetMintReceiptDocument {
   updatedAt: Date;
 }
 
+export interface FleetEarningSnapshotDocument {
+  owner: string;
+  bucketAt: Date;
+  observedAt: Date;
+  claimable: string[];
+  cars: number;
+  activeWeight: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -134,6 +145,7 @@ export interface TaxiDatabase {
   fleetMachines: Collection<FleetMachineDocument>;
   publicSnapshots: Collection<PublicSnapshotDocument>;
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
+  fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -155,6 +167,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const fleetMachines = db.collection<FleetMachineDocument>('fleet_machines');
   const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
+  const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
@@ -183,6 +196,8 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     publicSnapshots.createIndex({ key: 1 }, { unique: true }),
     fleetMintReceipts.createIndex({ signature: 1 }, { unique: true }),
     fleetMintReceipts.createIndex({ asset: 1, status: 1 }),
+    fleetEarningSnapshots.createIndex({ owner: 1, bucketAt: 1 }, { unique: true }),
+    fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, publicSnapshots, fleetMintReceipts };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
 }

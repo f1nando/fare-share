@@ -5,6 +5,12 @@ import { solanaRpcCall } from './solanaRpc.js';
 
 const CLASS_INDEX = new Map([[1, 0], [3, 1], [10, 2], [30, 3]]);
 const SYNC_TTL_MS = 15_000;
+const SNAPSHOT_BUCKET_MS = 5 * 60 * 1_000;
+const HISTORY_PERIODS = {
+  '24h': { durationMs: 24 * 60 * 60 * 1_000, groupMs: 60 * 60 * 1_000 },
+  '7d': { durationMs: 7 * 24 * 60 * 60 * 1_000, groupMs: 6 * 60 * 60 * 1_000 },
+  '30d': { durationMs: 30 * 24 * 60 * 60 * 1_000, groupMs: 24 * 60 * 60 * 1_000 },
+} as const;
 
 interface DasAsset {
   id: string;
@@ -88,6 +94,7 @@ export function createPublicDataService(config: {
             database.fleetMintReceipts.updateOne({ signature: receipt.signature }, { $set: { status: 'indexed', updatedAt: now } }),
           ]);
         }
+        await saveEarningSnapshots(database, now);
       }
       await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
         key: 'overview',
@@ -207,12 +214,70 @@ export function createPublicDataService(config: {
     return { saved: true, indexed: true, asset, owner, signature };
   }
 
+  async function earningHistory(rawOwner: string, rawPeriod = '24h') {
+    let owner: Address;
+    try { owner = address(rawOwner); } catch { throw new PublicDataError('Invalid wallet address.'); }
+    if (!(rawPeriod in HISTORY_PERIODS)) throw new PublicDataError('History period must be 24h, 7d, or 30d.');
+    const period = HISTORY_PERIODS[rawPeriod as keyof typeof HISTORY_PERIODS];
+    await sync(true);
+    const [snapshot, rows] = await Promise.all([
+      database.publicSnapshots.findOne({ key: 'overview' }),
+      database.fleetEarningSnapshots.find({
+        owner: String(owner),
+        bucketAt: { $gte: new Date(Date.now() - period.durationMs) },
+      }).sort({ bucketAt: 1 }).toArray(),
+    ]);
+    const grouped = new Map<number, typeof rows[number]>();
+    for (const row of rows) grouped.set(Math.floor(row.bucketAt.getTime() / period.groupMs) * period.groupMs, row);
+    return {
+      period: rawPeriod,
+      assets: snapshot?.distribution.assets || [],
+      points: [...grouped.entries()].map(([at, row]) => ({
+        at: new Date(at).toISOString(),
+        observedAt: row.observedAt,
+        claimable: row.claimable,
+        cars: row.cars,
+        activeWeight: row.activeWeight,
+      })),
+    };
+  }
+
   async function market() {
     await sync();
     return { listings: [], floorLamports: null, totalVolumeLamports: '0' };
   }
 
-  return { overview, walletFleet, recordMint, market, sync };
+  return { overview, walletFleet, recordMint, earningHistory, market, sync };
+}
+
+async function saveEarningSnapshots(database: TaxiDatabase, observedAt: Date) {
+  const machines = await database.fleetMachines.find({ closed: false }).toArray();
+  const owners = new Map<string, { claimable: bigint[]; cars: number; activeWeight: number }>();
+  for (const machine of machines) {
+    const aggregate = owners.get(machine.owner) || { claimable: [0n, 0n, 0n, 0n, 0n], cars: 0, activeWeight: 0 };
+    aggregate.cars += 1;
+    if (machine.rewardActive) aggregate.activeWeight += machine.weight;
+    machine.claimable.forEach((amount, index) => { aggregate.claimable[index] += BigInt(amount || '0'); });
+    owners.set(machine.owner, aggregate);
+  }
+  if (!owners.size) return;
+  const bucketAt = new Date(Math.floor(observedAt.getTime() / SNAPSHOT_BUCKET_MS) * SNAPSHOT_BUCKET_MS);
+  await database.fleetEarningSnapshots.bulkWrite([...owners].map(([owner, aggregate]) => ({
+    updateOne: {
+      filter: { owner, bucketAt },
+      update: {
+        $set: {
+          observedAt,
+          claimable: aggregate.claimable.map(String),
+          cars: aggregate.cars,
+          activeWeight: aggregate.activeWeight,
+          updatedAt: observedAt,
+        },
+        $setOnInsert: { owner, bucketAt, createdAt: observedAt },
+      },
+      upsert: true,
+    },
+  })));
 }
 
 async function loadAssets(rpcUrl: string, ids: string[]): Promise<DasAsset[]> {
