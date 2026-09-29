@@ -116,6 +116,11 @@
 - [x] DAS подтвердил владельца всех четырёх assets `2NUN…EGVnF`, Collection `7uxq…4TiF` и имена `FARE <class> #0001`; все machine PDA ссылаются на правильные Core assets, веса `1/3/10/30`, supply `[1,1,1,1]`.
 - [x] Сразу после mint-окна протокол поставлен на паузу: signature `3bouTf…YDcPL`. Recovery audit с `--require-paused --require-empty-vaults` PASS; buffer и все шесть vault закрыты/пусты.
 - [x] Консервативный outflow всего disposable теста после sale/mint/pause `0.145336600 / 0.5 SOL`; сюда включены `0.044 SOL` цены машин, account rents и fees. Finalized liquid balance `3.510681683 SOL`, запас лимита `0.354663400 SOL`; ProgramData `3.392002360 SOL` и ALT `0.004348480 SOL` остаются recoverable.
+- [x] Fleet расширен до 10 машин для Claim 10: ещё шесть Economy, итоговый supply `[7,1,1,1]`; unpause signature `41iPrE…7b9n3`. Все шесть mint-транзакций finalized, state сохранён вне Git в `.qa/mainnet-ten-machine-state.json`.
+- [x] В FeeVault внесено `0.02 SOL` для reward smoke: signature `3Dp1SF…W2h8Q`; reserves `0.014 SOL` FARE и по `0.001 SOL` на каждый xStock, team получил `0.002 SOL`.
+- [ ] Mainnet worker smoke безопасно остановил все swaps до списания reserves и выявил upgrade-blocker: Jupiter route требует worker payer signer, а прямое пополнение WSOL vault перед `sync_native` нарушает CPI lamport checkpoint. Дополнительно маршрутам xStock 0–2 нужны временные intermediate ATA с обязательным возвратом rent. Продолжение требует новой frozen SBF-сборки и отдельного разрешения на upgrade disposable Program ID.
+- [x] После blocker протокол снова paused: signature `4oaFHZ…WUndf`; временные `0.02 SOL` worker funding возвращены на `2NUN…` за вычетом двух network fees, worker balance `0`. FeeVault reserves `0.018 SOL` сохранены и доступны для swap после upgrade либо emergency rescue.
+- [x] Текущий консервативный outflow/lock `0.199323200 / 0.5 SOL`; finalized authority balance `3.456695083 SOL`, запас лимита `0.300676800 SOL`. Ни один Jupiter swap не прошёл, reward vault balances не изменились.
 - [ ] Проверить ownership, transfer, reward calculation через реальные разрешённые flows, Claim 10 с ALT и Repair `8 + остаток`.
 - [ ] Проверить намеренно ошибочный batch: транзакция отклонена, Machine PDA и token balances неизменны.
 - [ ] Проверить frontend Garage с Phantom на mainnet-beta и отсутствие console/RPC ошибок.
