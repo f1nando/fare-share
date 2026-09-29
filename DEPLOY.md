@@ -277,6 +277,9 @@ Mayhem/Cashback/Holder Rewards/custom fee. FARE vault `6abo81…TcrvRV` созд
 ALT `95zx…AMsQ` расширена до 21 claim-адреса (`4w87QZ…L4nWMR`). Sale не запущена,
 supply `[0,0,0,0]`; поэтому CA можно заменить финальным `$FARE`. Запускать
 `start-sale` с этим тестовым CA запрещено без отдельного решения владельца.
+Pre-sale mint simulation против permanent program ожидаемо вернула Anchor
+`SaleNotStarted` (`6041`) до отправки транзакции; NFT не создавался и SOL не
+списывались.
 
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
