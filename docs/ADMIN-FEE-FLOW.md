@@ -1,6 +1,6 @@
 # Сценарий назначения `$FARE` и работы с pump.fun fees
 
-Статус: backend, on-chain проверка direct/immutable-sharing recipient и страница `/admin/` реализованы. Disposable mainnet V2 claim smoke для immutable sharing успешно выполнен; deposit/distribution экономики ещё не выполнялся.
+Статус: backend, on-chain проверка direct/immutable-sharing recipient и страница `/admin/` реализованы. Disposable mainnet V2 claim и atomic deposit/split smoke для immutable sharing успешно выполнены; token swaps, NFT sale и mint ещё не запускались.
 
 ## Зафиксированные адреса и ограничения
 
