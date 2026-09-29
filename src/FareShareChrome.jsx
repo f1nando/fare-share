@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
-const MAGIC_EDEN_MARKET_URL = 'https://magiceden.io/marketplace';
+const MAGIC_EDEN_MARKET_URL = String(import.meta.env.VITE_MAGIC_EDEN_MARKET_URL || '/market/');
 
 function XIcon() {
   return (
@@ -130,8 +130,8 @@ export function FareFooter({ linkPrefix = '' }) {
             <img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />
             <strong>FARE SHARE</strong>
           </div>
-          <p className="fare-footer-tagline">Own cars. Run shifts. Earn stock tokens.</p>
-          <p className="fare-footer-copy">Build your taxi fleet, send cars on shift, and collect park fees in<br />cash and tokenized stocks.</p>
+          <p className="fare-footer-tagline">Own taxis. Stay active. Claim token rewards.</p>
+          <p className="fare-footer-copy">Build your taxi fleet and claim calculated rewards in<br />the project token and four supported xStocks.</p>
           <a className="fare-footer-social" href="https://x.com/taxiempire" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
           <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
         </div>

@@ -359,9 +359,11 @@ export class TradeService {
 
   async walletBalances(wallet: string) {
     try { address(wallet); } catch { throw new TradeError('Invalid wallet address.'); }
-    const [balanceResult, tokenResult] = await Promise.all([
+    const [balanceResult, tokenResult, priorityResult, tokenAccountRentResult] = await Promise.all([
       this.rpc('getBalance', [wallet, { commitment: 'confirmed' }]),
       this.rpc('getTokenAccountsByOwner', [wallet, { mint: String(this.mint) }, { encoding: 'jsonParsed', commitment: 'confirmed' }]),
+      this.rpc('getRecentPrioritizationFees', []).catch(() => []),
+      this.rpc('getMinimumBalanceForRentExemption', [165, { commitment: 'confirmed' }]).catch(() => 0),
     ]);
     const lamports = BigInt(String(asRecord(balanceResult).value || '0'));
     const accounts = Array.isArray(asRecord(tokenResult).value) ? asRecord(tokenResult).value as unknown[] : [];
@@ -372,6 +374,15 @@ export class TradeService {
       const amount = String(asRecord(info.tokenAmount).amount || '0');
       tokenRaw += BigInt(amount);
     }
+    const recentPriorityFees = Array.isArray(priorityResult)
+      ? priorityResult.map(item => Number(asRecord(item).prioritizationFee || 0)).filter(Number.isFinite).sort((left, right) => left - right)
+      : [];
+    const priorityMicroLamports = recentPriorityFees[Math.floor(recentPriorityFees.length * .75)] || 0;
+    const estimatedPriorityLamports = Math.ceil(priorityMicroLamports * 1_400_000 / 1_000_000);
+    const tokenAccountRentLamports = Number(tokenAccountRentResult || 0);
+    const estimatedBuyReserveLamports = 5_000
+      + estimatedPriorityLamports
+      + tokenAccountRentLamports * (accounts.length ? 1 : 2);
     return {
       wallet,
       solLamports: lamports.toString(),
@@ -379,6 +390,8 @@ export class TradeService {
       tokenRaw: tokenRaw.toString(),
       token: Number(tokenRaw) / 10 ** this.state.decimals,
       tokenDecimals: this.state.decimals,
+      estimatedBuyReserveLamports: String(estimatedBuyReserveLamports),
+      estimatedBuyReserveSol: estimatedBuyReserveLamports / LAMPORTS_PER_SOL,
     };
   }
 

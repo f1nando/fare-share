@@ -52,3 +52,8 @@ that file, keypairs or secret values in a frontend release or Git. The frontend
 uses same-origin `https://ownataxi.com/api/`; nginx proxies it to the backend on
 `127.0.0.1:8787`. Validate with `nginx -t`, restart the backend, atomically switch
 both symlinks, then smoke `/`, `/admin/`, `/api/token` and the Solana mint state.
+
+`VITE_MAGIC_EDEN_MARKET_URL` is a build-time public value. Leave it unset while
+`/market/` is only a UI prototype. Set it only to the verified official production
+collection page after Magic Eden confirmation; a generic marketplace home page or
+the disposable test collection is not an acceptable production value.

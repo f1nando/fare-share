@@ -87,7 +87,7 @@ export function UIKitPage() {
             <Specimen name="Hero display" meta="Intro Friday · 136px / 0.84"><div className="ui-type-hero">OWN TAXIS.</div></Specimen>
             <Specimen name="Section display" meta="Intro Friday · 70px / 0.9"><div className="ui-type-section">SIMPLE. FAIR.</div></Specimen>
             <Specimen name="Large heading" meta="Inter · 64px / 1 · 900"><div className="ui-type-heading">FOUR CARS.</div></Specimen>
-            <Specimen name="Lead" meta="Inter · 26px / 32px · 700"><div className="ui-type-lead">Own cars. Run shifts. Earn stock tokens.</div></Specimen>
+            <Specimen name="Lead" meta="Inter · 26px / 32px · 700"><div className="ui-type-lead">Own taxis. Stay active. Claim token rewards.</div></Specimen>
             <Specimen name="Button" meta="Inter · 20px · 800"><div className="ui-type-button">GET STARTED</div></Specimen>
             <Specimen name="Body" meta="Inter · 17px / 24px · 500"><div className="ui-type-body">Build your taxi fleet and collect park revenue.</div></Specimen>
           </div>

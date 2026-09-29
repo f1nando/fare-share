@@ -77,15 +77,15 @@ export function MarketPage({ wallet, connectWallet }) {
       <section className="container fare-market-section" aria-labelledby="market-page-title">
         <header className="fare-market-heading fare-page-heading">
           <div>
-            <span className="fare-market-kicker">OFFICIAL COLLECTION</span>
+            <span className="fare-market-kicker">UI PROTOTYPE · NOT A LIVE MARKET</span>
             <h1 className="fare-page-title is-short" id="market-page-title">MARKET</h1>
           </div>
-          <p>Find your next taxi. Every car is ready to join your fleet.</p>
+          <p>This page is a non-functional preview. Verified secondary trading will link to the official collection on Magic Eden.</p>
         </header>
 
         <div className="fare-market-console">
           <div className="fare-market-console-top">
-            <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE MARKET</span></div>
+            <div className="fare-market-live"><i aria-hidden="true" /><span>MARKET PREVIEW</span></div>
             <div className="fare-market-summary" aria-label="Marketplace summary">
               <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
               <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
@@ -156,7 +156,7 @@ export function MarketPage({ wallet, connectWallet }) {
         ) : (
           <div className="fare-market-empty">
             <strong>NO CARS FOUND</strong>
-            <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No cars are listed right now. Mint a new taxi for your fleet.'}</p>
+            <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'Live listings and checkout are not implemented here. Use only the verified Magic Eden collection link once it is published.'}</p>
             {hasActiveFilters
               ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
               : <a href="/mint/">GO TO MINT</a>}

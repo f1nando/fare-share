@@ -582,14 +582,14 @@ export function FareShareLanding() {
     },
     {
       number: '2',
-      title: 'RUN A SHIFT',
-      text: 'Send ready cars to work with one clear action.',
+      title: 'STAY ACTIVE',
+      text: 'A newly minted taxi starts earning automatically while its durability remains active.',
       drivingScene: true,
     },
     {
       number: '3',
-      title: 'COLLECT',
-      text: 'Receive daily revenue in cash and your selected stock.',
+      title: 'CLAIM REWARDS',
+      text: `Claim your calculated $${ticker}, UBERx, TSLAx, GOOGLx and AMZNx rewards.`,
       collectScene: true,
     },
   ];
@@ -612,7 +612,7 @@ export function FareShareLanding() {
           <div className="container container--hero">
           <div className="fare-hero-copy">
             <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
-            <p className="fare-hero-intro">Put your taxis to work and collect park fees in stock tokens.</p>
+            <p className="fare-hero-intro">Mint onchain taxis that automatically share calculated protocol rewards while active.</p>
             <div className="fare-hero-actions">
               <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
               <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
@@ -690,7 +690,7 @@ export function FareShareLanding() {
             <h2 id="fare-treasury-title">PARK TREASURY.</h2>
           </div>
 
-          <p className="fare-treasury-intro">Own taxi cars, send them on shift, and collect park revenue in cash and stocks.</p>
+          <p className="fare-treasury-intro">Own taxis, keep them active, and claim calculated {ticker} and xStock rewards.</p>
 
           <div className="fare-stat-grid">
             {treasuryStats.map(stat => <article className="fare-stat-card" key={stat.label}>

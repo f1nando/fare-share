@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 export const FARE_FAQ_ITEMS = [
   {
-    question: 'HOW DO IT EARN FROM MY CARS?',
-    answer: 'Send ready cars on shift. Each completed shift pays park revenue in cash and your selected stock token.',
+    question: 'HOW DO I EARN FROM MY CARS?',
+    answer: 'A newly minted taxi starts participating automatically. While its durability remains active, it receives a weight-based share of calculated TAXI, UBERx, TSLAx, GOOGLx and AMZNx rewards.',
   },
   {
     question: 'WHAT ARE THE FEES?',
@@ -11,7 +11,7 @@ export const FARE_FAQ_ITEMS = [
   },
   {
     question: 'CAN I SELL MY CARS?',
-    answer: 'Yes. Eligible cars can be listed on the marketplace or transferred from your garage.',
+    answer: 'You can transfer a taxi directly from Garage. The built-in Market is only a non-functional preview; secondary sales will use the verified official collection page on Magic Eden when its production link is published.',
   },
   {
     question: 'IS THIS A REAL PRODUCT?',

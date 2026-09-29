@@ -62,7 +62,7 @@ function LiveTradeChart({ candles, symbol }) {
 
 function TradeForm({ token, wallet, connectWallet }) {
   const [side, setSide] = useState('buy');
-  const [payAmount, setPayAmount] = useState('0.1');
+  const [payAmount, setPayAmount] = useState('');
   const [quote, setQuote] = useState(null);
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -121,9 +121,11 @@ function TradeForm({ token, wallet, connectWallet }) {
     try {
       const connection = wallet || await connectWallet();
       const balance = await loadTradeBalance(connection.account.address);
-      const available = side === 'buy' ? Math.max(0, balance.sol - .005) : balance.token;
+      const available = side === 'buy' ? Math.max(0, balance.sol - balance.estimatedBuyReserveSol) : balance.token;
       setPayAmount(formatInputAmount(available * portion, side === 'buy' ? 9 : token?.decimals || 6));
-      if (side === 'buy' && portion === 1) setNotice('0.005 SOL is reserved for network and priority fees.');
+      if (side === 'buy' && portion === 1) {
+        setNotice(`An estimated ${formatInputAmount(balance.estimatedBuyReserveSol, 9)} SOL is reserved from current network priority and account-creation costs. Your wallet shows the final fee.`);
+      }
     } catch (error) {
       setNotice(error.message);
     } finally {
