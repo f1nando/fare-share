@@ -130,9 +130,12 @@ export class TradeService {
   private socketReconnect?: NodeJS.Timeout;
   private timers: NodeJS.Timeout[] = [];
 
-  constructor(private readonly config: ServerConfig, private readonly database: TaxiDatabase) {
-    if (!config.tradeMint) throw new Error('TRADE_MINT is required to start the trade service');
-    this.mint = address(config.tradeMint);
+  constructor(
+    private readonly config: ServerConfig,
+    private readonly database: TaxiDatabase,
+    token: { mint: string; ticker: string },
+  ) {
+    this.mint = address(token.mint);
     this.rpcUrl = config.heliusApiKey
       ? `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(config.heliusApiKey)}`
       : config.solanaRpcUrl;
@@ -140,7 +143,7 @@ export class TradeService {
       mint: String(this.mint),
       indexVersion: TRADE_INDEX_VERSION,
       name: 'Fare Share',
-      symbol: 'FARE',
+      symbol: token.ticker,
       decimals: 6,
       supplyRaw: '0',
       stage: 'unknown',
@@ -173,10 +176,10 @@ export class TradeService {
     try {
       const saved = await this.database.tradeState.findOne({ mint: String(this.mint) });
       if (saved?.indexVersion === TRADE_INDEX_VERSION) {
-        this.state = saved;
+        this.state = { ...saved, symbol: this.state.symbol };
       } else if (saved) {
         await this.database.tradeTransactions.deleteMany({ mint: String(this.mint) });
-        this.state = { ...saved, indexVersion: TRADE_INDEX_VERSION, lastTradeSlot: 0, updatedAt: new Date() };
+        this.state = { ...saved, symbol: this.state.symbol, indexVersion: TRADE_INDEX_VERSION, lastTradeSlot: 0, updatedAt: new Date() };
         await this.database.tradeState.updateOne(
           { mint: String(this.mint) },
           { $set: { indexVersion: TRADE_INDEX_VERSION, lastTradeSlot: 0, updatedAt: new Date() } },
@@ -434,7 +437,7 @@ export class TradeService {
       const next: TradeStateDocument = {
         ...this.state,
         name: String(metadataValue.name || this.state.name),
-        symbol: String(metadataValue.symbol || this.state.symbol),
+        symbol: this.state.symbol,
         decimals: Number(tokenInfo.decimals ?? supplyValue.decimals ?? this.state.decimals),
         supplyRaw: String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw),
         stage,
@@ -737,9 +740,9 @@ export class TradeService {
   }
 }
 
-export function createTradeService(config: ServerConfig, database: TaxiDatabase) {
-  if (!config.tradeMint) return undefined;
-  const service = new TradeService(config, database);
+export function createTradeService(config: ServerConfig, database: TaxiDatabase, token?: { mint: string; ticker: string }) {
+  if (!token) return undefined;
+  const service = new TradeService(config, database, token);
   service.start();
   return service;
 }

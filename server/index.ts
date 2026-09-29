@@ -7,11 +7,19 @@ import { DrivingSceneError, listScenes, parseSceneInput, sceneSummary, type Driv
 import { createTradeService, TradeError } from './trade.js';
 import { AdminAuthError, createAdminAuth } from './adminAuth.js';
 import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
+import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
 const issueVoucher = createVoucherService(config, database);
-const trade = createTradeService(config, database);
+let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRpcUrl, config.programId, database.tokenConfig)
+  .catch(error => {
+    console.warn(`Public token configuration is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    return { configured: false, mint: null, ticker: null };
+  });
+let trade = publicToken.configured && publicToken.mint && publicToken.ticker
+  ? createTradeService(config, database, { mint: publicToken.mint, ticker: publicToken.ticker })
+  : undefined;
 const adminValues = [config.adminUsername, config.adminPasswordScrypt, config.adminSessionSecret, config.protocolAdminSecret, config.pumpFeeRecipientSecret];
 if (adminValues.some(Boolean) && !adminValues.every(Boolean)) throw new Error('Admin configuration is incomplete');
 const adminAuth = adminValues.every(Boolean) ? createAdminAuth({
@@ -27,7 +35,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   feeRecipientSecret: config.pumpFeeRecipientSecret!,
   cluster: config.solanaCluster,
   minimumWalletLamports: config.adminMinimumWalletLamports,
-}, database.adminFeeActions) : null;
+}, database.adminFeeActions, database.tokenConfig) : null;
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -41,6 +49,10 @@ const server = createServer(async (request, response) => {
     if (url.pathname.startsWith('/api/driving-scenes')) requireLocalSceneAccess(request);
     if (request.method === 'GET' && request.url === '/api/health') {
       json(response, 200, { ok: true });
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/token') {
+      json(response, 200, publicToken);
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/login') {
@@ -72,14 +84,20 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/inspect') {
       const services = requireAdminServices();
       services.auth.require(request, true);
-      const inspected = await services.fees.inspectMint(asRecord(await readJson(request)).ca);
-      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ready: true });
+      const body = asRecord(await readJson(request));
+      const inspected = await services.fees.inspectMint(body.ca);
+      const ticker = normalizeAdminTicker(body.ticker);
+      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, ready: true });
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/bind') {
       const services = requireAdminServices();
       services.auth.require(request, true);
-      json(response, 200, await services.fees.bindMint(asRecord(await readJson(request)).ca));
+      const body = asRecord(await readJson(request));
+      const result = await services.fees.bindMint(body.ca, body.ticker);
+      publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
+      if (!trade) trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      json(response, 200, result);
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/fees/claim') {
@@ -296,4 +314,8 @@ function requireAdminOrigin(request: IncomingMessage) {
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VoucherError('JSON object is required.', 400);
   return value as Record<string, unknown>;
+}
+
+function normalizeAdminTicker(value: unknown) {
+  try { return normalizeTicker(value); } catch (error) { throw new FeeAdminError((error as Error).message); }
 }

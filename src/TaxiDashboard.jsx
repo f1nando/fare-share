@@ -19,6 +19,7 @@ import {
   formatSolAmount,
   shortAddress,
 } from './protocol/solana.js';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const CLASSES = [
   { name: 'Economy', count: 1000, weight: 1, price: '$0.01 test price', tone: 'economy', image: '/nft/economy.webp' },
@@ -35,6 +36,7 @@ const DEMO_CARS = [
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
 
 export function TaxiDashboard({ simple = false, background = null }) {
+  const ticker = displayTicker(useTokenConfig());
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState(DEMO_CARS);
@@ -156,11 +158,11 @@ export function TaxiDashboard({ simple = false, background = null }) {
       <main className="taxi-content" id="top">
         <section className="hero-card">
           <p className="eyebrow">{simple ? 'Devnet functional test' : 'Revenue without promised APY'}</p>
-          <h1>{simple ? <>FARE Taxi Park<br /><span>Test panel</span></> : <>Your taxi fleet pays<br /><span>FARE and stocks</span></>}</h1>
+          <h1>{simple ? <>FARE Taxi Park<br /><span>Test panel</span></> : <>Your taxi fleet pays<br /><span>{ticker} and stocks</span></>}</h1>
           <p className="hero-copy">{simple ? 'Use this page to test wallet connection, minting, rewards, repair and trainee flows without loading the 3D city.' : 'The fleet distributes only fees it actually earns. No trading volume means no rewards.'}</p>
           {protocolPaused && <p className="protocol-paused" role="alert">Protocol paused — mint, claim, repair and trainee actions are temporarily disabled.</p>}
           <div className="pool-strip">
-            <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw FARE` : '—'}</strong></div>
+            <div><small>Current pool</small><strong>{status.deployed ? `${status.pool.nextPool[0]} raw ${ticker}` : '—'}</strong></div>
             <div><small>Active weight</small><strong>{status.deployed ? status.pool.totalActiveWeight.toString() : '—'} / {totalWeight}</strong></div>
             <div><small>Rewards calculated through</small><strong>{status.deployed ? formatProtocolTime(status.pool.effectiveCalculatedUntil) : '—'}</strong></div>
           </div>
@@ -198,7 +200,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
               <div className="car-main"><strong>{car.name} <small>{car.id}</small></strong><span>Weight {car.weight}</span></div>
               <div className="durability"><span><b style={{ width: `${car.durability}%` }} /></span><small>Durability {car.durability}%</small></div>
               <div className="reward">
-                <strong>{car.rewardDisplay ? `${car.rewardDisplay.fare} FARE` : car.reward}</strong>
+                <strong>{car.rewardDisplay ? `${car.rewardDisplay.fare} ${ticker}` : car.reward.replace('FARE', ticker)}</strong>
                 <small>{car.rewardDisplay
                   ? car.rewardDisplay.stocks.map(stock => `${stock.amount}${stock.rawFallback ? ' raw' : ''} ${stock.symbol}`).join(' · ')
                   : `+ ${car.stocks} in stocks`}</small>
@@ -206,7 +208,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
               <div className="row-actions">
                 <button disabled={Boolean(busy) || protocolPaused} onClick={() => runAction(`claim-${car.asset || car.id}`, () => claimMachine(wallet, car, status), 'Rewards sent to your wallet.')}>Claim</button>
                 <button disabled={Boolean(busy) || protocolPaused || car.missingSeconds === 0} className="secondary" onClick={() => runAction(`repair-${car.asset || car.id}`, () => repairMachine(wallet, car, status), 'Car restored to 5 days of durability.')}>
-                  {car.missingSeconds === 0 ? 'Full durability' : car.repairCost === undefined ? 'Repair' : `Repair · ${car.repairCostDisplay} FARE`}
+                  {car.missingSeconds === 0 ? 'Full durability' : car.repairCost === undefined ? 'Repair' : `Repair · ${car.repairCostDisplay} ${ticker}`}
                 </button>
                 {simple && <button disabled={Boolean(busy) || protocolPaused || !transferRecipient} className="secondary" onClick={() => runAction(
                   `transfer-${car.asset || car.id}`,
@@ -235,12 +237,12 @@ export function TaxiDashboard({ simple = false, background = null }) {
           </div>
           {trainees.length > 0 && <div className="trainee-list">
             {trainees.map(trainee => <article key={String(trainee.campaignId)}>
-              <span><strong>Campaign #{String(trainee.campaignId)} · {trainee.rewardDisplay} FARE</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
+              <span><strong>Campaign #{String(trainee.campaignId)} · {trainee.rewardDisplay} {ticker}</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
               <button disabled={Boolean(busy) || protocolPaused || trainee.reward === 0n} onClick={() => runAction(
                 `claim-trainee-${trainee.campaignId}`,
                 () => claimTrainee(wallet, trainee, status),
                 'Trainee rewards sent.',
-              )}>Claim FARE</button>
+              )}>Claim {ticker}</button>
             </article>)}
           </div>}
         </section>

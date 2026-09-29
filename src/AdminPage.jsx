@@ -7,7 +7,9 @@ export function AdminPage() {
   const [login, setLogin] = useState({ username: '', password: '' });
   const [status, setStatus] = useState(null);
   const [ca, setCa] = useState('');
+  const [ticker, setTicker] = useState('');
   const [verifiedCa, setVerifiedCa] = useState('');
+  const [verifiedTicker, setVerifiedTicker] = useState('');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -46,18 +48,21 @@ export function AdminPage() {
 
   async function inspect() {
     await action('inspect', async () => {
-      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca }, csrf });
+      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca, ticker }, csrf });
       setVerifiedCa(result.mint);
-      setNotice('CA проверен. Creator, Pump curve, SOL quote и fee mode корректны.');
+      setVerifiedTicker(result.ticker);
+      setTicker(result.ticker);
+      setNotice(`CA и тикер $${result.ticker} проверены. Creator, Pump curve, SOL quote и fee mode корректны.`);
     });
   }
 
   async function bind() {
-    if (!window.confirm('Зафиксировать этот CA навсегда? Заменить его после транзакции будет невозможно.')) return;
+    if (!window.confirm(`Зафиксировать CA и тикер $${verifiedTicker} навсегда? Заменить их после транзакции будет невозможно.`)) return;
     await action('bind', async () => {
-      const result = await request('/api/admin/mint/bind', { method: 'POST', body: { ca: verifiedCa }, csrf });
-      setNotice(`CA зафиксирован. ${result.signature}`);
+      const result = await request('/api/admin/mint/bind', { method: 'POST', body: { ca: verifiedCa, ticker: verifiedTicker }, csrf });
+      setNotice(`CA и тикер $${result.ticker} зафиксированы.${result.signature ? ` ${result.signature}` : ''}`);
       setVerifiedCa('');
+      setVerifiedTicker('');
       await refresh();
     });
   }
@@ -112,9 +117,10 @@ export function AdminPage() {
         <Metric label="Баланс 2NUN" value={formatSol(status.walletLamports)} />
       </section>
       <section className="admin-grid">
-        <div className="admin-card"><p className="eyebrow">ГЛАВНЫЙ CA</p>{status.mint ? <><h2 className="mono break">{status.mint}</h2><p className="status-ok">● Зафиксирован onchain</p></> : <>
-          <h2>Ожидаем CA заказчика</h2><label>Contract address<input className="mono" value={ca} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); }} placeholder="Вставьте CA" /></label>
-          <div className="button-row"><button onClick={inspect} disabled={!ca || busy === 'inspect'}>Проверить</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== ca || busy === 'bind'}>Зафиксировать CA</button></div>
+        <div className="admin-card"><p className="eyebrow">ГЛАВНЫЙ ТОКЕН</p>{status.mint ? <><h2>${status.ticker || '—'}</h2><p className="mono break">{status.mint}</p><p className="status-ok">● CA и тикер зафиксированы</p></> : <>
+          <h2>Ожидаем CA и тикер заказчика</h2><label>Contract address<input className="mono" value={ca} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Вставьте CA" /></label>
+          <label>Тикер<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Например, FARE" maxLength="10" /></label>
+          <div className="button-row"><button onClick={inspect} disabled={!ca || !ticker || busy === 'inspect'}>Проверить</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== ca || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Зафиксировать CA и тикер</button></div>
         </>}</div>
         <div className="admin-card"><p className="eyebrow">ОПЕРАЦИИ</p><h2>Получение и распределение</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Получаем…' : 'Забрать fees'}</button>

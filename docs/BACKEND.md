@@ -28,7 +28,7 @@ npm run protocol:preflight
 
 ## Live trade API
 
-Для `/trade/` backend индексирует заданный `TRADE_MINT` на mainnet через Helius, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. Нужны `HELIUS_API_KEY`, `JUPITER_API_KEY` и `TRADE_MINT`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
+Для `/trade/` backend индексирует CA, зафиксированный через `/admin/`, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. CA и тикер берутся из единой runtime-конфигурации и не дублируются в `TRADE_MINT`. Нужны `HELIUS_API_KEY` и `JUPITER_API_KEY`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
 
 Основные endpoints:
 
@@ -85,7 +85,7 @@ npm run protocol:initialize
 
 Команда атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`, затем идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Если первая транзакция уже прошла, а создание token accounts прервалось, повторный запуск безопасно завершает только отсутствующий этап.
 
-До выполнения нужны четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` можно создать позже: после появления CA выполните `npm run protocol:admin -- set-fare-mint <CA>`. Команда в одной атомарной транзакции создаёт protocol ATA и необратимо привязывает mint; до этого `start-sale` запрещён. Затем добавьте тот же адрес в `FARE_MINT` окружения backend/frontend. Заглушки из `.env.example` использовать нельзя.
+До выполнения нужны четыре `STOCK_MINTS`, постоянные `COLLECTION_URI`/`MACHINE_METADATA_URIS`, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и необратимо привязывает mint; после finalization сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До этого `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
 
 ## Ручное управление через SSH
 

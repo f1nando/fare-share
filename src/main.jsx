@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CityBackground } from './CityBackground.jsx';
 import { TaxiDashboard } from './TaxiDashboard.jsx';
+import { TokenConfigProvider } from './tokenConfig.jsx';
 import './style.css';
 
 if (new URLSearchParams(location.search).get('benchmark') === '1') {
@@ -10,6 +11,6 @@ if (new URLSearchParams(location.search).get('benchmark') === '1') {
   <React.StrictMode>
     {new URLSearchParams(location.search).get('city') === '1'
       ? <CityBackground />
-      : <TaxiDashboard background={<CityBackground fixed showSettings={false} />} />}
+      : <TokenConfigProvider><TaxiDashboard background={<CityBackground fixed showSettings={false} />} /></TokenConfigProvider>}
   </React.StrictMode>,
 );

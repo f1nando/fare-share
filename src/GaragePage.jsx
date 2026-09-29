@@ -12,6 +12,7 @@ import {
   repairAllMachines,
   repairMachine,
 } from './protocol/solana.js';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const CLASS_BY_SCENE = new Map([
   ...['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'].map(name => [name, { name: 'Economy', tone: 'economy' }]),
@@ -44,6 +45,7 @@ const CLASS_BY_WEIGHT = {
 };
 
 export function GaragePage({ wallet }) {
+  const ticker = displayTicker(useTokenConfig());
   const [status, setStatus] = useState(null);
   const [machines, setMachines] = useState([]);
   const [busy, setBusy] = useState('');
@@ -140,7 +142,7 @@ export function GaragePage({ wallet }) {
             <div className="fare-garage-overview-main">
               <div className="fare-garage-overview-copy">
                 <span>Total fleet earnings</span>
-                <strong>{wallet && status?.deployed ? `${claimable.length} claimable car${claimable.length === 1 ? '' : 's'}` : '219.53 FARE'}</strong>
+                <strong>{wallet && status?.deployed ? `${claimable.length} claimable car${claimable.length === 1 ? '' : 's'}` : `219.53 ${ticker}`}</strong>
                 <p>{wallet && status?.deployed ? 'All rewards shown below are read from finalized Solana accounts.' : '+$12.48 today · $54.94 earned in stocks'}</p>
                 <div className="fare-garage-overview-actions">
                   <button type="button" disabled={Boolean(busy) || paused || claimBatch.length === 0} onClick={() => runAction(
@@ -170,8 +172,8 @@ export function GaragePage({ wallet }) {
             </div>
 
             <div className="fare-garage-overview-stats">
-              <div><span>Earned this hour</span><strong>4.82 FARE</strong><small className="is-positive">↗ 8.4%</small></div>
-              <div><span>Projected today</span><strong>57.60 FARE</strong><small>Estimate</small></div>
+              <div><span>Earned this hour</span><strong>4.82 {ticker}</strong><small className="is-positive">↗ 8.4%</small></div>
+              <div><span>Projected today</span><strong>57.60 {ticker}</strong><small>Estimate</small></div>
               <div><span>Cars working</span><strong>{wallet && status?.deployed ? `${machines.length - repairable.length}/${machines.length}` : '7/9'}</strong><small>{wallet && status?.deployed ? `${repairable.length} need repair` : '2 need repair'}</small></div>
             </div>
           </section>
@@ -189,7 +191,7 @@ export function GaragePage({ wallet }) {
                 </div>
                 <div className="fare-garage-earned">
                   <span>Earned</span>
-                  <strong>{car.fare} FARE</strong>
+                  <strong>{car.fare} {ticker}</strong>
                   <small>{car.stocks}</small>
                 </div>
                 <div className="fare-garage-actions">

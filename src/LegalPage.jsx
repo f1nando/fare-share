@@ -1,3 +1,5 @@
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+
 const legalPages = {
   terms: {
     eyebrow: 'TERMS',
@@ -46,6 +48,7 @@ function SectionTitle({ number, children }) {
 
 export function LegalPage({ type }) {
   const page = legalPages[type];
+  const ticker = displayTicker(useTokenConfig());
 
   return (
     <main className="fare-docs-main fare-legal-main" id="top">
@@ -70,7 +73,7 @@ export function LegalPage({ type }) {
             {page.sections.map(([title, text], index) => (
               <section className="fare-docs-copy-section" key={title}>
                 <SectionTitle number={String(index + 1).padStart(2, '0')}>{title}</SectionTitle>
-                <p>{text}</p>
+                <p>{text.replaceAll('$FARE', `$${ticker}`)}</p>
               </section>
             ))}
           </article>

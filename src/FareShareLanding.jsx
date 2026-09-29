@@ -5,10 +5,9 @@ import { fleetColumnCount, fleetRoadPlaybackRate } from './fleetWall.js';
 import { FareFaq } from './FareFaq.jsx';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const FLEET_ROAD_SPEED = 19;
-const TOKEN_CA = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
-const TOKEN_CA_DISPLAY = `${TOKEN_CA.slice(0, 6)}...${TOKEN_CA.slice(-6)}`;
 const STATIC_DRIVING_SCENES = drivingScenes;
 const FLEET_CLASSES = {
   economy: { name: 'Economy', tone: 'economy' },
@@ -536,6 +535,9 @@ async function copyToClipboard(value) {
 }
 
 export function FareShareLanding() {
+  const token = useTokenConfig();
+  const ticker = displayTicker(token);
+  const caDisplay = token.mint ? `${token.mint.slice(0, 6)}...${token.mint.slice(-6)}` : 'CA pending';
   const [caCopyState, setCaCopyState] = useState('idle');
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
@@ -548,7 +550,8 @@ export function FareShareLanding() {
 
   const handleCopyCa = async () => {
     try {
-      await copyToClipboard(TOKEN_CA);
+      if (!token.mint) return;
+      await copyToClipboard(token.mint);
       setCaCopyState('copied');
       setCopyAnimationKey(key => key + 1);
       window.clearTimeout(copyResetTimerRef.current);
@@ -615,10 +618,11 @@ export function FareShareLanding() {
                 className={`fare-button fare-button-dark${caCopyState === 'copied' ? ' is-copied' : ''}${caCopyState === 'returning' ? ' is-returning' : ''}`}
                 type="button"
                 onClick={handleCopyCa}
-                aria-label={caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
+                disabled={!token.mint}
+                aria-label={token.mint ? (caCopyState === 'copied' ? 'CA copied' : 'Copy CA') : 'CA is not configured yet'}
               >
-                <span className="fare-token-symbol">$TAXI</span>
-                <span>{TOKEN_CA_DISPLAY}</span>
+                <span className="fare-token-symbol">${ticker}</span>
+                <span>{caDisplay}</span>
                 <span className="fare-copy-icon" key={copyAnimationKey} aria-hidden="true">
                   <span className="fare-copy-glyph" />
                   <svg className="fare-copy-check" viewBox="0 0 24 24" fill="none">

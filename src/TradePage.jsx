@@ -232,13 +232,13 @@ export function TradePage({ wallet, connectWallet }) {
     });
   }, [refreshCandles, refreshHolders, refreshToken, refreshTrades]);
 
-  const symbol = token?.symbol || 'FARE';
+  const symbol = token?.symbol || 'TOKEN';
   const latestCandle = [...candles].reverse().find(candle => candle.volume > 0) || candles.at(-1);
   return (
     <main id="top">
       <section className="trade-intro fare-page-heading container" aria-labelledby="trade-page-title">
         <h1 className="fare-page-title is-short" id="trade-page-title">TRADE</h1>
-        <p>Buy and sell FARE with live market data.</p>
+        <p>Buy and sell {symbol} with live market data.</p>
       </section>
       <section className="trade-workspace container">
         <article className="trade-chart-card">

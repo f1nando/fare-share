@@ -1,3 +1,5 @@
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+
 const spacingValues = [8, 12, 16, 24, 32, 48, 64];
 
 const colors = [
@@ -51,6 +53,9 @@ function Specimen({ name, meta, children }) {
 }
 
 export function UIKitPage() {
+  const token = useTokenConfig();
+  const ticker = displayTicker(token);
+  const mint = token.mint ? `${token.mint.slice(0, 6)}...${token.mint.slice(-6)}` : 'CA pending';
   return (
     <div className="fare-page ui-kit-page">
       <header className="ui-kit-header container">
@@ -102,7 +107,7 @@ export function UIKitPage() {
               </div>
             </Specimen>
             <Specimen name="Header identity" meta="Brand 28px · ticker 23px">
-              <div className="fare-brand ui-brand-type"><strong>FARE SHARE</strong><span>$TAXI</span></div>
+              <div className="fare-brand ui-brand-type"><strong>FARE SHARE</strong><span>${ticker}</span></div>
             </Specimen>
             <Specimen name="Fleet class" meta="13px · 800 · 34px height · uppercase">
               <div className="ui-badge-row">
@@ -142,7 +147,7 @@ export function UIKitPage() {
               <button className="fare-button fare-button-light" type="button">How It Works</button>
             </Specimen>
             <Specimen name="Dark / large" meta="74px height · copy action">
-              <button className="fare-button fare-button-dark ui-kit-ca" type="button"><span className="fare-token-symbol">$TAXI</span><span>2NUNSx...2EGVnF</span><span className="fare-copy-icon"><span className="fare-copy-glyph" /></span></button>
+              <button className="fare-button fare-button-dark ui-kit-ca" type="button"><span className="fare-token-symbol">${ticker}</span><span>{mint}</span><span className="fare-copy-icon"><span className="fare-copy-glyph" /></span></button>
             </Specimen>
             <Specimen name="Primary / medium" meta="64px height · 28px horizontal padding">
               <button className="fare-connect" type="button">Connect Wallet</button>

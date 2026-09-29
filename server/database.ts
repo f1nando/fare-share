@@ -2,6 +2,7 @@ import { MongoClient, type Collection, type Db } from 'mongodb';
 import type { DrivingSceneDocument } from './drivingScenes.js';
 import type { TradeHolderDocument, TradeStateDocument, TradeTransactionDocument } from './trade.js';
 import type { AdminLoginLimitDocument } from './adminAuth.js';
+import type { TokenConfigDocument } from './tokenConfig.js';
 
 export interface CampaignDocument {
   campaignId: string;
@@ -53,6 +54,7 @@ export interface TaxiDatabase {
   tradeState: Collection<TradeStateDocument>;
   adminLoginLimits: Collection<AdminLoginLimitDocument>;
   adminFeeActions: Collection<AdminFeeActionDocument>;
+  tokenConfig: Collection<TokenConfigDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -68,6 +70,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const tradeState = db.collection<TradeStateDocument>('trade_state');
   const adminLoginLimits = db.collection<AdminLoginLimitDocument>('admin_login_limits');
   const adminFeeActions = db.collection<AdminFeeActionDocument>('admin_fee_actions');
+  const tokenConfig = db.collection<TokenConfigDocument>('token_config');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
@@ -84,6 +87,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     adminLoginLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     adminFeeActions.createIndex({ createdAt: -1 }),
     adminFeeActions.createIndex({ signature: 1 }, { unique: true }),
+    tokenConfig.createIndex({ key: 1 }, { unique: true }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, tokenConfig };
 }

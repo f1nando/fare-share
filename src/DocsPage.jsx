@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const steps = [
   ['01', 'MINT A TAXI', 'Choose a class and mint one permanent NFT.'],
@@ -20,6 +21,7 @@ function SectionTitle({ number, children }) {
 }
 
 export function DocsPage() {
+  const ticker = displayTicker(useTokenConfig());
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileHeader, setIsMobileHeader] = useState(false);
 
@@ -89,14 +91,14 @@ export function DocsPage() {
               </header>
 
               <div className="fare-docs-steps" aria-label="How Fare Share works">
-                {steps.map(([number, title, text]) => <div key={number}><strong>{number} · {title}</strong><span>{text}</span></div>)}
+                {steps.map(([number, title, text]) => <div key={number}><strong>{number} · {tokenText(title, ticker)}</strong><span>{tokenText(text, ticker)}</span></div>)}
               </div>
 
               <section className="fare-docs-copy-section" id="one-minute">
                 <SectionTitle number="01">FARE SHARE IN ONE MINUTE</SectionTitle>
                 <p>Connect a supported Solana wallet and mint a taxi from the official Fare Share collection. Each taxi is a Metaplex Core NFT with its own onchain operating account. The NFT stays in your wallet; Fare Share never takes custody of your wallet or private keys.</p>
                 <p>A newly minted taxi enters the park with five days of durability and starts participating automatically. There are no routes, drivers or shifts to configure. Its share depends on the class weight and the exact time for which it remains active.</p>
-                <p>Protocol fees are converted into $FARE and four supported xStocks. Rewards are calculated onchain in batches and become claimable by the current NFT owner. Repairing restores durability; claiming does not.</p>
+                <p>{tokenText('Protocol fees are converted into $FARE and four supported xStocks. Rewards are calculated onchain in batches and become claimable by the current NFT owner. Repairing restores durability; claiming does not.', ticker)}</p>
                 <div className="fare-docs-callout">Mint → stay active → rewards are calculated → claim to your wallet → repair and repeat.</div>
               </section>
 
@@ -110,8 +112,8 @@ export function DocsPage() {
 
               <section className="fare-docs-copy-section" id="revenue">
                 <SectionTitle number="03">WHERE REWARDS COME FROM</SectionTitle>
-                <p>$FARE launches through pump.fun in the FARE/SOL pair. Fare Share receives the platform’s actual variable Creator Fee in SOL. The fee rate is controlled by the platform and can change; Fare Share does not add or promise a permanent 4% trading tax.</p>
-                <p>Collected SOL is separated by the protocol: 45% buys $FARE for the main taxi park, 5% buys $FARE for trainee campaigns, 20% buys and burns $FARE, 20% buys xStocks in four equal 5% allocations, and 10% goes to the project team.</p>
+                <p>{tokenText('$FARE launches through pump.fun in the FARE/SOL pair. Fare Share receives the platform’s actual variable Creator Fee in SOL. The fee rate is controlled by the platform and can change; Fare Share does not add or promise a permanent 4% trading tax.', ticker)}</p>
+                <p>{tokenText('Collected SOL is separated by the protocol: 45% buys $FARE for the main taxi park, 5% buys $FARE for trainee campaigns, 20% buys and burns $FARE, 20% buys xStocks in four equal 5% allocations, and 10% goes to the project team.', ticker)}</p>
                 <p>The stock basket contains UBERx, TSLAx, GOOGLx and AMZNx. Each asset is bought independently through Jupiter. If one route is unavailable or fails its safety checks, that asset’s SOL remains reserved for a later attempt; successful purchases and other rewards are not cancelled.</p>
                 <div className="fare-docs-callout">The park distributes only assets it actually receives. It does not create a fixed yield or debt for a missing asset.</div>
               </section>
@@ -121,15 +123,15 @@ export function DocsPage() {
                 <p>Rewards are split by active time and class weight. The protocol divides a calculation period at every mint, repair and expiry event. Within each time segment, an active taxi receives its class weight divided by the total active weight, multiplied by that segment’s share of the available pool.</p>
                 <p>A taxi never earns for time before it was minted or while it is broken. Funds may already be in a pool before a taxi joins, but the new taxi can share only the time segments after its exact mint or repair time. If no taxis are active, the pool waits instead of being lost.</p>
                 <p>Calculation and claim are separate. Permissionless calculation transactions advance the event queue in bounded batches and lock each taxi’s share. A claim simply transfers the amount already calculated for one taxi; claim order cannot increase or reduce anyone else’s allocation.</p>
-                <p>A payout can contain $FARE, UBERx, TSLAx, GOOGLx and AMZNx. Each asset is accounted for independently in its native raw units. Small rounding remainders stay in the matching pool for a future calculation.</p>
+                <p>{tokenText('A payout can contain $FARE, UBERx, TSLAx, GOOGLx and AMZNx. Each asset is accounted for independently in its native raw units. Small rounding remainders stay in the matching pool for a future calculation.', ticker)}</p>
               </section>
 
               <section className="fare-docs-copy-section" id="durability">
                 <SectionTitle number="05">DURABILITY & REPAIRS</SectionTitle>
                 <p>Every normal taxi has five days of maximum durability. At the exact expiry time it leaves the active weight and stops earning until repaired. Claiming rewards does not refill or extend durability.</p>
-                <p>A repair burns $FARE from the current owner and restores a full five days from the repair time. The cost is 25% of the taxi’s calculated $FARE earnings since its previous mint or repair. Only already calculated earnings are used; pending calculations are never estimated.</p>
-                <p>Repairing early does not reduce the total percentage paid: each repair uses only the new calculated $FARE earned since the preceding mint or repair. A taxi at full durability cannot be repaired merely to extend its expiry time.</p>
-                <p>If the calculated repair base is zero, the repair can be free. Otherwise the wallet must hold enough $FARE and confirm the burn transaction. Repair all handles up to eight worn taxis in one atomic transaction. If more need repair, Garage shows how many remain for the next transaction; no batch is partially executed. Network and account-creation fees are paid separately in SOL.</p>
+                <p>{tokenText('A repair burns $FARE from the current owner and restores a full five days from the repair time. The cost is 25% of the taxi’s calculated $FARE earnings since its previous mint or repair. Only already calculated earnings are used; pending calculations are never estimated.', ticker)}</p>
+                <p>{tokenText('Repairing early does not reduce the total percentage paid: each repair uses only the new calculated $FARE earned since the preceding mint or repair. A taxi at full durability cannot be repaired merely to extend its expiry time.', ticker)}</p>
+                <p>{tokenText('If the calculated repair base is zero, the repair can be free. Otherwise the wallet must hold enough $FARE and confirm the burn transaction. Repair all handles up to eight worn taxis in one atomic transaction. If more need repair, Garage shows how many remain for the next transaction; no batch is partially executed. Network and account-creation fees are paid separately in SOL.', ticker)}</p>
               </section>
 
               <section className="fare-docs-copy-section" id="ownership">
@@ -143,13 +145,13 @@ export function DocsPage() {
               <section className="fare-docs-copy-section" id="trainee">
                 <SectionTitle number="07">TRAINEE CAMPAIGNS</SectionTitle>
                 <p>A trainee campaign gives an eligible wallet a temporary virtual taxi through a backend-signed voucher. It does not mint a transferable NFT. The voucher defines a campaign, an activation window and a duration between one hour and seven days.</p>
-                <p>Trainees share a separate 5% $FARE pool. Participation starts at the next full minute, ends automatically, and does not affect the main NFT park. Each campaign can be activated once per wallet and claimed separately.</p>
+                <p>{tokenText('Trainees share a separate 5% $FARE pool. Participation starts at the next full minute, ends automatically, and does not affect the main NFT park. Each campaign can be activated once per wallet and claimed separately.', ticker)}</p>
                 <p>The backend checks campaign rules and signs the voucher, while the Solana program verifies that signature and prevents reuse. A voucher never gives the backend access to the user’s wallet.</p>
               </section>
 
               <section className="fare-docs-copy-section" id="risks">
                 <SectionTitle number="08">FEES, RISKS & TRUST</SectionTitle>
-                <p>Rewards depend on real trading activity, swap execution, token liquidity, active park weight and asset prices. $FARE, SOL, NFTs and tokenized stocks can lose value. Historical rewards are not a forecast, and owning a taxi does not guarantee profit or principal protection.</p>
+                <p>{tokenText('Rewards depend on real trading activity, swap execution, token liquidity, active park weight and asset prices. $FARE, SOL, NFTs and tokenized stocks can lose value. Historical rewards are not a forecast, and owning a taxi does not guarantee profit or principal protection.', ticker)}</p>
                 <p>Owners pay SOL for mint, claim, repair and trainee transactions. Swaps depend on Jupiter routes; xStocks also depend on their issuer, supported jurisdictions and market availability. Users must confirm they are legally permitted to use the product and tokenized stocks in their country.</p>
                 <p>The Solana program is the source of truth for reserves, reward checkpoints and ownership rules. MongoDB stores recoverable backend data and cache only. Most maintenance calls are permissionless, but fresh swap plans require the backend signer.</p>
                 <p>The deployment has an upgrade authority and a trusted admin. During a global pause, the admin can use emergency rescue functions, including moving assets from protocol-controlled vaults. This is an explicit trust assumption, not a trustless guarantee. Verify the official domain, collection and token addresses before signing.</p>
@@ -161,4 +163,8 @@ export function DocsPage() {
       </main>
     </>
   );
+}
+
+function tokenText(value, ticker) {
+  return value.replaceAll('$FARE', `$${ticker}`).replaceAll('FARE/SOL', `${ticker}/SOL`).replace(/\bFARE\b/g, ticker);
 }

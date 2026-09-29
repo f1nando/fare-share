@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const MAGIC_EDEN_MARKET_URL = 'https://magiceden.io/marketplace';
 
@@ -28,6 +29,7 @@ function MobileWalletIcon() {
 }
 
 export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home', onConnectWallet, walletLabel }) {
+  const ticker = displayTicker(useTokenConfig());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigationItems = [
     { id: 'home', label: 'HOME', href: `${linkPrefix}#top` },
@@ -69,7 +71,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
         <a className="fare-brand" href={`${linkPrefix}#top`} aria-label="Fare Share home">
           <img src="/brand/fare-driver.png" alt="" decoding="async" />
           <strong>FARE SHARE</strong>
-          <span className="fare-brand-ticker">$TAXI</span>
+          <span className="fare-brand-ticker">${ticker}</span>
         </a>
 
         <nav className="fare-nav" aria-label="Main navigation">

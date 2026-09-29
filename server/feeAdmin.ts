@@ -24,6 +24,7 @@ import { solanaRpcCall } from './solanaRpc.js';
 import { decodeWorkerConfiguration } from './solanaState.js';
 import { protocolAddresses } from './setup.js';
 import { sendInstructions } from './transaction.js';
+import { normalizeTicker, savePrimaryTokenConfig, type TokenConfigDocument } from './tokenConfig.js';
 
 export const FIXED_FEE_RECIPIENT = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
 const TOKEN_2022_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
@@ -56,7 +57,11 @@ export class FeeAdminError extends Error {
   }
 }
 
-export async function createFeeAdminService(config: FeeAdminConfig, actions: Collection<AdminFeeActionDocument>) {
+export async function createFeeAdminService(
+  config: FeeAdminConfig,
+  actions: Collection<AdminFeeActionDocument>,
+  tokenConfig: Collection<TokenConfigDocument>,
+) {
   const admin = await createKeyPairSignerFromBytes(parseSecretBytes(config.adminSecret, 'ADMIN_KEYPAIR_SECRET_KEY'));
   const feeRecipient = await createKeyPairSignerFromBytes(parseSecretBytes(config.feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
   if (String(feeRecipient.address) !== String(FIXED_FEE_RECIPIENT)) {
@@ -123,15 +128,33 @@ export async function createFeeAdminService(config: FeeAdminConfig, actions: Col
     async status() {
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
-      const [fees, history] = await Promise.all([
+      const [fees, history, storedToken] = await Promise.all([
         feeSnapshot(mint),
         actions.find({}, { sort: { createdAt: -1 }, limit: 20 }).toArray(),
+        tokenConfig.findOne({ key: 'primary' }),
       ]);
       const lastClaim = history.find(item => item.kind === 'claim');
-      return { ...fees, lastClaimLamports: lastClaim?.amountLamports || '0', history: history.map(publicAction) };
+      const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
+      return { ...fees, ticker, lastClaimLamports: lastClaim?.amountLamports || '0', history: history.map(publicAction) };
     },
-    async bindMint(rawMint: unknown) {
+    async bindMint(rawMint: unknown, rawTicker: unknown) {
+      let ticker: string;
+      try { ticker = normalizeTicker(rawTicker); } catch (error) { throw new FeeAdminError((error as Error).message); }
       const inspected = await inspectMint(rawMint);
+      const storedToken = await tokenConfig.findOne({ key: 'primary' });
+      if (storedToken) {
+        if (storedToken.mint !== String(inspected.mint) || storedToken.ticker !== ticker) {
+          throw new FeeAdminError(`Token is already fixed as $${storedToken.ticker} (${storedToken.mint}).`, 409);
+        }
+        return { signature: storedToken.bindSignature, mint: storedToken.mint, ticker: storedToken.ticker };
+      }
+      const current = await configuredMint();
+      if (String(current) === String(inspected.mint)) {
+        const previous = await actions.findOne({ kind: 'bind_mint', mint: String(inspected.mint) }, { sort: { createdAt: -1 } });
+        const signature = previous?.signature || '';
+        await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
+        return { signature, mint: String(inspected.mint), ticker };
+      }
       const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram });
       const instructions: Instruction[] = [
         getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: fareVault, owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram }),
@@ -148,8 +171,9 @@ export async function createFeeAdminService(config: FeeAdminConfig, actions: Col
       ];
       const additional = String(admin.address) === String(feeRecipient.address) ? [] : [feeRecipient];
       const signature = String(await sendInstructions(config.rpcUrl, admin, instructions, additional));
+      await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
-      return { signature, mint: String(inspected.mint) };
+      return { signature, mint: String(inspected.mint), ticker };
     },
     async claim() {
       const mint = await requireConfiguredMint();
