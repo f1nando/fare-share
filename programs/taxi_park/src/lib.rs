@@ -382,12 +382,25 @@ pub mod taxi_park {
             &ctx.accounts.pump_wsol_vault,
             &ctx.accounts.token_program.key(),
         )?;
-        require_keys_eq!(
-            pump_vault.mint,
-            token::NATIVE_MINT_ID,
-            TaxiError::InvalidRewardMint
-        );
-        if pump_vault.owner == ctx.accounts.config.key() && !ctx.remaining_accounts.is_empty() {
+        if pump_vault.owner == ctx.accounts.config.key()
+            && pump_vault.amount == 0
+            && ctx.remaining_accounts.is_empty()
+        {
+            let bump = [ctx.accounts.config.bump];
+            let seeds: &[&[u8]] = &[b"config", &bump];
+            return token::close_account(
+                &ctx.accounts.token_program,
+                &ctx.accounts.pump_wsol_vault,
+                &ctx.accounts.fee_vault.to_account_info(),
+                &ctx.accounts.config.to_account_info(),
+                &[seeds],
+            );
+        }
+        require_keys_eq!(pump_vault.mint, token::NATIVE_MINT_ID, TaxiError::InvalidRewardMint);
+        if (pump_vault.owner == ctx.accounts.config.key()
+            || pump_vault.owner == ctx.accounts.caller.key())
+            && !ctx.remaining_accounts.is_empty()
+        {
             let instructions = ctx
                 .remaining_accounts
                 .first()
@@ -415,17 +428,6 @@ pub mod taxi_park {
                 &ctx.accounts.fee_vault.to_account_info(),
                 &ctx.accounts.pump_wsol_vault.to_account_info(),
                 amount_in,
-            );
-        }
-        if pump_vault.owner == ctx.accounts.config.key() && pump_vault.amount == 0 {
-            let bump = [ctx.accounts.config.bump];
-            let seeds: &[&[u8]] = &[b"config", &bump];
-            return token::close_account(
-                &ctx.accounts.token_program,
-                &ctx.accounts.pump_wsol_vault,
-                &ctx.accounts.fee_vault.to_account_info(),
-                &ctx.accounts.config.to_account_info(),
-                &[seeds],
             );
         }
         require_keys_eq!(
@@ -520,6 +522,7 @@ pub mod taxi_park {
             &ctx.accounts.config.key(),
             &ctx.accounts.wsol_vault.key(),
             &ctx.accounts.reward_vault.key(),
+            false,
         )?;
 
         token::assert_program(&ctx.accounts.token_program)?;
@@ -537,7 +540,7 @@ pub mod taxi_park {
         );
         require_keys_eq!(
             wsol.owner,
-            ctx.accounts.config.key(),
+            ctx.accounts.caller.key(),
             TaxiError::InvalidTokenAccount
         );
         let output = token::account_view(
@@ -570,9 +573,10 @@ pub mod taxi_park {
             ctx.remaining_accounts,
             route_data,
         )?;
-        let source_after =
-            token::account_view(&ctx.accounts.wsol_vault, &ctx.accounts.token_program.key())?
-                .amount;
+        let source_after = token::account_amount_or_zero(
+            &ctx.accounts.wsol_vault,
+            &ctx.accounts.token_program.key(),
+        )?;
         let output_after = token::account_view(
             &ctx.accounts.reward_vault,
             &ctx.accounts.fare_token_program.key(),
@@ -680,6 +684,7 @@ pub mod taxi_park {
             &ctx.accounts.config.key(),
             &ctx.accounts.wsol_vault.key(),
             &ctx.accounts.reward_vault.key(),
+            true,
         )?;
 
         token::assert_program(&ctx.accounts.token_program)?;
@@ -2155,12 +2160,16 @@ fn require_route_accounts(
     config: &Pubkey,
     source: &Pubkey,
     destination: &Pubkey,
+    require_config: bool,
 ) -> Result<()> {
-    for required in [config, source, destination] {
+    for required in [source, destination] {
         require!(
             route_accounts.iter().any(|account| account.key == required),
             TaxiError::MissingSwapAccount
         );
+    }
+    if require_config {
+        require!(route_accounts.iter().any(|account| account.key == config), TaxiError::MissingSwapAccount);
     }
     Ok(())
 }

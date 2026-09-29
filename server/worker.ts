@@ -190,8 +190,13 @@ async function processPendingSwaps(
   const mintAddresses = [WSOL_MINT, configuration.fareMint, ...configuration.stockMints];
   const mintAccounts = await getAccounts(config.solanaRpcUrl, mintAddresses);
   const tokenPrograms = mintAccounts.map(account => account.owner);
-  const [wsolVault] = await findAssociatedTokenPda({
+  const [configWsolVault] = await findAssociatedTokenPda({
     owner: addresses.config,
+    mint: WSOL_MINT,
+    tokenProgram: TOKEN_PROGRAM,
+  });
+  const [callerWsolVault] = await findAssociatedTokenPda({
+    owner: caller.address,
     mint: WSOL_MINT,
     tokenProgram: TOKEN_PROGRAM,
   });
@@ -218,6 +223,7 @@ async function processPendingSwaps(
       const outputMint = pending.kind === 0
         ? configuration.fareMint
         : configuration.stockMints[pending.assetIndex];
+      const wsolVault = pending.kind === 0 ? callerWsolVault : configWsolVault;
       const rewardVault = rewardVaults[pending.kind === 0 ? 0 : pending.assetIndex + 1];
       const fixedWritable = new Set<string>([
         String(addresses.config), String(addresses.feeVault), String(addresses.pool),
@@ -229,7 +235,7 @@ async function processPendingSwaps(
         inputMint: WSOL_MINT,
         outputMint,
         amountIn: pending.amountIn,
-        taker: addresses.config,
+        taker: pending.kind === 0 ? caller.address : addresses.config,
         payer: caller.address,
         destinationTokenAccount: rewardVault,
         jupiterProgram: configuration.jupiterProgram,

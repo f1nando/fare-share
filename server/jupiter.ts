@@ -246,9 +246,11 @@ async function isSafeIdempotentAtaSetup(instruction: ApiInstruction, input: Buil
   const data = Buffer.from(instruction.data, 'base64');
   if (instruction.programId !== ASSOCIATED_TOKEN_PROGRAM || data.length !== 1 || data[0] !== 1 || accounts.length !== 6) return false;
   const [payer, ata, owner, mint, systemProgram, tokenProgram] = accounts;
+  const ownerIsAllowed = owner.pubkey === String(input.taker)
+    || (ata.pubkey === String(input.destinationTokenAccount) && mint.pubkey === String(input.outputMint));
   if (!(payer.pubkey === String(input.payer) && payer.isSigner && payer.isWritable
     && !ata.isSigner && ata.isWritable
-    && owner.pubkey === String(input.taker) && !owner.isSigner && !owner.isWritable
+    && ownerIsAllowed && !owner.isSigner && !owner.isWritable
     && !mint.isSigner && !mint.isWritable
     && systemProgram.pubkey === SYSTEM_PROGRAM && !systemProgram.isSigner && !systemProgram.isWritable
     && TOKEN_PROGRAMS.has(tokenProgram.pubkey) && !tokenProgram.isSigner && !tokenProgram.isWritable)) return false;
