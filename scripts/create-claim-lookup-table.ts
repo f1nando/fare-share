@@ -38,7 +38,8 @@ if (configuredLookupTable) {
   existingAddresses = decodeAddressLookupTable(await accountBytes(lookupTable));
 } else {
   const finalizedSlot = await solanaRpcCall<number | bigint>(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
-  const recentSlot = BigInt(finalizedSlot) - 1n;
+  // Public RPC load balancers can route getSlot and simulation to nodes a few slots apart.
+  const recentSlot = BigInt(finalizedSlot) - 32n;
   const createInstruction = await getCreateLookupTableInstructionAsync({
     authority: authority.address,
     payer: authority,

@@ -259,6 +259,16 @@ slot `451769173`. Onchain ELF имеет точный frozen SHA-256
 ProgramData `3mUa…eazU`, authority `2NUN…EGVnF`. Upload buffer закрыт, post-deploy
 balance — `3.423058977 SOL`. `--final` не использовался.
 
+Production initialization выполнена отдельным разрешённым этапом. Initialize ALT
+`95zxT5xTRhrzPRwqBYgRCHudshVeeHNZkK67HjfnAMsQ`: create `4tMkSd…KdsQD`, extend
+`23v4r8…Kyq7gT`. Initialize `3qVfNq…jdXPst`, четыре metadata batches
+`5rRUv3…WmC87P`, `Q9AZrx…HW3Ut`, `2NVuAJ…anMfQc`, `icCfNQ…ieacht`, reward vaults
+`4DeFei…C4kuPu`. Core Collection: `5DwDHVk2ciBi4J9rLAxEpoqea26WJpwd9Xbu31N5nroP`.
+Onchain проверены admin/backend/team, четыре xStocks mint, все 16 URI, цены
+`1000000 / 3000000 / 10000000 / 30000000`, нулевой supply и `saleStarted=false`.
+`fareMint` остаётся пустым до создания финального `$FARE`; после его привязки эта
+же ALT расширяется claim-адресами. Post-initialize balance — `3.370009257 SOL`.
+
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
 
