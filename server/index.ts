@@ -101,6 +101,13 @@ const server = createServer(async (request, response) => {
       json(response, 200, result);
       return;
     }
+    if (request.method === 'POST' && url.pathname === '/api/admin/team') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.setTeamAccount(body.teamAccount));
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/admin/fees/claim') {
       const services = requireAdminServices();
       services.auth.require(request, true);

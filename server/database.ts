@@ -29,7 +29,7 @@ export interface RateLimitDocument {
 }
 
 export interface AdminFeeActionDocument {
-  kind: 'claim' | 'deposit' | 'bind_mint';
+  kind: 'claim' | 'deposit' | 'bind_mint' | 'set_team';
   mint: string;
   amountLamports: string;
   signature: string;

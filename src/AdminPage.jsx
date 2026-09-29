@@ -16,6 +16,7 @@ export function AdminPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [machineQuery, setMachineQuery] = useState('');
+  const [teamAccount, setTeamAccount] = useState('');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const selectedCa = status?.mint || ca;
 
@@ -83,6 +84,17 @@ export function AdminPage() {
     });
   }
 
+  async function updateTeamAccount() {
+    const selected = teamAccount.trim();
+    if (!window.confirm(`Send all future team allocations to ${selected}? Verify the address carefully. Existing transfers cannot be recovered.`)) return;
+    await action('team', async () => {
+      const result = await request('/api/admin/team', { method: 'POST', body: { teamAccount: selected }, csrf });
+      setTeamAccount('');
+      setNotice(result.unchanged ? 'This wallet is already the active team recipient.' : `Team wallet updated on-chain. ${result.signature}`);
+      await refresh();
+    });
+  }
+
   async function deposit(event) {
     event.preventDefault();
     await action('deposit', async () => {
@@ -128,11 +140,11 @@ export function AdminPage() {
       </section>
       <LiveOverview dashboard={status.dashboard} />
       <section className="admin-grid">
-        <div className="admin-card"><p className="eyebrow">PRIMARY TOKEN</p>{status.mint && status.ticker ? <><h2>${status.ticker}</h2><p className="mono break">{status.mint}</p><p className="status-ok">● CA and ticker are bound</p></> : <>
+        <div className="admin-card"><p className="eyebrow">PROTOCOL SETTINGS</p>{status.mint && status.ticker ? <><h2>${status.ticker} token</h2><p className="mono break">{status.mint}</p><p className="status-ok">● Reward and burn CA is permanently bound</p><p className="muted">The protocol buys this same token for fleet rewards, trainee rewards and the 20% burn allocation.</p></> : <>
           <h2>{status.mint ? 'Enter the ticker for the on-chain CA' : 'Waiting for the client CA and ticker'}</h2><label>Contract address<input className="mono" value={selectedCa} disabled={Boolean(status.mint)} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste CA" /></label>
           <label>Ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="For example, FARE" maxLength="10" /></label>
           <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Verify</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Bind CA and ticker</button></div>
-        </>}</div>
+        </>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations and NFT mint proceeds use this on-chain address. Previous transfers are not moved.</p><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
         <div className="admin-card"><p className="eyebrow">OPERATIONS</p><h2>Claim and distribution</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Claiming…' : 'Claim fees'}</button>
           <form onSubmit={deposit}><label>Send to contract, SOL<input inputMode="decimal" value={amount} onChange={event => { setAmount(event.target.value); clearOperationId(operationIds, 'deposit'); }} placeholder="0.000000000" /></label><button className="wide" disabled={!status.mint || !amount || busy === 'deposit'}>{busy === 'deposit' ? 'Sending…' : 'Send fees to contract'}</button></form>
@@ -193,7 +205,7 @@ function StatusPill({ state }) { return <span className={`status-pill ${state}`}
 function LiveLine({ label, value, hint }) { return <div className="live-line"><span>{label}{hint && <small>{hint}</small>}</span><b>{value}</b></div>; }
 function QueueBar({ label, queue }) { const percent = Math.min(100, queue.count / queue.capacity * 100); return <div className="queue"><div><span>{label}</span><b>{queue.count} events · {queue.readyPages} ready pages</b></div><div className="queue-track"><i style={{ width: `${percent}%` }} /></div></div>; }
 function Amount({ label, value, asset }) { return <div><span>{label}</span><b className="mono">{formatToken(value, asset.decimals)}</b></div>; }
-const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA' };
+const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA', set_team: 'TEAM WALLET' };
 function short(value) { return `${value.slice(0, 7)}…${value.slice(-7)}`; }
 function explorer(signature, cluster) { return `https://solscan.io/tx/${signature}${cluster === 'devnet' ? '?cluster=devnet' : ''}`; }
 function accountExplorer(value) { return `https://solscan.io/account/${value}`; }

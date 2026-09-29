@@ -16,7 +16,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 import type { Collection } from 'mongodb';
-import { buildSetFareMintInstruction } from './admin.js';
+import { buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
 import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
 import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
@@ -330,6 +330,25 @@ export async function createFeeAdminService(
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker };
+    },
+    async setTeamAccount(rawTeamAccount: unknown) {
+      if (typeof rawTeamAccount !== 'string') throw new FeeAdminError('Team wallet is required.');
+      let teamAccount: Address;
+      try { teamAccount = address(rawTeamAccount.trim()); } catch { throw new FeeAdminError('Team wallet is not a valid Solana address.'); }
+      if (String(teamAccount) === ZERO_ADDRESS) throw new FeeAdminError('Team wallet cannot be the system address.');
+      const currentConfiguration = decodeWorkerConfiguration((await getAccount(config.rpcUrl, addresses.config)).data);
+      if (String(currentConfiguration.teamAccount) === String(teamAccount)) {
+        return { signature: '', teamAccount: String(teamAccount), unchanged: true };
+      }
+      const activeOperation = await reconcileActiveOperation();
+      if (activeOperation) throw new FeeAdminError('Wait for the active creator-fee operation to finalize before changing the team wallet.', 409);
+      const instruction = buildSimpleAdminInstruction(config.programId, admin.address, addresses.config, { name: 'set-team', value: teamAccount });
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [instruction]));
+      await actions.insertOne({
+        kind: 'set_team', mint: String(currentConfiguration.fareMint), amountLamports: '0', signature,
+        cluster: config.cluster, createdAt: new Date(),
+      });
+      return { signature, teamAccount: String(teamAccount), unchanged: false };
     },
     async claim(rawOperationId: unknown) {
       const mint = await requireConfiguredMint();

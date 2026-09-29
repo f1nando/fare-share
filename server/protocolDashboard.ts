@@ -41,6 +41,8 @@ export async function loadProtocolDashboard(
       state: configuration.pausedAt !== 0n ? 'paused' : configuration.saleStarted ? 'live' : 'ready',
       paused: configuration.pausedAt !== 0n,
       saleStarted: configuration.saleStarted,
+      teamAccount: String(configuration.teamAccount),
+      fareMint: String(configuration.fareMint),
       mintedByClass: configuration.mintedByClass,
       machineCount: machines.length,
     },
