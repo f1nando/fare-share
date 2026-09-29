@@ -76,6 +76,18 @@ if [[ "$buffer_id" != "$EXPECTED_BUFFER" ]]; then
   exit 1
 fi
 
+if [[ "${DEPLOY_PREFLIGHT_ONLY:-0}" == "1" ]]; then
+  echo "MAINNET_DEPLOY_PREFLIGHT=PASS"
+  echo "PROGRAM_ID=$program_id"
+  echo "PROGRAMDATA_ADDRESS=$EXPECTED_PROGRAMDATA"
+  echo "DEPLOYER=$deployer_id"
+  echo "BUFFER=$buffer_id"
+  echo "DEPLOYER_BALANCE_LAMPORTS=$balance_lamports"
+  echo "PROGRAM_SHA256=$program_sha256"
+  echo "PROGRAM_BYTES=$program_bytes"
+  exit 0
+fi
+
 deployment_complete=false
 report_recoverable_buffer() {
   status=$?

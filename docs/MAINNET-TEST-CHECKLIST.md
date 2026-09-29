@@ -161,16 +161,16 @@
 
 ### Gate 9 — закрытие disposable deployment
 
-- [ ] Остановить backend/worker и подтвердить pause onchain.
-- [ ] Вывести разрешённые SOL/token остатки; обязательный аудит должен показать нулевые vault balances.
-- [ ] Получить отдельную точную команду владельца на необратимый close.
-- [ ] Вернуть worker/buffer/ProgramData SOL явно указанному recipient.
-- [ ] Сохранить deploy/test/close signatures, фактически возвращённую сумму и невозвратный расход.
+- [x] Backend/worker остановлены; pause подтверждён onchain.
+- [x] Все пять ненулевых token vault выведены на `2NUN…EGVnF`; FeeVault SOL rescue `4YE1mV…TFoKL`. Повторный audit показал FeeVault, worker/backend и все шесть token vault равными нулю.
+- [x] Владелец отдельно разрешил необратимый close после создания и проверки независимой резервной копии production keyset.
+- [x] ProgramData закрыт на явно заданный recipient `2NUN…EGVnF`; CLI подтвердил возврат `3.405860600 SOL`. Disposable Program ID оставлен только как loader-v3 tombstone `0.000833120 SOL`.
+- [x] ALT deactivated `3rmLrB…QvQLmU`, затем закрыт `4fzCFk…aJPBhh`; возвращено ещё `0.003535680 SOL` до transaction fee. Финальный deployer balance `6.829425097 SOL`.
 
 ## Текущее состояние
 
 - Devnet E2E `Claim 10`, atomic rejection и `Repair 8 + 2` пройдены; тестовый Devnet ProgramData закрыт, rent возвращён.
-- Mainnet permanent Program ID `9ZLA…6eVv` на момент проверки не опубликован.
-- Старый disposable `3EAw…5JHMv` закрыт навсегда. Новый disposable `4QLt…mUXiG` полностью проверен, paused, upgrade authority сохранена; его ProgramData и vault assets не закрывались.
+- Mainnet permanent Program ID `GHGq…i3i4` на момент release freeze не опубликован.
+- Оба disposable Program ID `3EAw…5JHMv` и `4QLt…mUXiG` закрыты навсегда; их ProgramData удалены, recoverable vault assets выведены, ALT второго теста закрыт.
 - Никакая запись в этом документе не является разрешением на mainnet deploy или расход SOL.
 - Metadata funding: `2aTrVgnedaStnRHW7dYvdTD3cFdeE6r4je4BVyXbneW6F5fvAgMVVVk2Dw5DpsPgrkRigkUa9ok9JwUQGT8jA3LC`; возврат `0.0001 SOL`: `3bEjy7SE5rk5BPNN6tYsUWkwfYkQUzCT1ZFRZKs8VA8CkAmJc6cu8eRKfNxYgT3LMNQ6rFmjYJXFfHaAxbUM93V2`.

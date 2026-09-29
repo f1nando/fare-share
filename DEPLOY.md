@@ -229,6 +229,12 @@ Deploy сохраняет upgrade authority постоянно, чтобы об�
 bash scripts/deploy-program-mainnet.sh
 ```
 
+Безопасная проверка всех release gates без отправки deploy-транзакции:
+
+```sh
+DEPLOY_PREFLIGHT_ONLY=1 bash scripts/deploy-program-mainnet.sh
+```
+
 Скрипт откажется выполнять deploy, если ключ программы или плательщика не
 совпадает с зафиксированным адресом, размер или хеш бинарника изменился,
 программа уже существует либо на кошельке меньше `6.82 SOL`. Для upload используется
@@ -238,6 +244,12 @@ deploy временный депозит не становится бесхоз�
 SOL. После подтверждённого deploy оставшийся buffer закрывается автоматически.
 Скрипт отдельно проверяет, что upgrade authority остался у зафиксированного
 admin, и никогда не передаёт `--final`.
+
+Перед release freeze проверено: production keyset имеет независимую резервную
+копию, disposable ProgramData и ALT закрыты, recoverable SOL возвращены на
+`2NUN…EGVnF`, итоговый finalized balance — `6.829425097 SOL`. Permanent Program ID
+`GHGq…i3i4` onchain отсутствует; это ожидаемое состояние до отдельного разрешения
+на deploy.
 
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
