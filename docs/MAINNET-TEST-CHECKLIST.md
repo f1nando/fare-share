@@ -21,6 +21,7 @@
 - [x] После назначения disposable Program ID был собран первый SBF: `641720` байт, SHA-256 `d67d068c5840671d2c12da71c387c5aee85cb0329a2632b3171b4994996bc54c`.
 - [x] Пересобрать disposable SBF после on-chain проверки Pump creator: `654680` байт, SHA-256 `b835518cd615d1da93969aa42a7b967a0f25436d5185891df3987a7679e8a4f9`.
 - [x] Добавить on-chain запрет Mayhem Mode, Cashback, Holder Rewards, custom/editable creator fee и non-SOL quote по актуальному 125-byte Pump layout.
+- [x] Пересобрать disposable SBF после полной Pump reward/share проверки: `657208` байт, SHA-256 `a568bd91fe844895dc3d1f2437590ac105ac0b838754b19a499e818e9af9f37f`.
 - [ ] Повторно зафиксировать hash после полного release freeze.
 
 ### Gate 2 — изолированная идентичность теста
@@ -63,7 +64,7 @@
 
 ### Gate 6 — rent и recovery до deploy
 
-- [x] Предварительно пересчитать rent для RC `654680` байт: buffer (`+37`) — `3.32661260 SOL`, ProgramData (`+45`) — `3.32665324 SOL`, Program tombstone — `0.00083312 SOL`; пик без комиссионного запаса около `6.65409896 SOL`.
+- [x] Предварительно пересчитать rent для RC `657208` байт: buffer (`+37`) — `3.33945484 SOL`, ProgramData (`+45`) — `3.33949548 SOL`, Program tombstone — `0.00083312 SOL`; пик без комиссионного запаса около `6.67978344 SOL`.
 - [ ] Проверить mainnet admin/deployer `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`, его keypair и резервную копию.
 - [x] Подготовить read-only `protocol:audit-mainnet-recovery` без default signer и адресных defaults; script проверяет keypair/address, genesis, Program/ProgramData/authority/buffer, pause и vault balances.
 - [ ] Dry-run обязан проверить mainnet genesis, Program ID, ProgramData, authority, recipient, buffer и все SOL/token vault.
