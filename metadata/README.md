@@ -10,6 +10,11 @@ $env:NFT_IMAGE_URIS='https://.../collection,https://.../economy,https://.../comf
 npm run metadata:build
 ```
 
+For the disposable mainnet validation collection, also set
+`NFT_METADATA_MODE=mainnet-test`. This produces visibly separate `FARE Test ...`
+names, the `FARETEST` symbol, and descriptions that explicitly state that the
+assets are not production NFTs.
+
 The generated files are written to `.qa/nft-metadata/` and are intentionally not committed. Upload those JSON files through Irys, verify every public image/JSON URL, then set `COLLECTION_URI` and `MACHINE_METADATA_URIS` before initialization.
 
 Dynamic durability, rewards and repair cost do not belong in NFT metadata. They are read from the Solana program.

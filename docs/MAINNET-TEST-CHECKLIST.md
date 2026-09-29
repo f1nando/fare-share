@@ -31,14 +31,14 @@
 - [x] Создать постоянный recoverable upload-buffer keypair вне репозитория: `7ZZcZWkq2JRJPvYYPUBkyGQoQ6oTNw284Byuew29MCKE`.
 - [x] Создать отдельные test-mainnet backend `GkAaxN3mF6ko5qUPfBgstujzmE9kFCYAThDfkGkP74Lz` и worker `9GHXjBfG6qwV7Bwm53EBXh2Z19g6L2wUG6zVTY7hvAtA`.
 - [x] Выбрать authority/payer теста: ранее проверенный recovery-циклом `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`; production authority `2uGK…` тестом не используется.
-- [ ] Подтвердить независимую резервную копию keypair authority и четырёх новых test-mainnet keypair.
+- [x] Владелец подтвердил независимую резервную копию keypair authority и четырёх новых test-mainnet keypair.
 - [x] Синхронизировать disposable Program ID `3EAw6VA99tH6y5nEYuGNDWpBVkXXtKnSxpBtmk95JHMv` в `declare_id!`, `Anchor.toml`, `TAXI_PROGRAM_ID` и `VITE_TAXI_PROGRAM_ID` только в branch/worktree `mainnet-test-rc`.
 - [x] Подтвердить, что постоянный `9ZLA…6eVv` не существует onchain и его keypair не используется тестом.
-- [ ] Пополнить authority перед deploy: finalized mainnet-баланс на 2026-09-29 — `0.550481114 SOL`, что заведомо меньше необходимого пикового rent.
+- [x] Authority пополнен: finalized баланс до metadata upload — `7.050481114 SOL`, после upload и частичного возврата Irys — `7.050176114 SOL`.
 
 ### Gate 3 — конфигурация и preflight
 
-- [ ] Создать отдельный некоммитимый target `.env` для `mainnet-test-rc` и завершить `protocol:preflight`. В RC worktree файла пока нет; текущий корневой dev `.env` не является release-конфигурацией и ожидаемо не проходит по admin secrets, `STOCK_MINTS` и Program ID. После заполнения также остаётся утвердить `MINT_PRICES_LAMPORTS`.
+- [x] Создать отдельный некоммитимый target `.env` для `mainnet-test-rc` и завершить `protocol:preflight`: PASS с ожидаемыми warnings о позднем FARE CA и общем Helius RPC/DAS endpoint; `getGenesisHash` и `getAssetsByOwner` проверены.
 - [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
 - [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.
 - [x] Проверить official xStocks mint: все четыре существуют в mainnet и принадлежат Token-2022.
@@ -47,8 +47,9 @@
 
 ### Gate 4 — assets и микроцены
 
-- [ ] Использовать отдельные тестовые metadata URI и изображения; не смешивать их с будущей production Collection.
-- [ ] Зафиксировать точные микроцены в lamports для четырёх классов.
+- [x] Опубликовать отдельные test-mainnet изображения: `https://gateway.irys.xyz/escoWKMmuYk52L5NRJrwnNCDdSpKBshWcHpjgfnknT3/`.
+- [x] Опубликовать отдельные test-mainnet metadata (`FARETEST`, явно не production): `https://gateway.irys.xyz/HyYxfPSvwEefbjBCJTQ41SZuzVg6MYPucBogTPpWLTwT/`.
+- [x] Зафиксировать микроцены `1000000,3000000,10000000,30000000` lamports (`0.001/0.003/0.01/0.03 SOL`) в порядке Economy/Comfort/Business/Legend.
 - [ ] Подтвердить ожидаемый максимальный расход на mint, rent и комиссии.
 - [ ] До `start-sale` проверить collection, team recipient, mint prices и все caps непосредственно из Configuration PDA.
 - [x] Разделить запуск на два этапа: `initialize` сохраняет пустой `$FARE`, а одноразовый `set-fare-mint <CA>` после создания токена атомарно создаёт/проверяет canonical vault и фиксирует CA навсегда.
@@ -85,6 +86,8 @@
 ### Gate 7 — явно разрешённый test-mainnet deploy
 
 - [ ] Получить отдельное разрешение владельца на расход real mainnet SOL и публикацию disposable Program ID.
+- [x] Получено условное разрешение с жёстким совокупным лимитом невозвратного расхода `0.5 SOL`; metadata upload уже использовал `0.000305 SOL`, доступный остаток лимита — `0.499695 SOL`.
+- [ ] Уточнить, разрешён ли временный recoverable lock около `6.68 SOL`: deploy не начинается, пока не подтверждено, что лимит `0.5 SOL` относится к итоговому невозвратному расходу, а не к временному outflow.
 - [ ] Deploy выполнять только с явными `--program-id`, `--upgrade-authority`, `--fee-payer`, RPC и постоянным buffer keypair.
 - [ ] После deploy проверить ProgramData, authority, ELF SHA-256 и вернуть rent upload buffer.
 - [ ] Инициализировать отдельные PDA/Collection/vault и создать ALT.
@@ -111,3 +114,4 @@
 - Mainnet permanent Program ID `9ZLA…6eVv` на момент проверки не опубликован.
 - Текущий production preflight не проходит; deploy запрещён до закрытия Gates 1–6.
 - Никакая запись в этом документе не является разрешением на mainnet deploy или расход SOL.
+- Metadata funding: `2aTrVgnedaStnRHW7dYvdTD3cFdeE6r4je4BVyXbneW6F5fvAgMVVVk2Dw5DpsPgrkRigkUa9ok9JwUQGT8jA3LC`; возврат `0.0001 SOL`: `3bEjy7SE5rk5BPNN6tYsUWkwfYkQUzCT1ZFRZKs8VA8CkAmJc6cu8eRKfNxYgT3LMNQ6rFmjYJXFfHaAxbUM93V2`.
