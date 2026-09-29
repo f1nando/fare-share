@@ -44,6 +44,7 @@ const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
 const WSOL_MINT = address('So11111111111111111111111111111111111111112');
 const TOKEN_PROGRAM = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const ASSOCIATED_TOKEN_PROGRAM = address('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
@@ -190,11 +191,6 @@ async function processPendingSwaps(
   const mintAddresses = [WSOL_MINT, configuration.fareMint, ...configuration.stockMints];
   const mintAccounts = await getAccounts(config.solanaRpcUrl, mintAddresses);
   const tokenPrograms = mintAccounts.map(account => account.owner);
-  const [configWsolVault] = await findAssociatedTokenPda({
-    owner: addresses.config,
-    mint: WSOL_MINT,
-    tokenProgram: TOKEN_PROGRAM,
-  });
   const [callerWsolVault] = await findAssociatedTokenPda({
     owner: caller.address,
     mint: WSOL_MINT,
@@ -223,7 +219,7 @@ async function processPendingSwaps(
       const outputMint = pending.kind === 0
         ? configuration.fareMint
         : configuration.stockMints[pending.assetIndex];
-      const wsolVault = pending.kind === 0 ? callerWsolVault : configWsolVault;
+      const wsolVault = callerWsolVault;
       const rewardVault = rewardVaults[pending.kind === 0 ? 0 : pending.assetIndex + 1];
       const fixedWritable = new Set<string>([
         String(addresses.config), String(addresses.feeVault), String(addresses.pool),
@@ -235,7 +231,7 @@ async function processPendingSwaps(
         inputMint: WSOL_MINT,
         outputMint,
         amountIn: pending.amountIn,
-        taker: pending.kind === 0 ? caller.address : addresses.config,
+        taker: caller.address,
         payer: caller.address,
         destinationTokenAccount: rewardVault,
         jupiterProgram: configuration.jupiterProgram,
@@ -274,16 +270,14 @@ async function processPendingSwaps(
         route,
       });
       const lookupTables = { ...route.lookupTables, ...protocolLookupTables };
-      if (route.setupInstructions.length > 0) {
-        const setupSignature = await sendInstructions(
-          config.solanaRpcUrl,
-          caller,
-          route.setupInstructions,
-          [],
-          lookupTables,
-        );
-        console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} vault setup finalized: ${setupSignature}`);
-      }
+      const setupSignature = await sendInstructions(
+        config.solanaRpcUrl,
+        caller,
+        [buildCreateWsolAtaInstruction(caller, callerWsolVault), ...route.setupInstructions],
+        [],
+        lookupTables,
+      );
+      console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} vault setup finalized: ${setupSignature}`);
       const signature = await sendInstructions(
         config.solanaRpcUrl,
         caller,
@@ -292,10 +286,10 @@ async function processPendingSwaps(
         lookupTables,
       );
       console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap finalized: ${signature}`);
-      const cleanupInstructions = route.setupInstructions.flatMap(instruction => {
+      const cleanupInstructions = [...route.setupInstructions, buildCreateWsolAtaInstruction(caller, callerWsolVault)].flatMap(instruction => {
         const ata = instruction.accounts?.[1]?.address;
         const tokenProgram = instruction.accounts?.[5]?.address;
-        if (!ata || !tokenProgram || ata === wsolVault || ata === rewardVault) return [];
+        if (!ata || !tokenProgram || ata === rewardVault) return [];
         return [buildCloseRouteAtaInstruction({
           programId: config.programId,
           caller: caller.address,
@@ -304,9 +298,9 @@ async function processPendingSwaps(
           tokenProgram,
         })];
       });
-      if (cleanupInstructions.length > 0) {
+      for (const cleanupInstruction of cleanupInstructions) {
         try {
-          const cleanupSignature = await sendInstructions(config.solanaRpcUrl, caller, cleanupInstructions, [], lookupTables);
+          const cleanupSignature = await sendInstructions(config.solanaRpcUrl, caller, [cleanupInstruction], [], lookupTables);
           console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup finalized: ${cleanupSignature}`);
         } catch (error) {
           console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup deferred:`, error);
@@ -316,6 +310,21 @@ async function processPendingSwaps(
       console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap skipped:`, error);
     }
   }
+}
+
+function buildCreateWsolAtaInstruction(caller: KeyPairSigner, ata: Address): Instruction {
+  return {
+    programAddress: ASSOCIATED_TOKEN_PROGRAM,
+    accounts: [
+      meta(caller.address, AccountRole.WRITABLE_SIGNER),
+      meta(ata, AccountRole.WRITABLE),
+      meta(caller.address, AccountRole.READONLY),
+      meta(WSOL_MINT, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+      meta(TOKEN_PROGRAM, AccountRole.READONLY),
+    ],
+    data: Uint8Array.of(1),
+  };
 }
 
 function buildCloseRouteAtaInstruction(input: {

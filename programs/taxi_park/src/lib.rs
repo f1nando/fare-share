@@ -382,18 +382,30 @@ pub mod taxi_park {
             &ctx.accounts.pump_wsol_vault,
             &ctx.accounts.token_program.key(),
         )?;
-        if pump_vault.owner == ctx.accounts.config.key()
+        if (pump_vault.owner == ctx.accounts.config.key()
+            || pump_vault.owner == ctx.accounts.caller.key())
             && pump_vault.amount == 0
             && ctx.remaining_accounts.is_empty()
         {
             let bump = [ctx.accounts.config.bump];
-            let seeds: &[&[u8]] = &[b"config", &bump];
+            let config_seeds: &[&[u8]] = &[b"config", &bump];
+            let signed = [config_seeds];
+            let signer_seeds: &[&[&[u8]]] = if pump_vault.owner == ctx.accounts.config.key() {
+                &signed
+            } else {
+                &[]
+            };
+            let authority = if pump_vault.owner == ctx.accounts.config.key() {
+                ctx.accounts.config.to_account_info()
+            } else {
+                ctx.accounts.caller.to_account_info()
+            };
             return token::close_account(
                 &ctx.accounts.token_program,
                 &ctx.accounts.pump_wsol_vault,
                 &ctx.accounts.fee_vault.to_account_info(),
-                &ctx.accounts.config.to_account_info(),
-                &[seeds],
+                &authority,
+                signer_seeds,
             );
         }
         require_keys_eq!(pump_vault.mint, token::NATIVE_MINT_ID, TaxiError::InvalidRewardMint);
@@ -684,7 +696,7 @@ pub mod taxi_park {
             &ctx.accounts.config.key(),
             &ctx.accounts.wsol_vault.key(),
             &ctx.accounts.reward_vault.key(),
-            true,
+            false,
         )?;
 
         token::assert_program(&ctx.accounts.token_program)?;
@@ -702,7 +714,7 @@ pub mod taxi_park {
         );
         require_keys_eq!(
             wsol.owner,
-            ctx.accounts.config.key(),
+            ctx.accounts.caller.key(),
             TaxiError::InvalidTokenAccount
         );
         let output = token::account_view(
