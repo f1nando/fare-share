@@ -251,6 +251,14 @@ admin, и никогда не передаёт `--final`.
 `GHGq…i3i4` onchain отсутствует; это ожидаемое состояние до отдельного разрешения
 на deploy.
 
+Permanent mainnet deploy выполнен после отдельного разрешения владельца: release
+SHA `d900a2f9d1baf2384c13d26533978fd91af4c690`, signature
+`5XcXqasMLq6SMG599p8Qu1yqhrv2LVJ7Has27pJLXQJMcwZVRPEeGz4hEptbvJzDmifySSAkADnep7SvheB2sxDz`,
+slot `451769173`. Onchain ELF имеет точный frozen SHA-256
+`61abf9dad7389db5f28c6b149d4a20cd9cf5a30a6f5e84c650e329e7251ab2f1`;
+ProgramData `3mUa…eazU`, authority `2NUN…EGVnF`. Upload buffer закрыт, post-deploy
+balance — `3.423058977 SOL`. `--final` не использовался.
+
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
 

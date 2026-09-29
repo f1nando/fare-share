@@ -170,7 +170,7 @@
 ## Текущее состояние
 
 - Devnet E2E `Claim 10`, atomic rejection и `Repair 8 + 2` пройдены; тестовый Devnet ProgramData закрыт, rent возвращён.
-- Mainnet permanent Program ID `GHGq…i3i4` на момент release freeze не опубликован.
+- Mainnet permanent Program ID `GHGq…i3i4` опубликован из release `d900a2f`: signature `5XcXqa…B2sxDz`, slot `451769173`. ProgramData `3mUa…eazU`, authority `2NUN…EGVnF`, onchain ELF SHA-256 `61abf9da…1ab2f1`; upload buffer закрыт.
 - Оба disposable Program ID `3EAw…5JHMv` и `4QLt…mUXiG` закрыты навсегда; их ProgramData удалены, recoverable vault assets выведены, ALT второго теста закрыт.
 - Никакая запись в этом документе не является разрешением на mainnet deploy или расход SOL.
 - Metadata funding: `2aTrVgnedaStnRHW7dYvdTD3cFdeE6r4je4BVyXbneW6F5fvAgMVVVk2Dw5DpsPgrkRigkUa9ok9JwUQGT8jA3LC`; возврат `0.0001 SOL`: `3bEjy7SE5rk5BPNN6tYsUWkwfYkQUzCT1ZFRZKs8VA8CkAmJc6cu8eRKfNxYgT3LMNQ6rFmjYJXFfHaAxbUM93V2`.
