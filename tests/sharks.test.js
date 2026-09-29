@@ -40,6 +40,17 @@ test('world-anchored swimming stays continuous through rebasing and pause', () =
   assert.notDeepEqual(frame(40, 0, 0, 16), before);
 });
 
+test('the first canal starts with a shark in the initial camera view, between bridges', () => {
+  for (const block of [24, 40, 64]) {
+    const parts = frame(block, 0, 0, 0);
+    const shark = parts.find(p => Math.abs(p[3] - block / 2) < 1e-8);
+    assert.ok(shark, 'a shark is guaranteed in the first canal block');
+    assert.equal(shark[1], block / 2);
+    const later = frame(block, 0, 0, 1).find(p => Math.abs(p[3] - block / 2 - 1.7) < 1e-8);
+    assert.ok(later, 'the initial shark swims away continuously');
+  }
+});
+
 test('tail motion deforms a tiny shared mesh without moving its nose or accumulating drift', () => {
   const geometry = sharkGeometry(), position = geometry.attributes.position;
   assert.ok(position.count < 100);

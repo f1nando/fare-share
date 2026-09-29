@@ -35,7 +35,8 @@ export function addSharks(batch, block, worldX, worldZ, area, time) {
   const size = Math.min(1.25, width / 7);
   for (let column = Math.ceil((worldX - area.x) / 12) * 12; column <= worldX + area.x; column += 12) {
     const direction = Math.abs(column / 12) % 2 ? -1 : 1;
-    const offset = spacing * 0.45 + direction * time * 1.7;
+    // The initial camera looks at the middle of column 0's first canal block.
+    const offset = (column === 0 ? block * 0.5 : spacing * 0.45) + direction * time * 1.7;
     for (let index = Math.ceil((minZ - offset) / spacing); index <= Math.floor((maxZ - offset) / spacing); index++) {
       const phase = time * 0.28 + index * 0.8 + column;
       const x = (column - worldX + 0.5) * block + Math.sin(phase) * width * 0.08;
