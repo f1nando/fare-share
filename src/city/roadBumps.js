@@ -11,7 +11,7 @@ export function roadBumpAt(axis, line, segment, block) {
   if (cache.has(key)) return cache.get(key);
   const hash = (Math.imul(line + 71, 73856093) ^ Math.imul(segment - 29, 19349663) ^ Math.imul(axis + 1, 83492791)) >>> 0;
   let bump = null;
-  if (hash % 7 === 0 && roadOpen(axis, line, segment) && !roadworkAt(axis, line, segment, block) &&
+  if (hash % 7 < 2 && roadOpen(axis, line, segment) && !roadworkAt(axis, line, segment, block) &&
       !(axis === 0 ? canalColumn(segment) : canalColumn(line) || canalColumn(line - 1)) &&
       ![segment, segment + 1].some(cross => roundaboutAt(axis === 0 ? cross : line, axis === 0 ? line : cross))) {
     const tracks = streetTracks(axis, line).filter(track => !tramRoad(axis, line) || track !== 0);

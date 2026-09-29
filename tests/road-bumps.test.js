@@ -30,7 +30,7 @@ test('sparse road details are deterministic and avoid closures, water and tram t
     assert.ok(axis === 0 ? !canalColumn(segment) : !canalColumn(line) && !canalColumn(line - 1));
     assert.ok(!tramRoad(axis, line) || bump.track !== 0);
   }
-  assert.ok(count > 100 && count < 500);
+  assert.ok(count > 500 && count < 900);
   assert.deepEqual(kinds, new Set(['pothole', 'manhole']));
 });
 
