@@ -18,7 +18,7 @@
 - [x] Собрать baseline SBF после удаления: `641720` байт, SHA-256 `35b3a37dfbb2b130cd88440bad105b3cb88d536732bd12a9c02d55761cdd635c`.
 - [x] Проверить бинарник: имя и discriminator `credit_devnet_rewards` отсутствуют; других test/devnet handlers в исходниках нет.
 - [x] После назначения disposable Program ID был собран первый SBF: `641720` байт, SHA-256 `d67d068c5840671d2c12da71c387c5aee85cb0329a2632b3171b4994996bc54c`.
-- [ ] Пересобрать disposable SBF после добавления отложенной привязки `$FARE`; предыдущий hash устарел и не является deploy artifact.
+- [x] Пересобрать disposable SBF после добавления отложенной привязки `$FARE`: `649520` байт, SHA-256 `89c87b2073cbc7b9b5926f3dc8c3b0984aa4701fb8aea25d309e325b448cb9f3`.
 - [ ] Повторно зафиксировать hash после полного release freeze.
 
 ### Gate 2 — изолированная идентичность теста
@@ -59,7 +59,7 @@
 
 ### Gate 6 — rent и recovery до deploy
 
-- [x] Предварительно пересчитать rent для RC `641720` байт: buffer (`+37`) — `3.26077580 SOL`, ProgramData (`+45`) — `3.26081644 SOL`, Program tombstone — `0.00083312 SOL`; пик без комиссионного запаса около `6.52242536 SOL`.
+- [x] Предварительно пересчитать rent для RC `649520` байт: buffer (`+37`) — `3.30039980 SOL`, ProgramData (`+45`) — `3.30044044 SOL`, Program tombstone — `0.00083312 SOL`; пик без комиссионного запаса около `6.60167336 SOL`.
 - [ ] Проверить mainnet admin/deployer `2uGKLnabWRSpDJaQSBy2fcbYzd8p8BYVzXNMgqzNNtAr`, его keypair и резервную копию.
 - [ ] Подготовить target-specific recovery audit без default signer и небезопасных адресных defaults.
 - [ ] Dry-run обязан проверить mainnet genesis, Program ID, ProgramData, authority, recipient, buffer и все SOL/token vault.
