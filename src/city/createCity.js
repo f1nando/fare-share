@@ -31,6 +31,7 @@ import { sharkGeometry, animateSharkTail, addSharks } from './sharks.js';
 import { AirTraffic } from './airTraffic.js';
 import { ParkBirds, birdWingGeometry } from './parkBirds.js';
 import { populateTramTracks } from './tramTracks.js';
+import { populateRoadBumps, RoadBumpTracker } from './roadBumps.js';
 import { vehicleType } from './vehicleTypes.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
@@ -120,6 +121,7 @@ export function populateBlock(batch, gx, gz, x, z, blockSize = BLOCK) {
   }
 
   populateRoadworks(batch, gx, gz, x, z, blockSize);
+  populateRoadBumps(batch, gx, gz, x, z, blockSize);
   populateTramTracks(batch, gx, gz, x, z, blockSize);
   populateRoundabout(batch, gx, gz, x, z, blockSize);
   if (northBoulevard && !canal) populateMedian(roundaboutSceneryBatch(streetBatch,gx,gz,x,z,blockSize), 0, x, z, blockSize, !tramRoad(0, gz));
@@ -343,6 +345,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const clickableVehicles = [];
   const clickableVehiclePool = [];
   const vehicleStunts = new Map();
+  const roadBumps = new RoadBumpTracker();
   const foliageSwings = new Map();
   const buildingStretches = new Map();
   const addClickableVehicle = (x, y, z, key, type) => {
@@ -541,6 +544,10 @@ export function createCity(container, initialSettings, benchmark = null) {
     addSharks(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
     parkBirds.update(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
+    roadBumps.update(clickableVehicles, originX, originZ, BLOCK, vehicle => {
+      if (!vehicleStunts.has(vehicle.key))
+        vehicleStunts.set(vehicle.key, { started: start, variation: animationVariation() });
+    });
     if (activeBrushEvent) animateAtPointer(activeBrushEvent, true);
     carsBatch.flush();
     for (const [index, swing] of foliageSwings) {
