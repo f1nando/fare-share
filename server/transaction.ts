@@ -24,6 +24,20 @@ export class UnresolvedSolanaTransactionError extends Error {
   }
 }
 
+export class SolanaTransactionTooLargeError extends Error {
+  constructor(public readonly wireBytes: number) {
+    super(`Solana transaction is ${wireBytes} bytes; maximum is 1232`);
+    this.name = 'SolanaTransactionTooLargeError';
+  }
+}
+
+export class SolanaTransactionSimulationError extends Error {
+  constructor(public readonly transactionError: unknown, logs: string[] = []) {
+    super(`Solana transaction simulation failed: ${JSON.stringify(transactionError)}${logs.length ? `\n${logs.join('\n')}` : ''}`);
+    this.name = 'SolanaTransactionSimulationError';
+  }
+}
+
 export interface SignedTransactionDetails {
   signature: string;
   lastValidBlockHeight: number;
@@ -61,11 +75,20 @@ export async function sendInstructions(
     compiled,
   );
   const expectedSignature = String(getSignatureFromTransaction(signed));
+  const encoded = getBase64EncodedWireTransaction(signed);
+  assertWireTransactionSize(String(encoded));
+  const simulation = await solanaRpcCall<{ value: { err: unknown; logs?: string[] | null } }>(rpcUrl, 'simulateTransaction', [encoded, {
+    encoding: 'base64',
+    commitment: 'finalized',
+    sigVerify: true,
+  }]);
+  if (simulation.value.err) {
+    throw new SolanaTransactionSimulationError(simulation.value.err, simulation.value.logs || []);
+  }
   await options.onSigned?.({
     signature: expectedSignature,
     lastValidBlockHeight: rawLatestBlockhash.lastValidBlockHeight,
   });
-  const encoded = getBase64EncodedWireTransaction(signed);
   try {
     const signature = await solanaSendTransactionCall<string>(rpcUrl, [encoded, {
       encoding: 'base64',
@@ -84,6 +107,11 @@ export async function sendInstructions(
       throw new UnresolvedSolanaTransactionError(expectedSignature, reconciliationError);
     }
   }
+}
+
+export function assertWireTransactionSize(encoded: string) {
+  const wireBytes = Buffer.byteLength(encoded, 'base64');
+  if (wireBytes > 1232) throw new SolanaTransactionTooLargeError(wireBytes);
 }
 
 async function waitForFinalized(rpcUrl: string, signature: string) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { AccountRole, address, getAddressEncoder, type Address } from '@solana/kit';
+import { AccountRole, address, createKeyPairSignerFromBytes, getAddressEncoder, type Address } from '@solana/kit';
 import {
   decodeEventQueueState,
   decodeMachineCleanupState,
@@ -16,6 +16,12 @@ import {
   hasAssignableRewards,
   isBurnedCoreAssetAccount,
 } from '../server/worker.js';
+import {
+  assertWireTransactionSize,
+  sendInstructions,
+  SolanaTransactionSimulationError,
+  SolanaTransactionTooLargeError,
+} from '../server/transaction.js';
 
 const targetA = address('11111111111111111111111111111111');
 const targetB = address('9ZLAzKr2taQMXPZjkAFDNfWHrtrCTspR7sXV1E2F6eVv');
@@ -154,4 +160,43 @@ test('burn cleanup instruction has the exact Anchor account order', () => {
   ]);
   assert.equal(instruction.data?.length, 9);
   assert.equal(instruction.data?.[8], 7);
+});
+
+test('wire transaction size is rejected before RPC submission', () => {
+  assert.doesNotThrow(() => assertWireTransactionSize(Buffer.alloc(1232).toString('base64')));
+  assert.throws(
+    () => assertWireTransactionSize(Buffer.alloc(1233).toString('base64')),
+    SolanaTransactionTooLargeError,
+  );
+});
+
+test('transactions are explicitly simulated before submission', async () => {
+  const secret = Uint8Array.from([
+    ...Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex'),
+    ...Buffer.from('d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a', 'hex'),
+  ]);
+  const signer = await createKeyPairSignerFromBytes(secret);
+  const originalFetch = globalThis.fetch;
+  const methods: string[] = [];
+  let recordedAsSubmitted = false;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { method: string };
+    methods.push(request.method);
+    const result = request.method === 'getLatestBlockhash'
+      ? { value: { blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 } }
+      : { value: { err: { InstructionError: [0, 'Custom'] }, logs: ['route failed'] } };
+    return new Response(JSON.stringify({ jsonrpc: '2.0', result }));
+  };
+  try {
+    await assert.rejects(
+      sendInstructions('https://rpc.invalid', signer, [], [], {}, {
+        onSigned: async () => { recordedAsSubmitted = true; },
+      }),
+      SolanaTransactionSimulationError,
+    );
+    assert.deepEqual(methods, ['getLatestBlockhash', 'simulateTransaction']);
+    assert.equal(recordedAsSubmitted, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

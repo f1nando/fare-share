@@ -7,8 +7,10 @@ import {
   buildEd25519Instruction,
   buildJupiterRoute,
   buildSwapPlanMessage,
+  activeJupiterDexExclusions,
   encodeProcessSwapData,
   hashJupiterRoute,
+  quarantineJupiterDexes,
   type SwapPlan,
 } from '../server/jupiter.js';
 import { parseBackendSigner } from '../server/signing.js';
@@ -43,6 +45,7 @@ function response(overrides: Record<string, unknown> = {}) {
       data: Buffer.from([4, 5, 6]).toString('base64'),
     },
     addressesByLookupTableAddress: { [PROGRAM]: [SOURCE, DESTINATION] },
+    routePlan: [{ swapInfo: { label: 'TestDex' } }],
     ...overrides,
   };
 }
@@ -60,6 +63,7 @@ test('Jupiter V2 route is validated and converted for a PDA-signed CPI', async (
     jupiterProgram: PROGRAM,
     slippageBps: 500,
     maxAccounts: 48,
+    excludeDexes: 'ConfiguredDex',
     fixedWritableAccounts: new Set([String(CONFIG), String(SOURCE), String(DESTINATION)]),
     fetchImplementation: async (input, init) => {
       requested = String(input);
@@ -71,10 +75,18 @@ test('Jupiter V2 route is validated and converted for a PDA-signed CPI', async (
   assert.match(requested, /wrapAndUnwrapSol=false/);
   assert.match(requested, /restrictIntermediateTokens=true/);
   assert.match(requested, /slippageBps=500/);
+  assert.match(requested, /excludeDexes=ConfiguredDex/);
   assert.equal(route.minOut, 900n);
   assert.deepEqual([...route.routeData], [4, 5, 6]);
   assert.equal(route.routeAccounts[0].role, AccountRole.WRITABLE);
   assert.deepEqual(Object.values(route.lookupTables), [[SOURCE, DESTINATION]]);
+  assert.deepEqual(route.dexes, ['TestDex']);
+});
+
+test('failed Jupiter dexes are quarantined temporarily and merge with configured exclusions', () => {
+  quarantineJupiterDexes(['BrokenDex'], 1_000);
+  assert.equal(activeJupiterDexExclusions('ConfiguredDex', 1_001), 'BrokenDex,ConfiguredDex');
+  assert.equal(activeJupiterDexExclusions('ConfiguredDex', 301_001), 'ConfiguredDex');
 });
 
 test('Jupiter route rejects auxiliary instructions and foreign signers', async () => {

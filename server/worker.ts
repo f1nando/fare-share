@@ -7,6 +7,7 @@ import {
   getProgramDerivedAddress,
   getUtf8Encoder,
   type Address,
+  type AddressesByLookupTableAddress,
   type Instruction,
   type KeyPairSigner,
 } from '@solana/kit';
@@ -19,6 +20,7 @@ import {
   computeUnitLimitInstruction,
   encodeProcessSwapData,
   hashJupiterRoute,
+  quarantineJupiterDexes,
   type SwapPlan,
 } from './jupiter.js';
 import {
@@ -36,8 +38,13 @@ import {
 } from './programState.js';
 import { parseBackendSigner, parseSecretBytes, type BackendSigner } from './signing.js';
 import { decodeWorkerConfiguration, loadProtocolClock } from './solanaState.js';
-import { createWorkerSigner, sendInstructions } from './transaction.js';
-import { solanaRpcCall } from './solanaRpc.js';
+import {
+  createWorkerSigner,
+  sendInstructions,
+  SolanaTransactionSimulationError,
+  SolanaTransactionTooLargeError,
+} from './transaction.js';
+import { SolanaRpcWriteRejectedError, solanaRpcCall } from './solanaRpc.js';
 
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
@@ -49,6 +56,8 @@ const MPL_CORE_PROGRAM = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d')
 const INSTRUCTIONS_SYSVAR = address('Sysvar1nstructions1111111111111111111111111');
 const SYSTEM_PROGRAM = address('11111111111111111111111111111111');
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
+const SWAP_ROUTE_ATTEMPTS = 3;
+const failedSwapCycles = new Map<string, number>();
 
 let lastBurnScanAt = 0;
 
@@ -215,7 +224,13 @@ async function processPendingSwaps(
   ];
   for (const pending of swaps) {
     if (pending.amountIn < config.swapMinimumLamports) continue;
-    try {
+    const swapKey = pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`;
+    let completed = false;
+    for (let attempt = 1; attempt <= SWAP_ROUTE_ATTEMPTS; attempt += 1) {
+      let routeDexes: string[] = [];
+      let routeCleanupInstructions: Instruction[] = [];
+      let routeLookupTables: AddressesByLookupTableAddress = {};
+      try {
       const outputMint = pending.kind === 0
         ? configuration.fareMint
         : configuration.stockMints[pending.assetIndex];
@@ -241,6 +256,7 @@ async function processPendingSwaps(
         excludeDexes: config.jupiterExcludeDexes,
         fixedWritableAccounts: fixedWritable,
       });
+      routeDexes = route.dexes;
       const deadline = chainTime + BigInt(config.swapPlanTtlSeconds);
       const plan: SwapPlan = {
         kind: pending.kind,
@@ -272,6 +288,19 @@ async function processPendingSwaps(
         route,
       });
       const lookupTables = { ...route.lookupTables, ...protocolLookupTables };
+      routeLookupTables = lookupTables;
+      routeCleanupInstructions = [...route.setupInstructions, buildCreateWsolAtaInstruction(caller, callerWsolVault)].flatMap(instruction => {
+        const ata = instruction.accounts?.[1]?.address;
+        const tokenProgram = instruction.accounts?.[5]?.address;
+        if (!ata || !tokenProgram || ata === rewardVault) return [];
+        return [buildCloseRouteAtaInstruction({
+          programId: config.programId,
+          caller: caller.address,
+          addresses,
+          ata,
+          tokenProgram,
+        })];
+      });
       const setupSignature = await sendInstructions(
         config.solanaRpcUrl,
         caller,
@@ -288,30 +317,56 @@ async function processPendingSwaps(
         lookupTables,
       );
       console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap finalized: ${signature}`);
-      const cleanupInstructions = [...route.setupInstructions, buildCreateWsolAtaInstruction(caller, callerWsolVault)].flatMap(instruction => {
-        const ata = instruction.accounts?.[1]?.address;
-        const tokenProgram = instruction.accounts?.[5]?.address;
-        if (!ata || !tokenProgram || ata === rewardVault) return [];
-        return [buildCloseRouteAtaInstruction({
-          programId: config.programId,
-          caller: caller.address,
-          addresses,
-          ata,
-          tokenProgram,
-        })];
-      });
-      for (const cleanupInstruction of cleanupInstructions) {
-        try {
-          const cleanupSignature = await sendInstructions(config.solanaRpcUrl, caller, [cleanupInstruction], [], lookupTables);
-          console.log(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup finalized: ${cleanupSignature}`);
-        } catch (error) {
-          console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} route ATA cleanup deferred:`, error);
+      completed = true;
+      failedSwapCycles.delete(swapKey);
+      await cleanupRouteAtas(config.solanaRpcUrl, caller, routeCleanupInstructions, lookupTables, swapKey);
+      break;
+      } catch (error) {
+        await cleanupRouteAtas(config.solanaRpcUrl, caller, routeCleanupInstructions, routeLookupTables, swapKey);
+        const canTryAnotherRoute = attempt < SWAP_ROUTE_ATTEMPTS
+          && routeDexes.length > 0
+          && isRejectedRoute(error);
+        if (canTryAnotherRoute) {
+          quarantineJupiterDexes(routeDexes);
+          console.warn(`${swapKey} route rejected; retrying without ${routeDexes.join(', ')} (${attempt}/${SWAP_ROUTE_ATTEMPTS})`);
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+          continue;
         }
+        console.error(`${swapKey} swap skipped:`, error);
+        break;
       }
-    } catch (error) {
-      console.error(`${pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`} swap skipped:`, error);
+    }
+    if (!completed) {
+      const failures = (failedSwapCycles.get(swapKey) || 0) + 1;
+      failedSwapCycles.set(swapKey, failures);
+      if (failures >= 3) {
+        console.error(`ALERT: ${swapKey} reserve ${pending.amountIn} lamports was not processed for ${failures} worker cycles`);
+      }
     }
   }
+}
+
+async function cleanupRouteAtas(
+  rpcUrl: string,
+  caller: KeyPairSigner,
+  instructions: Instruction[],
+  lookupTables: AddressesByLookupTableAddress,
+  swapKey: string,
+) {
+  for (const instruction of instructions) {
+    try {
+      const signature = await sendInstructions(rpcUrl, caller, [instruction], [], lookupTables);
+      console.log(`${swapKey} route ATA cleanup finalized: ${signature}`);
+    } catch {
+      // The route may already have closed this ATA; any remaining account is still recoverable by its owner.
+    }
+  }
+}
+
+function isRejectedRoute(error: unknown) {
+  return error instanceof SolanaTransactionSimulationError
+    || error instanceof SolanaTransactionTooLargeError
+    || error instanceof SolanaRpcWriteRejectedError;
 }
 
 function buildCreateWsolAtaInstruction(caller: KeyPairSigner, ata: Address): Instruction {

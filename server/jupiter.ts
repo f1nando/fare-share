@@ -56,6 +56,7 @@ interface BuildResponse {
   otherInstructions?: ApiInstruction[];
   tipInstruction?: ApiInstruction | null;
   addressesByLookupTableAddress?: Record<string, string[]> | null;
+  routePlan?: Array<{ swapInfo?: { label?: string } }>;
   error?: string;
 }
 
@@ -82,6 +83,23 @@ export interface JupiterRoute {
   routeAccounts: NonNullable<Instruction['accounts']>;
   minOut: bigint;
   lookupTables: AddressesByLookupTableAddress;
+  dexes: string[];
+}
+
+const quarantinedDexes = new Map<string, number>();
+const DEX_QUARANTINE_MS = 5 * 60_000;
+
+export function quarantineJupiterDexes(dexes: readonly string[], now = Date.now()) {
+  for (const dex of dexes) quarantinedDexes.set(dex, now + DEX_QUARANTINE_MS);
+}
+
+export function activeJupiterDexExclusions(configured = '', now = Date.now()) {
+  const result = new Set(configured.split(',').map(value => value.trim()).filter(Boolean));
+  for (const [dex, expiresAt] of quarantinedDexes) {
+    if (expiresAt <= now) quarantinedDexes.delete(dex);
+    else result.add(dex);
+  }
+  return [...result].sort().join(',');
 }
 
 export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<JupiterRoute> {
@@ -98,7 +116,8 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
     restrictIntermediateTokens: 'true',
   });
   const headers: Record<string, string> = { accept: 'application/json' };
-  if (input.excludeDexes) query.set('excludeDexes', input.excludeDexes);
+  const excludedDexes = activeJupiterDexExclusions(input.excludeDexes);
+  if (excludedDexes) query.set('excludeDexes', excludedDexes);
   if (input.apiKey) headers['x-api-key'] = input.apiKey;
   const response = await jupiterRequest(`${input.apiBaseUrl || 'https://api.jup.ag/swap/v2'}/build?${query}`, {
     headers,
@@ -140,6 +159,7 @@ export async function buildJupiterRoute(input: BuildJupiterSwapInput): Promise<J
     routeAccounts,
     minOut: BigInt(build.otherAmountThreshold),
     lookupTables,
+    dexes: [...new Set((build.routePlan || []).map(step => step.swapInfo?.label).filter((label): label is string => Boolean(label)))],
   };
 }
 
