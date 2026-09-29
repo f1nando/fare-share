@@ -75,6 +75,7 @@ function drawBoat(batch, boat, x, y, z, direction, effect = null) {
 // World-anchored spacing keeps boats continuous across camera origin shifts.
 // Only the nearby copies are drawn, so the endless canal needs no growing state.
 export function addBoats(batch, block, worldX, worldZ, area, time, { effectFor, onVisible } = {}) {
+  let greetingRings = 0;
   const { width } = canalDimensions(block), spacing = block * 1.2;
   const minZ = (worldZ - area.z) * block - 12;
   const maxZ = (worldZ + area.z + 1) * block + 12;
@@ -90,7 +91,20 @@ export function addBoats(batch, block, worldX, worldZ, area, time, { effectFor, 
         const y = CANAL_WATER_LEVEL + 0.04 + Math.sin(time * 1.8 + phase * 10) * 0.025;
         const key = `boat:${column}:${direction}:${index}`;
         onVisible?.(x, y, z, key, 'boat');
-        drawBoat(batch, boat, x, y, z, direction, effectFor?.(key, 'boat'));
+        const effect = effectFor?.(key, 'boat');
+        drawBoat(batch, boat, x, y, z, direction, effect);
+        if (effect?.rippleProgress != null) {
+          for (let ring = 0; ring < 3 && greetingRings < 24; ring++) {
+            const age = (effect.rippleProgress - ring * 0.18) / 0.64;
+            if (age <= 0 || age >= 1) continue;
+            const radius = (0.2 + age * 0.8) * Math.min(1.8, width * 0.22);
+            const tint = WAKE_COLORS[Math.min(31, Math.floor(age * 32))];
+            batch.add('boatRipple', x, CANAL_WATER_LEVEL + 0.035,
+              z - direction * (boat.length * 0.5 + 0.5 + age * 1.5),
+              radius, 1, radius * 0.75, tint);
+            greetingRings++;
+          }
+        }
 
         // Three small V-shaped ripples expand and fade into the water behind the stern.
         for (let ripple = 0; ripple < 3; ripple++) {

@@ -28,6 +28,7 @@ import { canalColumn, populateCanal } from './canal.js';
 import { createCanalGround } from './canalGround.js';
 import { boatHullGeometry, addBoats } from './boats.js';
 import { AirTraffic } from './airTraffic.js';
+import { ParkBirds, birdWingGeometry } from './parkBirds.js';
 import { bridgeHeight, liftBridgePose } from './bridgeProfile.js';
 import { populateRoadworks } from './roadworkGeometry.js';
 import { populateRoundabout, roundaboutSceneryBatch } from './roundabouts.js';
@@ -253,6 +254,8 @@ export function createCity(container, initialSettings, benchmark = null) {
   const geometries = {
     diagonalLot: diagonalLotGeometry(),
     boat: boatHullGeometry(),
+    boatRipple: new THREE.RingGeometry(0.91, 1, 24).rotateX(-Math.PI / 2),
+    birdWing: birdWingGeometry(),
     roundaboutCurb: roundaboutCornerGeometry(),
     roundaboutWalk: roundaboutCornerGeometry(0.21),
     roundaboutCapCurb: roundaboutCornerGeometry(0,true),
@@ -281,6 +284,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const carsBatch = new Batches(scene, geometries, true, reveal);
   const hornEffects = new HornEffects(scene);
   const airTraffic = new AirTraffic(scene);
+  const parkBirds = new ParkBirds();
   for (const material of airTraffic.materials) {
     if (material.colorWrite) backgroundFade.apply(material);
   }
@@ -529,6 +533,7 @@ export function createCity(container, initialSettings, benchmark = null) {
     }
     addBoats(carsBatch, BLOCK, worldX, worldZ, area, boatTime, { effectFor, onVisible: addClickableVehicle });
     airTraffic.update(boatTime, focus, camera, { effectFor, onVisible: addClickableVehicle });
+    parkBirds.update(carsBatch, BLOCK, worldX, worldZ, area, boatTime);
     if (activeBrushEvent) animateAtPointer(activeBrushEvent, true);
     carsBatch.flush();
     for (const [index, swing] of foliageSwings) {

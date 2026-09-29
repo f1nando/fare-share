@@ -38,7 +38,7 @@ export function vehicleStunt(type, elapsed, variation = 1, reducedMotion = false
     roll: Math.sin(progress * Math.PI * cycles * 2) * envelope * 0.3 * strength * direction,
     yaw: 0,
   };
-  if (type === 'boat') return { lift: 0, pitch: Math.sin(progress * Math.PI * cycles * 2) * envelope * 0.045 * strength,
+  if (type === 'boat') return { lift: 0, rippleProgress: progress, pitch: Math.sin(progress * Math.PI * cycles * 2) * envelope * 0.045 * strength,
     roll: Math.sin(progress * Math.PI * (cycles + 1) * 2) * envelope * 0.12 * strength * direction, yaw: 0 };
   if (type === 'helicopter') return { lift: 0, pitch: 0, roll: 0, yaw: turn * direction };
   return { lift: vehicleBounceLift(elapsed) * strength, pitch: 0, roll: 0, yaw: 0 };

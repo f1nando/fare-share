@@ -46,8 +46,8 @@ export class Batches {
         mesh = new THREE.InstancedMesh(this.geometries[kind], material, Math.ceil(count * 1.3));
         this.reveal?.prepareMesh(mesh, this.dynamic);
         mesh.userData.colors = [];
-        mesh.castShadow = !['paint', 'paving', 'light', 'beam'].includes(kind);
-        mesh.receiveShadow = !['light', 'beam'].includes(kind);
+        mesh.castShadow = !['paint', 'paving', 'light', 'beam', 'birdWing', 'boatRipple'].includes(kind);
+        mesh.receiveShadow = !['light', 'beam', 'birdWing', 'boatRipple'].includes(kind);
         if (this.dynamic) mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         this.meshes.set(kind, mesh);
         this.scene.add(mesh);

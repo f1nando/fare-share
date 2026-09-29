@@ -28,6 +28,38 @@ test('clicked boats rock as complete models', () => {
   assert.ok(hull[9] !== 0 && hull[10] !== 0);
 });
 
+test('hover greeting emits three expanding water-level rings only behind the selected boat', () => {
+  let selected;
+  addBoats({ add() {} }, 40, 0, 0, { x: 1, z: 1 }, 20,
+    { onVisible: (x, y, z, key) => { selected ??= { x, z, key }; } });
+  const ringsAt = elapsed => {
+    const parts = [];
+    addBoats({ add: (...p) => parts.push(p) }, 40, 0, 0, { x: 1, z: 1 }, 20,
+      { effectFor: key => key === selected.key ? vehicleStunt('boat', elapsed) : null });
+    return parts.filter(p => p[0] === 'boatRipple');
+  };
+  assert.equal(ringsAt(0).length, 0);
+  const before = ringsAt(450), after = ringsAt(550);
+  assert.equal(before.length, 3);
+  assert.equal(after.length, 3);
+  before.forEach((ring, i) => {
+    assert.equal(ring[1], selected.x);
+    assert.equal(ring[2], CANAL_WATER_LEVEL + 0.035);
+    assert.ok(ring[3] < selected.z);
+    assert.ok(after[i][4] > ring[4]);
+  });
+  assert.equal(ringsAt(1100).length, 0);
+});
+
+test('greeting rings have a fixed budget and respect reduced motion', () => {
+  for (const reducedMotion of [false, true]) {
+    const parts = [];
+    addBoats({ add: (...p) => parts.push(p) }, 24, 0, 0, { x: 14, z: 12 }, 20,
+      { effectFor: () => vehicleStunt('boat', 500, 1, reducedMotion) });
+    assert.equal(parts.filter(p => p[0] === 'boatRipple').length, reducedMotion ? 0 : 24);
+  }
+});
+
 test('boat sizes and positions remain continuous across camera origin shifts', () => {
   const time = 117;
   const before = hulls(scene(40, 0, 0, time));
