@@ -536,12 +536,10 @@ async function copyToClipboard(value) {
   textarea.remove();
 }
 
-const HERO_TOKEN_MINT = '5BVBo9erzm3hzutnmc5nuitRVNVNb3GEiCfB8CmWpump';
-
 export function FareShareLanding({ publicHolding = false }) {
   const token = useTokenConfig();
   const ticker = publicHolding ? 'FARE' : displayTicker(token);
-  const caDisplay = publicHolding ? 'COMING SOON' : `${HERO_TOKEN_MINT.slice(0, 6)}...${HERO_TOKEN_MINT.slice(-6)}`;
+  const caDisplay = publicHolding ? 'COMING SOON' : token.mint ? `${token.mint.slice(0, 6)}...${token.mint.slice(-6)}` : 'CA pending';
   const [caCopyState, setCaCopyState] = useState('idle');
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
@@ -560,9 +558,9 @@ export function FareShareLanding({ publicHolding = false }) {
   }, []);
 
   const handleCopyCa = async () => {
-    if (publicHolding) return;
+    if (publicHolding || !token.mint) return;
     try {
-      await copyToClipboard(HERO_TOKEN_MINT);
+      await copyToClipboard(token.mint);
       setCaCopyState('copied');
       setCopyAnimationKey(key => key + 1);
       window.clearTimeout(copyResetTimerRef.current);
@@ -623,7 +621,8 @@ export function FareShareLanding({ publicHolding = false }) {
                 className={`fare-button fare-button-dark${caCopyState === 'copied' ? ' is-copied' : ''}${caCopyState === 'returning' ? ' is-returning' : ''}`}
                 type="button"
                 onClick={publicHolding ? undefined : handleCopyCa}
-                aria-label={publicHolding ? 'Contract address coming soon' : caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
+                disabled={!publicHolding && !token.mint}
+                aria-label={publicHolding ? 'Contract address coming soon' : token.mint ? (caCopyState === 'copied' ? 'CA copied' : 'Copy CA') : 'CA is not configured yet'}
               >
                 <span className="fare-token-symbol">${ticker}</span>
                 <span>{caDisplay}</span>

@@ -1,8 +1,6 @@
 import { address } from '@solana/kit';
 
 const DEFAULT_PROGRAM_ID = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
-export const REHEARSAL_TRADE_MINT = '5BVBo9erzm3hzutnmc5nuitRVNVNb3GEiCfB8CmWpump';
-export const REHEARSAL_TRADE_TICKER = 'TAXI';
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -50,14 +48,6 @@ export type ServerConfig = ReturnType<typeof loadServerConfig>;
 export function loadServerConfig() {
   const programId = address(process.env.TAXI_PROGRAM_ID?.trim() || DEFAULT_PROGRAM_ID);
   const rehearsalMode = process.env.REHEARSAL_MODE === 'true';
-  const configuredTradeMint = optional('TRADE_MARKET_MINT') || (rehearsalMode ? REHEARSAL_TRADE_MINT : undefined);
-  const configuredTradeTicker = optional('TRADE_MARKET_TICKER') || (rehearsalMode ? REHEARSAL_TRADE_TICKER : undefined);
-  if (Boolean(configuredTradeMint) !== Boolean(configuredTradeTicker)) {
-    throw new Error('TRADE_MARKET_MINT and TRADE_MARKET_TICKER must be configured together');
-  }
-  if (configuredTradeTicker && !/^[A-Z0-9]{1,10}$/.test(configuredTradeTicker.toUpperCase())) {
-    throw new Error('TRADE_MARKET_TICKER must contain 1–10 Latin letters or digits');
-  }
   return {
     port: integer('PORT', 8787, 1),
     mongoUri: required('MONGODB_URI'),
@@ -68,8 +58,6 @@ export function loadServerConfig() {
     tradeHolderRefreshMs: integer('TRADE_HOLDER_REFRESH_MS', 30_000, 10_000),
     tradeStateRefreshMs: integer('TRADE_STATE_REFRESH_MS', 60_000, 5_000),
     tradeSseMaxClients: boundedInteger('TRADE_SSE_MAX_CLIENTS', 1_000, 10, 10_000),
-    tradeMarketMint: configuredTradeMint ? String(address(configuredTradeMint)) : undefined,
-    tradeMarketTicker: configuredTradeTicker?.toUpperCase(),
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
     workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),

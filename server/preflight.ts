@@ -1,5 +1,4 @@
 import { address, createKeyPairSignerFromBytes } from '@solana/kit';
-import { REHEARSAL_TRADE_MINT, REHEARSAL_TRADE_TICKER } from './config.js';
 import { parseSecretBytes } from './signing.js';
 
 export const OFFICIAL_XSTOCK_MINTS = [
@@ -127,12 +126,6 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     }
     if (frontendChain !== 'solana:mainnet') errors.push('VITE_SOLANA_CHAIN: rehearsal requires solana:mainnet');
     if (workerInitiallyEnabled !== 'false') errors.push('WORKER_INITIAL_ENABLED: rehearsal must explicitly start with false');
-    if (value('TRADE_MARKET_MINT') !== REHEARSAL_TRADE_MINT) {
-      errors.push(`TRADE_MARKET_MINT: rehearsal requires ${REHEARSAL_TRADE_MINT}`);
-    }
-    if (value('TRADE_MARKET_TICKER') !== REHEARSAL_TRADE_TICKER) {
-      errors.push(`TRADE_MARKET_TICKER: rehearsal requires ${REHEARSAL_TRADE_TICKER}`);
-    }
     if (value('REHEARSAL_SHARED_ROLE_ADDRESS') !== REHEARSAL_SHARED_ROLE_ADDRESS) {
       errors.push(`REHEARSAL_SHARED_ROLE_ADDRESS: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
     }

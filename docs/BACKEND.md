@@ -28,7 +28,7 @@ npm run protocol:preflight
 
 ## Live trade API
 
-Для `/trade/` backend индексирует публичный рыночный токен, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. По умолчанию Trade следует CA, зафиксированному через `/admin/`. Если публичный рыночный токен отличается от протокольного reward/mint токена, backend использует явно заданную пару `TRADE_MARKET_MINT` + `TRADE_MARKET_TICKER`; в rehearsal это `$TAXI` (`5BVB…pump`). Нужны `HELIUS_API_KEY` и `JUPITER_API_KEY`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
+Для `/trade/` backend индексирует CA, зафиксированный через `/admin/`, хранит сделки и агрегированные балансы холдеров в MongoDB и отправляет frontend live-сигналы через SSE. CA и тикер берутся из единой runtime-конфигурации и не дублируются в `TRADE_MINT`. Нужны `HELIUS_API_KEY` и `JUPITER_API_KEY`. Полные ключи хранятся только в `.env`; Helius URL с ключом нельзя помещать в `VITE_*` переменные, поскольку они попадают во frontend bundle.
 
 Основные endpoints:
 
