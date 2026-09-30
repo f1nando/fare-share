@@ -12,6 +12,18 @@ $repo = [IO.Path]::GetFullPath((git rev-parse --show-toplevel).Trim())
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $zip = [IO.Path]::GetFullPath($BackupZip)
 
+function Convert-ToWslPath([string]$Path) {
+  $converted = (& wsl.exe wslpath -a -u $Path).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not $converted) { throw "Could not convert path for WSL: $Path" }
+  return $converted
+}
+
+function Invoke-SolanaKeygen([string[]]$KeygenArguments) {
+  $output = & wsl.exe solana-keygen @KeygenArguments
+  if ($LASTEXITCODE -ne 0) { throw "WSL solana-keygen failed: $($KeygenArguments -join ' ')" }
+  return $output
+}
+
 if ($output.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
   throw 'OutputDirectory must be outside the Git repository.'
 }
@@ -37,13 +49,12 @@ $keyFiles = [ordered]@{
 }
 try {
   foreach ($path in $keyFiles.Values) {
-    & solana-keygen new --no-bip39-passphrase --silent --outfile $path
-    if ($LASTEXITCODE -ne 0) { throw "solana-keygen failed for $path" }
+    $wslPath = Convert-ToWslPath $path
+    Invoke-SolanaKeygen @('new', '--no-bip39-passphrase', '--silent', '--outfile', $wslPath) | Out-Null
   }
   $addresses = [ordered]@{}
   foreach ($entry in $keyFiles.GetEnumerator()) {
-    $addresses[$entry.Key] = (& solana-keygen pubkey $entry.Value).Trim()
-    if ($LASTEXITCODE -ne 0) { throw "Could not derive $($entry.Key) address" }
+    $addresses[$entry.Key] = (Invoke-SolanaKeygen @('pubkey', (Convert-ToWslPath $entry.Value))).Trim()
   }
 
   Compress-Archive -Path $keyFiles.Values -DestinationPath $zip -CompressionLevel Optimal
@@ -52,8 +63,8 @@ try {
     Expand-Archive -Path $zip -DestinationPath $verifyDirectory
     foreach ($entry in $keyFiles.GetEnumerator()) {
       $restored = Join-Path $verifyDirectory ([IO.Path]::GetFileName($entry.Value))
-      $restoredAddress = (& solana-keygen pubkey $restored).Trim()
-      if ($LASTEXITCODE -ne 0 -or $restoredAddress -ne $addresses[$entry.Key]) {
+      $restoredAddress = (Invoke-SolanaKeygen @('pubkey', (Convert-ToWslPath $restored))).Trim()
+      if ($restoredAddress -ne $addresses[$entry.Key]) {
         throw "Backup verification failed for $($entry.Key)"
       }
     }
