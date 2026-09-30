@@ -24,7 +24,7 @@ export function AdminPage() {
   const [migrationConfirmation, setMigrationConfirmation] = useState('');
   const [campaigns, setCampaigns] = useState([]);
   const [codeWord, setCodeWord] = useState('');
-  const [automation, setAutomation] = useState({ enabled: true, intervalSeconds: 60, minimumSol: '0.001' });
+  const [automation, setAutomation] = useState({ enabled: false, intervalSeconds: 60, minimumSol: '0.001' });
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const pricesInitialized = useRef(false);
   const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);

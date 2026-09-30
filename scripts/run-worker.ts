@@ -18,7 +18,7 @@ const feeAdmin = await createFeeAdminService({
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus);
-const defaults = { enabled: true, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
+const defaults = { enabled: false, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
 
 let stopping = false;
 process.once('SIGINT', () => { stopping = true; });

@@ -53,6 +53,7 @@
 | D-01 | Production admin wallet также используется как worker payer/signer | Владелец явно принял повышенный риск 30 сентября 2026. Upgrade authority остаётся отдельной и offline. Admin/worker secret хранится только в secret storage; сервер имеет минимальный доступ, SOL balance ограничен, low-balance и admin-operation alerts обязательны. |
 | D-02 | Rent временных Jupiter ATA возвращается admin/worker payer | Закрывается только canonical пустой ATA, созданный для подтверждённого route. Возврат идёт исходному payer после swap; закрытие чужого или непустого аккаунта запрещено. |
 | D-03 | Worker управляется из admin runtime-настройками и ручными actions | MongoDB хранит ON/OFF, частоту и minimum SOL threshold. Отдельные admin-кнопки запускают creator-fee claim+deposit, contract split, swaps, reward calculation и полный цикл; MongoDB lock запрещает параллельные запуски. |
+| D-04 | Первый production-запуск worker начинается в состоянии OFF | После deploy оператор вручную запускает полный цикл, сверяет creator fees, reserves, покупки и rewards, и только после успешной проверки включает automation в admin. |
 
 ## L-01. Worker/Jupiter reserve routes
 
