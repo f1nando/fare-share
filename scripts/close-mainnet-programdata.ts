@@ -113,7 +113,7 @@ export async function runRecovery(options: RecoveryOptions, run: CommandRunner =
     'program', 'close', options.programId,
     '--recipient', options.recipient,
     '--authority', options.authorityKeypair,
-    '--fee-payer', options.feePayerKeypair,
+    '--keypair', options.feePayerKeypair,
     '--bypass-warning',
     ...common,
   ]);

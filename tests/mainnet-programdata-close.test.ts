@@ -27,7 +27,7 @@ test('execute uses fake Solana commands, audits immediately before close, and ve
   assert.ok(closeIndex > 0);
   assert.equal(fixture.calls[closeIndex - 1].command, process.execPath);
   assert.deepEqual(fixture.calls[closeIndex].args.slice(0, 9), [
-    'program', 'close', programId, '--recipient', shared, '--authority', fixture.keypair, '--fee-payer', fixture.keypair,
+      'program', 'close', programId, '--recipient', shared, '--authority', fixture.keypair, '--keypair', fixture.keypair,
   ]);
   assert.ok(fixture.calls.some(call => call.args[0] === 'account' && call.args[1] === programData));
   assert.ok(fixture.calls.some(call => call.args[0] === 'program' && call.args[1] === 'show'));
