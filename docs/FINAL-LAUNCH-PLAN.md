@@ -95,6 +95,7 @@
 | D-43 | Максимальный возраст reference market price равен 15 секунд | `MINT_QUOTE_MARKET_MAX_AGE_MS=15000`. Более старые данные считаются stale, backend не подписывает mint quote до получения свежей цены. |
 | D-44 | Полный shuffled manifest из 1222 assignments не публикуется до окончания sale | До sold out публичны только on-chain Merkle root и текущая следующая assignment через краткоживущий quote. Полный manifest остаётся server-side и после завершения продажи публикуется для независимой проверки root, class totals и variant balance. |
 | D-45 | Private mint assignment manifest имеет две резервные копии | Рабочая копия хранится на rehearsal server вне public web root; backup помещается в обычный Desktop ZIP рядом с disposable key backup. Обе копии сверяются по SHA-256 и Merkle root, не попадают в Git/логи/чат и не публикуются до sold out. |
+| D-46 | Paid NFT используют 0% creator royalty | Core assets остаются свободно transferable и могут продаваться на совместимых marketplace без project royalty plugin. Продавец получает цену за вычетом только комиссий конкретного marketplace; Trainee assets по-прежнему permanently frozen и не могут продаваться. |
 
 ## L-01. Worker/Jupiter reserve routes
 
