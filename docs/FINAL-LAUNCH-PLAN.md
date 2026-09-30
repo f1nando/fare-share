@@ -92,6 +92,7 @@
 | D-40 | Максимальный price impact paid mint quote равен 5% | `MINT_QUOTE_MAX_PRICE_IMPACT_PCT=5`. При большем impact backend не подписывает quote, пользователь не отправляет payment transaction, а supply position остаётся неизменной. |
 | D-41 | Максимальное расхождение reference и executable `$FARE` price равно 10% | `MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT=10`. Если Jupiter executable route расходится со свежей reference price сильнее, backend не подписывает mint quote до нормализации рынка. |
 | D-42 | Mint quote действует 45 секунд | `MINT_QUOTE_TTL_SECONDS=45`. Frontend обновляет quote заранее; on-chain программа отклоняет истёкшую подпись. Quote привязан к owner, asset, assignment index/class/variant, текущему `$FARE` CA, raw amount и USD price. |
+| D-43 | Максимальный возраст reference market price равен 15 секунд | `MINT_QUOTE_MARKET_MAX_AGE_MS=15000`. Более старые данные считаются stale, backend не подписывает mint quote до получения свежей цены. |
 
 ## L-01. Worker/Jupiter reserve routes
 
