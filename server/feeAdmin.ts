@@ -71,7 +71,7 @@ export async function createFeeAdminService(
     throw new Error(`PUMP_FEE_RECIPIENT_SECRET_KEY must resolve to ${FIXED_FEE_RECIPIENT}`);
   }
   const addresses = await protocolAddresses(config.programId);
-  const minimumWalletLamports = config.minimumWalletLamports ?? 10_000_000n;
+  const minimumWalletLamports = config.minimumWalletLamports ?? 100_000_000n;
 
   async function configuredMint() {
     return (await configuredState()).fareMint;
@@ -301,6 +301,7 @@ export async function createFeeAdminService(
   }
 
   return {
+    payerAddress: admin.address,
     inspectMint,
     async creatorFeeSnapshot() {
       const current = await configuredMint();

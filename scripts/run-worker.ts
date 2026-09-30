@@ -3,6 +3,7 @@ import { connectDatabase } from '../server/database.js';
 import { createFeeAdminService } from '../server/feeAdmin.js';
 import { performWorkerAction } from '../server/workerAutomation.js';
 import { loadWorkerSettings, runWorkerAction } from '../server/workerControl.js';
+import { solanaRpcCall } from '../server/solanaRpc.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -35,6 +36,33 @@ while (!stopping) {
     });
     await wait(5_000);
     continue;
+  }
+  if (!process.argv.includes('--once')) {
+    try {
+      const balance = BigInt(await solanaRpcCall<number>(config.solanaRpcUrl, 'getBalance', [
+        feeAdmin.payerAddress,
+        { commitment: 'finalized' },
+      ]));
+      if (balance < config.adminMinimumWalletLamports) {
+        const now = new Date();
+        await database.workerStatus.updateOne({ key: 'protocol-worker' }, {
+          $set: {
+            enabled: false,
+            state: 'disabled',
+            error: `Worker disabled: payer balance ${balance} is below ${config.adminMinimumWalletLamports} lamports.`,
+            lastErrorAt: now,
+            updatedAt: now,
+          },
+          $unset: { nextRunAt: '' },
+        });
+        await wait(5_000);
+        continue;
+      }
+    } catch (error) {
+      console.error('Worker balance check failed:', error);
+      await wait(5_000);
+      continue;
+    }
   }
   const started = Date.now();
   const fullDue = process.argv.includes('--once') || started - lastFullCycleAt >= settings.intervalMs;

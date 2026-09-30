@@ -105,6 +105,7 @@
 | D-53 | Четыре paid mint делятся `2 + 2` между старым test CA и новым `FARETEST` | Сначала выполняются два mint с `4fg5…pump`, затем после `start_sale` admin меняет runtime CA на новый `FARETEST`. Quote со старым CA обязан быть отклонён, после чего выполняются ещё два mint с `FARETEST`. Configuration, API, UI, Trade и team/user ATA проверяются после переключения. |
 | D-54 | Для обязательного full worker smoke disposable FeeVault получает `0.1 SOL` | Сумма проходит через contract split, `$FARE` main/trainee/burn routes, четыре official xStocks routes, team share и reward accounting. Safe no-route сохраняет соответствующий reserve. Эти `0.1 SOL` учитываются в общем лимите невозвратных расходов `0.5 SOL`; дополнительное пополнение требует отдельного решения. |
 | D-55 | Trade smoke выполняет две покупки максимум по `0.02 SOL` | Второй disposable user wallet покупает и частично продаёт `4fg5…pump`, затем после runtime CA replacement повторяет buy/partial sell для `FARETEST`. Каждая покупка ограничена `0.02 SOL`; фактические fees и slippage учитываются в общем лимите невозвратных расходов `0.5 SOL`. |
+| D-56 | Low liquid balance threshold wallet `2NUN…EGVnF` равен `0.1 SOL` | `ADMIN_MINIMUM_WALLET_LAMPORTS=100000000`. Перед automatic action worker проверяет finalized balance; ниже порога он сохраняет `enabled=false`, прекращает project-funded automation и записывает понятную ошибку в admin status. Пользовательские self-funded actions остаются доступны. |
 
 ## L-01. Worker/Jupiter reserve routes
 
