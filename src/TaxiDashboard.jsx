@@ -30,7 +30,8 @@ const CLASSES = [
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
 
 export function TaxiDashboard({ simple = false, background = null }) {
-  const ticker = displayTicker(useTokenConfig());
+  const tokenConfig = useTokenConfig();
+  const ticker = displayTicker(tokenConfig);
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState([]);
@@ -52,7 +53,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
       })
       .catch(() => active && setStatus({ loading: false, deployed: false, network: networkName() }));
     return () => { active = false; };
-  }, []);
+  }, [tokenConfig.mint]);
 
   useEffect(() => {
     if (wallet && status.deployed) refreshGarage(wallet, status);

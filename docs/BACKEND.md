@@ -91,6 +91,8 @@ npm run protocol:initialize
 
 `POST /api/mint/quote` принимает owner, заранее созданный Asset pubkey и class. Backend читает finalized Configuration, проверяет sale/pause/supply/CA, реальные `$FARE → USDC` liquidity, price impact, свежесть и контрольную Jupiter USD price, округляет raw `$FARE` вверх и подписывает domain-separated payload текущим backend signer. Default TTL — 45 секунд. Клиент строит одну транзакцию: idempotent team ATA → Ed25519 verify → `mint_machine`.
 
+Для проверки разрешено сначала привязать совместимый тестовый Pump token через `/admin/`, выполнить flow и заменить CA до `start-sale`. После finalized bind сервер перезапускает Trade service с новым mint, обновляет MongoDB runtime token config и public snapshot; frontend опрашивает `/api/token` без cache. Production-проверки Pump creator/fee sharing не отключаются: тестовый token должен быть создан с теми же совместимыми настройками. После `start-sale` быстрая замена запрещена из-за существующих vault balances и reward obligations.
+
 `mint_machine` принимает только привязанный `$FARE` mint и соответствующий ему legacy Token Program или Token-2022, проверяет owner/mint source account и canonical ATA командного кошелька, затем выполняет `transfer_checked` на полную цену. Клиент идемпотентно создаёт team ATA за SOL пользователя перед `mint_machine`, если ATA отсутствует. Перевод `$FARE`, создание Core NFT и Machine PDA входят в одну Solana-транзакцию и откатываются вместе.
 
 ## Ручное управление через SSH

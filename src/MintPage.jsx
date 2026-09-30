@@ -54,7 +54,8 @@ function ArrowIcon() {
 }
 
 export function MintPage({ wallet, connectWallet }) {
-  const ticker = useTokenConfig().ticker || '';
+  const tokenConfig = useTokenConfig();
+  const ticker = tokenConfig.ticker || '';
   const previewRef = useRef(null);
   const [quantity, setQuantity] = useState(1);
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
@@ -97,7 +98,7 @@ export function MintPage({ wallet, connectWallet }) {
       })
       .catch(error => active && setNotice(error.message || 'Could not load the live mint state.'));
     return () => { active = false; };
-  }, []);
+  }, [tokenConfig.mint]);
 
   useEffect(() => {
     setQuantity(value => Math.max(1, Math.min(value, Math.max(1, remaining))));

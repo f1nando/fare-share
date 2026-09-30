@@ -36,7 +36,7 @@ export function createPublicDataService(config: {
   solanaRpcUrl: string;
   programId: Address;
   workerIntervalMs: number;
-  fareSymbol: string;
+  fareSymbol: string | (() => string);
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -48,7 +48,8 @@ export function createPublicDataService(config: {
     if (activeSync) return activeSync;
     activeSync = (async () => {
       const worker = await database.workerStatus.findOne({ key: 'protocol-worker' });
-      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, config.fareSymbol);
+      const fareSymbol = typeof config.fareSymbol === 'function' ? config.fareSymbol() : config.fareSymbol;
+      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, fareSymbol);
       const assets = await loadAssets(config.solanaRpcUrl, [
         ...dashboard.machines.map(machine => machine.asset),
         ...dashboard.trainees.map(trainee => trainee.asset),
@@ -133,7 +134,7 @@ export function createPublicDataService(config: {
       } satisfies Omit<PublicSnapshotDocument, 'overview'>;
       const machines = await database.fleetMachines.find({ closed: false }).toArray();
       if (dashboard.machines.length) await saveEarningSnapshots(database, now, machines);
-      const preparedOverview = buildPublicOverview(snapshot, machines, config.fareSymbol);
+      const preparedOverview = buildPublicOverview(snapshot, machines, fareSymbol);
       await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
         ...snapshot,
         overview: preparedOverview,
@@ -151,7 +152,11 @@ export function createPublicDataService(config: {
       const snapshot = await database.publicSnapshots.findOne({ key: 'overview' });
       if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
       const value = snapshot.overview as PublicOverview | undefined
-        || buildPublicOverview(snapshot, await database.fleetMachines.find({ closed: false }).toArray(), config.fareSymbol);
+        || buildPublicOverview(
+          snapshot,
+          await database.fleetMachines.find({ closed: false }).toArray(),
+          typeof config.fareSymbol === 'function' ? config.fareSymbol() : config.fareSymbol,
+        );
       cachedOverview = { value, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS };
       return value;
     })().finally(() => { activeOverviewRead = null; });

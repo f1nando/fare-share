@@ -42,7 +42,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
-const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
+const publicData = createPublicDataService({ ...config, fareSymbol: () => publicToken.ticker || 'FARE' }, database);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
 const traineeCampaigns = createTraineeCampaignAdmin(config, database);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
@@ -62,7 +62,7 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/token') {
-      json(response, 200, publicToken);
+      json(response, 200, publicToken, { 'cache-control': 'no-store' });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/public/overview') {
@@ -155,6 +155,9 @@ const server = createServer(async (request, response) => {
       await traineeCampaigns.ensurePrimary(result.ticker);
       trade?.stop();
       trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      void publicData.sync(true).catch(error => {
+        console.warn(`Public data refresh after token replacement failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
       json(response, 200, result);
       return;
     }

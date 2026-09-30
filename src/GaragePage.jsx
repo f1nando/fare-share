@@ -24,7 +24,8 @@ const CLASS_BY_WEIGHT = {
 };
 
 export function GaragePage({ wallet }) {
-  const ticker = displayTicker(useTokenConfig());
+  const tokenConfig = useTokenConfig();
+  const ticker = displayTicker(tokenConfig);
   const [status, setStatus] = useState(null);
   const [machines, setMachines] = useState([]);
   const [trainees, setTrainees] = useState([]);
@@ -40,7 +41,7 @@ export function GaragePage({ wallet }) {
       .then(next => active && setStatus(next))
       .catch(error => active && setNotice(error.message));
     return () => { active = false; };
-  }, []);
+  }, [tokenConfig.mint]);
 
   useEffect(() => {
     if (!wallet || !status?.deployed) {
