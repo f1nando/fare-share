@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
+import traineeDrivingScene from './traineeDrivingScene.json';
 import {
   claimAllMachines,
   claimMachine,
@@ -219,7 +220,7 @@ export function GaragePage({ wallet }) {
             ))}
             {trainees.map(trainee => (
               <article className="fare-step-card fare-garage-card fare-trainee-garage-card" key={String(trainee.asset)}>
-                <img src="/nft/trainee.png" alt="Yellow TAXI trainee car" />
+                <FareStepDrivingScene scene={traineeDrivingScene} />
                 <span className="fare-fleet-class fare-garage-class is-trainee">Trainee</span>
                 <h2>TAXI Trainee</h2>
                 <div className="fare-garage-earned">
