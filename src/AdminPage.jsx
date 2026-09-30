@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { BACKEND_URL as API } from './backendUrl.js';
 
-const API = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const OPERATION_STORAGE = { claim: 'taxi.admin.claimOperationId', deposit: 'taxi.admin.depositOperationId' };
 
 export function AdminPage() {

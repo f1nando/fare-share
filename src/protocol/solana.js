@@ -5,6 +5,7 @@ import {
 } from '@solana/kit';
 import { findAssociatedTokenPda } from '@solana-program/token';
 import { getWallets } from '@wallet-standard/app';
+import { BACKEND_URL } from '../backendUrl.js';
 import {
   base64Bytes,
   buildClaimAllInstructions,
@@ -41,7 +42,6 @@ export const RPC_URL = env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com
 export const SOLANA_CHAIN = resolveSolanaChain(env.VITE_SOLANA_CHAIN, RPC_URL);
 
 const DAS_URL = env.VITE_SOLANA_DAS_URL || RPC_URL;
-const BACKEND_URL = String(env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const rpc = createRateLimitedSolanaRpc(RPC_URL);
 const utf8 = getUtf8Encoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;

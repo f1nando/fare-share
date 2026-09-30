@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
+import { BACKEND_URL as API_BASE } from './backendUrl.js';
 import './driving-demo.css';
 
 const DEFAULTS = {
@@ -31,7 +32,6 @@ const STORAGE_KEY = 'taxi-driving-demo-settings-v1';
 const BMW_M3_E46_REFERENCE_KEY = 'taxi-driving-demo-bmw-m3-e46-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
-const API_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legendary', 'Trainee'];
 const DIRECTION_PRESETS = [
   { angle: -135, label: '↖', title: 'Up and left', column: 1, row: 1 },

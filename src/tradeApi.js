@@ -1,7 +1,6 @@
 import { getBase58Decoder } from '@solana/kit';
+import { BACKEND_URL as API_URL } from './backendUrl.js';
 import { connectWallet } from './protocol/solana.js';
-
-const API_URL = String(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 
 export function connectTradeWallet() {
   return connectWallet();

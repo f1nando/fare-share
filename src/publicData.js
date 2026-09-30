@@ -3,8 +3,8 @@ import {
   calculateRepairQuote,
   formatTokenAmount,
 } from './protocol/solana.js';
+import { BACKEND_URL as API_URL } from './backendUrl.js';
 
-const API_URL = String(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8787').replace(/\/$/, '');
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 
 export const loadPublicOverview = () => request('/api/public/overview');

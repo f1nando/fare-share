@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { BACKEND_URL as API } from './backendUrl.js';
 import { PUBLIC_HOLDING } from './buildMode.js';
 
-const API = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const EMPTY_TOKEN = Object.freeze({ configured: false, mint: null, ticker: PUBLIC_HOLDING ? 'FARE' : null });
 const TokenConfigContext = createContext(EMPTY_TOKEN);
 
