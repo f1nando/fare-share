@@ -53,6 +53,23 @@ uses same-origin `https://ownataxi.com/api/`; nginx proxies it to the backend on
 `127.0.0.1:8787`. Validate with `nginx -t`, restart the backend, atomically switch
 both symlinks, then smoke `/`, `/admin/`, `/api/token` and the Solana mint state.
 
+Cloudflare is authoritative for `ownataxi.com`; the root and `www` records are
+proxied. Install `deploy/cloudflare-origin-only.conf` as
+`/etc/nginx/snippets/cloudflare-origin-only.conf` before installing the site
+configuration. The allowlist prevents direct HTTPS access to the known origin
+IP while the ACME HTTP challenge remains reachable. UFW must allow OpenSSH,
+80/tcp and 443/tcp, deny 8787/tcp, and remain enabled. When Cloudflare changes
+its published IP ranges, update both the repository snippet and the installed
+copy, run `nginx -t`, then reload nginx.
+
+The Cloudflare zone uses Full (strict), Always Use HTTPS, minimum TLS 1.2,
+Cloudflare Managed Ruleset, Super Bot Fight Mode with Managed Challenge, and
+both available per-IP rate limits: 120 POST requests/minute for
+`/api/solana-rpc`, plus 30 requests/minute across expensive trade/voucher/mint,
+admin-login and trade-stream endpoints. Re-check Security Events before making
+these limits stricter; wallet and trade flows must continue to work without a
+challenge loop.
+
 `VITE_MAGIC_EDEN_MARKET_URL` is a build-time public value. Leave it unset while
 `/market/` is only a UI prototype. Set it only to the verified official production
 collection page after Magic Eden confirmation; a generic marketplace home page or
