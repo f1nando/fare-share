@@ -118,6 +118,31 @@
 | D-66 | Project не компенсирует и не погашает обязательства посторонних rehearsal-пользователей | Disposable-контур предназначен для project smoke. При shutdown дополнительные project funds не направляются на чужие claims. Project-owned активы возвращаются максимально быстро, но чужие balances не изымаются, а обязательные zero-vault/zero-obligation и authority checks не обходятся. |
 | D-67 | Перед каждым будущим shutdown строится owner-bound claim manifest | До token/SOL rescue скрипт перечисляет каждую Machine с ненулевыми rewards, её текущего DAS owner и точные raw amounts. Все используемые rehearsal wallets должны иметь проверенную резервную копию. Rescue и ProgramData close запрещены, пока manifest не пуст и повторный on-chain audit не показывает zero obligations/vault balances. |
 
+## Отложенные модернизации (не launch gate)
+
+### M-01. Настраиваемые reward-токены
+
+После текущего запуска добавить в admin возможность задавать `Symbol + Token CA`
+для каждого из четырёх reward-слотов вместо неизменяемых xStock mint, записанных при
+инициализации программы.
+
+- [ ] Добавить admin UI и защищённый API для просмотра и замены четырёх reward mint.
+- [ ] Добавить admin-only on-chain instruction замены mint конкретного reward-слота.
+- [ ] Перед заменой проверять mint, SPL Token/Token-2022 program, decimals и наличие
+      совместимого Jupiter route с допустимыми price impact и slippage.
+- [ ] Блокировать замену, пока по старому mint существуют vault balance, accrued
+      obligations, claimable rewards, незавершённая distribution series или pending swap.
+- [ ] Не переносить и не пересчитывать старые обязательства автоматически. Старый mint
+      сохраняется до полного claim/очистки либо мигрируется отдельной явно утверждённой
+      процедурой.
+- [ ] Синхронно обновлять worker, dashboard, Garage, claim flow, public API и подписи
+      токенов после finalized on-chain изменения.
+- [ ] Покрыть замену focused program/API tests и disposable rehearsal smoke для swap,
+      distribution и claim.
+
+Текущие `UBERx / TSLAx / GOOGLx / AMZNx` и их CA до выполнения M-01 не меняются.
+Проблемы маршрутов Jupiter для отдельных xStocks отслеживаются отдельно в `L-01`.
+
 ## L-01. Worker/Jupiter reserve routes
 
 Исторический disposable mainnet-контур уже подтверждал реальные reward swaps, в
