@@ -64,6 +64,7 @@
 | D-12 | Второй CA для проверки runtime replacement создаётся как новый disposable Pump.fun token | Token создаётся самостоятельно в mainnet специально для rehearsal, не используется в production и получает явную маркировку test/rehearsal. Его создание, комиссии, первоначальная покупка и slippage входят в общий лимит невозвратных расходов `0.5 SOL`; превышение лимита блокирует операцию. Точные name, ticker и artwork утверждаются до необратимой транзакции. |
 | D-13 | Disposable replacement token называется `Fare Share Rehearsal`, ticker `FARETEST` | Name и ticker используются только для временного mainnet rehearsal token. Metadata и интерфейсы обязаны явно показывать test/rehearsal назначение; token запрещено выдавать за production `$FARE`. |
 | D-14 | Artwork `FARETEST` выполняется без усложнений | Отдельное простое чёрно-жёлтое изображение содержит крупный текст `FARETEST` и заметную подпись `REHEARSAL`, без production-логотипа и дополнительных вариантов. Оно используется только для disposable token metadata. |
+| D-15 | Разрешена публичная загрузка disposable `FARETEST` artwork и metadata | При подготовке rehearsal разрешено загрузить только утверждённые временные artwork/metadata в постоянное публичное хранилище, необходимое для создания Pump.fun token. Разрешение не распространяется на production Collection, 16 машин, trainee или production `$FARE` assets. URI фиксируется в rehearsal manifest до token transaction. |
 
 ## L-01. Worker/Jupiter reserve routes
 
