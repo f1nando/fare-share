@@ -12,6 +12,7 @@ import {
   RECOVERY_PROGRAM_ID,
   loadRecoveryClaimState,
 } from './recoveryClaim.js';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 const SYMBOLS = ['$TAXI', 'UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 
@@ -79,12 +80,16 @@ export function RecoveryClaimPage() {
       setSignature(result);
       const next = await refresh();
       const remaining = next.machine.rewards.some(amount => BigInt(amount) > 0n);
-      setNotice(remaining
+      const message = remaining
         ? 'Transaction finalized, but rewards remain. Do not close this page.'
-        : 'Claim finalized. All recorded rewards for this taxi are now zero.');
+        : 'Claim finalized. All recorded rewards for this taxi are now zero.';
+      setNotice(message);
+      notifySuccess(message);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
-      setNotice(error.message || 'Claim failed. Nothing should be retried until the transaction status is checked.');
+      const message = error.message || 'Claim failed. Nothing should be retried until the transaction status is checked.';
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBusy(false);
     }
@@ -123,7 +128,7 @@ export function RecoveryClaimPage() {
         {signature && <a className="recovery-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View finalized transaction on Solscan</a>}
 
         <div className="recovery-actions">
-          <button type="button" className="recovery-connect" onClick={() => connect().catch(error => setNotice(error.message))}>{wallet ? 'Disconnect wallet' : 'Connect wallet'}</button>
+          <button type="button" className="recovery-connect" onClick={() => connect().catch(error => { setNotice(error.message); notifyError(error.message); })}>{wallet ? 'Disconnect wallet' : 'Connect wallet'}</button>
           <button type="button" className="recovery-claim" disabled={!canClaim} onClick={claim}>{busy ? 'Waiting for finalization…' : hasRewards ? 'Claim rewards' : 'Claim complete'}</button>
         </div>
 

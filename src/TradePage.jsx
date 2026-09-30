@@ -10,6 +10,7 @@ import {
   quoteTrade,
   subscribeTradeEvents,
 } from './tradeApi.js';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 function LiveTradeChart({ candles, symbol }) {
   const widgetRef = useRef(null);
@@ -107,9 +108,12 @@ function TradeForm({ token, wallet, connectWallet }) {
       setQuote(freshQuote);
       setNotice('Approve the transaction in your wallet…');
       const signature = await executeTrade(connection, freshQuote.quoteId);
-      setNotice(`Submitted: ${shortAddress(signature)}`);
+      const message = `Transaction submitted: ${shortAddress(signature)}`;
+      setNotice(message);
+      notifySuccess(message);
     } catch (error) {
       setNotice(error.message);
+      notifyError(error.message);
     } finally {
       setBusy(false);
     }
@@ -128,6 +132,7 @@ function TradeForm({ token, wallet, connectWallet }) {
       }
     } catch (error) {
       setNotice(error.message);
+      notifyError(error.message);
     } finally {
       setBalanceBusy(false);
     }

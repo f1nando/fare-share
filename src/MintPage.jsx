@@ -16,6 +16,7 @@ import {
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -172,12 +173,16 @@ export function MintPage({ wallet, connectWallet }) {
       setStatus(await loadProtocolStatus());
       setPreparedMint(null);
       setSignature(lastSignature);
-      setNotice('Taxi NFT minted from the precommitted random collection.');
+      const message = 'Taxi NFT minted from the precommitted random collection.';
+      setNotice(message);
+      notifySuccess(message);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
-      setNotice(mintedCount
+      const message = mintedCount
         ? `${mintedCount} taxi${mintedCount === 1 ? '' : 's'} minted onchain, but database synchronization needs to retry: ${error.message || 'unknown error'}`
-        : error.message || 'Mint failed.');
+        : error.message || 'Mint failed.';
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBusy(false);
     }
@@ -205,12 +210,16 @@ export function MintPage({ wallet, connectWallet }) {
       const refreshed = await prepareMintQuote(connection, status);
       setPreparedMint(refreshed);
       setQuoteError('');
-      setNotice(refreshed.ownerFareBalance >= BigInt(refreshed.quote.amountFareRaw)
+      const message = refreshed.ownerFareBalance >= BigInt(refreshed.quote.amountFareRaw)
         ? `${fareTicker} is ready. You can mint your taxi now.`
-        : `Your balance is still below the refreshed mint quote. Buy the remaining ${fareTicker} amount.`);
+        : `Your balance is still below the refreshed mint quote. Buy the remaining ${fareTicker} amount.`;
+      setNotice(message);
+      notifySuccess(message);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
-      setNotice(error.message || `${fareTicker} purchase failed.`);
+      const message = error.message || `${fareTicker} purchase failed.`;
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBuyBusy(false);
     }
@@ -232,10 +241,14 @@ export function MintPage({ wallet, connectWallet }) {
       setTrainees(await loadOwnedTrainees(connection.account.address, nextStatus));
       setKeyword('');
       setTraineeSignature(nextSignature);
-      setTraineeNotice('Your temporary trainee taxi is active and participates automatically.');
+      const message = 'Your temporary trainee taxi is active and participates automatically.';
+      setTraineeNotice(message);
+      notifySuccess(message);
     } catch (error) {
       if (error.signature) setTraineeSignature(error.signature);
-      setTraineeNotice(error.message || 'Trainee activation failed.');
+      const message = error.message || 'Trainee activation failed.';
+      setTraineeNotice(message);
+      notifyError(message);
     } finally {
       setTraineeBusy('');
     }
@@ -253,10 +266,14 @@ export function MintPage({ wallet, connectWallet }) {
       setStatus(nextStatus);
       setTrainees(await loadOwnedTrainees(wallet.account.address, nextStatus));
       setTraineeSignature(nextSignature);
-      setTraineeNotice('Trainee rewards claimed.');
+      const message = 'Trainee rewards claimed.';
+      setTraineeNotice(message);
+      notifySuccess(message);
     } catch (error) {
       if (error.signature) setTraineeSignature(error.signature);
-      setTraineeNotice(error.message || 'Trainee claim failed.');
+      const message = error.message || 'Trainee claim failed.';
+      setTraineeNotice(message);
+      notifyError(message);
     } finally {
       setTraineeBusy('');
     }

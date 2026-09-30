@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BACKEND_URL as API } from './backendUrl.js';
 import { apiErrorMessage } from './clientErrorLog.js';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 const OPERATION_STORAGE = { claim: 'taxi.admin.claimOperationId', deposit: 'taxi.admin.depositOperationId' };
 
@@ -60,6 +61,8 @@ export function AdminPage() {
   useEffect(() => {
     request('/api/admin/session').then(session => setCsrf(session.csrf)).catch(() => undefined);
   }, []);
+  useEffect(() => { if (error) notifyError(error, { id: 'admin-action-error' }); }, [error]);
+  useEffect(() => { if (notice) notifySuccess(notice); }, [notice]);
   useEffect(() => {
     if (!csrf) return undefined;
     refresh();
@@ -216,13 +219,11 @@ export function AdminPage() {
     <p className="eyebrow">FARE SHARE</p><h1>Admin</h1><p className="muted">Private creator fee management panel</p>
     <label>Username<input autoComplete="username" value={login.username} onChange={event => setLogin({ ...login, username: event.target.value })} required /></label>
     <label>Password<input type="password" autoComplete="current-password" value={login.password} onChange={event => setLogin({ ...login, password: event.target.value })} required /></label>
-    {error && <p className="message error">{error}</p>}<button disabled={busy === 'login'}>{busy === 'login' ? 'Signing in…' : 'Sign in'}</button>
+    <button disabled={busy === 'login'}>{busy === 'login' ? 'Signing in…' : 'Sign in'}</button>
   </form></main>;
 
   return <main className="admin-shell">
-    {error && <ErrorToast message={error} dismiss={() => setError('')} />}
     <header><div><p className="eyebrow">FARE SHARE</p><h1>Protocol control</h1></div><div className="header-actions"><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button><button className="ghost" onClick={logout}>Sign out</button></div></header>
-    {notice && <p className="message success">{notice}</p>}
     {!status ? <section className="admin-card">Loading on-chain state…</section> : <>
       <section className="metrics">
         <Metric label="Available to claim" value={formatSol(status.availableLamports)} />
@@ -258,12 +259,6 @@ export function AdminPage() {
 }
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
-function ErrorToast({ message, dismiss }) {
-  return <div className="admin-toast error" role="alert" aria-live="assertive">
-    <div><strong>Operation failed</strong><p>{message}</p></div>
-    <button type="button" onClick={dismiss} aria-label="Dismiss error">×</button>
-  </div>;
-}
 function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
   return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
     <label>Price, USD<input type="number" min="25" max="25" step="0.01" value={prices[0]} disabled onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>

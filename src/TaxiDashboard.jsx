@@ -21,6 +21,7 @@ import {
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { appAssetPath } from './appPath.js';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 const CLASSES = [
   { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: appAssetPath('/nft/economy.webp'), variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -88,6 +89,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
       setWallet(connected);
     } catch (error) {
       setNotice(error.message);
+      notifyError(error.message);
     }
   }
 
@@ -138,9 +140,12 @@ export function TaxiDashboard({ simple = false, background = null }) {
       setCars(nextCars);
       setTrainees(nextTrainees);
       setNotice(success);
+      notifySuccess(success);
     } catch (error) {
       if (error.signature) setLastSignature(error.signature);
-      setNotice(error.message || 'Transaction failed.');
+      const message = error.message || 'Transaction failed.';
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBusy('');
     }

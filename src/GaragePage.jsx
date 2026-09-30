@@ -16,6 +16,7 @@ import {
 } from './protocol/solana.js';
 import { loadDatabaseEarningHistory, loadDatabaseFleet } from './publicData.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+import { notifyError, notifySuccess } from './siteToasts.jsx';
 
 const CLASS_BY_WEIGHT = {
   1: { name: 'Economy', tone: 'economy' },
@@ -97,9 +98,9 @@ export function GaragePage({ wallet }) {
   const maximumHistoryValue = Math.max(0, ...history.map(point => point.fare));
 
   async function runAction(key, action, success) {
-    if (!wallet) return setNotice('Connect Phantom first.');
-    if (!status?.deployed) return setNotice('The protocol is not deployed on this network.');
-    if (paused) return setNotice('The protocol is paused. Transactions are temporarily disabled.');
+    if (!wallet) { const message = 'Connect Phantom first.'; setNotice(message); notifyError(message); return; }
+    if (!status?.deployed) { const message = 'The protocol is not deployed on this network.'; setNotice(message); notifyError(message); return; }
+    if (paused) { const message = 'The protocol is paused. Transactions are temporarily disabled.'; setNotice(message); notifyError(message); return; }
     setBusy(key);
     setNotice('Approve one transaction in Phantom and wait for finalization…');
     setSignature('');
@@ -117,9 +118,12 @@ export function GaragePage({ wallet }) {
       setHistory(nextHistory.points);
       setTrainees(nextTrainees);
       setNotice(success);
+      notifySuccess(success);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
-      setNotice(error.message || 'Transaction failed.');
+      const message = error.message || 'Transaction failed.';
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBusy('');
     }

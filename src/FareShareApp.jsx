@@ -4,6 +4,7 @@ import { FareFooter, FareHeader, MAGIC_EDEN_URL } from './FareShareChrome.jsx';
 import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.jsx';
 import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
+import { notifyError } from './siteToasts.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { DisclaimerPage, PrivacyPage, TermsPage } from './LegalPage.jsx';
 import { MintPage } from './MintPage.jsx';
@@ -168,7 +169,7 @@ export function FareShareApp() {
   return (
     <TokenConfigProvider><div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix={appPath('/')} activeItem={route.activeItem} landingOnly={PUBLIC_HOLDING} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <FareHeader linkPrefix={appPath('/')} activeItem={route.activeItem} landingOnly={PUBLIC_HOLDING} onConnectWallet={() => handleWalletButton().catch(error => notifyError(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
       <Page wallet={wallet} connectWallet={handleConnectWallet} publicHolding={PUBLIC_HOLDING} />
       <FareFooter linkPrefix={appPath('/')} landingOnly={PUBLIC_HOLDING} />
     </div></TokenConfigProvider>
