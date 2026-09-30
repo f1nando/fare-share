@@ -57,8 +57,8 @@ export function MintPage({ wallet, connectWallet }) {
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [trainees, setTrainees] = useState([]);
-  const [campaignId, setCampaignId] = useState('');
-  const [keyword, setKeyword] = useState('');
+  const [campaignId, setCampaignId] = useState('1');
+  const [keyword, setKeyword] = useState('Fare');
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
   const [traineeSignature, setTraineeSignature] = useState('');
