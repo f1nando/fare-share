@@ -217,13 +217,14 @@ authority keypair. После close тот же Program ID использова�
 
 # Публикация программы в mainnet
 
-Актуальный frozen SBF-файл собран в WSL по пути
-`/home/ivand/taxi-sbf-production-61abf9d/taxi_park.so`; его размер — `669552` байт, SHA-256 —
-`61abf9dad7389db5f28c6b149d4a20cd9cf5a30a6f5e84c650e329e7251ab2f1`.
-При текущей ставке аренды временный buffer (`3.402162360 SOL`), ProgramData
-(`3.402203000 SOL`) и аккаунт программы (`0.000833120 SOL`) одновременно требуют
-`6.805198480 SOL`. На deploy следует положить минимум `6.82 SOL`, чтобы остался запас
-на комиссии и повторные транзакции.
+Актуальный deployed SBF-файл собран в WSL по пути
+`/home/ivand/taxi-sbf-rounding-17031ed/artifact/taxi_park.so`; его размер — `678968`
+байт, SHA-256 — `1eae14a88f7b10b1a32c29a995d17d915ec4886994e09fa120d2582aec509339`.
+ProgramData имеет capacity `679792` байт и recoverable rent `3.454222200 SOL`.
+Повторный upgrade бинарником не больше этой capacity требует временный buffer
+`3.449995640 SOL` плюс transaction fees; buffer закрывается после проверки и rent
+возвращается authority. Program account `0.000833120 SOL` остаётся loader-v3
+tombstone только после окончательного close.
 
 Deploy сохраняет upgrade authority постоянно, чтобы обновление или окончательное
 закрытие программы с возвратом rent оставались возможны.
@@ -305,6 +306,19 @@ admin, оба баланса равны нулю. Финальная pause: `4Z2
 не затронут и остаётся recoverable. В FeeVault остаётся `0.088932152 SOL`, а также
 reward tokens и обязательства тестовым NFT; их нельзя считать потерянными, но
 выводить следует только при отдельном закрытии теста после paused/empty audit.
+
+30 сентября 2026 обнаружено расхождение rounding dust: accumulator сохранял
+дробный остаток, но тот же raw remainder повторно возвращался в `next_pool`.
+Из-за этого claim двух активных машин превышал backing на `6 raw TSLAx` и
+`2 raw GOOGLx`. Protocol поставлен на pause (`624smE…WeUUb`), ProgramData
+расширен на минимальные `10240` байт (`3Ap6mi…JYzY`), затем SBF из commit
+`17031ed` опубликован signature `2a8vJh…hWLotu`, slot `451816905`.
+On-chain ELF проверен по SHA-256, authority `2NUN…EGVnF` сохранена, постоянный
+buffer `5uK9…TuoQ` закрыт и его rent возвращён. Vault точно пополнен на
+`6 raw TSLAx + 2 raw GOOGLx` transaction `4DHPgU…Jjg55`; после unpause
+`ctEVpD…XZZkB` fresh Claim simulation завершилась с `err: null` и `152981 CU`.
+Новая логика резервирует весь accumulator budget один раз, а legacy claim после
+фактического token transfer безопасно выравнивает заниженное поле obligations.
 
 Чтобы использовать приватный server-side Helius endpoint, задайте
 `SOLANA_RPC_URL`; иначе используется публичный mainnet endpoint.
