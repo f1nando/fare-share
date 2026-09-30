@@ -72,7 +72,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [preparedMint, setPreparedMint] = useState(null);
   const [quoteError, setQuoteError] = useState('');
   const [trainees, setTrainees] = useState([]);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState('TAXI');
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
   const [traineeSignature, setTraineeSignature] = useState('');
@@ -135,7 +135,7 @@ export function MintPage({ wallet, connectWallet }) {
   useEffect(() => {
     if (!wallet || !status?.deployed) {
       setTrainees([]);
-      setKeyword(ticker);
+      setKeyword('TAXI');
       return undefined;
     }
     let active = true;
@@ -143,11 +143,11 @@ export function MintPage({ wallet, connectWallet }) {
       .then(value => {
         if (!active) return;
         setTrainees(value);
-        setKeyword(value.some(trainee => trainee.campaignId === 1n) ? '' : ticker);
+        setKeyword(value.some(trainee => trainee.campaignId === 1n) ? '' : 'TAXI');
       })
       .catch(error => active && setTraineeNotice(error.message));
     return () => { active = false; };
-  }, [wallet, status, ticker]);
+  }, [wallet, status]);
 
   async function handleMint() {
     if (!status?.deployed) return setNotice('The mint program is not available.');
