@@ -31,6 +31,7 @@ import {
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   MAX_REPAIR_MACHINES_PER_TRANSACTION as MAX_REPAIR_MACHINES_ONCHAIN,
   sendWalletInstructions,
+  waitForFinalizedSignature,
 } from './anchorClient.js';
 import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } from './requestLimits.js';
 
@@ -393,6 +394,10 @@ export async function prepareMintQuote(connection, knownStatus) {
     ? new DataView(accountBytes(balanceAccount.value).buffer).getBigUint64(64, true)
     : 0n;
   return { assetSigner, quote, status, ownerFareBalance };
+}
+
+export function waitForTransaction(signature) {
+  return waitForFinalizedSignature(rpc, signature);
 }
 
 export async function mintMachine(connection, knownStatus, preparedQuote) {

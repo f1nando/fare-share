@@ -10,9 +10,11 @@ import {
   loadProtocolStatus,
   mintMachine,
   prepareMintQuote,
+  waitForTransaction,
 } from './protocol/solana.js';
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
+import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -63,7 +65,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [databaseMint, setDatabaseMint] = useState(null);
   const [notice, setNotice] = useState('Loading live Solana mint state…');
   const [busy, setBusy] = useState(false);
-  const [quoteRefreshKey, setQuoteRefreshKey] = useState(0);
+  const [buyBusy, setBuyBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [preparedMint, setPreparedMint] = useState(null);
   const [quoteError, setQuoteError] = useState('');
@@ -90,7 +92,6 @@ export function MintPage({ wallet, connectWallet }) {
   const missingFareRaw = preparedMint && !hasQuotedBalance
     ? BigInt(preparedMint.quote.amountFareRaw) * BigInt(quantity) - preparedMint.ownerFareBalance
     : 0n;
-  const jupiterBuyUrl = `https://jup.ag/swap/SOL-${encodeURIComponent(tokenConfig.mint)}`;
 
   useEffect(() => {
     let active = true;
@@ -127,14 +128,7 @@ export function MintPage({ wallet, connectWallet }) {
       });
     refresh();
     return () => { active = false; window.clearTimeout(timer); };
-  }, [wallet, status?.deployed, status?.config?.fareMint, paused, remaining, quoteRefreshKey]);
-
-  useEffect(() => {
-    if (!wallet) return undefined;
-    const refreshOnReturn = () => setQuoteRefreshKey(value => value + 1);
-    window.addEventListener('focus', refreshOnReturn);
-    return () => window.removeEventListener('focus', refreshOnReturn);
-  }, [wallet]);
+  }, [wallet, status?.deployed, status?.config?.fareMint, paused, remaining]);
 
   useEffect(() => {
     if (!wallet || !status?.deployed) {
@@ -185,6 +179,34 @@ export function MintPage({ wallet, connectWallet }) {
         : error.message || 'Mint failed.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleBuyMissingFare() {
+    if (!preparedMint || missingFareRaw <= 0n) return;
+    setBuyBusy(true);
+    setSignature('');
+    setNotice(`Preparing the ${fareTicker} purchase…`);
+    try {
+      const connection = wallet || await connectWallet();
+      const sizing = await quoteMintFarePurchase(missingFareRaw);
+      const tradeQuote = await quoteTrade('buy', Number(sizing.inputSol) * 1.005);
+      setNotice(`Approve the ${fareTicker} purchase in Phantom…`);
+      const purchaseSignature = await executeTrade(connection, tradeQuote.quoteId);
+      setSignature(purchaseSignature);
+      setNotice(`${fareTicker} purchase submitted. Waiting for confirmation…`);
+      await waitForTransaction(purchaseSignature);
+      const refreshed = await prepareMintQuote(connection, status);
+      setPreparedMint(refreshed);
+      setQuoteError('');
+      setNotice(refreshed.ownerFareBalance >= BigInt(refreshed.quote.amountFareRaw)
+        ? `${fareTicker} is ready. You can mint your taxi now.`
+        : `Your balance is still below the refreshed mint quote. Buy the remaining ${fareTicker} amount.`);
+    } catch (error) {
+      if (error.signature) setSignature(error.signature);
+      setNotice(error.message || `${fareTicker} purchase failed.`);
+    } finally {
+      setBuyBusy(false);
     }
   }
 
@@ -351,17 +373,17 @@ export function MintPage({ wallet, connectWallet }) {
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
               {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
               {preparedMint && !hasQuotedBalance ? (
-                <a className="fare-mint-submit" href={jupiterBuyUrl} target="_blank" rel="noreferrer">
-                  <span>Buy {formatTokenAmount(missingFareRaw, fareDecimals)} ${fareTicker}</span>
+                <button className="fare-mint-submit" type="button" disabled={busy || buyBusy} onClick={handleBuyMissingFare}>
+                  <span>{buyBusy ? `Buying ${fareTicker}…` : `Buy ${formatTokenAmount(missingFareRaw, fareDecimals)} ${fareTicker}`}</span>
                   <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
-                </a>
+                </button>
               ) : (
-                <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && !preparedMint)} onClick={handleMint}>
+                <button className="fare-mint-submit" type="button" disabled={busy || buyBusy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && !preparedMint)} onClick={handleMint}>
                   <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                   <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
                 </button>
               )}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">The purchase opens on Jupiter to avoid Phantom's temporary block for this domain. Return here after the swap; your balance refreshes automatically.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">The purchase uses the same Jupiter transaction flow as the Trade page. After confirmation, this button changes to mint.</p>}
               <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
           </div>
