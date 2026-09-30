@@ -1,4 +1,5 @@
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+import { appPath } from './appPath.js';
 
 const spacingValues = [8, 12, 16, 24, 32, 48, 64];
 
@@ -63,7 +64,7 @@ export function UIKitPage() {
           <span className="ui-kit-eyebrow">FARE SHARE SYSTEM</span>
           <h1>UI KIT</h1>
         </div>
-        <a href="/fare-share/">Back to site</a>
+        <a href={appPath('/fare-share/')}>Back to site</a>
       </header>
 
       <main>

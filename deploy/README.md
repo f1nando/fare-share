@@ -47,6 +47,12 @@ symlink. Install `deploy/ownataxi.nginx.conf` as the enabled `ownataxi.com` site
 and install both `deploy/ownataxi-backend.service` and
 `deploy/ownataxi-worker.service` under `/etc/systemd/system/`.
 
+The public testing entry point is `https://ownataxi.com/rehearsal/`. All normal
+product routes also work below this prefix, for example
+`/rehearsal/mint/`, `/rehearsal/garage/`, and `/rehearsal/trade/`. Use this
+prefixed route for owner testing of current rehearsal work. Publishing a web
+release there does not authorize worker activation or any Mainnet transaction.
+
 All source delivery to `feeserv` must go through GitHub. After the approved
 release commit is pushed to `origin/main`, run `git fetch` on the server and
 create a new release directory by checking out that exact commit SHA in detached

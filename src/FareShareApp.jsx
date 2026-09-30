@@ -12,6 +12,7 @@ import { TradePage } from './TradePage.jsx';
 import { connectTradeWallet } from './tradeApi.js';
 import { disconnectWallet, shortAddress } from './protocol/solana.js';
 import { TokenConfigProvider } from './tokenConfig.jsx';
+import { appPath, isRehearsalPath, stripAppPrefix } from './appPath.js';
 import './trade.css';
 
 const routes = {
@@ -86,7 +87,7 @@ function normalizePathname(pathname) {
 }
 
 function readLocation() {
-  return `${normalizePathname(window.location.pathname)}${window.location.hash}`;
+  return `${normalizePathname(stripAppPrefix(window.location.pathname))}${window.location.hash}`;
 }
 
 export function FareShareApp() {
@@ -104,12 +105,13 @@ export function FareShareApp() {
       if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
 
       const url = new URL(link.href, window.location.href);
-      const nextPathname = normalizePathname(url.pathname);
+      const nextPathname = normalizePathname(stripAppPrefix(url.pathname));
       if (url.origin !== window.location.origin || !routes[nextPathname]) return;
 
       event.preventDefault();
       const nextLocation = `${nextPathname}${url.hash}`;
-      if (nextLocation !== location) window.history.pushState({}, '', nextLocation);
+      const browserLocation = `${isRehearsalPath() ? appPath(nextPathname) : nextPathname}${url.hash}`;
+      if (nextLocation !== location) window.history.pushState({}, '', browserLocation);
       setLocation(nextLocation);
     };
     const handlePopState = () => setLocation(readLocation());
@@ -151,9 +153,9 @@ export function FareShareApp() {
   return (
     <TokenConfigProvider><div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix="/fare-share/" activeItem={route.activeItem} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <FareHeader linkPrefix={appPath('/fare-share/')} activeItem={route.activeItem} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
       <Page wallet={wallet} connectWallet={handleConnectWallet} />
-      <FareFooter linkPrefix="/fare-share/" />
+      <FareFooter linkPrefix={appPath('/fare-share/')} />
     </div></TokenConfigProvider>
   );
 }

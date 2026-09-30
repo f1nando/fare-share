@@ -7,6 +7,7 @@ import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { loadPublicOverview } from './publicData.js';
+import { appPath } from './appPath.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -678,7 +679,7 @@ export function FareShareLanding() {
             <p className="fare-hero-intro">Better classes receive a larger earning share. No twelve-stat RPG spreadsheet.</p>
           </div>
 
-          <a className="fare-button fare-button-primary fare-fleet-button" href="/garage/">
+          <a className="fare-button fare-button-primary fare-fleet-button" href={appPath('/garage/')}>
             Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
           </div>
@@ -701,7 +702,7 @@ export function FareShareLanding() {
 
           <div className="fare-leaderboard-heading">
             <h3>LEADERBOARD</h3>
-            <a className="fare-leaderboard-button" href="/leaderboard/">
+            <a className="fare-leaderboard-button" href={appPath('/leaderboard/')}>
               View Full Leaderboard
               <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow color="#FFFFFF" /></span>
             </a>

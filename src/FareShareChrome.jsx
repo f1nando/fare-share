@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+import { appPath } from './appPath.js';
 
-const MAGIC_EDEN_MARKET_URL = String(import.meta.env.VITE_MAGIC_EDEN_MARKET_URL || '/market/');
+const CONFIGURED_MARKET_URL = String(import.meta.env.VITE_MAGIC_EDEN_MARKET_URL || '/market/');
 
 function XIcon() {
   return (
@@ -31,15 +32,16 @@ function MobileWalletIcon() {
 export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home', onConnectWallet, walletLabel }) {
   const ticker = displayTicker(useTokenConfig());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
   const navigationItems = [
     { id: 'home', label: 'HOME', href: `${linkPrefix}#top` },
-    { id: 'mint', label: 'MINT', href: '/mint/' },
-    { id: 'garage', label: 'GARAGE', href: '/garage/' },
-    { id: 'leaderboard', label: 'LEADERBOARD', href: '/leaderboard/' },
-    { id: 'market', label: 'MARKET', href: MAGIC_EDEN_MARKET_URL },
-    { id: 'trade', label: 'TRADE', href: '/trade/' },
-    { id: 'faq', label: 'FAQ', href: '/faq/' },
-    { id: 'docs', label: 'DOCS', href: '/docs/' },
+    { id: 'mint', label: 'MINT', href: appPath('/mint/') },
+    { id: 'garage', label: 'GARAGE', href: appPath('/garage/') },
+    { id: 'leaderboard', label: 'LEADERBOARD', href: appPath('/leaderboard/') },
+    { id: 'market', label: 'MARKET', href: marketUrl },
+    { id: 'trade', label: 'TRADE', href: appPath('/trade/') },
+    { id: 'faq', label: 'FAQ', href: appPath('/faq/') },
+    { id: 'docs', label: 'DOCS', href: appPath('/docs/') },
   ];
 
   useEffect(() => {
@@ -121,6 +123,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
 }
 
 export function FareFooter({ linkPrefix = '' }) {
+  const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
   return (
     <footer className="fare-footer">
       <div className="fare-footer-watermark" aria-hidden="true"><span>FARE</span>{' '}<span>SHARE</span></div>
@@ -139,23 +142,23 @@ export function FareFooter({ linkPrefix = '' }) {
         <nav className="fare-footer-column" aria-label="Footer navigation">
           <h2>NAVIGATION</h2>
           <a href={`${linkPrefix}#top`}>Home</a>
-          <a href="/mint/">Mint</a>
-          <a href="/garage/">Garage</a>
-          <a href={MAGIC_EDEN_MARKET_URL}>Market</a>
-          <a href="/leaderboard/">Leaderboard</a>
+          <a href={appPath('/mint/')}>Mint</a>
+          <a href={appPath('/garage/')}>Garage</a>
+          <a href={marketUrl}>Market</a>
+          <a href={appPath('/leaderboard/')}>Leaderboard</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Resources">
           <h2>RESOURCES</h2>
           <a href={`${linkPrefix}#how-it-works`}>How it Works</a>
           <a href={`${linkPrefix}#dashboard`}>Treasury</a>
-          <a href="/docs/">Docs</a>
-          <a href="/faq/">FAQ</a>
+          <a href={appPath('/docs/')}>Docs</a>
+          <a href={appPath('/faq/')}>FAQ</a>
         </nav>
         <nav className="fare-footer-column" aria-label="Legal">
           <h2>LEGAL</h2>
-          <a href="/terms/">Terms</a>
-          <a href="/privacy/">Privacy</a>
-          <a href="/disclaimer/">Disclaimer</a>
+          <a href={appPath('/terms/')}>Terms</a>
+          <a href={appPath('/privacy/')}>Privacy</a>
+          <a href={appPath('/disclaimer/')}>Disclaimer</a>
         </nav>
       </div>
     </footer>

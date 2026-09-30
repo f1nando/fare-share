@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import { loadPublicMarket } from './publicData.js';
+import { appPath } from './appPath.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -159,7 +160,7 @@ export function MarketPage({ wallet, connectWallet }) {
             <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'Live listings and checkout are not implemented here. Use only the verified Magic Eden collection link once it is published.'}</p>
             {hasActiveFilters
               ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
-              : <a href="/mint/">GO TO MINT</a>}
+              : <a href={appPath('/mint/')}>GO TO MINT</a>}
           </div>
         )}
       </section>
