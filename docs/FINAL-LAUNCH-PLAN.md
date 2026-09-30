@@ -104,6 +104,7 @@
 | D-52 | Четыре обязательных paid mint выполняются со второго disposable user wallet | Перед каждым mint wallet получает только рассчитанный объём текущего `$FARE`; signed quote и on-chain transfer должны перевести 100% суммы из canonical user ATA в canonical team ATA `2NUN…EGVnF`. Mint от самого team wallet не используется как payment proof, чтобы source и destination ATA были различными. |
 | D-53 | Четыре paid mint делятся `2 + 2` между старым test CA и новым `FARETEST` | Сначала выполняются два mint с `4fg5…pump`, затем после `start_sale` admin меняет runtime CA на новый `FARETEST`. Quote со старым CA обязан быть отклонён, после чего выполняются ещё два mint с `FARETEST`. Configuration, API, UI, Trade и team/user ATA проверяются после переключения. |
 | D-54 | Для обязательного full worker smoke disposable FeeVault получает `0.1 SOL` | Сумма проходит через contract split, `$FARE` main/trainee/burn routes, четыре official xStocks routes, team share и reward accounting. Safe no-route сохраняет соответствующий reserve. Эти `0.1 SOL` учитываются в общем лимите невозвратных расходов `0.5 SOL`; дополнительное пополнение требует отдельного решения. |
+| D-55 | Trade smoke выполняет две покупки максимум по `0.02 SOL` | Второй disposable user wallet покупает и частично продаёт `4fg5…pump`, затем после runtime CA replacement повторяет buy/partial sell для `FARETEST`. Каждая покупка ограничена `0.02 SOL`; фактические fees и slippage учитываются в общем лимите невозвратных расходов `0.5 SOL`. |
 
 ## L-01. Worker/Jupiter reserve routes
 
