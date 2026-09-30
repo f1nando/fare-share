@@ -16,6 +16,7 @@ import { performWorkerAction } from './workerAutomation.js';
 import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
 import { createRehearsalBudgetGuard } from './rehearsalBudget.js';
 import { configureTransactionBudgetGuard } from './transaction.js';
+import { createTelegramAlertService } from './telegramAlerts.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -27,6 +28,14 @@ if (config.rehearsalMode) configureTransactionBudgetGuard(await createRehearsalB
   transactionReserveLamports: config.rehearsalTransactionReserveLamports,
   initialSpentLamports: config.rehearsalInitialSpentLamports,
 }));
+const telegramAlerts = config.telegramBotTokenFile
+  ? await createTelegramAlertService(
+      config.telegramBotTokenFile,
+      database.telegramAlerts,
+      database.telegramAlertStates,
+      database.telegramAudit,
+    )
+  : undefined;
 const issueVoucher = createVoucherService(config, database);
 const issueMintQuote = createMintQuoteService(config);
 let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRpcUrl, config.programId, database.tokenConfig)
@@ -264,7 +273,18 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname === '/api/mint/quote') {
       requirePublicOrigin(request);
-      json(response, 200, await issueMintQuote(await readJson(request)));
+      try {
+        const quote = await issueMintQuote(await readJson(request));
+        await telegramAlerts?.recovery('mint-quote', 'Mint quote generation is succeeding again.').catch(() => undefined);
+        json(response, 200, quote);
+      } catch (error) {
+        const alertableQuoteFailure = !(error instanceof MintQuoteError)
+          || (error.status >= 500 && /market|liquidity|route|price|jupiter|solana time/i.test(error.message));
+        if (alertableQuoteFailure) {
+          await telegramAlerts?.failure('mint-quote', 'Mint quote generation failed repeatedly. Check protected backend logs.', 3).catch(() => undefined);
+        }
+        throw error;
+      }
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
