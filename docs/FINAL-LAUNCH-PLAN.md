@@ -96,6 +96,7 @@
 | D-44 | Полный shuffled manifest из 1222 assignments не публикуется до окончания sale | До sold out публичны только on-chain Merkle root и текущая следующая assignment через краткоживущий quote. Полный manifest остаётся server-side и после завершения продажи публикуется для независимой проверки root, class totals и variant balance. |
 | D-45 | Private mint assignment manifest имеет две резервные копии | Рабочая копия хранится на rehearsal server вне public web root; backup помещается в обычный Desktop ZIP рядом с disposable key backup. Обе копии сверяются по SHA-256 и Merkle root, не попадают в Git/логи/чат и не публикуются до sold out. |
 | D-46 | Paid NFT используют 0% creator royalty | Core assets остаются свободно transferable и могут продаваться на совместимых marketplace без project royalty plugin. Продавец получает цену за вычетом только комиссий конкретного marketplace; Trainee assets по-прежнему permanently frozen и не могут продаваться. |
+| D-47 | Paid NFT можно передавать и выставлять на marketplace сразу после mint | Lockup или отдельный listing delay не используется. Standard Metaplex Core transfer доступен текущему owner; Magic Eden и другие совместимые marketplace могут показывать и продавать asset сразу после индексации. Trainee transfer всегда отклоняется permanent freeze delegate. |
 
 ## L-01. Worker/Jupiter reserve routes
 
