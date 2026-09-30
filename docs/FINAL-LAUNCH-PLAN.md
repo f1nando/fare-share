@@ -83,6 +83,7 @@
 | D-31 | Локальный keypair `2NUN…EGVnF` найден и проверен | Внешний к репозиторию Desktop-файл содержит base58-encoded 64-byte keypair; локальная derivation без вывода secret подтвердила точный public key `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`. Файл не копируется в Git, manifest, логи или чат. |
 | D-32 | Публичный disposable rehearsal размещается на основном домене `https://ownataxi.com/` | Отдельный subdomain не используется. Текущая старая test-only копия предварительно архивируется для rollback, после чего frontend/backend заменяются rehearsal release. Само решение домена не является командой начать deployment. |
 | D-33 | Rehearsal повторно использует существующие server credentials внешних сервисов | Используются уже настроенные MongoDB cluster credentials, Solana RPC/DAS, Helius и Jupiter API credentials. Secrets читаются только из server secret/env storage и не переносятся в Git, manifest или чат. MongoDB изолируется database name `fare_share_disposable_rehearsal`; отсутствие или несоответствие любого credential блокирует запуск соответствующего сервиса. |
+| D-34 | Rehearsal повторно использует существующую admin-auth конфигурацию | Сохраняются текущие admin username, password hash и session secret из server secret/env storage. Новые credentials входа не создаются; admin routes и worker controls остаются недоступны без действующей сессии. Значения secrets не выводятся в manifest, Git или чат. |
 
 ## L-01. Worker/Jupiter reserve routes
 
