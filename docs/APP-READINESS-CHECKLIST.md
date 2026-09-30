@@ -38,7 +38,7 @@
 - 🛑 Для production нужны новые Program ID, Collection, token, цены, конфигурация и отдельный release gate.
 - 🟡 Claim новой двухмашинной конфигурации после rounding fix успешно симулируется, но пользовательская Phantom-транзакция ещё не подтверждена.
 - 🟡 Малые Jupiter-маршруты для xStocks нестабильны: в последнем цикле GOOGLx и AMZNx не купились, SOL безопасно остался в отдельных резервах.
-- 🟡 Branded frontend не предоставляет интерфейс активации/claim trainee; эта функция осталась в старом `TaxiDashboard`.
+- 🟡 Branded Mint frontend теперь содержит activation/claim trainee, но изменение ещё нужно опубликовать и проверить с реальной кампанией.
 - 🟡 Красное предупреждение о пустом Team wallet реализовано в commit `2cbbfd0`, но ещё не опубликовано.
 - ❌ Встроенный Market — только явно обозначенный UI prototype без listing и checkout.
 
@@ -132,8 +132,8 @@
 - ✅ On-chain activate/claim, backend voucher, подпись Ed25519, expiry и защита от повторной кампании реализованы.
 - ✅ Campaign/rate-limit/backend tests существуют.
 - 🟡 Docs и landing рассказывают о trainee campaign.
-- ❌ В текущем branded приложении нет публичной страницы или блока для ввода campaign ID + keyword и последующего claim.
-- ⬜ Решить перед production: перенести trainee UI из `TaxiDashboard` в branded frontend либо убрать публичные обещания до готовности UX.
+- ✅ В branded `/mint/` добавлены campaign ID + keyword, активация временной trainee machine, список кампаний и отдельный Claim.
+- ⬜ Опубликовать новый trainee UI и проверить его с реальной тестовой кампанией.
 - ⬜ Выполнить end-to-end smoke: создать campaign → получить voucher → activate → дождаться reward → claim.
 - ⬜ Проверить wrong keyword, expired campaign, повторную активацию и rate limit.
 

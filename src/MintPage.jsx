@@ -2,8 +2,11 @@ import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 import {
+  activateTrainee,
+  claimTrainee,
   explorerTransaction,
   formatSolAmount,
+  loadOwnedTrainees,
   loadProtocolStatus,
   mintMachine,
 } from './protocol/solana.js';
@@ -53,6 +56,12 @@ export function MintPage({ wallet, connectWallet }) {
   const [notice, setNotice] = useState('Loading live Solana mint state…');
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
+  const [trainees, setTrainees] = useState([]);
+  const [campaignId, setCampaignId] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [traineeBusy, setTraineeBusy] = useState('');
+  const [traineeNotice, setTraineeNotice] = useState('');
+  const [traineeSignature, setTraineeSignature] = useState('');
   const [preview, dispatchPreview] = useReducer(previewReducer, {
     current: { classIndex: 0, sceneIndex: 0 },
     previous: null,
@@ -82,6 +91,18 @@ export function MintPage({ wallet, connectWallet }) {
   useEffect(() => {
     setQuantity(value => Math.max(1, Math.min(value, Math.max(1, remaining))));
   }, [remaining, selectedClassIndex]);
+
+  useEffect(() => {
+    if (!wallet || !status?.deployed) {
+      setTrainees([]);
+      return undefined;
+    }
+    let active = true;
+    loadOwnedTrainees(wallet.account.address, status)
+      .then(value => active && setTrainees(value))
+      .catch(error => active && setTraineeNotice(error.message));
+    return () => { active = false; };
+  }, [wallet, status]);
 
   async function handleMint() {
     if (!status?.deployed) return setNotice('The mint program is not available.');
@@ -118,6 +139,52 @@ export function MintPage({ wallet, connectWallet }) {
         : error.message || 'Mint failed.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleActivateTrainee(event) {
+    event.preventDefault();
+    if (!status?.deployed) return setTraineeNotice('The trainee program is not available.');
+    if (paused) return setTraineeNotice('The protocol is paused. Trainee activation is temporarily disabled.');
+    if (!campaignId || !keyword.trim()) return setTraineeNotice('Enter the campaign ID and keyword.');
+    setTraineeBusy('activate');
+    setTraineeNotice('Approve one activation transaction in Phantom…');
+    setTraineeSignature('');
+    try {
+      const connection = wallet || await connectWallet();
+      const nextSignature = await activateTrainee(connection, campaignId, keyword.trim(), status);
+      const nextStatus = await loadProtocolStatus();
+      setStatus(nextStatus);
+      setTrainees(await loadOwnedTrainees(connection.account.address, nextStatus));
+      setKeyword('');
+      setTraineeSignature(nextSignature);
+      setTraineeNotice('Your temporary trainee taxi is active and participates automatically.');
+    } catch (error) {
+      if (error.signature) setTraineeSignature(error.signature);
+      setTraineeNotice(error.message || 'Trainee activation failed.');
+    } finally {
+      setTraineeBusy('');
+    }
+  }
+
+  async function handleClaimTrainee(trainee) {
+    if (!wallet) return setTraineeNotice('Connect Phantom first.');
+    if (paused) return setTraineeNotice('The protocol is paused. Claims are temporarily disabled.');
+    setTraineeBusy(`claim-${trainee.campaignId}`);
+    setTraineeNotice('Approve one claim transaction in Phantom…');
+    setTraineeSignature('');
+    try {
+      const nextSignature = await claimTrainee(wallet, trainee, status);
+      const nextStatus = await loadProtocolStatus();
+      setStatus(nextStatus);
+      setTrainees(await loadOwnedTrainees(wallet.account.address, nextStatus));
+      setTraineeSignature(nextSignature);
+      setTraineeNotice('Trainee rewards claimed.');
+    } catch (error) {
+      if (error.signature) setTraineeSignature(error.signature);
+      setTraineeNotice(error.message || 'Trainee claim failed.');
+    } finally {
+      setTraineeBusy('');
     }
   }
 
@@ -253,6 +320,30 @@ export function MintPage({ wallet, connectWallet }) {
               <p className="fare-mint-note">The minted car appears in your garage and starts working automatically with a full tank.</p>
             </div>
           </div>
+
+          <section className="fare-trainee-mint" aria-labelledby="trainee-mint-title">
+            <div className="fare-trainee-mint-copy">
+              <span>FREE TEMPORARY TAXI</span>
+              <h2 id="trainee-mint-title">START AS A TRAINEE</h2>
+              <p>Enter the campaign ID and keyword published by Fare Share. The trainee taxi is virtual, non-transferable and participates automatically for the campaign period.</p>
+              <p className="fare-trainee-mint-note">Activation does not mint an NFT. Your wallet pays only Solana account rent and the network fee.</p>
+            </div>
+            <div className="fare-trainee-mint-panel">
+              <form onSubmit={handleActivateTrainee}>
+                <label htmlFor="trainee-campaign-id">Campaign ID<input id="trainee-campaign-id" inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="For example, 1" /></label>
+                <label htmlFor="trainee-keyword">Campaign keyword<input id="trainee-keyword" value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Keyword from the official post" /></label>
+                <button type="submit" disabled={Boolean(traineeBusy) || paused || !campaignId || !keyword.trim()}>{traineeBusy === 'activate' ? 'Activating…' : wallet ? 'Activate trainee taxi' : 'Connect and activate'}</button>
+              </form>
+              {traineeNotice && <p className="fare-trainee-message" role="status">{traineeNotice}</p>}
+              {traineeSignature && <a className="fare-garage-signature" href={explorerTransaction(traineeSignature)} target="_blank" rel="noreferrer">View transaction</a>}
+              {trainees.length > 0 && <div className="fare-trainee-list">
+                {trainees.map(trainee => <article key={String(trainee.campaignId)}>
+                  <div><strong>Campaign #{String(trainee.campaignId)}</strong><span>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</span><small>{trainee.rewardDisplay} TAXI claimable</small></div>
+                  <button type="button" disabled={Boolean(traineeBusy) || paused || trainee.reward === 0n} onClick={() => handleClaimTrainee(trainee)}>{traineeBusy === `claim-${trainee.campaignId}` ? 'Claiming…' : 'Claim TAXI'}</button>
+                </article>)}
+              </div>}
+            </div>
+          </section>
         </section>
       </main>
     </>
