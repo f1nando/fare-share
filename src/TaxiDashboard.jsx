@@ -13,25 +13,26 @@ import {
   MAX_REPAIR_MACHINES_PER_TRANSACTION,
   mintMachine,
   networkName,
+  prepareMintQuote,
   repairMachine,
   repairAllMachines,
   transferMachine,
-  formatSolAmount,
   shortAddress,
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const CLASSES = [
-  { name: 'Economy', count: 1000, weight: 1, price: 'Unavailable', tone: 'economy', image: '/nft/economy.webp' },
-  { name: 'Comfort', count: 300, weight: 3, price: 'Unavailable', tone: 'comfort', image: '/nft/comfort.webp' },
-  { name: 'Business', count: 100, weight: 10, price: 'Unavailable', tone: 'business', image: '/nft/business.webp' },
-  { name: 'Legend', count: 25, weight: 30, price: 'Unavailable', tone: 'legend', image: '/nft/legend.webp' },
+  { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: '/nft/economy.webp', variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', count: 278, weight: 3, odds: '22.75%', tone: 'comfort', image: '/nft/comfort.webp', variants: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', count: 83, weight: 10, odds: '6.79%', tone: 'business', image: '/nft/business.webp', variants: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', count: 28, weight: 30, odds: '2.29%', tone: 'legend', image: '/nft/legend.webp', variants: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ];
 
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));
 
 export function TaxiDashboard({ simple = false, background = null }) {
-  const ticker = displayTicker(useTokenConfig());
+  const tokenConfig = useTokenConfig();
+  const ticker = displayTicker(tokenConfig);
   const [wallet, setWallet] = useState(null);
   const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState([]);
@@ -41,6 +42,7 @@ export function TaxiDashboard({ simple = false, background = null }) {
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [lastSignature, setLastSignature] = useState('');
+  const [preparedMint, setPreparedMint] = useState(null);
   const protocolPaused = Boolean(status.deployed && status.config?.pausedAt !== 0n);
 
   useEffect(() => {
@@ -53,13 +55,26 @@ export function TaxiDashboard({ simple = false, background = null }) {
       })
       .catch(() => active && setStatus({ loading: false, deployed: false, network: networkName() }));
     return () => { active = false; };
-  }, []);
+  }, [tokenConfig.mint]);
 
   useEffect(() => {
     if (wallet && status.deployed) refreshGarage(wallet, status);
   }, [wallet, status.deployed]);
 
+  useEffect(() => {
+    let active = true;
+    setPreparedMint(null);
+    if (!wallet || !status.deployed || protocolPaused) return () => { active = false; };
+    const refresh = () => prepareMintQuote(wallet, status)
+      .then(value => active && setPreparedMint(value))
+      .catch(() => active && setPreparedMint(null));
+    refresh();
+    const timer = window.setInterval(refresh, 20_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [wallet, status.deployed, status.config?.fareMint, status.config?.mintedByClass?.join(','), protocolPaused]);
+
   const totalWeight = useMemo(() => CLASSES.reduce((sum, item) => sum + item.count * item.weight, 0), []);
+  const paidMinted = status.config?.mintedByClass?.reduce((total, value) => total + Number(value), 0) || 0;
   const claimableCars = useMemo(() => cars.filter(car => car.rewards?.some(amount => BigInt(amount) > 0n)), [cars]);
   const repairableCars = useMemo(() => cars.filter(car => car.missingSeconds > 0), [cars]);
   const claimBatch = claimableCars.slice(0, MAX_CLAIM_MACHINES_PER_TRANSACTION);
@@ -241,11 +256,15 @@ export function TaxiDashboard({ simple = false, background = null }) {
         </section>
 
         <section className="panel mint-panel" aria-labelledby="mint-title">
-          <div className="section-title"><div><p className="eyebrow">1,425 cars</p><h2 id="mint-title">Choose a class</h2></div></div>
-          {simple && <p className="mint-cost-note">Phantom will show the NFT price plus approximately 0.0045 SOL for the personal Metaplex Core asset and Machine account rent. This is account creation cost, not network gas. The shared Devnet event page has already been prepaid by the deployer.</p>}
+          <div className="section-title"><div><p className="eyebrow">1,222 cars</p><h2 id="mint-title">Random taxi mint</h2></div></div>
+          {simple && <p className="mint-cost-note">Phantom will show the NFT price in ${ticker} plus SOL network fees and rent for the Metaplex Core asset, Machine account, and any missing team token account.</p>}
+          <p className="mint-cost-note">Every mint costs $25 in ${ticker}. Class and model follow the precommitted shuffled order.</p>
+          {preparedMint && <p className="mint-cost-note"><strong>Next taxi:</strong> {CLASSES[Number(preparedMint.quote.classIndex)]?.name} · {CLASSES[Number(preparedMint.quote.classIndex)]?.variants[Number(preparedMint.quote.variantIndex)]}</p>}
+          <button disabled={Boolean(busy) || protocolPaused || !preparedMint || paidMinted >= 1222} onClick={() => runAction('mint-random', () => mintMachine(wallet, status, preparedMint), 'Random taxi NFT minted.')}>
+            {paidMinted >= 1222 ? 'Sold out' : `Mint random taxi · $25 in $${ticker}`}
+          </button>
           <div className="class-grid">
             {CLASSES.map((item, classIndex) => {
-              const solPrice = status.deployed ? formatSolAmount(status.config.mintPrices[classIndex]) : null;
               const remaining = status.deployed
                 ? item.count - Number(status.config.mintedByClass[classIndex])
                 : item.count;
@@ -253,12 +272,9 @@ export function TaxiDashboard({ simple = false, background = null }) {
                 <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
                 <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} loading="lazy" decoding="async" />
                 <dl>
-                  <div><dt>Price</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
+                  <div><dt>Collection share</dt><dd>{item.odds}</dd></div>
                   <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>
                 </dl>
-                <button disabled={Boolean(busy) || protocolPaused || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
-                  {remaining === 0 ? 'Sold out' : solPrice ? `Buy · ${solPrice} SOL` : 'Buy with SOL'}
-                </button>
               </article>;
             })}
           </div>

@@ -1,0 +1,24 @@
+[Unit]
+Description=Own a Taxi recovery claim RPC proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ownataxi
+Group=ownataxi
+WorkingDirectory=/srv/ownataxi/current
+EnvironmentFile=/etc/ownataxi/recovery-claim.env
+Environment=PORT=8787
+Environment=RECOVERY_CLAIM_ORIGIN=https://ownataxi.com
+ExecStart=/usr/bin/node --import tsx server/recoveryClaimProxy.ts
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

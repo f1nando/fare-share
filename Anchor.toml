@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-taxi_park = "GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4"
+taxi_park = "3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z"
 
 [provider]
 cluster = "Devnet"

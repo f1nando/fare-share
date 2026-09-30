@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
-import { AccountRole, address, type KeyPairSigner } from '@solana/kit';
+import { AccountRole, address, createKeyPairSignerFromBytes, type KeyPairSigner } from '@solana/kit';
 import {
   buildInitializeInstruction,
   buildSetMetadataUrisInstruction,
   buildSetTraineeMetadataUriInstruction,
   assertMetadataUris,
+  loadCollectionSigner,
   protocolAddresses,
+  resolveCollectionSigner,
   type InitializeProtocolInput,
 } from '../server/setup.js';
 
@@ -31,7 +36,8 @@ test('initialize instruction matches Anchor account and field order', async () =
     collectionName: 'Taxi Park',
     collectionUri: 'https://example.test/collection.json',
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
-    mintPrices: [350_000_000n, 1_000_000_000n, 3_000_000_000n, 8_000_000_000n],
+    mintPricesUsdCents: [2500n, 2500n, 2500n, 2500n],
+    mintAssignmentRoot: new Uint8Array(12).fill(7),
     metadataUris: Array.from({ length: 16 }, (_, index) => `uri-${index}`),
     traineeMetadataUri: 'https://example.test/trainee.json',
   };
@@ -61,9 +67,11 @@ test('initialize instruction matches Anchor account and field order', async () =
   offset += 32 * 4;
   assert.deepEqual(
     [0, 1, 2, 3].map(index => data.readBigUInt64LE(offset + (index * 8))),
-    [350_000_000n, 1_000_000_000n, 3_000_000_000n, 8_000_000_000n],
+    [2500n, 2500n, 2500n, 2500n],
   );
   offset += 8 * 4;
+  assert.deepEqual(data.subarray(offset, offset + 12), Buffer.alloc(12, 7));
+  offset += 12;
   assert.equal(offset, data.length);
 
   for (let classIndex = 0; classIndex < 4; classIndex += 1) {
@@ -126,4 +134,27 @@ test('protocol PDA derivation is deterministic and separates all roots', async (
   const second = await protocolAddresses(PROGRAM_ID);
   assert.deepEqual(first, second);
   assert.equal(new Set(Object.values(first)).size, 6);
+});
+
+test('external Collection signer is loaded only when it matches the expected address', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-collection-signer-'));
+  const keypairPath = join(directory, 'collection.json');
+  try {
+    await writeFile(keypairPath, SIGNER_SECRET, 'utf8');
+    const expected = await createKeyPairSignerFromBytes(Uint8Array.from(JSON.parse(SIGNER_SECRET)));
+    const signer = await loadCollectionSigner(keypairPath, expected.address);
+    assert.equal(signer.address, expected.address);
+    await assert.rejects(
+      loadCollectionSigner(keypairPath, SYSTEM_ADDRESS),
+      /does not match COLLECTION_ADDRESS/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('Collection signer selection fails closed when an external signer is required', async () => {
+  await assert.rejects(resolveCollectionSigner(undefined, true), /external Collection signer is required/);
+  const external = await createKeyPairSignerFromBytes(Uint8Array.from(JSON.parse(SIGNER_SECRET)));
+  assert.equal(await resolveCollectionSigner(external, true), external);
 });

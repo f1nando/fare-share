@@ -7,7 +7,8 @@ pub const STOCK_COUNT: usize = 4;
 pub const CLASS_COUNT: usize = 4;
 pub const VARIANTS_PER_CLASS: usize = 4;
 pub const METADATA_URI_COUNT: usize = CLASS_COUNT * VARIANTS_PER_CLASS;
-pub const CLASS_CAPS: [u16; CLASS_COUNT] = [1000, 300, 100, 25];
+pub const CLASS_CAPS: [u16; CLASS_COUNT] = [833, 278, 83, 28];
+pub const TOTAL_PAID_SUPPLY: u16 = 1222;
 pub const CLASS_WEIGHTS: [u16; CLASS_COUNT] = [1, 3, 10, 30];
 pub const MAX_DURABILITY_SECONDS: i64 = 5 * 24 * 60 * 60;
 pub const MAX_QUEUE_PAGES: usize = 80;
@@ -44,6 +45,7 @@ pub struct Configuration {
     pub paused_at: i64,
     pub total_paused_seconds: i64,
     pub bump: u8,
+    pub mint_assignment_root: [u8; 12],
 }
 
 impl Configuration {

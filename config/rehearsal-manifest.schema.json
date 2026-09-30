@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rehearsal-manifest.schema.json",
+  "title": "Disposable mainnet rehearsal manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["validationMode", "releaseSha", "sbf", "cluster", "database", "workerInitiallyEnabled", "mintPricesUsdCents", "addresses", "assignmentRootHex", "assignmentManifestSha256", "deploymentIdHex", "metadata", "limits"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "validationMode": { "enum": ["preparation", "complete"] },
+    "releaseSha": { "type": "string" },
+    "sbf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "sizeBytes"],
+      "properties": {
+        "sha256": { "type": "string" },
+        "sizeBytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain", "genesisHash"],
+      "properties": {
+        "chain": { "const": "solana:mainnet" },
+        "genesisHash": { "const": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d" }
+      }
+    },
+    "database": { "const": "fare_share_disposable_rehearsal" },
+    "workerInitiallyEnabled": { "const": false },
+    "mintPricesUsdCents": {
+      "type": "array",
+      "prefixItems": [{ "const": 2500 }, { "const": 2500 }, { "const": 2500 }, { "const": 2500 }],
+      "items": false
+    },
+    "addresses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["programId", "programData", "buffer", "collection", "userWallet", "fareMint", "replacementFareMint", "jupiterProgramId", "stockMints", "sharedRole", "feePayer", "upgradeAuthority", "admin", "backendSigner", "worker", "team", "pumpCreatorFeeRecipient", "recoveryRecipient"],
+      "properties": {
+        "programId": { "type": "string" },
+        "programData": { "type": "string" },
+        "buffer": { "type": "string" },
+        "collection": { "type": "string" },
+        "userWallet": { "type": "string" },
+        "fareMint": { "type": "string" },
+        "replacementFareMint": { "type": "string" },
+        "jupiterProgramId": { "const": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" },
+        "stockMints": {
+          "type": "array",
+          "prefixItems": [
+            { "const": "XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB" },
+            { "const": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB" },
+            { "const": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN" },
+            { "const": "Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg" }
+          ],
+          "items": false
+        },
+        "sharedRole": { "$ref": "#/$defs/sharedRole" },
+        "feePayer": { "$ref": "#/$defs/sharedRole" },
+        "upgradeAuthority": { "$ref": "#/$defs/sharedRole" },
+        "admin": { "$ref": "#/$defs/sharedRole" },
+        "backendSigner": { "$ref": "#/$defs/sharedRole" },
+        "worker": { "$ref": "#/$defs/sharedRole" },
+        "team": { "$ref": "#/$defs/sharedRole" },
+        "pumpCreatorFeeRecipient": { "$ref": "#/$defs/sharedRole" },
+        "recoveryRecipient": { "$ref": "#/$defs/sharedRole" }
+      }
+    },
+    "assignmentRootHex": { "type": "string" },
+    "assignmentManifestSha256": { "type": "string" },
+    "deploymentIdHex": { "type": "string" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collectionUri", "machineUris", "traineeUri", "imageUris", "faretestArtworkUri", "faretestMetadataUri"],
+      "properties": {
+        "collectionUri": { "type": "string" },
+        "machineUris": { "type": "array", "items": { "type": "string" }, "maxItems": 16 },
+        "traineeUri": { "type": "string" },
+        "imageUris": { "type": "array", "items": { "type": "string" }, "maxItems": 18 },
+        "faretestArtworkUri": { "type": "string" },
+        "faretestMetadataUri": { "type": "string" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automaticStopSol", "irreversibleMaximumSol", "recoverableRentLamports", "uploadBufferRentLamports", "programTombstoneLamports", "estimatedPeakFundingLamports"],
+      "properties": {
+        "automaticStopSol": { "const": 0.7 },
+        "irreversibleMaximumSol": { "const": 0.8 },
+        "recoverableRentLamports": { "type": "string" },
+        "uploadBufferRentLamports": { "type": "string" },
+        "programTombstoneLamports": { "type": "string" },
+        "estimatedPeakFundingLamports": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "sharedRole": { "const": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF" }
+  }
+}

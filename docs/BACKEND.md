@@ -87,14 +87,20 @@ npm run protocol:initialize
 
 Первая транзакция атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`. Затем setup записывает metadata URI по классам и идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Повторная запись тех же URI разрешена даже после старта sale, но их изменение после старта блокируется; прерванный setup можно безопасно повторить.
 
-До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS` в порядке Economy 0–3, Comfort 0–3, Business 0–3, Legend 0–3, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Из-за лимита размера Solana transaction setup записывает URI четырьмя отдельными class-level инструкциями до старта sale; `start-sale` проверяет заполнение всех 16 позиций. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и записывает mint; protocol admin может заменить его до `start-sale`. После старта прямая замена блокируется и требует отдельной paused migration. После finalization MongoDB сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До настройки CA `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
+До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS`, `MINT_PRICES_USD_CENTS=2500,2500,2500,2500`, случайный 32-байтовый `DEPLOYMENT_ID_HEX`, созданный `npm run mint-assignments:generate` файл и совпадающий `MINT_ASSIGNMENT_ROOT_HEX`. `$FARE` CA и ticker задаются через setup/admin и остаются runtime-replaceable. MongoDB хранит public read-model, но не хранит краткоживущие token quotes.
+
+`POST /api/mint/quote` принимает owner, заранее созданный Asset pubkey и class. Backend читает finalized Configuration, проверяет sale/pause/supply/CA, реальные `$FARE → USDC` liquidity, price impact, свежесть и контрольную Jupiter USD price, округляет raw `$FARE` вверх и подписывает domain-separated payload текущим backend signer. Default TTL — 45 секунд. Клиент строит одну транзакцию: idempotent team ATA → Ed25519 verify → `mint_machine`.
+
+Для проверки разрешено привязать совместимый тестовый Pump token через `/admin/`, выполнить flow и заменить CA в любой момент, включая период после `start-sale`. После finalized bind сервер перезапускает Trade service с новым mint, обновляет MongoDB runtime token config и public snapshot; frontend опрашивает `/api/token` без cache. Production-проверки Pump creator/fee sharing не отключаются. Остатки старого token vault не конвертируются автоматически; raw reward obligations начинают выплачиваться новым токеном и требуют операционного контроля.
+
+`mint_machine` принимает только привязанный `$FARE` mint и соответствующий ему legacy Token Program или Token-2022, проверяет owner/mint source account и canonical ATA командного кошелька, затем выполняет `transfer_checked` на полную цену. Клиент идемпотентно создаёт team ATA за SOL пользователя перед `mint_machine`, если ATA отсутствует. Перевод `$FARE`, создание Core NFT и Machine PDA входят в одну Solana-транзакцию и откатываются вместе.
 
 ## Ручное управление через SSH
 
 Административных HTTP endpoints и web-панели нет. Оператор запускает отдельную CLI с ключом из `ADMIN_KEYPAIR_SECRET_KEY`:
 
 ```sh
-npm run protocol:admin -- set-mint-prices 1000000000,2000000000,3000000000,4000000000
+npm run protocol:admin -- set-mint-prices 2500,2500,2500,2500 # USD cents
 npm run protocol:admin -- start-sale
 npm run protocol:admin -- pause
 npm run protocol:admin -- unpause
@@ -109,12 +115,14 @@ npm run protocol:admin -- propose-admin <new-admin-pubkey>
 ## Кампания стажёра
 
 ```sh
-npm run campaign:create -- 1 360 кодовое-слово "Первая кампания"
+npm run campaign:create -- 1 1440 кодовое-слово "Первая кампания"
 ```
 
 Продолжительность указывается в минутах от 60 до 10080 (7 дней). Слово сохраняется только в виде HMAC-SHA256 с серверным pepper. Оно не попадает в Solana, frontend bundle или ответ API.
 
 Frontend отправляет `wallet`, найденное слово и свободную страницу очереди в `POST /api/trainee/voucher`. Backend находит внутренний campaign ID по hash слова, читает finalized Configuration PDA, рассчитывает ближайшую полную минуту protocol time и подписывает каноническое сообщение `TAXI_TRAINEE_V1`. Пользователь сам отправляет Ed25519 verify + `activate_trainee` одной Solana-транзакцией и оплачивает network fee/rent для Trainee PDA, bucket accounts и непередаваемого Metaplex Core NFT.
+
+Trainee PDA уникален по `wallet + campaignId`: повтор одной кампании невозможен, разные кампании разрешены, глобального supply cap нет. Indexer записывает `fleet_trainees` только когда DAS asset owner совпадает с Trainee owner и grouping указывает текущую `config.collection`. Rate limit защищает voucher endpoint, но не является on-chain квотой.
 
 Для списка Metaplex Core NFT frontend использует DAS-метод `getAssetsByOwner`. В production `VITE_SOLANA_DAS_URL` обязан указывать на DAS-совместимый RPC (например, Helius или QuickNode). Если метод недоступен, интерфейс показывает ошибку настройки, а не пустой гараж.
 
@@ -134,7 +142,9 @@ npm run worker
 npm run worker -- --once
 ```
 
-Раз в `WORKER_INTERVAL_MS` worker проверяет finalized on-chain состояние. Сначала он permissionless забирает Creator Fee из официальных pump.fun/PumpSwap vault: bonding-curve SOL поступает непосредственно в `FeeVault`, а PumpSwap WSOL собирается и разворачивается через `absorb_pump_wsol_fees` атомарно, без промежуточного кошелька. Rent временного WSOL ATA возвращается вызвавшему worker, поэтому в экономический split входит только комиссия. Затем worker вызывает `collect_fees` при наличии нового свободного SOL, обрабатывает накопленные swap-резервы и последовательно догоняет основную и стажёрскую очереди. Для каждой reward-транзакции он читает heap-страницы, выбирает события строго по `timestamp + eventNumber`, добавляет только нужные writable Machine/Bucket PDA и не превышает лимит 20 событий. При большом числе разных аккаунтов batch автоматически уменьшается, чтобы не собирать заведомо слишком крупную транзакцию.
+Раз в `WORKER_INTERVAL_MS` (по умолчанию 5 минут) worker выполняет full cycle по finalized on-chain состоянию. Сначала он permissionless забирает Creator Fee из официальных pump.fun/PumpSwap vault: bonding-curve SOL поступает непосредственно в `FeeVault`, а PumpSwap WSOL собирается и разворачивается через `absorb_pump_wsol_fees` атомарно, без промежуточного кошелька. Rent временного WSOL ATA возвращается вызвавшему worker, поэтому в экономический split входит только комиссия. Затем worker вызывает `collect_fees` при наличии нового свободного SOL, обрабатывает накопленные swap-резервы и последовательно догоняет основную и стажёрскую очереди. Дополнительно между full cycles reward-only action запускается каждую минуту. Для каждой reward-транзакции worker читает heap-страницы, выбирает события строго по `timestamp + eventNumber`, добавляет только нужные writable Machine/Bucket PDA и не превышает лимит 20 событий. Готовые последующие batch отправляются сразу после finalization предыдущего, без ожидания следующей минуты. При большом числе разных аккаунтов batch автоматически уменьшается, чтобы не собирать заведомо слишком крупную транзакцию.
+
+В `/admin/` раздел Automation хранит runtime-настройки в MongoDB `worker_status`: enabled, частоту от 10 секунд до 24 часов и единый минимальный SOL threshold для автоматического creator-fee sweep, `collect_fees` и каждого swap reserve. Изменения не требуют redeploy. Ручные кнопки отдельно запускают creator-fee claim+deposit, contract fee split, swaps, reward calculation или полный цикл; ручной запуск разрешён и при выключенной автоматике и не применяет minimum threshold. MongoDB lock не допускает два одновременных цикла из scheduler и admin. По принятому production-решению worker может использовать `ADMIN_KEYPAIR_SECRET_KEY`, если отдельный `WORKER_KEYPAIR_SECRET_KEY` не задан; upgrade authority при этом остаётся отдельной и offline.
 
 Раз в `BURN_SCAN_INTERVAL_MS` (по умолчанию пять минут) worker получает все Machine PDA, пакетами проверяет существование соответствующих Core Asset и для исчезнувших NFT вызывает permissionless `cleanup_burned_machine`. За один проход создаётся не больше `BURN_CLEANUP_LIMIT` (по умолчанию 10) cleanup-транзакций; остальные burn подхватываются следующими проходами. Проверка идёт по finalized-состоянию, а повтор или гонка безопасно отклоняются программой.
 

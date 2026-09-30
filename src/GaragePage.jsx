@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
+import traineeDrivingScene from './traineeDrivingScene.json';
 import {
   claimAllMachines,
   claimMachine,
@@ -24,7 +25,8 @@ const CLASS_BY_WEIGHT = {
 };
 
 export function GaragePage({ wallet }) {
-  const ticker = displayTicker(useTokenConfig());
+  const tokenConfig = useTokenConfig();
+  const ticker = displayTicker(tokenConfig);
   const [status, setStatus] = useState(null);
   const [machines, setMachines] = useState([]);
   const [trainees, setTrainees] = useState([]);
@@ -40,7 +42,7 @@ export function GaragePage({ wallet }) {
       .then(next => active && setStatus(next))
       .catch(error => active && setNotice(error.message));
     return () => { active = false; };
-  }, []);
+  }, [tokenConfig.mint]);
 
   useEffect(() => {
     if (!wallet || !status?.deployed) {
@@ -89,6 +91,9 @@ export function GaragePage({ wallet }) {
     }))
     : [];
   const paused = Boolean(status?.config?.pausedAt !== 0n);
+  const protocolNow = status?.deployed
+    ? (status.config.pausedAt || BigInt(status.chainUnixTime)) - status.config.totalPausedSeconds
+    : 0n;
   const maximumHistoryValue = Math.max(0, ...history.map(point => point.fare));
 
   async function runAction(key, action, success) {
@@ -215,13 +220,15 @@ export function GaragePage({ wallet }) {
             ))}
             {trainees.map(trainee => (
               <article className="fare-step-card fare-garage-card fare-trainee-garage-card" key={String(trainee.asset)}>
-                <img src="/nft/trainee.png" alt="Yellow TAXI trainee car" />
-                <span className="fare-fleet-class fare-garage-class is-trainee">TRAINEE</span>
+                <FareStepDrivingScene scene={traineeDrivingScene} />
+                <span className="fare-fleet-class fare-garage-class is-trainee">Trainee</span>
                 <h2>TAXI Trainee</h2>
                 <div className="fare-garage-earned">
-                  <span>Temporary NFT · active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</span>
+                  <span>{BigInt(trainee.activeUntil) <= protocolNow
+                    ? 'Trainee completed'
+                    : `Active until ${new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}`}</span>
                   <strong>{trainee.rewardDisplay} {ticker}</strong>
-                  <small>Non-transferable · cannot be repaired</small>
+                  <small>Non-transferable</small>
                 </div>
                 <div className="fare-garage-actions">
                   <button className="is-secondary" type="button" disabled>Not repairable</button>

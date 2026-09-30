@@ -1,7 +1,8 @@
 import { address, createKeyPairSignerFromBytes } from '@solana/kit';
-import { initializeProtocol } from '../server/setup.js';
+import { initializeProtocol, loadCollectionSigner } from '../server/setup.js';
 import { parseSecretBytes } from '../server/signing.js';
 import { solanaRpcCall } from '../server/solanaRpc.js';
+import { loadMintAssignments } from '../server/mintAssignments.js';
 // @ts-expect-error The browser protocol client is intentionally plain JavaScript.
 import { base64Bytes, decodeAddressLookupTable } from '../src/protocol/anchorClient.js';
 
@@ -23,7 +24,24 @@ const metadataUris = (values: string[], name: string) => {
 
 const deploymentHex = required('DEPLOYMENT_ID_HEX');
 if (!/^[0-9a-fA-F]{64}$/.test(deploymentHex)) throw new Error('DEPLOYMENT_ID_HEX must contain 64 hex characters');
+const assignmentRootHex = required('MINT_ASSIGNMENT_ROOT_HEX');
+if (!/^[0-9a-fA-F]{24}$/.test(assignmentRootHex)) throw new Error('MINT_ASSIGNMENT_ROOT_HEX must contain 24 hex characters');
+const assignmentManifest = await loadMintAssignments(required('MINT_ASSIGNMENTS_PATH'));
+if (assignmentManifest.root.toString('hex') !== assignmentRootHex.toLowerCase()) {
+  throw new Error('MINT_ASSIGNMENTS_PATH does not match MINT_ASSIGNMENT_ROOT_HEX');
+}
 const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
+const externalCollectionSignerRequired = process.env.REHEARSAL_MODE === 'true'
+  || process.env.VITE_SOLANA_CHAIN === 'solana:mainnet';
+const collectionKeypairPath = process.env.COLLECTION_KEYPAIR_PATH?.trim();
+const expectedCollectionAddress = process.env.COLLECTION_ADDRESS?.trim();
+let collectionSigner;
+if (externalCollectionSignerRequired || collectionKeypairPath || expectedCollectionAddress) {
+  collectionSigner = await loadCollectionSigner(
+    required('COLLECTION_KEYPAIR_PATH'),
+    address(required('COLLECTION_ADDRESS')),
+  );
+}
 const lookupTableAddress = process.env.VITE_TAXI_LOOKUP_TABLE?.trim();
 const lookupTables = lookupTableAddress ? await loadLookupTable(lookupTableAddress) : {};
 const result = await initializeProtocol({
@@ -37,9 +55,12 @@ const result = await initializeProtocol({
   collectionName: process.env.COLLECTION_NAME || 'TAXI Taxi Park',
   collectionUri: required('COLLECTION_URI'),
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
-  mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
+  mintPricesUsdCents: tuple((process.env.MINT_PRICES_USD_CENTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_USD_CENTS'),
+  mintAssignmentRoot: Uint8Array.from(assignmentManifest.root),
   metadataUris: metadataUris(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
   traineeMetadataUri: required('TRAINEE_METADATA_URI'),
+  collectionSigner,
+  requireExternalCollectionSigner: externalCollectionSignerRequired,
   lookupTables,
 });
 

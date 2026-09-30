@@ -43,6 +43,23 @@ export interface SignedTransactionDetails {
   lastValidBlockHeight: number;
 }
 
+export interface TransactionBudgetGuard {
+  reserve(input: {
+    actionClass: 'ordinary' | 'recovery';
+    fundingWallet: string;
+    additionalDebitLamports?: bigint;
+  }): Promise<string>;
+  signed(reservationId: string, signature: string): Promise<void>;
+  finalized(reservationId: string, signature: string): Promise<void>;
+  release(reservationId: string): Promise<void>;
+}
+
+let transactionBudgetGuard: TransactionBudgetGuard | undefined;
+
+export function configureTransactionBudgetGuard(guard: TransactionBudgetGuard | undefined) {
+  transactionBudgetGuard = guard;
+}
+
 export async function createWorkerSigner(secret: Uint8Array) {
   return createKeyPairSignerFromBytes(secret);
 }
@@ -53,7 +70,11 @@ export async function sendInstructions(
   instructions: Instruction[],
   additionalSigners: KeyPairSigner[] = [],
   lookupTables: AddressesByLookupTableAddress = {},
-  options: { onSigned?: (details: SignedTransactionDetails) => Promise<void> } = {},
+  options: {
+    onSigned?: (details: SignedTransactionDetails) => Promise<void>;
+    budgetClass?: 'ordinary' | 'recovery';
+    budgetDebitLamports?: bigint;
+  } = {},
 ) {
   const { value: rawLatestBlockhash } = await solanaRpcCall<{
     value: { blockhash: string; lastValidBlockHeight: number };
@@ -70,25 +91,57 @@ export async function sendInstructions(
     transaction => compressTransactionMessageUsingAddressLookupTables(transaction, lookupTables),
   );
   const compiled = compileTransaction(message);
-  const signed = await partiallySignTransaction(
-    [signer, ...additionalSigners].map(item => item.keyPair),
-    compiled,
-  );
+  const reservationId = transactionBudgetGuard
+    ? await transactionBudgetGuard.reserve({
+        actionClass: options.budgetClass || 'ordinary',
+        fundingWallet: String(signer.address),
+        additionalDebitLamports: options.budgetDebitLamports,
+      })
+    : undefined;
+  let signed;
+  try {
+    signed = await partiallySignTransaction(
+      [signer, ...additionalSigners].map(item => item.keyPair),
+      compiled,
+    );
+  } catch (error) {
+    if (reservationId) await transactionBudgetGuard?.release(reservationId);
+    throw error;
+  }
   const expectedSignature = String(getSignatureFromTransaction(signed));
   const encoded = getBase64EncodedWireTransaction(signed);
-  assertWireTransactionSize(String(encoded));
-  const simulation = await solanaRpcCall<{ value: { err: unknown; logs?: string[] | null } }>(rpcUrl, 'simulateTransaction', [encoded, {
-    encoding: 'base64',
-    commitment: 'finalized',
-    sigVerify: true,
-  }]);
+  try {
+    assertWireTransactionSize(String(encoded));
+  } catch (error) {
+    if (reservationId) await transactionBudgetGuard?.release(reservationId);
+    throw error;
+  }
+  let simulation: { value: { err: unknown; logs?: string[] | null } };
+  try {
+    simulation = await solanaRpcCall(rpcUrl, 'simulateTransaction', [encoded, {
+      encoding: 'base64',
+      commitment: 'finalized',
+      sigVerify: true,
+    }]);
+  } catch (error) {
+    if (reservationId) await transactionBudgetGuard?.release(reservationId);
+    throw error;
+  }
   if (simulation.value.err) {
+    if (reservationId) await transactionBudgetGuard?.release(reservationId);
     throw new SolanaTransactionSimulationError(simulation.value.err, simulation.value.logs || []);
   }
-  await options.onSigned?.({
-    signature: expectedSignature,
-    lastValidBlockHeight: rawLatestBlockhash.lastValidBlockHeight,
-  });
+  try {
+    await options.onSigned?.({
+      signature: expectedSignature,
+      lastValidBlockHeight: rawLatestBlockhash.lastValidBlockHeight,
+    });
+    if (reservationId) await transactionBudgetGuard?.signed(reservationId, expectedSignature);
+  } catch (error) {
+    if (reservationId) await transactionBudgetGuard?.release(reservationId);
+    throw error;
+  }
+  let submitted = false;
   try {
     const signature = await solanaSendTransactionCall<string>(rpcUrl, [encoded, {
       encoding: 'base64',
@@ -96,12 +149,19 @@ export async function sendInstructions(
       preflightCommitment: 'finalized',
     }]);
     if (signature !== expectedSignature) throw new UnresolvedSolanaTransactionError(expectedSignature, new Error(`RPC returned unexpected transaction signature ${signature}`));
+    submitted = true;
     await waitForFinalized(rpcUrl, expectedSignature);
+    if (reservationId) await transactionBudgetGuard?.finalized(reservationId, expectedSignature);
     return expectedSignature;
   } catch (error) {
-    if (!(error instanceof AmbiguousSolanaWriteError)) throw error;
+    if (!(error instanceof AmbiguousSolanaWriteError)) {
+      if (reservationId && submitted) await transactionBudgetGuard?.finalized(reservationId, expectedSignature);
+      else if (reservationId && !(error instanceof UnresolvedSolanaTransactionError)) await transactionBudgetGuard?.release(reservationId);
+      throw error;
+    }
     try {
       await waitForFinalized(rpcUrl, expectedSignature);
+      if (reservationId) await transactionBudgetGuard?.finalized(reservationId, expectedSignature);
       return expectedSignature;
     } catch (reconciliationError) {
       throw new UnresolvedSolanaTransactionError(expectedSignature, reconciliationError);

@@ -33,12 +33,29 @@ deploy или SOL; они не являются частью release и не д�
 
 После изменения адреса заново собрать SBF. `npm run protocol:preflight` отклонит рассинхронизацию этих четырёх значений.
 
+### Disposable rehearsal keyset preparation
+
+До финальной команды script работает только как dry-run и ничего не создаёт.
+После `начинай репетицию` одноразовый keyset создаётся вне repository, сразу
+архивируется в указанный Desktop ZIP и проверяется повторным derivation из архива:
+
+```powershell
+powershell -File scripts/prepare-disposable-keyset.ps1 `
+  -OutputDirectory C:\Users\ivand\Desktop\FareShare-Rehearsal-Keyset `
+  -BackupZip C:\Users\ivand\Desktop\FareShare-Rehearsal-Keyset.zip `
+  -UpgradeAuthorityAddress 2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF
+```
+
+Execute требует дополнительно `-Execute` и точную строку из dry-run. Script никогда
+не выводит secret bytes и не использует созданные keys для транзакций. Полученный
+`backup-marker.json` обязателен для disposable deploy preflight.
+
 ## 2. Devnet
 
 1. Собрать актуальный `taxi_park.so` через `cargo build-sbf`.
 2. Выполнить `npm run protocol:addresses` и сохранить выведенный `pumpCreator`; для вычисления PDA опубликованная программа ещё не нужна.
 3. Создать обычный тестовый SOL-paired `$FARE` через официальный pump.fun, указав этот `pumpCreator` как creator.
-4. Заполнить `$FARE` mint, четыре неизменяемых xStocks mint, devnet/test metadata URI, цены и остальные значения `.env`.
+4. Заполнить `$FARE` mint, четыре неизменяемых xStocks mint, devnet/test metadata URI, `MINT_PRICES_USD_CENTS` и параметры безопасности mint quote.
 5. Выполнить `npm run protocol:preflight`.
 6. Опубликовать программу в devnet с подготовленным program keypair и временной upgrade authority, затем выполнить `npm run protocol:initialize`.
 7. Создать protocol Address Lookup Table, добавить адреса из `npm run protocol:claim-lookup-addresses` и записать её адрес в `VITE_TAXI_LOOKUP_TABLE`. Без ALT атомарный Claim ограничен четырьмя машинами, с ALT — десятью.
@@ -92,12 +109,13 @@ solana program deploy -u devnet \
 
 1. Проверить окончательные collection cover, 16 изображений и 17 metadata JSON в production Irys manifest `9evKWgrS3Jp6cGdDD3oBMRCoy7SYJ7gb6jBupX7ZMsaE`.
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
-3. Зафиксировать точные mint-цены в lamports по согласованным долларовым ориентирам.
+3. Сгенерировать один неизменяемый shuffled assignment manifest на 1222 paid NFT, сохранить его backup, записать совпадающий `MINT_ASSIGNMENT_ROOT_HEX`, установить `MINT_PRICES_USD_CENTS=2500,2500,2500,2500` и проверить live `$FARE → USDC` route, price impact, TTL и signer.
 4. Заполнить production RPC/DAS, MongoDB, домены, API key и три разных server keypair.
 5. Выполнить `npm run protocol:addresses` и подготовить параметры будущего `$FARE` с полученным `pumpCreator`, не создавая токен заранее.
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.
 7. Выполнить `protocol:initialize`; на этом этапе `$FARE` ещё может не существовать, а `fare_mint` в Configuration PDA останется пустым.
-8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. Команда атомарно создаёт canonical protocol ATA и задаёт CA. До `start-sale` protocol admin может исправить CA повторной командой; после старта прямая замена запрещена и требует отдельной paused migration активов и обязательств.
+8. Текущий `$FARE` задаётся и в любой момент заменяется через `/admin/` или `npm run protocol:admin -- set-fare-mint <CA>`. После замены проверить одинаковый CA в Configuration PDA, `/api/token`, Trade, mint quote и public overview. Старые quotes должны отклоняться. Остаток старого vault не переносится автоматически и проверяется отдельно. Проверить mint: подписаны owner/asset/class/CA/raw amount/USD cents/expiry, 100% текущего `$FARE` поступает в canonical team ATA, а burn/reward-pool mint payment не меняет.
+9. До `start-sale` загрузить отдельную trainee metadata и записать `TRAINEE_METADATA_URI`. Smoke activation должна создать asset в основной Collection с `PermanentFreezeDelegate.frozen = true` и immutable `PluginAuthority::None`; transfer trainee обязан завершаться ошибкой, transfer платной машины — проходить.
 9. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
    Если initialize с полными metadata превышает лимит транзакции, сначала выполнить
    `npm run protocol:create-initialize-lookup`, сохранить выведенный адрес в
@@ -172,6 +190,9 @@ tombstone и считается заранее известной невозвр
 1. Остановить backend/worker и любые процессы, способные отправлять транзакции.
 2. Поставить протокол на паузу и подтвердить on-chain pause.
 3. Зафиксировать balances, обязательства и список всех SOL/token vault.
+   До rescue обязательно выполнить `npm run protocol:audit-shutdown-claims -- --require-zero`.
+   Скрипт связывает каждую ненулевую Machine reward с текущим DAS owner; неизвестный
+   или неподконтрольный owner блокирует rescue и close до подписанного Claim.
 4. Выполнить разрешённые `rescue-sol` / `rescue-token` на заранее проверенные
    адреса получателей.
 5. Повторный аудит обязан подтвердить нулевой доступный SOL в fee vault и нулевые
@@ -183,6 +204,34 @@ tombstone и считается заранее известной невозвр
    затем подтвердить отсутствие ProgramData и статус `Program ... has been closed`.
 8. Сверить изменение баланса с ожидаемым ProgramData rent за вычетом комиссий и
    сохранить signature закрытия в release notes.
+
+Исполняемый fail-closed wrapper (по умолчанию только dry-run):
+
+```sh
+npm run protocol:close-mainnet-programdata -- \
+  --manifest /absolute/frozen-rehearsal-manifest.json \
+  --manifest-sha256 <FROZEN_FILE_SHA256> \
+  --rpc-url <EXPLICIT_MAINNET_RPC> \
+  --program-id <PROGRAM_ID> --programdata <PROGRAMDATA> \
+  --authority <AUTHORITY> --fee-payer <FEE_PAYER> --buffer <BUFFER> \
+  --recipient <RECOVERY_RECIPIENT> --worker <WORKER> --backend <BACKEND> \
+  --authority-keypair <PATH> --fee-payer-keypair <PATH> --buffer-keypair <PATH> \
+  --worker-keypair <PATH> --backend-keypair <PATH> \
+  --services-stopped "I CONFIRM ALL TRANSACTION-SENDING SERVICES ARE STOPPED" \
+  --protocol-paused "I CONFIRM THE PROTOCOL IS PAUSED ON CHAIN" \
+  --max-fee-lamports <BOUND>
+```
+
+Manifest обязан быть frozen в режиме `complete`, содержать постоянный upload
+buffer и точный `recoverableRentLamports`; SHA-256 файла также передаётся явно.
+Все адреса и существующие keypair paths обязательны и сверяются без default signer.
+Dry-run выполняет усиленный аудит с `--require-paused --require-empty-vaults`, но
+никогда не вызывает close. Для необратимого запуска после отдельного разрешения
+добавляются `--execute` и точная строка `--confirm`, напечатанная успешным dry-run.
+Wrapper повторяет аудит непосредственно перед close, запрещает `--final`, ждёт
+`finalized` и проверяет исчезновение ProgramData, сохранение Program tombstone и
+дельту recipient в пределах `recoverable rent - bounded fees`.
+Пользовательский fee bound дополнительно ограничен жёстким максимумом `0.001 SOL`.
 
 Запрещено закрывать программу ради rollback, при работающих сервисах, при ненулевых
 vault, при несовпадении хотя бы одного адреса или без доступной резервной копии
@@ -203,6 +252,36 @@ authority keypair. После close тот же Program ID использова�
 
 Тест доказывает сам механизм Solana, но не заменяет перечисленные выше проверки
 точных production-адресов и balances перед закрытием боевой программы.
+
+### Одноразовый rehearsal deploy
+
+Одноразовая rehearsal-программа использует отдельный скрипт и только полностью
+проверенный manifest (`validationMode: "complete"`). Безопасный режим по умолчанию
+задаётся явно и не отправляет транзакции:
+
+```sh
+npm run rehearsal:deploy -- preflight \
+  --manifest /secure/rehearsal-manifest.json \
+  --program-so /secure/taxi_park.so \
+  --program-keypair /secure/program.json \
+  --upgrade-authority-keypair /secure/authority.json \
+  --fee-payer-keypair /secure/fee-payer.json \
+  --recipient-keypair /secure/recipient.json \
+  --buffer-keypair /secure/persistent-buffer.json \
+  --buffer-address <EXPECTED_BUFFER_ADDRESS> \
+  --backup-marker /secure/rehearsal-key-backup.json \
+  --rpc-url <EXPLICIT_MAINNET_RPC_URL>
+```
+
+Backup marker — JSON вне репозитория с точными `programId`, `upgradeAuthority`,
+`buffer`, значением `backupVerified: true` и непустым `verifiedAt`. Скрипт никогда
+не генерирует ключи. Preflight проверяет mainnet genesis, все keypair/address,
+ProgramData PDA, SBF hash/size и текущий rent buffer/ProgramData. ProgramData rent
+обязан точно совпасть с `limits.recoverableRentLamports` manifest.
+
+Режим `execute` принимает те же аргументы плюс `--confirm` со строкой, напечатанной
+успешным preflight. Любое другое подтверждение блокирует deploy. `--final` запрещён;
+fee payer, authority, recipient и постоянный buffer всегда передаются явно.
 
 ## 5. Что не входит в автоматический deploy
 

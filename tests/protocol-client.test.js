@@ -16,6 +16,7 @@ import {
   setTransactionMessageFeePayer,
   setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
+import { findAssociatedTokenPda } from '@solana-program/token';
 
 import {
   PROGRAM_ID,
@@ -49,6 +50,7 @@ import {
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
+  deriveTraineeAddresses,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
   sendWalletInstructions,
@@ -144,19 +146,68 @@ test('durability uses finalized Solana time and freezes during pause', () => {
   assert.equal(calculateDurabilityPercent(4 * 24 * 60 * 60 + 6 * 60 * 60), 85);
 });
 
-test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
-  const owner = address('11111111111111111111111111111111');
-  const configAddress = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
+test('mint instruction carries the precommitted class, variant, and Merkle proof', async () => {
+  const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, queue, fareMint, teamAccount] = signers.map(signer => signer.address);
+  const assetSigner = await generateKeyPairSigner();
+  const quote = {
+    owner, asset: assetSigner.address, fareMint, assignmentIndex: 12, classIndex: 2, variantIndex: 3,
+    assignmentProof: Array(11).fill('07'.repeat(12)),
+    amountFareRaw: '123456', priceUsdCents: '2500', expiresAt: '2000000000',
+    backendSigner: teamAccount,
+    signature: Buffer.alloc(64, 7).toString('base64'),
+    message: Buffer.alloc(202, 9).toString('base64'),
+  };
+  const collection = address('11111111111111111111111111111111');
   const result = await buildMintMachine({
-    programAddress: configAddress,
+    programAddress: PROGRAM_ID,
     owner,
     configAddress,
-    config: { collection: owner, teamAccount: owner },
-    queue: owner,
-    classIndex: 2,
+    config: { collection, teamAccount, fareMint },
+    queue,
     pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM,
+    assetSigner,
+    quote,
   });
-  assert.deepEqual([...result.instruction.data], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
+  assert.deepEqual([...result.instruction.data.slice(0, 14)], [...TAXI_DISCRIMINATORS.mintMachine, 7, 12, 0, 2, 3, 11]);
+  assert.equal(result.instructions.length, 3);
+  assert.equal(String(result.instructions.at(-2).programAddress), 'Ed25519SigVerify111111111111111111111111111');
+  assert.equal(result.instructions.at(-1), result.instruction);
+  assert.equal(result.instruction.accounts.length, 14);
+  const [expectedOwnerFare] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
+  const [expectedTeamFare] = await findAssociatedTokenPda({ owner: teamAccount, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
+  assert.equal(String(result.instruction.accounts[7].address), String(fareMint));
+  assert.equal(String(result.instruction.accounts[8].address), String(expectedOwnerFare));
+  assert.equal(String(result.instruction.accounts[9].address), String(expectedTeamFare));
+  assert.equal(String(result.instruction.accounts[10].address), String(TOKEN_PROGRAM));
+  assert.equal(result.instruction.accounts[8].role, AccountRole.WRITABLE);
+  assert.equal(result.instruction.accounts[9].role, AccountRole.WRITABLE);
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(result.instructions, transaction),
+  );
+  const transactionBytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(transactionBytes.length <= 1232, `mint transaction is ${transactionBytes.length} bytes`);
+
+  const existingTeamAta = await buildMintMachine({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress,
+    config: { collection, teamAccount, fareMint },
+    queue,
+    pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM,
+    teamFareAccountExists: true,
+    assetSigner,
+    quote,
+  });
+  assert.equal(existingTeamAta.instructions.length, 2);
 });
 
 test('configuration decoder reads all 16 metadata URIs in class and variant order', () => {
@@ -181,7 +232,7 @@ test('configuration decoder reads all 16 metadata URIs in class and variant orde
     traineeUri,
     Buffer.alloc(8 * 4),
     Buffer.alloc(2 * 4),
-    Buffer.alloc(1 + 8 + 8 + 1),
+    Buffer.alloc(1 + 8 + 8 + 1 + 12),
   ]);
   const decoded = decodeConfiguration(bytes);
   assert.deepEqual(decoded.metadataUris, strings);
@@ -210,9 +261,10 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
 });
 
-test('mint prices are displayed from exact on-chain lamports', () => {
+test('SOL fees and token estimates use their own decimals', () => {
   assert.equal(formatSolAmount(49_000_000n), '0.049');
   assert.equal(formatSolAmount(1_000_000_001n), '1.000000001');
+  assert.equal(formatTokenAmount(3_500_000n, 6).replace(',', '.'), '3.5');
 });
 
 test('DAS garage loads every page when a wallet owns more than one thousand assets', async () => {
@@ -292,6 +344,15 @@ test('trainee activation puts Ed25519 verification immediately before the progra
     value => appendTransactionMessageInstructions(instructions, value),
   ));
   assert.ok(getTransactionEncoder().encode(transaction).length <= 1232);
+});
+
+test('trainee PDA allows different campaigns but not duplicate wallet and campaign pairs', async () => {
+  const owner = (await generateKeyPairSigner()).address;
+  const first = await deriveTraineeAddresses(PROGRAM_ID, owner, 7n, 60n, 3600n, 0);
+  const duplicate = await deriveTraineeAddresses(PROGRAM_ID, owner, 7n, 120n, 7200n, 1);
+  const anotherCampaign = await deriveTraineeAddresses(PROGRAM_ID, owner, 8n, 60n, 3600n, 0);
+  assert.equal(String(first.trainee), String(duplicate.trainee));
+  assert.notEqual(String(first.trainee), String(anotherCampaign.trainee));
 });
 
 test('claim transaction size is measured with five missing destination accounts', async () => {

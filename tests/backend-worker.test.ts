@@ -16,8 +16,11 @@ import {
   hasAssignableRewards,
   isBurnedCoreAssetAccount,
 } from '../server/worker.js';
+import { performWorkerAction } from '../server/workerAutomation.js';
+import { parseWorkerAction } from '../server/workerControl.js';
 import {
   assertWireTransactionSize,
+  configureTransactionBudgetGuard,
   sendInstructions,
   SolanaTransactionSimulationError,
   SolanaTransactionTooLargeError,
@@ -162,6 +165,44 @@ test('burn cleanup instruction has the exact Anchor account order', () => {
   assert.equal(instruction.data?.[8], 7);
 });
 
+test('automatic creator fee collection waits for the configured minimum', async () => {
+  let claims = 0;
+  const result = await performWorkerAction('creator-fees', 'automatic', {
+    enabled: true, intervalMs: 60_000, minimumLamports: 100n,
+  }, 'run-1', {
+    creatorFeeSnapshot: async () => ({ availableLamports: '99' }),
+    claim: async () => { claims += 1; return { amountLamports: '99', signature: 'claim' }; },
+    deposit: async () => ({ amountLamports: '99', signature: 'deposit' }),
+  });
+  assert.equal(claims, 0);
+  assert.deepEqual(result.creatorFees, { skipped: true, amountLamports: '99' });
+});
+
+test('manual creator fee collection ignores the automatic minimum and deposits the exact claim', async () => {
+  const operations: string[] = [];
+  const result = await performWorkerAction('creator-fees', 'manual', {
+    enabled: false, intervalMs: 60_000, minimumLamports: 1_000_000n,
+  }, 'run-2', {
+    creatorFeeSnapshot: async () => ({ availableLamports: '99' }),
+    claim: async operationId => {
+      operations.push(operationId);
+      return { amountLamports: '99', signature: 'claim-signature' };
+    },
+    deposit: async (amount, operationId) => {
+      operations.push(`${operationId}:${amount}`);
+      return { amountLamports: amount, signature: 'deposit-signature' };
+    },
+  });
+  assert.deepEqual(operations, ['worker_run-2_claim', 'worker_run-2_deposit:99']);
+  assert.equal(result.creatorFees?.depositSignature, 'deposit-signature');
+});
+
+test('admin worker actions accept only the five supported operations', () => {
+  assert.equal(parseWorkerAction('full'), 'full');
+  assert.equal(parseWorkerAction('swaps'), 'swaps');
+  assert.throws(() => parseWorkerAction('rescue'), /Unknown worker action/);
+});
+
 test('wire transaction size is rejected before RPC submission', () => {
   assert.doesNotThrow(() => assertWireTransactionSize(Buffer.alloc(1232).toString('base64')));
   assert.throws(
@@ -197,6 +238,39 @@ test('transactions are explicitly simulated before submission', async () => {
     assert.deepEqual(methods, ['getLatestBlockhash', 'simulateTransaction']);
     assert.equal(recordedAsSubmitted, false);
   } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('rehearsal budget is reserved before signing and released when simulation fails', async () => {
+  const secret = Uint8Array.from([
+    ...Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex'),
+    ...Buffer.from('d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a', 'hex'),
+  ]);
+  const signer = await createKeyPairSignerFromBytes(secret);
+  const calls: string[] = [];
+  configureTransactionBudgetGuard({
+    reserve: async input => { calls.push(`reserve:${input.additionalDebitLamports}`); return 'reservation'; },
+    signed: async () => { calls.push('signed'); },
+    finalized: async () => { calls.push('finalized'); },
+    release: async () => { calls.push('release'); },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { method: string };
+    const result = request.method === 'getLatestBlockhash'
+      ? { value: { blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 } }
+      : { value: { err: { InstructionError: [0, 'Custom'] }, logs: [] } };
+    return new Response(JSON.stringify({ jsonrpc: '2.0', result }));
+  };
+  try {
+    await assert.rejects(
+      sendInstructions('https://rpc.invalid', signer, [], [], {}, { budgetDebitLamports: 25n }),
+      SolanaTransactionSimulationError,
+    );
+    assert.deepEqual(calls, ['reserve:25', 'release']);
+  } finally {
+    configureTransactionBudgetGuard(undefined);
     globalThis.fetch = originalFetch;
   }
 });

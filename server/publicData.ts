@@ -14,7 +14,7 @@ const HISTORY_PERIODS = {
   '30d': { durationMs: 30 * 24 * 60 * 60 * 1_000, groupMs: 24 * 60 * 60 * 1_000 },
 } as const;
 
-interface DasAsset {
+export interface DasAsset {
   id: string;
   content?: {
     metadata?: { name?: string };
@@ -22,6 +22,7 @@ interface DasAsset {
     files?: Array<{ uri?: string; mime?: string }>;
   };
   ownership?: { owner?: string };
+  grouping?: Array<{ group_key?: string; group_value?: string }>;
 }
 
 export class PublicDataError extends Error {
@@ -35,7 +36,7 @@ export function createPublicDataService(config: {
   solanaRpcUrl: string;
   programId: Address;
   workerIntervalMs: number;
-  fareSymbol: string;
+  fareSymbol: string | (() => string);
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -47,7 +48,8 @@ export function createPublicDataService(config: {
     if (activeSync) return activeSync;
     activeSync = (async () => {
       const worker = await database.workerStatus.findOne({ key: 'protocol-worker' });
-      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, config.fareSymbol);
+      const fareSymbol = typeof config.fareSymbol === 'function' ? config.fareSymbol() : config.fareSymbol;
+      const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, fareSymbol);
       const assets = await loadAssets(config.solanaRpcUrl, [
         ...dashboard.machines.map(machine => machine.asset),
         ...dashboard.trainees.map(trainee => trainee.asset),
@@ -106,6 +108,7 @@ export function createPublicDataService(config: {
       if (dashboard.trainees.length) {
         await database.fleetTrainees.bulkWrite(dashboard.trainees.map(trainee => {
           const asset = assetsById.get(trainee.asset);
+          validateTraineeAsset(asset, trainee.owner, String(dashboard.protocol.collection));
           return {
             updateOne: {
               filter: { asset: trainee.asset },
@@ -131,7 +134,7 @@ export function createPublicDataService(config: {
       } satisfies Omit<PublicSnapshotDocument, 'overview'>;
       const machines = await database.fleetMachines.find({ closed: false }).toArray();
       if (dashboard.machines.length) await saveEarningSnapshots(database, now, machines);
-      const preparedOverview = buildPublicOverview(snapshot, machines);
+      const preparedOverview = buildPublicOverview(snapshot, machines, fareSymbol);
       await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
         ...snapshot,
         overview: preparedOverview,
@@ -149,7 +152,11 @@ export function createPublicDataService(config: {
       const snapshot = await database.publicSnapshots.findOne({ key: 'overview' });
       if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
       const value = snapshot.overview as PublicOverview | undefined
-        || buildPublicOverview(snapshot, await database.fleetMachines.find({ closed: false }).toArray());
+        || buildPublicOverview(
+          snapshot,
+          await database.fleetMachines.find({ closed: false }).toArray(),
+          typeof config.fareSymbol === 'function' ? config.fareSymbol() : config.fareSymbol,
+        );
       cachedOverview = { value, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS };
       return value;
     })().finally(() => { activeOverviewRead = null; });
@@ -251,9 +258,20 @@ export function createPublicDataService(config: {
   return { overview, walletFleet, recordMint, earningHistory, market, sync };
 }
 
+export function validateTraineeAsset(asset: DasAsset | undefined, expectedOwner: string, expectedCollection: string) {
+  if (!asset || asset.id === '' || asset.ownership?.owner !== expectedOwner) {
+    throw new Error('Trainee Core asset owner does not match its on-chain Trainee account');
+  }
+  const collection = asset.grouping?.find(item => item.group_key === 'collection')?.group_value;
+  if (collection !== expectedCollection) {
+    throw new Error('Trainee Core asset is not in the configured collection');
+  }
+}
+
 export function buildPublicOverview(
   snapshot: Pick<PublicSnapshotDocument, 'protocol' | 'distribution' | 'vaults' | 'observedAt'>,
   machines: FleetMachineDocument[],
+  fareTicker = 'FARE',
 ) {
   const ownerRows = new Map<string, { owner: string; cars: number; activeWeight: number; claimableFareRaw: bigint }>();
   for (const machine of machines) {
@@ -271,7 +289,14 @@ export function buildPublicOverview(
   for (const machine of machines) classCounts[machine.classIndex] += 1;
   return {
     mint: {
-      pricesLamports: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      mintPricesUsdCents: Array.isArray(snapshot.protocol.mintPricesUsdCents)
+        ? snapshot.protocol.mintPricesUsdCents.map(String)
+        : Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      fareMint: String(snapshot.protocol.fareMint || ''),
+      fareTicker,
+      fareDecimals: Array.isArray(snapshot.distribution.assets)
+        ? Number((snapshot.distribution.assets[0] as { decimals?: unknown } | undefined)?.decimals ?? 0)
+        : 0,
       mintedByClass: Array.isArray(snapshot.protocol.mintedByClass) ? snapshot.protocol.mintedByClass.map(Number) : [],
       paused: Boolean(snapshot.protocol.paused),
       saleStarted: Boolean(snapshot.protocol.saleStarted),

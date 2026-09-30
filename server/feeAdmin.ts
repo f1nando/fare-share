@@ -71,7 +71,7 @@ export async function createFeeAdminService(
     throw new Error(`PUMP_FEE_RECIPIENT_SECRET_KEY must resolve to ${FIXED_FEE_RECIPIENT}`);
   }
   const addresses = await protocolAddresses(config.programId);
-  const minimumWalletLamports = config.minimumWalletLamports ?? 10_000_000n;
+  const minimumWalletLamports = config.minimumWalletLamports ?? 100_000_000n;
 
   async function configuredMint() {
     return (await configuredState()).fareMint;
@@ -112,11 +112,7 @@ export async function createFeeAdminService(
     if (curve.creatorFeeBps !== 0n || curve.canEditCreatorFee) throw new FeeAdminError('Custom editable creator fees cannot be used as FARE.');
     if (String(curve.quoteMint) !== ZERO_ADDRESS) throw new FeeAdminError('FARE must use the SOL quote.');
     if (curve.complete) throw new FeeAdminError('CA must be fixed before pump.fun graduation.');
-    const current = await configuredState();
-    if (current.saleStarted && String(current.fareMint) !== String(mint)) {
-      throw new FeeAdminError(`The sale has started and $FARE is locked as ${current.fareMint}. Use a paused migration instead of direct replacement.`, 409);
-    }
-    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), creator: curve.creator, complete: curve.complete, feeMode };
+    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), decimals: mintAccount.data[44], creator: curve.creator, complete: curve.complete, feeMode };
   }
 
   async function feeSnapshot(mint?: Address) {
@@ -305,7 +301,12 @@ export async function createFeeAdminService(
   }
 
   return {
+    payerAddress: admin.address,
     inspectMint,
+    async creatorFeeSnapshot() {
+      const current = await configuredMint();
+      return feeSnapshot(String(current) === ZERO_ADDRESS ? undefined : current);
+    },
     async status() {
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
@@ -372,6 +373,22 @@ export async function createFeeAdminService(
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker, unchanged: false };
+    },
+    async setMintPrices(rawPrices: unknown) {
+      if (!Array.isArray(rawPrices) || rawPrices.length !== 4) throw new FeeAdminError('Four USD prices are required.');
+      const prices = rawPrices.map((value, index) => {
+        const dollars = Number(value);
+        const cents = Math.round(dollars * 100);
+        if (!Number.isFinite(dollars) || dollars <= 0 || !Number.isSafeInteger(cents)) throw new FeeAdminError(`Class ${index + 1} price is invalid.`);
+        return BigInt(cents);
+      }) as [bigint, bigint, bigint, bigint];
+      if (!prices.every(price => price === 2_500n)) throw new FeeAdminError('Every taxi mint must cost exactly $25.');
+      const current = await configuredState();
+      if (current.saleStarted) throw new FeeAdminError('Mint prices are locked after the sale starts.', 409);
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [
+        buildSimpleAdminInstruction(config.programId, admin.address, addresses.config, { name: 'set-mint-prices', prices }),
+      ]));
+      return { signature, mintPricesUsdCents: prices.map(String) };
     },
     async setTeamAccount(rawTeamAccount: unknown) {
       if (typeof rawTeamAccount !== 'string') throw new FeeAdminError('Team wallet is required.');
@@ -534,6 +551,7 @@ export async function createFeeAdminService(
       try {
         const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions, [], {}, {
           onSigned: details => markSubmitted(operation.operationId, details),
+          budgetDebitLamports: amount,
         }));
         return operationResult(await finalizeOperation({ ...operation, signature, status: 'submitted' }));
       } catch (error) {

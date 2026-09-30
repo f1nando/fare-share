@@ -4,7 +4,7 @@
 
 Solana Taxi Park состоит из Anchor-программы, примитивного React-интерфейса и Node/MongoDB backend для стажёрских ваучеров. Обычная страница открывает продуктовый интерфейс; процедурный город используется как фон и отдельно доступен по `?city=1`.
 
-Основные документы: [архитектура](ARCHITECTURE.md), [backend и worker](docs/BACKEND.md), [порядок развёртывания](DEPLOY.md), [решения и открытые вопросы](docs/TECHNICAL-QUESTIONS.md), [пользовательские сценарии](docs/SCENARIO-TESTS.md).
+Основные документы: [финальный план запуска](docs/FINAL-LAUNCH-PLAN.md), [архитектура](ARCHITECTURE.md), [backend и worker](docs/BACKEND.md), [порядок развёртывания](DEPLOY.md), [решения и открытые вопросы](docs/TECHNICAL-QUESTIONS.md), [пользовательские сценарии](docs/SCENARIO-TESTS.md).
 
 ## Быстрый запуск Taxi Park
 

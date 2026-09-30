@@ -18,9 +18,11 @@ pub mod voucher;
 pub use error::*;
 pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
-pub use voucher::ActivateTraineeArgs;
+pub use voucher::{ActivateTraineeArgs, MintAssignmentArgs, MintQuoteArgs};
 
-declare_id!("GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4");
+declare_id!("3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z");
+
+const MINT_PRICE_USD_CENTS: u64 = 2_500;
 
 #[program]
 pub mod taxi_park {
@@ -49,6 +51,7 @@ pub mod taxi_park {
         config.metadata_uris = std::array::from_fn(|_| String::new());
         config.trainee_metadata_uri = String::new();
         config.mint_prices = args.mint_prices;
+        config.mint_assignment_root = args.mint_assignment_root;
         config.sale_started = false;
         config.paused_at = 0;
         config.total_paused_seconds = 0;
@@ -98,7 +101,7 @@ pub mod taxi_park {
             TaxiError::SaleAlreadyStarted
         );
         require!(
-            prices.iter().all(|price| *price > 0),
+            prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS),
             TaxiError::InvalidPrice
         );
         ctx.accounts.config.mint_prices = prices;
@@ -192,7 +195,8 @@ pub mod taxi_park {
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
         require_fare_ready(config.fare_mint)?;
         require!(
-            config.mint_prices.iter().all(|price| *price > 0),
+            config.mint_prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS)
+                && config.mint_assignment_root != [0; 12],
             TaxiError::InvalidPrice
         );
         require!(
@@ -454,7 +458,7 @@ pub mod taxi_park {
             return token::close_account(
                 &ctx.accounts.token_program,
                 &ctx.accounts.pump_wsol_vault,
-                &ctx.accounts.fee_vault.to_account_info(),
+                &ctx.accounts.caller.to_account_info(),
                 &authority,
                 signer_seeds,
             );
@@ -837,7 +841,12 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn mint_machine(ctx: Context<MintMachine>, class: u8, page_index: u8) -> Result<()> {
+    pub fn mint_machine(
+        ctx: Context<MintMachine>,
+        page_index: u8,
+        assignment: MintAssignmentArgs,
+        quote: MintQuoteArgs,
+    ) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
         require!(
@@ -849,25 +858,87 @@ pub mod taxi_park {
             TaxiError::EventPageCapacity
         );
 
+        let class = assignment.class;
         let class_index = usize::from(class);
         let (weight, cap) = class_terms(class)?;
+        require!(usize::from(assignment.variant) < VARIANTS_PER_CLASS, TaxiError::InvalidClass);
+        let global_index = ctx.accounts.config.minted_by_class.iter().try_fold(0_u16, |total, value| {
+            total.checked_add(*value).ok_or(TaxiError::MathOverflow)
+        })?;
+        require!(global_index < TOTAL_PAID_SUPPLY && assignment.index == global_index, TaxiError::InvalidMintAssignment);
+        require!(verify_mint_assignment(&ctx.accounts.config.mint_assignment_root, &assignment), TaxiError::InvalidMintAssignment);
         let minted = ctx.accounts.config.minted_by_class[class_index];
-        let price = ctx.accounts.config.mint_prices[class_index];
-        let (serial, variant) = next_mint_selection(minted, cap)?;
-        let name = format!("TAXI {} #{:04}", class_name(class)?, serial);
+        let price_usd_cents = ctx.accounts.config.mint_prices[0];
+        validate_mint_quote(price_usd_cents, &quote, Clock::get()?.unix_timestamp)?;
+        let current_index = load_current_index_checked(&ctx.accounts.instructions)?;
+        require!(current_index > 0, TaxiError::InvalidMintQuoteSignature);
+        let expected_message = voucher::mint_quote_message(
+            &crate::ID,
+            &ctx.accounts.config.deployment_id,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.asset.key(),
+            assignment.index,
+            class,
+            assignment.variant,
+            &ctx.accounts.config.fare_mint,
+            &quote,
+        );
+        let signature_instruction = load_instruction_at_checked(
+            usize::from(current_index - 1),
+            &ctx.accounts.instructions,
+        )?;
+        voucher::verify_ed25519_instruction(
+            &signature_instruction,
+            &ctx.accounts.config.backend_signer,
+            &expected_message,
+        )
+        .map_err(|_| error!(TaxiError::InvalidMintQuoteSignature))?;
+        let class_serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        require!(class_serial <= cap, TaxiError::ClassSoldOut);
+        let variant = assignment.variant;
+        let serial = assignment.index.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        let name = format!("TAXI {} #{:04}", model_name(class, variant)?, serial);
         let uri = ctx
             .accounts
             .config
             .metadata_uri(class_index, usize::from(variant))?
             .to_owned();
 
-        let payment = anchor_lang::system_program::Transfer {
-            from: ctx.accounts.owner.to_account_info(),
-            to: ctx.accounts.team_account.to_account_info(),
-        };
-        anchor_lang::system_program::transfer(
-            CpiContext::new(ctx.accounts.system_program.to_account_info(), payment),
-            price,
+        token::assert_program(&ctx.accounts.fare_token_program)?;
+        let fare_mint = token::mint_view(
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        let owner_fare = token::account_view(
+            &ctx.accounts.owner_fare_account,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        validate_source_balance(owner_fare.amount, quote.amount_fare_raw)?;
+        let team_fare = token::account_view(
+            &ctx.accounts.team_fare_account,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        validate_mint_payment_accounts(
+            ctx.accounts.config.fare_mint,
+            ctx.accounts.config.team_account,
+            ctx.accounts.owner.key(),
+            ctx.accounts.fare_mint.key(),
+            ctx.accounts.fare_token_program.key(),
+            &owner_fare,
+            ctx.accounts.team_fare_account.key(),
+            &team_fare,
+        )?;
+        token::transfer_checked(
+            token::TransferCheckedAccounts {
+                program: &ctx.accounts.fare_token_program,
+                source: &ctx.accounts.owner_fare_account,
+                mint: &ctx.accounts.fare_mint,
+                destination: &ctx.accounts.team_fare_account,
+                authority: &ctx.accounts.owner.to_account_info(),
+            },
+            quote.amount_fare_raw,
+            fare_mint.decimals,
+            &[],
         )?;
 
         let config_info = ctx.accounts.config.to_account_info();
@@ -905,7 +976,7 @@ pub mod taxi_park {
             .accounts
             .config
             .protocol_time(Clock::get()?.unix_timestamp)?;
-        ctx.accounts.config.minted_by_class[class_index] = serial;
+        ctx.accounts.config.minted_by_class[class_index] = class_serial;
         initialize_machine_and_events(
             &mut ctx.accounts.machine,
             &mut ctx.accounts.queue,
@@ -926,7 +997,9 @@ pub mod taxi_park {
             serial,
             weight,
             active_until: ctx.accounts.machine.active_until,
-            paid_lamports: price,
+            fare_mint: ctx.accounts.config.fare_mint,
+            paid_fare_raw: quote.amount_fare_raw,
+            price_usd_cents,
         });
         Ok(())
     }
@@ -1291,7 +1364,7 @@ pub mod taxi_park {
             payer: ctx.accounts.owner.key(),
             owner: ctx.accounts.owner.key(),
             system_program: ctx.accounts.system_program.key(),
-            name: "TAXI Trainee",
+            name: metaplex_core::TRAINEE_ASSET_NAME,
             uri: &ctx.accounts.config.trainee_metadata_uri,
             permanently_frozen: true,
         })?;
@@ -1804,6 +1877,7 @@ pub struct InitializeArgs {
     pub collection_uri: String,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
+    pub mint_assignment_root: [u8; 12],
 }
 
 #[derive(Accounts)]
@@ -1981,7 +2055,7 @@ pub struct ProcessStockSwap<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(class: u8, page_index: u8)]
+#[instruction(page_index: u8, assignment: MintAssignmentArgs, quote: MintQuoteArgs)]
 pub struct MintMachine<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -1989,8 +2063,7 @@ pub struct MintMachine<'info> {
         mut,
         seeds = [b"config"],
         bump = config.bump,
-        has_one = collection @ TaxiError::InvalidCollection,
-        has_one = team_account @ TaxiError::InvalidTeamAccount
+        has_one = collection @ TaxiError::InvalidCollection
     )]
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
@@ -2016,9 +2089,20 @@ pub struct MintMachine<'info> {
     /// CHECK: Address, owner and update authority are validated by metaplex_core::assert_collection.
     #[account(mut, address = config.collection)]
     pub collection: UncheckedAccount<'info>,
-    /// CHECK: Address is constrained by Configuration::has_one and only receives SOL.
+    /// CHECK: Mint address is constrained by config and its owner/decimals are validated in the handler.
+    #[account(address = config.fare_mint @ TaxiError::InvalidRewardMint)]
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Token account mint and owner are validated in the handler.
     #[account(mut)]
-    pub team_account: UncheckedAccount<'info>,
+    pub owner_fare_account: UncheckedAccount<'info>,
+    /// CHECK: Must be the canonical ATA for config.team_account and config.fare_mint.
+    #[account(mut)]
+    pub team_fare_account: UncheckedAccount<'info>,
+    /// CHECK: Must be the supported Token Program that owns fare_mint and both token accounts.
+    pub fare_token_program: UncheckedAccount<'info>,
+    /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding Ed25519 verification.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,
@@ -2318,12 +2402,47 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
 }
 
 fn validate_fare_assignment(config: &Configuration, fare_mint: Pubkey) -> Result<()> {
-    require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
     require!(
         fare_mint != Pubkey::default()
             && !config.stock_mints.iter().any(|mint| *mint == fare_mint),
         TaxiError::InvalidRewardMint
     );
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_mint_payment_accounts(
+    configured_fare_mint: Pubkey,
+    team_account: Pubkey,
+    owner: Pubkey,
+    fare_mint: Pubkey,
+    fare_token_program: Pubkey,
+    owner_fare: &token::TokenAccountView,
+    team_fare_address: Pubkey,
+    team_fare: &token::TokenAccountView,
+) -> Result<()> {
+    require_keys_eq!(fare_mint, configured_fare_mint, TaxiError::InvalidRewardMint);
+    require_keys_eq!(owner_fare.mint, fare_mint, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(owner_fare.owner, owner, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(team_fare.mint, fare_mint, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(team_fare.owner, team_account, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(
+        team_fare_address,
+        token::associated_token_address(&team_account, &fare_mint, &fare_token_program),
+        TaxiError::InvalidTokenAccount
+    );
+    Ok(())
+}
+
+fn validate_mint_quote(expected_price_usd_cents: u64, quote: &MintQuoteArgs, now: i64) -> Result<()> {
+    require!(quote.amount_fare_raw > 0, TaxiError::InvalidMintQuote);
+    require!(quote.price_usd_cents == expected_price_usd_cents, TaxiError::InvalidMintQuote);
+    require!(quote.expires_at >= now, TaxiError::MintQuoteExpired);
+    Ok(())
+}
+
+fn validate_source_balance(balance: u64, required: u64) -> Result<()> {
+    require!(balance >= required, TaxiError::InsufficientTokenBalance);
     Ok(())
 }
 
@@ -2443,12 +2562,13 @@ mod accounting_tests {
                 Pubkey::new_unique(),
             ],
             mint_prices: [1; CLASS_COUNT],
+            mint_assignment_root: [7; 12],
         };
         assert!(validate_initial_addresses(&args).is_err());
     }
 
     #[test]
-    fn fare_mint_can_change_before_sale_and_cannot_match_a_stock() {
+    fn fare_mint_can_change_at_any_time_and_cannot_match_a_stock() {
         let stock_mints = [
             Pubkey::new_unique(),
             Pubkey::new_unique(),
@@ -2475,6 +2595,7 @@ mod accounting_tests {
             paused_at: 0,
             total_paused_seconds: 0,
             bump: 1,
+            mint_assignment_root: [7; 12],
         };
         let fare_mint = Pubkey::new_unique();
         assert!(require_fare_ready(config.fare_mint).is_err());
@@ -2486,11 +2607,125 @@ mod accounting_tests {
         assert!(require_fare_ready(config.fare_mint).is_ok());
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
         config.sale_started = true;
-        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
+        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
     }
 
     #[test]
-    fn variants_are_bounded_balanced_and_use_class_scoped_uris() {
+    fn mint_payment_accepts_only_owner_tokens_and_the_team_canonical_ata() {
+        let fare_mint = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let team = Pubkey::new_unique();
+        let token_program = token::TOKEN_2022_PROGRAM_ID;
+        let owner_fare = token::TokenAccountView {
+            mint: fare_mint,
+            owner,
+            amount: 500,
+        };
+        let team_fare = token::TokenAccountView {
+            mint: fare_mint,
+            owner: team,
+            amount: 0,
+        };
+        let team_ata = token::associated_token_address(&team, &fare_mint, &token_program);
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            team_ata,
+            &team_fare,
+        )
+        .is_ok());
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            Pubkey::new_unique(),
+            token_program,
+            &owner_fare,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_source_mint = token::TokenAccountView {
+            mint: Pubkey::new_unique(),
+            ..owner_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &wrong_source_mint,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_source_owner = token::TokenAccountView {
+            owner: Pubkey::new_unique(),
+            ..owner_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &wrong_source_owner,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            Pubkey::new_unique(),
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_destination = token::TokenAccountView {
+            owner: Pubkey::new_unique(),
+            ..team_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            team_ata,
+            &wrong_destination,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn mint_quote_requires_current_price_positive_amount_and_live_expiry() {
+        let quote = MintQuoteArgs { amount_fare_raw: 100, price_usd_cents: 5_000, expires_at: 1_045 };
+        assert!(validate_mint_quote(5_000, &quote, 1_000).is_ok());
+        assert!(validate_mint_quote(4_999, &quote, 1_000).is_err());
+        assert!(validate_mint_quote(5_000, &MintQuoteArgs { amount_fare_raw: 0, ..quote }, 1_000).is_err());
+        assert!(validate_mint_quote(5_000, &quote, 1_046).is_err());
+        assert!(validate_source_balance(100, 100).is_ok());
+        assert!(validate_source_balance(99, 100).is_err());
+    }
+
+    #[test]
+    fn exact_caps_and_class_scoped_variant_uris_are_valid() {
         let metadata_uris = std::array::from_fn(|index| format!("uri-{index}"));
         let config = Configuration {
             admin: Pubkey::new_unique(),
@@ -2512,45 +2747,68 @@ mod accounting_tests {
             paused_at: 0,
             total_paused_seconds: 0,
             bump: 1,
+            mint_assignment_root: [7; 12],
         };
 
         for class in 0..CLASS_COUNT {
-            for serial in 1..=12_u16 {
-                let variant = variant_for_serial(serial).unwrap();
-                assert!(usize::from(variant) < VARIANTS_PER_CLASS);
+            for variant in 0..VARIANTS_PER_CLASS {
                 assert_eq!(
-                    config.metadata_uri(class, usize::from(variant)).unwrap(),
-                    format!("uri-{}", class * VARIANTS_PER_CLASS + usize::from(variant)),
+                    config.metadata_uri(class, variant).unwrap(),
+                    format!("uri-{}", class * VARIANTS_PER_CLASS + variant),
                 );
             }
         }
-        assert_eq!(CLASS_CAPS, [1000, 300, 100, 25]);
+        assert_eq!(CLASS_CAPS, [833, 278, 83, 28]);
+        assert_eq!(CLASS_CAPS.iter().sum::<u16>(), TOTAL_PAID_SUPPLY);
         assert_eq!(CLASS_WEIGHTS, [1, 3, 10, 30]);
-        assert_eq!(
-            (1..=8)
-                .map(|serial| variant_for_serial(serial).unwrap())
-                .collect::<Vec<_>>(),
-            [0, 1, 2, 3, 0, 1, 2, 3]
-        );
-        assert_eq!(next_mint_selection(0, 1000).unwrap(), (1, 0));
-        assert_eq!(next_mint_selection(999, 1000).unwrap(), (1000, 3));
-        assert!(next_mint_selection(1000, 1000).is_err());
+        assert_eq!(model_name(1, 2).unwrap(), "Toyota Camry");
+        assert_eq!(model_name(3, 3).unwrap(), "Porsche 911");
+        assert!(model_name(4, 0).is_err());
+        assert!(model_name(0, 4).is_err());
         assert!(metadata_uris_are_valid(&config.metadata_uris));
         let mut duplicate_uris = config.metadata_uris.clone();
         duplicate_uris[15] = duplicate_uris[0].clone();
         assert!(!metadata_uris_are_valid(&duplicate_uris));
-        assert!(variant_for_serial(0).is_err());
         assert!(config.metadata_uri(4, 0).is_err());
         assert!(config.metadata_uri(0, 4).is_err());
     }
 
     #[test]
+    fn mint_assignment_proof_binds_index_class_and_variant() {
+        let mut assignment = MintAssignmentArgs {
+            index: 12,
+            class: 2,
+            variant: 3,
+            proof: vec![[7; 12]; 11],
+        };
+        let index_bytes = assignment.index.to_le_bytes();
+        let mut root = truncated_hash(&[
+            b"TAXI_MINT_ASSIGNMENT_V1",
+            &index_bytes,
+            &[assignment.class],
+            &[assignment.variant],
+        ]);
+        let mut position = usize::from(assignment.index);
+        for sibling in &assignment.proof {
+            root = if position & 1 == 0 {
+                truncated_hash(&[&root, sibling])
+            } else {
+                truncated_hash(&[sibling, &root])
+            };
+            position >>= 1;
+        }
+        assert!(verify_mint_assignment(&root, &assignment));
+        assignment.variant = 2;
+        assert!(!verify_mint_assignment(&root, &assignment));
+    }
+
+    #[test]
     fn configuration_layout_requires_new_initialization() {
         const LEGACY_CONFIGURATION_INIT_SPACE: usize = 1298;
-        assert_eq!(Configuration::INIT_SPACE, 3950);
+        assert_eq!(Configuration::INIT_SPACE, 3962);
         assert_eq!(
             Configuration::INIT_SPACE - LEGACY_CONFIGURATION_INIT_SPACE,
-            13 * (4 + MAX_METADATA_URI_LEN),
+            13 * (4 + MAX_METADATA_URI_LEN) + 12,
         );
     }
 
@@ -2564,7 +2822,9 @@ mod accounting_tests {
             serial: 17,
             weight: 10,
             active_until: 42,
-            paid_lamports: 99,
+            fare_mint: Pubkey::new_unique(),
+            paid_fare_raw: 99,
+            price_usd_cents: 5_000,
         };
         let bytes = event.try_to_vec().unwrap();
         assert_eq!(bytes[64], 2);
@@ -2718,26 +2978,45 @@ fn class_terms(class: u8) -> Result<(u16, u16)> {
     Ok((CLASS_WEIGHTS[index], CLASS_CAPS[index]))
 }
 
-fn class_name(class: u8) -> Result<&'static str> {
-    match class {
-        0 => Ok("Economy"),
-        1 => Ok("Comfort"),
-        2 => Ok("Business"),
-        3 => Ok("Legend"),
-        _ => err!(TaxiError::InvalidClass),
+fn verify_mint_assignment(root: &[u8; 12], assignment: &MintAssignmentArgs) -> bool {
+    const DOMAIN: &[u8] = b"TAXI_MINT_ASSIGNMENT_V1";
+    const PROOF_DEPTH: usize = 11;
+    if assignment.proof.len() != PROOF_DEPTH {
+        return false;
     }
+    let index_bytes = assignment.index.to_le_bytes();
+    let class = [assignment.class];
+    let variant = [assignment.variant];
+    let mut current = truncated_hash(&[DOMAIN, &index_bytes, &class, &variant]);
+    let mut position = usize::from(assignment.index);
+    for sibling in &assignment.proof {
+        current = if position & 1 == 0 {
+            truncated_hash(&[&current, sibling])
+        } else {
+            truncated_hash(&[sibling, &current])
+        };
+        position >>= 1;
+    }
+    &current == root
 }
 
-fn variant_for_serial(serial: u16) -> Result<u8> {
-    require!(serial > 0, TaxiError::MathOverflow);
-    u8::try_from((serial - 1) % VARIANTS_PER_CLASS as u16)
-        .map_err(|_| error!(TaxiError::MathOverflow))
+fn truncated_hash(parts: &[&[u8]]) -> [u8; 12] {
+    let digest = solana_sha256_hasher::hashv(parts).to_bytes();
+    digest[..12].try_into().expect("fixed hash prefix")
 }
 
-fn next_mint_selection(minted: u16, cap: u16) -> Result<(u16, u8)> {
-    require!(minted < cap, TaxiError::ClassSoldOut);
-    let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
-    Ok((serial, variant_for_serial(serial)?))
+fn model_name(class: u8, variant: u8) -> Result<&'static str> {
+    const MODELS: [[&str; VARIANTS_PER_CLASS]; CLASS_COUNT] = [
+        ["Checker Marathon", "London Taxi", "Chevrolet Caprice", "Toyota Sienna"],
+        ["Toyota Prius", "Ford Crown Victoria", "Toyota Camry", "Mercedes E211"],
+        ["Tesla Model 3", "Bentley Flying Spur", "Mercedes G63", "Rolls-Royce Cullinan"],
+        ["BMW M3 E46", "Lamborghini Huracán", "Bugatti Chiron", "Porsche 911"],
+    ];
+    MODELS
+        .get(usize::from(class))
+        .and_then(|models| models.get(usize::from(variant)))
+        .copied()
+        .ok_or_else(|| error!(TaxiError::InvalidClass))
 }
 
 fn metadata_uris_are_valid(metadata_uris: &[String; METADATA_URI_COUNT]) -> bool {
@@ -2883,7 +3162,9 @@ pub struct MachineMinted {
     pub serial: u16,
     pub weight: u16,
     pub active_until: i64,
-    pub paid_lamports: u64,
+    pub fare_mint: Pubkey,
+    pub paid_fare_raw: u64,
+    pub price_usd_cents: u64,
 }
 
 #[event]

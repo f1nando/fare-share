@@ -1,0 +1,30 @@
+{
+  "id": "trainee-dacia-logan",
+  "name": "Dacia Logan",
+  "vehicleClass": "Trainee",
+  "imageUrl": "/nft/trainee-driving.webp",
+  "settings": {
+    "markSpeed": 19,
+    "markSpacing": 34.5,
+    "pathAngle": -167.6,
+    "markX": 50,
+    "markY": 81,
+    "markWidth": 29.5,
+    "markAngleOffset": 167.5,
+    "markOpacity": 65,
+    "leftX": 63.2,
+    "leftY": 55,
+    "rightX": 88.5,
+    "rightY": 54.8,
+    "blinkSize": 25,
+    "blinkSpeed": 2,
+    "blinkOpacity": 80,
+    "doublePulseDuration": 600,
+    "doublePulseGap": 70,
+    "doubleSecondOpacity": 85,
+    "backgroundHue": 0,
+    "backgroundSaturation": 100,
+    "backgroundGrayscale": 0,
+    "carBlackness": 0
+  }
+}

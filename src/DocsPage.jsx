@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const steps = [
-  ['01', 'MINT A TAXI', 'Choose a class and mint one permanent NFT.'],
+  ['01', 'MINT A TAXI', 'Mint the next taxi from the precommitted shuffled collection.'],
   ['02', 'EARN BY WEIGHT', 'An active taxi shares actual protocol rewards.'],
   ['03', 'REPAIR WITH FARE', 'Restore five days of durability when needed.'],
   ['04', 'CLAIM ASSETS', 'Collect FARE and available xStocks to your wallet.'],
@@ -104,8 +104,9 @@ export function DocsPage() {
 
               <section className="fare-docs-copy-section" id="cars">
                 <SectionTitle number="02">TAXIS, CLASSES & SUPPLY</SectionTitle>
-                <p>The collection has a hard maximum of 1,425 taxis: 1,000 Economy cars with weight 1, 300 Comfort cars with weight 3, 100 Business cars with weight 10, and 25 Legend cars with weight 30. Weight affects a taxi’s share of a reward period; it is not a guaranteed return.</p>
-                <p>Each mint creates one NFT. There is no per-wallet ownership limit, although every transaction mints only one car and is subject to the remaining supply of its class. Mint prices are fixed in SOL before the public sale starts and cannot be changed after the sale opens.</p>
+                <p>The paid collection has exactly 1,222 taxis: 833 Economy cars with weight 1, 278 Comfort cars with weight 3, 83 Business cars with weight 10, and 28 Legend cars with weight 30. Class and model follow a precommitted shuffled order. Weight affects a taxi’s share of a reward period; it is not a guaranteed return.</p>
+                <p>{tokenText('Every taxi mint costs $25. The class and one of its four models come from a precommitted shuffled supply of 1,222 cars. Immediately before minting, a short-lived signed quote converts $25 into $FARE using live market liquidity. The full token payment goes directly to the team wallet.', ticker)}</p>
+                <p>The team receives tokens rather than guaranteed dollars. The minted Metaplex Core Asset remains transferable and may be listed on Magic Eden for SOL.</p>
                 <p>Names, artwork and permanent traits are stored through immutable Arweave metadata. Live information—durability, checkpoints and unclaimed rewards—is read from the taxi’s Solana account instead of being written into static NFT metadata.</p>
                 <p>Burning a taxi permanently removes the NFT and does not reopen its place in the collection. After the burn is finalized and cleaned up onchain, its future weight is removed and any unclaimed assets return to the relevant reward pools.</p>
               </section>
@@ -152,7 +153,7 @@ export function DocsPage() {
               <section className="fare-docs-copy-section" id="risks">
                 <SectionTitle number="08">FEES, RISKS & TRUST</SectionTitle>
                 <p>{tokenText('Rewards depend on real trading activity, swap execution, token liquidity, active park weight and asset prices. $FARE, SOL, NFTs and tokenized stocks can lose value. Historical rewards are not a forecast, and owning a taxi does not guarantee profit or principal protection.', ticker)}</p>
-                <p>Owners pay SOL for mint, claim, repair and trainee transactions. Swaps depend on Jupiter routes; xStocks also depend on their issuer, supported jurisdictions and market availability. Users must confirm they are legally permitted to use the product and tokenized stocks in their country.</p>
+                <p>{tokenText('Owners pay $FARE for the NFT mint price and SOL for network fees and account rent. Claim, repair and trainee transactions also require SOL network fees. Swaps depend on Jupiter routes; xStocks also depend on their issuer, supported jurisdictions and market availability. Users must confirm they are legally permitted to use the product and tokenized stocks in their country.', ticker)}</p>
                 <p>The Solana program is the source of truth for reserves, reward checkpoints and ownership rules. MongoDB stores recoverable backend data and cache only. Most maintenance calls are permissionless, but fresh swap plans require the backend signer.</p>
                 <p>The deployment has an upgrade authority and a trusted admin. During a global pause, the admin can use emergency rescue functions, including moving assets from protocol-controlled vaults. This is an explicit trust assumption, not a trustless guarantee. Verify the official domain, collection and token addresses before signing.</p>
                 <div className="fare-docs-callout">Never share a seed phrase or private key. Fare Share support will never ask for either.</div>

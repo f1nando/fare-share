@@ -27,10 +27,27 @@ function optional(name: string): string | undefined {
   return process.env[name]?.trim() || undefined;
 }
 
+function boundedNumber(name: string, fallback: number, minimum: number, maximum: number): number {
+  const raw = process.env[name];
+  const value = raw === undefined ? fallback : Number(raw);
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
+function boolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw !== 'true' && raw !== 'false') throw new Error(`${name} must be true or false`);
+  return raw === 'true';
+}
+
 export type ServerConfig = ReturnType<typeof loadServerConfig>;
 
 export function loadServerConfig() {
   const programId = address(process.env.TAXI_PROGRAM_ID?.trim() || DEFAULT_PROGRAM_ID);
+  const rehearsalMode = process.env.REHEARSAL_MODE === 'true';
   return {
     port: integer('PORT', 8787, 1),
     mongoUri: required('MONGODB_URI'),
@@ -44,9 +61,15 @@ export function loadServerConfig() {
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
     workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),
-    workerIntervalMs: integer('WORKER_INTERVAL_MS', 60_000, 10_000),
+    workerInitiallyEnabled: boolean('WORKER_INITIAL_ENABLED', false),
+    workerIntervalMs: integer('WORKER_INTERVAL_MS', 300_000, 10_000),
     wordPepper: required('TRAINEE_WORD_PEPPER'),
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
+    mintQuoteTtlSeconds: boundedInteger('MINT_QUOTE_TTL_SECONDS', 45, 10, 120),
+    mintQuoteMarketMaxAgeMs: boundedInteger('MINT_QUOTE_MARKET_MAX_AGE_MS', 15_000, 1_000, 60_000),
+    mintQuoteMaxPriceImpactPct: boundedNumber('MINT_QUOTE_MAX_PRICE_IMPACT_PCT', 5, 0, 25),
+    mintQuoteMaxPriceDivergencePct: boundedNumber('MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT', 10, 0, 50),
+    mintAssignmentsPath: process.env.MINT_ASSIGNMENTS_PATH?.trim() || 'config/mint-assignments.json',
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
     trustProxy: process.env.TRUST_PROXY === 'true',
     jupiterApiKey: optional('JUPITER_API_KEY'),
@@ -54,7 +77,7 @@ export function loadServerConfig() {
     solanaRpcMaxRequestsPerSecond: boundedInteger('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 50, 1, 50),
     solanaSendTransactionMaxRequestsPerSecond: boundedInteger('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 5, 1, 5),
     solanaDasMaxRequestsPerSecond: boundedInteger('SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10, 1, 10),
-    swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 1_000_000, 1)),
+    swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 100_000_000, 1)),
     swapSlippageBps: boundedInteger('SWAP_SLIPPAGE_BPS', 500, 1, 10_000),
     swapPlanTtlSeconds: integer('SWAP_PLAN_TTL_SECONDS', 600, 30),
     jupiterMaxAccounts: boundedInteger('JUPITER_MAX_ACCOUNTS', 48, 1, 64),
@@ -68,7 +91,14 @@ export function loadServerConfig() {
     adminSecureCookies: process.env.ADMIN_SECURE_COOKIES !== 'false',
     protocolAdminSecret: optional('ADMIN_KEYPAIR_SECRET_KEY'),
     pumpFeeRecipientSecret: optional('PUMP_FEE_RECIPIENT_SECRET_KEY'),
-    adminMinimumWalletLamports: BigInt(integer('ADMIN_MINIMUM_WALLET_LAMPORTS', 10_000_000, 1)),
+    adminMinimumWalletLamports: BigInt(integer('ADMIN_MINIMUM_WALLET_LAMPORTS', 100_000_000, 1)),
+    telegramBotTokenFile: optional('TELEGRAM_BOT_TOKEN_FILE'),
+    telegramBackendHealthUrl: optional('TELEGRAM_BACKEND_HEALTH_URL'),
+    rehearsalMode,
+    rehearsalOrdinaryBudgetLamports: BigInt(integer('REHEARSAL_ORDINARY_BUDGET_LAMPORTS', 700_000_000, 1)),
+    rehearsalHardBudgetLamports: BigInt(integer('REHEARSAL_HARD_BUDGET_LAMPORTS', 800_000_000, 1)),
+    rehearsalTransactionReserveLamports: BigInt(integer('REHEARSAL_TRANSACTION_RESERVE_LAMPORTS', 10_000_000, 5_000)),
+    rehearsalInitialSpentLamports: BigInt(integer('REHEARSAL_INITIAL_SPENT_LAMPORTS', 0, 0)),
     solanaCluster: process.env.VITE_SOLANA_CHAIN === 'solana:mainnet' ? 'mainnet-beta' as const : 'devnet' as const,
   };
 }

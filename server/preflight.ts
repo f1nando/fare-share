@@ -8,6 +8,9 @@ export const OFFICIAL_XSTOCK_MINTS = [
   'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg',
 ] as const;
 
+export const REHEARSAL_DATABASE = 'fare_share_disposable_rehearsal';
+export const REHEARSAL_SHARED_ROLE_ADDRESS = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+
 export interface PreflightResult {
   errors: string[];
   warnings: string[];
@@ -107,15 +110,51 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (testMintSetting === 'true' && frontendChain !== 'solana:devnet') {
     errors.push('DEVNET_ALLOW_TEST_MINTS: allowed only for solana:devnet');
   }
+  const rehearsalSetting = value('REHEARSAL_MODE');
+  if (rehearsalSetting && rehearsalSetting !== 'true' && rehearsalSetting !== 'false') {
+    errors.push('REHEARSAL_MODE: only true or false is allowed');
+  }
+  const rehearsalMode = rehearsalSetting === 'true';
+  const externalCollectionSignerRequired = rehearsalMode || frontendChain === 'solana:mainnet';
+  const workerInitiallyEnabled = value('WORKER_INITIAL_ENABLED');
+  if (workerInitiallyEnabled && workerInitiallyEnabled !== 'true' && workerInitiallyEnabled !== 'false') {
+    errors.push('WORKER_INITIAL_ENABLED: only true or false is allowed');
+  }
+  if (rehearsalMode) {
+    if (value('MONGODB_DATABASE') !== REHEARSAL_DATABASE) {
+      errors.push(`MONGODB_DATABASE: rehearsal requires ${REHEARSAL_DATABASE}`);
+    }
+    if (frontendChain !== 'solana:mainnet') errors.push('VITE_SOLANA_CHAIN: rehearsal requires solana:mainnet');
+    if (workerInitiallyEnabled !== 'false') errors.push('WORKER_INITIAL_ENABLED: rehearsal must explicitly start with false');
+    if (value('REHEARSAL_SHARED_ROLE_ADDRESS') !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+      errors.push(`REHEARSAL_SHARED_ROLE_ADDRESS: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
+    }
+    if (value('REHEARSAL_ORDINARY_BUDGET_LAMPORTS') !== '700000000') {
+      errors.push('REHEARSAL_ORDINARY_BUDGET_LAMPORTS: rehearsal requires 700000000');
+    }
+    if (value('REHEARSAL_HARD_BUDGET_LAMPORTS') !== '800000000') {
+      errors.push('REHEARSAL_HARD_BUDGET_LAMPORTS: rehearsal requires 800000000');
+    }
+    const initialSpent = value('REHEARSAL_INITIAL_SPENT_LAMPORTS');
+    if (!/^\d+$/.test(initialSpent) || BigInt(initialSpent) > 700_000_000n) {
+      errors.push('REHEARSAL_INITIAL_SPENT_LAMPORTS: must be finalized lamports between 0 and 700000000');
+    }
+  }
 
   const programId = validAddress('TAXI_PROGRAM_ID');
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');
-  validAddress('TEAM_ACCOUNT');
+  const collectionAddress = value('COLLECTION_ADDRESS');
+  const collectionKeypairPath = value('COLLECTION_KEYPAIR_PATH');
+  if (externalCollectionSignerRequired || collectionAddress || collectionKeypairPath) {
+    validAddress('COLLECTION_ADDRESS');
+    required('COLLECTION_KEYPAIR_PATH');
+  }
+  const teamAccount = validAddress('TEAM_ACCOUNT');
   validAddress('JUPITER_PROGRAM_ID');
   const rawFareMint = value('FARE_MINT');
   const fareMint = rawFareMint ? validAddress('FARE_MINT', rawFareMint) : '';
   if (!rawFareMint) {
-    warnings.push('FARE_MINT: will be set by an admin instruction after token creation and remains replaceable until start-sale');
+    warnings.push('FARE_MINT: will be set by an admin instruction after token creation and remains runtime-replaceable');
   }
   if (programId && frontendProgramId && programId !== frontendProgramId) {
     errors.push('VITE_TAXI_PROGRAM_ID: must match TAXI_PROGRAM_ID');
@@ -134,31 +173,36 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     errors.push('FARE_MINT and STOCK_MINTS must use different addresses');
   }
 
-  const prices = tuple('MINT_PRICES_LAMPORTS');
-  const expectedPrices = ['350000000', '1000000000', '3000000000', '8000000000'];
+  const prices = tuple('MINT_PRICES_USD_CENTS');
   for (const [index, price] of prices.entries()) {
     if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
-      errors.push(`MINT_PRICES_LAMPORTS[${index}]: must be a positive integer amount of lamports`);
+      errors.push(`MINT_PRICES_USD_CENTS[${index}]: must be a positive integer amount of USD cents`);
     }
   }
-  if (prices.length === expectedPrices.length && prices.some((price, index) => price !== expectedPrices[index])) {
-    errors.push('MINT_PRICES_LAMPORTS: expected fixed Economy/Comfort/Business/Legend prices 350000000,1000000000,3000000000,8000000000');
+  if (prices.some(price => price !== '2500')) errors.push('MINT_PRICES_USD_CENTS: every mint price must equal 2500 ($25)');
+
+  const assignmentRoot = required('MINT_ASSIGNMENT_ROOT_HEX');
+  if (assignmentRoot && (!/^[0-9a-fA-F]{24}$/.test(assignmentRoot) || /^0+$/.test(assignmentRoot))) {
+    errors.push('MINT_ASSIGNMENT_ROOT_HEX: must contain a non-zero 12-byte root in hex');
   }
+  required('MINT_ASSIGNMENTS_PATH');
 
   const deploymentId = required('DEPLOYMENT_ID_HEX');
   if (deploymentId && (!/^[0-9a-fA-F]{64}$/.test(deploymentId) || /^0+$/.test(deploymentId))) {
     errors.push('DEPLOYMENT_ID_HEX: must contain 32 random non-zero bytes in hex');
   }
 
-  const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY', 'WORKER_KEYPAIR_SECRET_KEY'] as const;
+  const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY'] as const;
   const secrets: string[] = [];
+  const signerAddresses: string[] = [];
   for (const name of secretNames) {
     const raw = required(name);
     if (!raw) continue;
     try {
       const bytes = parseSecretBytes(raw, name);
-      await createKeyPairSignerFromBytes(bytes);
+      const signer = await createKeyPairSignerFromBytes(bytes);
       secrets.push(Buffer.from(bytes).toString('hex'));
+      signerAddresses.push(String(signer.address));
     } catch (error) {
       const message = (error as Error).message;
       errors.push(message.startsWith(`${name} `)
@@ -166,19 +210,41 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
         : `${name}: private and public keypair parts do not match`);
     }
   }
-  if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
-    errors.push('ADMIN, BACKEND_SIGNER, and WORKER must use different keypairs');
+  if (!rehearsalMode && secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
+    errors.push('ADMIN and BACKEND_SIGNER must use different keypairs');
+  }
+  if (rehearsalMode && signerAddresses.some(signerAddress => signerAddress !== REHEARSAL_SHARED_ROLE_ADDRESS)) {
+    errors.push(`ADMIN_KEYPAIR_SECRET_KEY and BACKEND_SIGNER_SECRET_KEY: rehearsal signers must match ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
+  }
+  const workerSecret = value('WORKER_KEYPAIR_SECRET_KEY');
+  if (workerSecret) {
+    try {
+      const signer = await createKeyPairSignerFromBytes(parseSecretBytes(workerSecret, 'WORKER_KEYPAIR_SECRET_KEY'));
+      if (rehearsalMode && String(signer.address) !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+        errors.push(`WORKER_KEYPAIR_SECRET_KEY: rehearsal signer must match ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
+      }
+    } catch (error) {
+      const message = (error as Error).message;
+      errors.push(message.startsWith('WORKER_KEYPAIR_SECRET_KEY ')
+        ? message
+        : 'WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match');
+    }
+  } else {
+    warnings.push('WORKER_KEYPAIR_SECRET_KEY: not set; worker will use ADMIN_KEYPAIR_SECRET_KEY');
   }
   const feeRecipientSecret = required('PUMP_FEE_RECIPIENT_SECRET_KEY');
   if (feeRecipientSecret) {
     try {
       const signer = await createKeyPairSignerFromBytes(parseSecretBytes(feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
-      if (frontendChain === 'solana:mainnet' && String(signer.address) !== '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF') {
+      if (frontendChain === 'solana:mainnet' && String(signer.address) !== REHEARSAL_SHARED_ROLE_ADDRESS) {
         errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: must match the fixed 2NUN… mainnet wallet');
       }
     } catch (error) {
       errors.push(String((error as Error).message));
     }
+  }
+  if (rehearsalMode && teamAccount && teamAccount !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+    errors.push(`TEAM_ACCOUNT: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
   }
   required('ADMIN_USERNAME');
   const adminPassword = required('ADMIN_PASSWORD_SCRYPT');

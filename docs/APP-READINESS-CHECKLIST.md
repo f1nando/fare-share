@@ -9,6 +9,7 @@
 - test token: `4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump` (`TAXI`);
 - mint prices: `1 / 3 / 10 / 30` lamports;
 - эти Program ID, Collection и token нельзя переносить в production.
+- следующая версия хранит USD targets и принимает динамически рассчитанный `$FARE` raw amount по короткой backend-signed quote; текущий публичный test deployment остаётся историческим SOL-вариантом до отдельного релиза.
 
 ## Обозначения
 
@@ -65,7 +66,7 @@
 - ✅ Phantom-safe порядок multi-signer mint исправлен: wallet подписывает до asset signer.
 - ✅ Mint создаёт Core Asset и Machine PDA, записывает serial/class/variant.
 - ✅ Вариант выбирается как `(serial - 1) mod 4`; пользователь выбирает только класс.
-- ✅ Caps и weights зафиксированы: `[1000,300,100,25]` и `[1,3,10,30]`.
+- ✅ Paid caps и weights зафиксированы: `[833,278,83,28]` (всего 1222) и `[1,3,10,30]`.
 - ✅ Mint receipt сохраняется в MongoDB после finalized транзакции.
 - ✅ Если MongoDB-запись не прошла после успешного mint, UI сообщает о частичном успехе.
 - ⬜ Повторить fresh mint из Phantom после закрытия старого красного запроса.
@@ -133,6 +134,8 @@
 - ✅ Campaign/rate-limit/backend tests существуют.
 - 🟡 Docs и landing рассказывают о trainee campaign.
 - ✅ В branded `/mint/` добавлены code word, активация временного непередаваемого trainee NFT, список активаций и отдельный Claim; внутренний campaign ID пользователю не показывается.
+- ✅ Trainee не имеет глобальной квоты и не меняет paid caps `[833, 278, 83, 28]`; один wallet может активировать по одному asset в каждой кампании.
+- [ ] Перед production подтвердить Core integration smoke: immutable frozen trainee transfer отклонён, обычная платная машина остаётся transferable, DAS показывает owner и основную Collection.
 - ⬜ Опубликовать новый trainee UI и проверить его с реальной тестовой кампанией.
 - ⬜ Выполнить end-to-end smoke: создать campaign → получить voucher → activate → дождаться reward → claim.
 - ⬜ Проверить wrong keyword, expired campaign, повторную активацию и rate limit.
@@ -213,7 +216,9 @@
 - [ ] Создать новый production Program ID и сохранить recoverable upgrade-authority/buffer procedure.
 - [ ] Создать новую production Core Collection и подтвердить 16 canonical immutable metadata.
 - [ ] Создать production token с утверждёнными Pump settings и `2NUN… = 100%` fee sharing.
-- [ ] Установить реальные mint prices до `start_sale`; после старта их нельзя считать тестовыми.
+- [ ] Установить `MINT_PRICES_USD_CENTS=2500,2500,2500,2500`, проверить assignment manifest/root и настроить `$FARE` CA; после старта цена и порядок блокируются, CA остаётся runtime-replaceable.
+- [ ] Проверить отказ mint quote при stale/no-liquidity/high-impact/divergent market data и мониторинг доступности Jupiter.
+- [ ] Проверить атомарный mint: 100% `$FARE` приходит только в canonical ATA team wallet, неправильные mint/source/destination отклоняются, burn и reward-pool пополнение отсутствуют.
 - [ ] Повторить preflight, ProgramData/authority/recovery dry-run и release manifest.
 - [ ] Выполнить минимальный production smoke до открытия публичной продажи.
 - [ ] Запустить профинансированный supervised worker и alerts.

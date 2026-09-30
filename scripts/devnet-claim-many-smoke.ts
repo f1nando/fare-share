@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { address, createKeyPairSignerFromBytes } from '@solana/kit';
+import { address, createKeyPairSignerFromBytes, generateKeyPairSigner } from '@solana/kit';
 import { findAssociatedTokenPda } from '@solana-program/token';
 
 import {
@@ -44,20 +44,33 @@ else throw new Error('Usage: devnet-claim-many-smoke.ts mint|claim|claim-atomici
 
 async function mintFleet() {
   const config = decodeConfiguration(await accountBytes(addresses.config));
+  const fareMintAccount = (await getMultipleAccounts([config.fareMint]))[0];
+  const fareTokenProgram = address(fareMintAccount!.owner);
+  const backendUrl = required('VITE_BACKEND_URL').replace(/\/$/, '');
   const machines = [];
   for (let index = 0; index < 10; index += 1) {
     const queue = decodeEventQueue(await accountBytes(addresses.queue));
     const pageIndex = chooseEventPage(queue, 2);
+    const assetSigner = await generateKeyPairSigner();
+    const quoteResponse = await fetch(`${backendUrl}/api/mint/quote`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ owner: String(owner.address), asset: String(assetSigner.address) }),
+    });
+    const quote = await quoteResponse.json();
+    if (!quoteResponse.ok) throw new Error(quote.error || 'Mint quote request failed.');
     const built = await buildMintMachine({
       programAddress,
       owner: owner.address,
       configAddress: addresses.config,
       config,
       queue: addresses.queue,
-      classIndex: 0,
       pageIndex,
+      fareTokenProgram,
+      assetSigner,
+      quote,
     });
-    const signature = await sendInstructions(rpcUrl, owner, [built.instruction], [built.assetSigner]);
+    const signature = await sendInstructions(rpcUrl, owner, built.instructions, [built.assetSigner]);
     machines.push({ asset: String(built.assetSigner.address), machineAddress: String(built.machine) });
     console.log(`Mint ${index + 1}/10 finalized: ${signature}`);
   }

@@ -106,7 +106,8 @@ function parseSimpleCommand(name: string, values: string[]): SimpleAdminCommand 
   if (name === 'set-mint-prices') {
     exactArgs(values, 1);
     const prices = values[0].split(',').map(positiveBigInt);
-    if (prices.length !== 4) throw new Error('set-mint-prices expects four comma-separated lamport values');
+    if (prices.length !== 4) throw new Error('set-mint-prices expects four comma-separated USD cent values');
+    if (!prices.every(price => price === 2_500n)) throw new Error('Every mint price must equal 2500 USD cents ($25)');
     return { name, prices: prices as [bigint, bigint, bigint, bigint] };
   }
   if (name === 'propose-admin' || name === 'set-team' || name === 'set-backend-signer' || name === 'set-jupiter') {

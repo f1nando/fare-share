@@ -41,6 +41,11 @@
 
 ### Gate 3 — конфигурация и preflight
 
+- [ ] Для нового поколения задать `MINT_PRICES_USD_CENTS=2500,2500,2500,2500`, проверить assignment manifest/root, backend signer и 45-секундный mint quote TTL.
+- [ ] Подтвердить live `$FARE → USDC` либо fallback `$FARE → SOL → USD` routes, допустимый price impact и отказ при stale/divergent данных.
+- [ ] Smoke mint должен иметь порядок `team ATA (optional) → Ed25519 → mint_machine`, точный перевод 100% `$FARE` в team ATA и обычный transferable Core Asset для Magic Eden.
+- [ ] Smoke trainee activation создаёт отдельный asset в той же Collection, не меняет `minted_by_class`, остаётся frozen после окончания и не проходит transfer/marketplace listing.
+
 - [x] Создать отдельный некоммитимый target `.env` для `mainnet-test-rc` и завершить `protocol:preflight`: PASS с ожидаемыми warnings о позднем FARE CA и общем Helius RPC/DAS endpoint; `getGenesisHash` и `getAssetsByOwner` проверены.
 - [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
 - [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.
@@ -56,7 +61,7 @@
 - [ ] Подтвердить ожидаемый максимальный расход на mint, rent и комиссии.
 - [ ] До `start-sale` проверить collection, team recipient, mint prices и все caps непосредственно из Configuration PDA.
 - [x] Разделить запуск на два этапа: `initialize` сохраняет пустой `$FARE`, а `set-fare-mint <CA>` после создания токена атомарно создаёт/проверяет canonical vault; protocol admin может исправить CA до `start-sale`.
-- [ ] После создания финального токена через `/admin/` выполнить `set_fare_mint`, сохранить CA+ticker в MongoDB runtime-конфигурации и проверить Configuration PDA и `/api/token`; до этого `start-sale` обязан отклоняться, после старта прямая замена CA обязана отклоняться.
+- [ ] После создания финального токена через `/admin/` выполнить `set_fare_mint`, сохранить CA+ticker в MongoDB runtime-конфигурации и проверить Configuration PDA, `/api/token`, Trade и quote. Отдельно smoke-проверить runtime replacement после старта и учёт остатка старого vault.
 
 ### Gate 5 — regression и release artifact
 

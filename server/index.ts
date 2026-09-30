@@ -10,11 +10,34 @@ import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
 import { createPublicDataService, PublicDataError } from './publicData.js';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
-import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
+import { createTraineeCampaignAdmin, fixedTraineeCampaignWord, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
+import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
+import { performWorkerAction } from './workerAutomation.js';
+import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
+import { createRehearsalBudgetGuard } from './rehearsalBudget.js';
+import { configureTransactionBudgetGuard } from './transaction.js';
+import { createTelegramAlertService } from './telegramAlerts.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
+if (config.rehearsalMode) configureTransactionBudgetGuard(await createRehearsalBudgetGuard({
+  rpcUrl: config.solanaRpcUrl,
+  collection: database.rehearsalBudget,
+  ordinaryLimitLamports: config.rehearsalOrdinaryBudgetLamports,
+  hardLimitLamports: config.rehearsalHardBudgetLamports,
+  transactionReserveLamports: config.rehearsalTransactionReserveLamports,
+  initialSpentLamports: config.rehearsalInitialSpentLamports,
+}));
+const telegramAlerts = config.telegramBotTokenFile
+  ? await createTelegramAlertService(
+      config.telegramBotTokenFile,
+      database.telegramAlerts,
+      database.telegramAlertStates,
+      database.telegramAudit,
+    )
+  : undefined;
 const issueVoucher = createVoucherService(config, database);
+const issueMintQuote = createMintQuoteService(config);
 let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRpcUrl, config.programId, database.tokenConfig)
   .catch(error => {
     console.warn(`Public token configuration is unavailable: ${error instanceof Error ? error.message : String(error)}`);
@@ -40,9 +63,14 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
-const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
+const publicData = createPublicDataService({ ...config, fareSymbol: () => publicToken.ticker || 'FARE' }, database);
+const workerDefaults = { enabled: config.workerInitiallyEnabled, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
+await loadWorkerSettings(database.workerStatus, workerDefaults);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
-const traineeCampaigns = createTraineeCampaignAdmin(config, database);
+const traineeCampaigns = createTraineeCampaignAdmin({
+  ...config,
+  primaryWord: fixedTraineeCampaignWord(config.mongoDatabase),
+}, database);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
 
 const server = createServer(async (request, response) => {
@@ -60,7 +88,7 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/token') {
-      json(response, 200, publicToken);
+      json(response, 200, publicToken, { 'cache-control': 'no-store' });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/public/overview') {
@@ -116,7 +144,20 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/admin/status') {
       const services = requireAdminServices();
       services.auth.require(request);
-      json(response, 200, await services.fees.status());
+      const status = await services.fees.status();
+      const budget = config.rehearsalMode
+        ? await database.rehearsalBudget.findOne({ key: 'disposable-rehearsal' })
+        : null;
+      json(response, 200, {
+        ...status,
+        ...(budget ? { rehearsalBudget: {
+          spentLamports: String(budget.spentLamports),
+          reservedLamports: String(budget.reservedLamports),
+          ordinaryLimitLamports: String(budget.ordinaryLimitLamports),
+          hardLimitLamports: String(budget.hardLimitLamports),
+          pendingReservations: Object.keys(budget.reservations).length,
+        } } : {}),
+      });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/trainee-campaigns') {
@@ -137,7 +178,11 @@ const server = createServer(async (request, response) => {
       const body = asRecord(await readJson(request));
       const inspected = await services.fees.inspectMint(body.ca);
       const ticker = normalizeAdminTicker(body.ticker);
-      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, ready: true });
+      const [market, metadata] = await Promise.all([
+        loadMintMarketPreview(config, inspected.mint, inspected.decimals, body.pricesUsd),
+        loadMintMetadata(config.solanaRpcUrl, inspected.mint),
+      ]);
+      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, decimals: inspected.decimals, tokenProgram: String(inspected.tokenProgram), metadata, market, ready: true });
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/bind') {
@@ -149,6 +194,9 @@ const server = createServer(async (request, response) => {
       await traineeCampaigns.ensurePrimary(result.ticker);
       trade?.stop();
       trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      void publicData.sync(true).catch(error => {
+        console.warn(`Public data refresh after token replacement failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
       json(response, 200, result);
       return;
     }
@@ -193,6 +241,50 @@ const server = createServer(async (request, response) => {
         ? forwarded[0]
         : forwarded?.split(',')[0]?.trim() || request.socket.remoteAddress || 'unknown';
       json(response, 200, await issueVoucher(body, remote));
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/admin/worker/settings') {
+      const services = requireAdminServices();
+      services.auth.require(request);
+      json(response, 200, publicWorkerSettings(await loadWorkerSettings(database.workerStatus, workerDefaults)));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/worker/settings') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 200, await updateWorkerSettings(database.workerStatus, asRecord(await readJson(request)), workerDefaults));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/worker/run') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const action = parseWorkerAction(asRecord(await readJson(request)).action);
+      json(response, 200, await runWorkerAction(database.workerStatus, workerDefaults, action, 'manual', (settings, runId) => (
+        performWorkerAction(action, 'manual', settings, runId, services.fees)
+      )));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/prices') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.setMintPrices(body.pricesUsd));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/mint/quote') {
+      requirePublicOrigin(request);
+      try {
+        const quote = await issueMintQuote(await readJson(request));
+        await telegramAlerts?.recovery('mint-quote', 'Mint quote generation is succeeding again.').catch(() => undefined);
+        json(response, 200, quote);
+      } catch (error) {
+        const alertableQuoteFailure = !(error instanceof MintQuoteError)
+          || (error.status >= 500 && /market|liquidity|route|price|jupiter|solana time/i.test(error.message));
+        if (alertableQuoteFailure) {
+          await telegramAlerts?.failure('mint-quote', 'Mint quote generation failed repeatedly. Check protected backend logs.', 3).catch(() => undefined);
+        }
+        throw error;
+      }
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
@@ -307,7 +399,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof WorkerControlError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }

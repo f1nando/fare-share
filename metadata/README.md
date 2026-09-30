@@ -14,7 +14,7 @@ For the disposable mainnet validation collection, also set
 names, the `TAXITEST` symbol, and descriptions that explicitly state that the
 assets are not production NFTs.
 
-The generated files are written to `.qa/nft-metadata/` and are intentionally not committed. Their fixed machine order is Economy 0–3, Comfort 0–3, Business 0–3, Legend 0–3, followed by trainee. Upload those JSON files through Irys, verify every public image/JSON URL, then set `COLLECTION_URI`, all 16 `MACHINE_METADATA_URIS`, and `TRAINEE_METADATA_URI` before initialization. No upload is performed by the generator.
+The generated files are written to `.qa/nft-metadata/` and are intentionally not committed. Their fixed machine order is Economy 0–3, Comfort 0–3, Business 0–3, Legend 0–3, followed by trainee. The trainee JSON contains `Type: Trainee` and `Transferable: No` and must use its dedicated artwork. Upload those JSON files through Irys, verify every public image/JSON URL, then set `COLLECTION_URI`, all 16 `MACHINE_METADATA_URIS`, and `TRAINEE_METADATA_URI` before initialization. No upload is performed by the generator.
 
 Dynamic durability, rewards and repair cost do not belong in NFT metadata. They are read from the Solana program.
 Machine JSON deliberately omits `name`: the immutable Core Asset name is assigned on-chain as `TAXI <Class> #<serial>`, while the model is represented by the `Model` attribute. The trainee asset is named `TAXI Trainee`, uses a permanent frozen-transfer plugin, and has no repair path.

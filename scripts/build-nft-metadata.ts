@@ -4,19 +4,19 @@ import { resolve } from 'node:path';
 
 export const NFT_CLASSES = [
   {
-    className: 'Economy', slug: 'economy', weight: 1, supply: 1000,
+    className: 'Economy', slug: 'economy', weight: 1, supply: 833,
     models: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'],
   },
   {
-    className: 'Comfort', slug: 'comfort', weight: 3, supply: 300,
+    className: 'Comfort', slug: 'comfort', weight: 3, supply: 278,
     models: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'],
   },
   {
-    className: 'Business', slug: 'business', weight: 10, supply: 100,
+    className: 'Business', slug: 'business', weight: 10, supply: 83,
     models: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'],
   },
   {
-    className: 'Legend', slug: 'legend', weight: 30, supply: 25,
+    className: 'Legend', slug: 'legend', weight: 30, supply: 28,
     models: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'],
   },
 ] as const;
@@ -28,15 +28,21 @@ const modelSlug = (model: string) => model
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/^-|-$/g, '');
 
-export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest = false) {
+export type MetadataMode = 'production' | 'mainnet-test' | 'rehearsal';
+
+export function buildMetadataFiles(imageUris: readonly string[], requestedMode: MetadataMode | boolean = 'production') {
   if (imageUris.length !== 18 || imageUris.some(uri => !/^https:\/\//.test(uri))) {
     throw new Error('NFT_IMAGE_URIS must contain 18 comma-separated HTTPS URLs: collection, 16 class/variant images, then trainee');
   }
-  const collectionName = isMainnetTest ? 'TAXI Taxi Park Mainnet Test' : 'TAXI Taxi Park';
-  const symbol = isMainnetTest ? 'TAXITEST' : 'TAXI';
-  const collectionDescription = isMainnetTest
-    ? 'Disposable TAXI Taxi Park mainnet validation collection. Not the production collection. No fixed APY.'
-    : 'The official TAXI Taxi Park collection on Solana. Rewards depend on actual protocol fees. No fixed APY.';
+  const mode = requestedMode === true ? 'mainnet-test' : requestedMode === false ? 'production' : requestedMode;
+  const isTest = mode !== 'production';
+  const collectionName = mode === 'rehearsal' ? 'Fare Share Taxi Rehearsal' : isTest ? 'TAXI Taxi Park Mainnet Test' : 'TAXI Taxi Park';
+  const symbol = isTest ? 'TAXITEST' : 'TAXI';
+  const collectionDescription = mode === 'rehearsal'
+    ? 'Disposable Fare Share Taxi rehearsal collection on Solana Mainnet. Not the production collection. No fixed APY.'
+    : isTest
+      ? 'Disposable TAXI Taxi Park mainnet validation collection. Not the production collection. No fixed APY.'
+      : 'The official TAXI Taxi Park collection on Solana. Rewards depend on actual protocol fees. No fixed APY.';
   let imageIndex = 1;
   return [
     {
@@ -47,7 +53,9 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
       file: `${item.slug}-${variant}-${modelSlug(model)}.json`,
       data: {
         symbol,
-        description: isMainnetTest
+        description: mode === 'rehearsal'
+          ? `A ${model} ${item.className} taxi from the disposable Fare Share Taxi rehearsal collection. Not a production NFT. No fixed APY.`
+          : isTest
           ? `A ${model} ${item.className} taxi from the disposable TAXI Taxi Park mainnet validation collection. Not a production NFT. No fixed APY.`
           : `A ${model} ${item.className} taxi from TAXI Taxi Park. Rewards depend on actual protocol fees. No fixed APY.`,
         image: imageUris[imageIndex++],
@@ -62,12 +70,15 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
     {
       file: 'trainee.json',
       data: {
-        name: 'TAXI Trainee',
+        name: 'TAXI Trainee — Dacia Logan',
         symbol,
-        description: 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
+        description: mode === 'rehearsal'
+          ? 'A temporary, non-transferable trainee taxi from the disposable Fare Share Taxi rehearsal collection. Not a production NFT. It cannot be repaired and earns only during its activation period. No fixed APY.'
+          : 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
         image: imageUris[17],
         attributes: [
-          { trait_type: 'Class', value: 'Trainee' },
+          { trait_type: 'Type', value: 'Trainee' },
+          { trait_type: 'Model', value: 'Dacia Logan' },
           { trait_type: 'Weight', value: 1 },
           { trait_type: 'Transferable', value: 'No' },
           { trait_type: 'Repairable', value: 'No' },
@@ -87,7 +98,11 @@ export async function writeMetadataFiles(outputDirectory: string, files: ReturnT
 async function main() {
   const outputDirectory = resolve(process.env.NFT_METADATA_OUTPUT_DIR || '.qa/nft-metadata');
   const imageUris = (process.env.NFT_IMAGE_URIS || '').split(',').map(value => value.trim());
-  const files = buildMetadataFiles(imageUris, process.env.NFT_METADATA_MODE === 'mainnet-test');
+  const rawMode = process.env.NFT_METADATA_MODE || 'production';
+  if (!['production', 'mainnet-test', 'rehearsal'].includes(rawMode)) {
+    throw new Error('NFT_METADATA_MODE must be production, mainnet-test, or rehearsal');
+  }
+  const files = buildMetadataFiles(imageUris, rawMode as MetadataMode);
   await writeMetadataFiles(outputDirectory, files);
   console.log(`Prepared ${files.length} metadata files in ${outputDirectory}`);
 }

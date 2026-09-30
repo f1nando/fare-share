@@ -17,6 +17,16 @@ const TOKEN_ACCOUNT_BASE_LEN: usize = 165;
 const TOKEN_ACCOUNT_STATE_OFFSET: usize = 108;
 const MINT_DECIMALS_OFFSET: usize = 44;
 const MINT_INITIALIZED_OFFSET: usize = 45;
+const TOKEN_2022_ACCOUNT_TYPE_OFFSET: usize = 165;
+const TOKEN_2022_TLV_OFFSET: usize = 166;
+const METADATA_POINTER_EXTENSION: u16 = 18;
+const TOKEN_METADATA_EXTENSION: u16 = 19;
+const CONFIDENTIAL_TRANSFER_MINT_EXTENSION: u16 = 4;
+const DEFAULT_ACCOUNT_STATE_EXTENSION: u16 = 6;
+const PERMANENT_DELEGATE_EXTENSION: u16 = 12;
+const TRANSFER_HOOK_EXTENSION: u16 = 14;
+const SCALED_UI_AMOUNT_EXTENSION: u16 = 25;
+const PAUSABLE_EXTENSION: u16 = 26;
 
 const CLOSE_ACCOUNT: u8 = 9;
 const TRANSFER_CHECKED: u8 = 12;
@@ -39,6 +49,14 @@ pub fn is_supported_program(program: &Pubkey) -> bool {
     *program == TOKEN_PROGRAM_ID || *program == TOKEN_2022_PROGRAM_ID
 }
 
+pub fn associated_token_address(owner: &Pubkey, mint: &Pubkey, token_program: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[owner.as_ref(), token_program.as_ref(), mint.as_ref()],
+        &ASSOCIATED_TOKEN_PROGRAM_ID,
+    )
+    .0
+}
+
 pub fn assert_program(program: &AccountInfo<'_>) -> Result<()> {
     require!(
         is_supported_program(program.key) && program.executable,
@@ -54,7 +72,61 @@ pub fn mint_view(mint: &AccountInfo<'_>, token_program: &Pubkey) -> Result<MintV
     );
     require_keys_eq!(*mint.owner, *token_program, TaxiError::InvalidTokenProgram);
     let data = mint.try_borrow_data()?;
+    require!(mint_data_is_transfer_compatible(token_program, mint.key, &data), TaxiError::InvalidTokenProgram);
     parse_mint_data(&data)
+}
+
+fn mint_data_is_transfer_compatible(token_program: &Pubkey, mint: &Pubkey, data: &[u8]) -> bool {
+    if *token_program == TOKEN_PROGRAM_ID {
+        return data.len() >= MINT_BASE_LEN;
+    }
+    if *token_program != TOKEN_2022_PROGRAM_ID || data.len() < MINT_BASE_LEN {
+        return false;
+    }
+    if data.len() == MINT_BASE_LEN {
+        return true;
+    }
+    if data.len() < TOKEN_2022_TLV_OFFSET
+        || data[MINT_BASE_LEN..TOKEN_2022_ACCOUNT_TYPE_OFFSET].iter().any(|byte| *byte != 0)
+        || data[TOKEN_2022_ACCOUNT_TYPE_OFFSET] != 1
+    {
+        return false;
+    }
+    let mut offset = TOKEN_2022_TLV_OFFSET;
+    let mut seen = 0_u16;
+    while offset < data.len() {
+        if offset + 4 > data.len() {
+            return false;
+        }
+        let extension_type = u16::from_le_bytes([data[offset], data[offset + 1]]);
+        let extension_len = u16::from_le_bytes([data[offset + 2], data[offset + 3]]) as usize;
+        offset += 4;
+        if offset + extension_len > data.len() {
+            return false;
+        }
+        let extension = &data[offset..offset + extension_len];
+        let bit = match extension_type {
+            CONFIDENTIAL_TRANSFER_MINT_EXTENSION if extension_len == 65
+                && extension[32..].iter().all(|byte| *byte == 0) => 1 << 0,
+            DEFAULT_ACCOUNT_STATE_EXTENSION if extension == [1] => 1 << 1,
+            PERMANENT_DELEGATE_EXTENSION if extension_len == 32 => 1 << 2,
+            TRANSFER_HOOK_EXTENSION if extension_len == 64
+                && extension[32..].iter().all(|byte| *byte == 0) => 1 << 3,
+            METADATA_POINTER_EXTENSION if extension_len == 64
+                && extension[32..64] == mint.to_bytes() => 1 << 4,
+            TOKEN_METADATA_EXTENSION if extension_len >= 64
+                && extension[32..64] == mint.to_bytes() => 1 << 5,
+            SCALED_UI_AMOUNT_EXTENSION if extension_len == 56 => 1 << 6,
+            PAUSABLE_EXTENSION if extension_len == 33 && extension[32] == 0 => 1 << 7,
+            _ => return false,
+        };
+        if seen & bit != 0 {
+            return false;
+        }
+        seen |= bit;
+        offset += extension_len;
+    }
+    seen & (1 << 4) != 0 && seen & (1 << 5) != 0
 }
 
 fn parse_mint_data(data: &[u8]) -> Result<MintView> {
@@ -327,5 +399,48 @@ mod tests {
         let mut mint_data = vec![0_u8; spl_token::state::Mint::LEN];
         spl_token::state::Mint::pack(mint_state, &mut mint_data).unwrap();
         assert_eq!(parse_mint_data(&mint_data).unwrap().decimals, 8);
+        let mint = Pubkey::new_from_array([7; 32]);
+        assert!(mint_data_is_transfer_compatible(&TOKEN_PROGRAM_ID, &mint, &mint_data));
+        assert!(mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &mint_data));
+
+        let mut pump_mint = vec![0_u8; TOKEN_2022_TLV_OFFSET + 4 + 64 + 4 + 64];
+        pump_mint[..mint_data.len()].copy_from_slice(&mint_data);
+        pump_mint[TOKEN_2022_ACCOUNT_TYPE_OFFSET] = 1;
+        let mut offset = TOKEN_2022_TLV_OFFSET;
+        pump_mint[offset..offset + 2].copy_from_slice(&METADATA_POINTER_EXTENSION.to_le_bytes());
+        pump_mint[offset + 2..offset + 4].copy_from_slice(&64_u16.to_le_bytes());
+        pump_mint[offset + 36..offset + 68].copy_from_slice(mint.as_ref());
+        offset += 68;
+        pump_mint[offset..offset + 2].copy_from_slice(&TOKEN_METADATA_EXTENSION.to_le_bytes());
+        pump_mint[offset + 2..offset + 4].copy_from_slice(&64_u16.to_le_bytes());
+        pump_mint[offset + 36..offset + 68].copy_from_slice(mint.as_ref());
+        assert!(mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &pump_mint));
+        pump_mint[TOKEN_2022_TLV_OFFSET] = 1;
+        assert!(!mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &pump_mint));
+
+        let mut xstock = vec![0_u8; TOKEN_2022_TLV_OFFSET];
+        xstock[..mint_data.len()].copy_from_slice(&mint_data);
+        xstock[TOKEN_2022_ACCOUNT_TYPE_OFFSET] = 1;
+        for (extension_type, mut extension) in [
+            (METADATA_POINTER_EXTENSION, vec![0_u8; 64]),
+            (PERMANENT_DELEGATE_EXTENSION, vec![7_u8; 32]),
+            (DEFAULT_ACCOUNT_STATE_EXTENSION, vec![1_u8]),
+            (SCALED_UI_AMOUNT_EXTENSION, vec![0_u8; 56]),
+            (PAUSABLE_EXTENSION, vec![0_u8; 33]),
+            (CONFIDENTIAL_TRANSFER_MINT_EXTENSION, vec![0_u8; 65]),
+            (TRANSFER_HOOK_EXTENSION, vec![0_u8; 64]),
+            (TOKEN_METADATA_EXTENSION, vec![0_u8; 64]),
+        ] {
+            if extension_type == METADATA_POINTER_EXTENSION || extension_type == TOKEN_METADATA_EXTENSION {
+                extension[32..64].copy_from_slice(mint.as_ref());
+            }
+            xstock.extend_from_slice(&extension_type.to_le_bytes());
+            xstock.extend_from_slice(&(extension.len() as u16).to_le_bytes());
+            xstock.extend_from_slice(&extension);
+        }
+        assert!(mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &xstock));
+        let hook_program_offset = TOKEN_2022_TLV_OFFSET + 4 + 64 + 4 + 32 + 4 + 1 + 4 + 56 + 4 + 33 + 4 + 65 + 4 + 32;
+        xstock[hook_program_offset] = 1;
+        assert!(!mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &xstock));
     }
 }

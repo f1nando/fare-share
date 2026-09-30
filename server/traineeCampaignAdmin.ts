@@ -4,19 +4,24 @@ import { solanaRpcCall } from './solanaRpc.js';
 
 const TRAINEE_ACCOUNT_SIZE = 122;
 const CAMPAIGN_ID_OFFSET = 72;
-const DEFAULT_DURATION_MINUTES = 360;
+const DEFAULT_DURATION_MINUTES = 1_440;
 const MAX_U64 = (1n << 64n) - 1n;
+const REHEARSAL_DATABASE = 'fare_share_disposable_rehearsal';
+
+export function fixedTraineeCampaignWord(databaseName: string) {
+  return databaseName === REHEARSAL_DATABASE ? 'TAXI' : undefined;
+}
 
 export class TraineeCampaignAdminError extends Error {
   constructor(message: string, readonly status = 400) { super(message); }
 }
 
 export function createTraineeCampaignAdmin(
-  config: { solanaRpcUrl: string; programId: string; wordPepper: string },
+  config: { solanaRpcUrl: string; programId: string; wordPepper: string; primaryWord?: string },
   database: TaxiDatabase,
 ) {
   async function ensurePrimary(wordValue: string) {
-    const word = wordValue.normalize('NFKC').trim().replace(/^\$+/, '').toUpperCase();
+    const word = (config.primaryWord || wordValue).normalize('NFKC').trim().replace(/^\$+/, '').toUpperCase();
     if (!word) throw new TraineeCampaignAdminError('Primary token ticker is required.');
     const now = new Date();
     await database.campaigns.updateOne(

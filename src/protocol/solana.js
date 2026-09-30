@@ -15,6 +15,7 @@ import {
   buildRepairAllInstructions,
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
+  createMintAssetSigner,
   chooseEventPage,
   decodeConfiguration,
   decodeAddressLookupTable,
@@ -139,13 +140,21 @@ export async function loadProtocolStatus() {
   }).send();
   const deployed = accounts.value.every(Boolean);
   if (!deployed) return { addresses, deployed: false, network: networkName() };
-  const chainUnixTime = await loadFinalizedChainTime().catch(() => Math.floor(Date.now() / 1000));
+  const config = decodeConfiguration(accountBytes(accounts.value[0]));
+  const [chainUnixTime, fareMintAccount] = await Promise.all([
+    loadFinalizedChainTime().catch(() => Math.floor(Date.now() / 1000)),
+    rpc.getAccountInfo(config.fareMint, { commitment: 'finalized', encoding: 'base64' }).send().catch(() => ({ value: null })),
+  ]);
+  let fareDecimals = null;
+  if (fareMintAccount.value) {
+    try { fareDecimals = mintDecimals(accountBytes(fareMintAccount.value)); } catch { fareDecimals = null; }
+  }
   return {
     addresses,
     deployed,
     network: networkName(),
     chainUnixTime,
-    config: decodeConfiguration(accountBytes(accounts.value[0])),
+    config: { ...config, fareDecimals },
     pool: decodeRewardPool(accountBytes(accounts.value[1])),
     queue: decodeEventQueue(accountBytes(accounts.value[2])),
     traineePool: decodeRewardPool(accountBytes(accounts.value[3])),
@@ -360,30 +369,75 @@ async function loadFinalizedChainTime() {
   return timeBody.result;
 }
 
-export async function mintMachine(connection, classIndex, knownStatus) {
+export async function prepareMintQuote(connection, knownStatus) {
   const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   if (!status.deployed) throw new Error('The program is not deployed on the selected network yet.');
   if (!status.config.saleStarted) throw new Error('The car sale is not open yet.');
+  const owner = address(connection.account.address);
+  const assetSigner = await createMintAssetSigner();
+  const quoteResponse = await fetch(`${BACKEND_URL}/api/mint/quote`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ owner: String(owner), asset: String(assetSigner.address) }),
+  });
+  const quote = await quoteResponse.json();
+  if (!quoteResponse.ok) throw new Error(quote.error || 'A safe FARE mint quote is unavailable.');
+  const fareMint = address(status.config.fareMint);
+  const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
+  const fareTokenProgram = address(mintAccount.value.owner);
+  const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: fareTokenProgram });
+  const balanceAccount = await rpc.getAccountInfo(ownerFareAccount, { commitment: 'finalized', encoding: 'base64' }).send();
+  const ownerFareBalance = balanceAccount.value
+    ? new DataView(accountBytes(balanceAccount.value).buffer).getBigUint64(64, true)
+    : 0n;
+  return { assetSigner, quote, status, ownerFareBalance };
+}
+
+export async function mintMachine(connection, knownStatus, preparedQuote) {
+  const prepared = preparedQuote && BigInt(preparedQuote.quote.expiresAt) > BigInt(Math.floor(Date.now() / 1000) + 5)
+    ? preparedQuote
+    : await prepareMintQuote(connection, knownStatus);
+  const status = prepared.status?.deployed ? prepared.status : knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   const pageIndex = chooseEventPage(status.queue, 2);
   const owner = address(connection.account.address);
+  const { assetSigner, quote } = prepared;
+  const fareMint = address(status.config.fareMint);
+  const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
+  const fareTokenProgram = address(mintAccount.value.owner);
+  const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: fareTokenProgram });
+  const [teamFareAccount] = await findAssociatedTokenPda({ owner: status.config.teamAccount, mint: fareMint, tokenProgram: fareTokenProgram });
+  const paymentAccounts = await rpc.getMultipleAccounts([ownerFareAccount, teamFareAccount], {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!paymentAccounts.value[0]) throw new Error('Your wallet does not have a FARE token account for this mint.');
+  const ownerFareBalance = new DataView(accountBytes(paymentAccounts.value[0]).buffer).getBigUint64(64, true);
+  if (ownerFareBalance < BigInt(quote.amountFareRaw)) {
+    throw new Error(`Your FARE balance is too low. This mint requires ${formatTokenAmount(BigInt(quote.amountFareRaw), Number(quote.fareDecimals))} $FARE.`);
+  }
   const built = await buildMintMachine({
     programAddress: PROGRAM_ID,
     owner,
     configAddress: status.addresses.config,
     config: status.config,
     queue: status.addresses.queue,
-    classIndex,
     pageIndex,
+    fareTokenProgram,
+    teamFareAccountExists: Boolean(paymentAccounts.value[1]),
+    assetSigner,
+    quote,
   });
   const signature = await sendWalletInstructions({
     rpc,
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
-    instructions: [built.instruction],
+    instructions: built.instructions,
     additionalSigners: [built.assetSigner],
   });
-  return { signature, asset: built.assetSigner.address };
+  return { signature, asset: built.assetSigner.address, quote, ownerFareBalance };
 }
 
 export async function claimMachine(connection, machine, knownStatus) {

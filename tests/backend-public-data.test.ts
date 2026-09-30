@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { address } from '@solana/kit';
-import { buildPublicOverview, createPublicDataService } from '../server/publicData.js';
+import { buildPublicOverview, createPublicDataService, validateTraineeAsset } from '../server/publicData.js';
 import {
   ensureFleetEarningRetention,
   FLEET_EARNING_RETENTION_SECONDS,
@@ -18,12 +18,16 @@ test('public overview aggregates the bounded leaderboard once during synchroniza
     weight: index === 104 ? 30 : 1,
     classIndex: index === 104 ? 3 : 0,
   }));
-  const overview = buildPublicOverview(snapshot(), machines);
+  const overview = buildPublicOverview(snapshot(), machines, 'FARE');
   assert.equal(overview.stats.mintedCars, 105);
   assert.equal(overview.stats.uniqueOwners, 105);
   assert.equal(overview.leaders.length, 100);
   assert.equal(overview.leaders[0].owner, 'owner-104');
   assert.deepEqual(overview.classCounts, [104, 0, 0, 1]);
+  assert.deepEqual(overview.mint.mintPricesUsdCents, ['1', '2', '3', '4']);
+  assert.equal(overview.mint.fareDecimals, 6);
+  assert.equal(overview.mint.fareMint, 'fare-mint');
+  assert.equal(overview.mint.fareTicker, 'FARE');
 });
 
 test('public read endpoints use MongoDB snapshots without starting an on-chain sync', async () => {
@@ -82,9 +86,21 @@ test('earning history expires after a 45-day safety window', async () => {
   }]);
 });
 
+test('trainee indexer requires the on-chain owner and configured Core collection', () => {
+  const asset = {
+    id: 'trainee-asset',
+    ownership: { owner: OWNER },
+    grouping: [{ group_key: 'collection', group_value: 'official-collection' }],
+  };
+  assert.doesNotThrow(() => validateTraineeAsset(asset, OWNER, 'official-collection'));
+  assert.throws(() => validateTraineeAsset(asset, 'another-owner', 'official-collection'), /owner/);
+  assert.throws(() => validateTraineeAsset(asset, OWNER, 'another-collection'), /collection/);
+  assert.throws(() => validateTraineeAsset(undefined, OWNER, 'official-collection'), /owner/);
+});
+
 function snapshot() {
   return {
-    protocol: { mintPrices: ['1', '2', '3', '4'], mintedByClass: [1, 0, 0, 0], paused: false, saleStarted: true },
+    protocol: { fareMint: 'fare-mint', mintPricesUsdCents: ['1', '2', '3', '4'], mintedByClass: [1, 0, 0, 0], paused: false, saleStarted: true },
     distribution: { activeWeight: '1', protocolNow: '100', assets: [{ symbol: 'FARE', decimals: 6 }] },
     vaults: { solLamports: '20', tokens: [{ amount: '10' }] },
     observedAt: new Date('2026-09-30T10:00:00.000Z'),

@@ -1,0 +1,60 @@
+{
+  "$schema": "./rehearsal-manifest.schema.json",
+  "validationMode": "preparation",
+  "releaseSha": "<40_CHAR_RELEASE_SHA>",
+  "sbf": {
+    "sha256": "<64_CHAR_SBF_SHA256>",
+    "sizeBytes": 0
+  },
+  "cluster": {
+    "chain": "solana:mainnet",
+    "genesisHash": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+  },
+  "database": "fare_share_disposable_rehearsal",
+  "workerInitiallyEnabled": false,
+  "mintPricesUsdCents": [2500, 2500, 2500, 2500],
+  "addresses": {
+    "programId": "<DISPOSABLE_PROGRAM_ID>",
+    "programData": "<DISPOSABLE_PROGRAM_DATA>",
+    "buffer": "<PERSISTENT_UPLOAD_BUFFER>",
+    "collection": "<DISPOSABLE_COLLECTION>",
+    "userWallet": "<DISPOSABLE_USER_WALLET>",
+    "fareMint": "4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump",
+    "replacementFareMint": "<DISPOSABLE_REPLACEMENT_FARE_MINT>",
+    "jupiterProgramId": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "stockMints": [
+      "XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB",
+      "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB",
+      "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN",
+      "Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg"
+    ],
+    "sharedRole": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "feePayer": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "upgradeAuthority": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "admin": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "backendSigner": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "worker": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "team": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "pumpCreatorFeeRecipient": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF",
+    "recoveryRecipient": "2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
+  },
+  "assignmentRootHex": "<24_CHAR_ASSIGNMENT_ROOT>",
+  "assignmentManifestSha256": "<64_CHAR_PRIVATE_ASSIGNMENT_MANIFEST_SHA256>",
+  "deploymentIdHex": "<64_CHAR_DEPLOYMENT_ID>",
+  "metadata": {
+    "collectionUri": "<PERMANENT_COLLECTION_URI>",
+    "machineUris": [],
+    "traineeUri": "<PERMANENT_TRAINEE_URI>",
+    "imageUris": [],
+    "faretestArtworkUri": "<PERMANENT_FARETEST_ARTWORK_URI>",
+    "faretestMetadataUri": "<PERMANENT_FARETEST_METADATA_URI>"
+  },
+  "limits": {
+    "automaticStopSol": 0.7,
+    "irreversibleMaximumSol": 0.8,
+    "recoverableRentLamports": "<EXACT_RECOVERABLE_RENT_LAMPORTS>",
+    "uploadBufferRentLamports": "<EXACT_UPLOAD_BUFFER_RENT_LAMPORTS>",
+    "programTombstoneLamports": "<EXACT_PROGRAM_TOMBSTONE_LAMPORTS>",
+    "estimatedPeakFundingLamports": "<EXACT_PEAK_FUNDING_LAMPORTS>"
+  }
+}

@@ -80,7 +80,7 @@ test('server decodes protocol pause clock after variable metadata strings', () =
   const pause = Buffer.alloc(16);
   pause.writeBigInt64LE(500n, 0);
   pause.writeBigInt64LE(40n, 8);
-  chunks.push(pause, Buffer.alloc(1));
+  chunks.push(pause, Buffer.alloc(1), Buffer.alloc(12, 7));
   const decoded = decodeClockFields(Buffer.concat(chunks));
   assert.deepEqual([...decoded.deploymentId], Array(32).fill(9));
   assert.equal(decoded.pausedAt, 500n);

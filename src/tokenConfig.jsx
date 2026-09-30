@@ -9,14 +9,32 @@ export function TokenConfigProvider({ children }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`${API}/api/token`)
+    let timer;
+    let reading = false;
+    const refresh = () => {
+      if (reading) return;
+      reading = true;
+      window.clearTimeout(timer);
+      fetch(`${API}/api/token`, { cache: 'no-store' })
       .then(async response => {
         if (!response.ok) throw new Error(`Token configuration: HTTP ${response.status}`);
         return response.json();
       })
       .then(value => { if (active) setToken(value); })
-      .catch(error => console.warn(error.message));
-    return () => { active = false; };
+      .catch(error => console.warn(error.message))
+      .finally(() => {
+        reading = false;
+        if (active) timer = window.setTimeout(refresh, 15_000);
+      });
+    };
+    const onVisibilityChange = () => { if (!document.hidden) refresh(); };
+    refresh();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   return <TokenConfigContext.Provider value={token}>{children}</TokenConfigContext.Provider>;
