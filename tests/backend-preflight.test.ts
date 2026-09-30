@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { REHEARSAL_TRADE_MINT, REHEARSAL_TRADE_TICKER } from '../server/config.js';
 import { OFFICIAL_XSTOCK_MINTS, REHEARSAL_DATABASE, REHEARSAL_SHARED_ROLE_ADDRESS, validateDeploymentEnvironment, validateProgramIdSources } from '../server/preflight.js';
 import { MAINNET_GENESIS_HASH, validateRehearsalManifest } from '../server/rehearsalManifest.js';
 
@@ -125,6 +126,8 @@ test('rehearsal environment is fail-closed around mainnet, database, worker and 
   env.MONGODB_DATABASE = REHEARSAL_DATABASE;
   env.VITE_SOLANA_CHAIN = 'solana:mainnet';
   env.WORKER_INITIAL_ENABLED = 'false';
+  env.TRADE_MARKET_MINT = REHEARSAL_TRADE_MINT;
+  env.TRADE_MARKET_TICKER = REHEARSAL_TRADE_TICKER;
   env.REHEARSAL_ORDINARY_BUDGET_LAMPORTS = '700000000';
   env.REHEARSAL_HARD_BUDGET_LAMPORTS = '800000000';
   env.REHEARSAL_INITIAL_SPENT_LAMPORTS = '0';
@@ -153,6 +156,8 @@ test('rehearsal environment requires explicit safe fixed settings', async () => 
   assert.match(combined, /fare_share_disposable_rehearsal/);
   assert.match(combined, /requires solana:mainnet/);
   assert.match(combined, /must explicitly start with false/);
+  assert.match(combined, /TRADE_MARKET_MINT/);
+  assert.match(combined, /TRADE_MARKET_TICKER/);
   assert.match(combined, /REHEARSAL_SHARED_ROLE_ADDRESS/);
   assert.match(combined, /REHEARSAL_ORDINARY_BUDGET_LAMPORTS/);
   assert.match(combined, /REHEARSAL_HARD_BUDGET_LAMPORTS/);

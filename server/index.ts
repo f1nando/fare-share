@@ -43,8 +43,14 @@ let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRp
     console.warn(`Public token configuration is unavailable: ${error instanceof Error ? error.message : String(error)}`);
     return { configured: false, mint: null, ticker: null };
   });
-let trade = publicToken.configured && publicToken.mint && publicToken.ticker
-  ? createTradeService(config, database, { mint: publicToken.mint, ticker: publicToken.ticker })
+const configuredTradeToken = config.tradeMarketMint && config.tradeMarketTicker
+  ? { mint: config.tradeMarketMint, ticker: config.tradeMarketTicker }
+  : undefined;
+const protocolTradeToken = publicToken.configured && publicToken.mint && publicToken.ticker
+  ? { mint: publicToken.mint, ticker: publicToken.ticker }
+  : undefined;
+let trade = configuredTradeToken || protocolTradeToken
+  ? createTradeService(config, database, configuredTradeToken || protocolTradeToken)
   : undefined;
 const adminValues = [config.adminUsername, config.adminPasswordScrypt, config.adminSessionSecret, config.protocolAdminSecret, config.pumpFeeRecipientSecret];
 if (adminValues.some(Boolean) && !adminValues.every(Boolean)) throw new Error('Admin configuration is incomplete');
@@ -192,8 +198,10 @@ const server = createServer(async (request, response) => {
       const result = await services.fees.bindMint(body.ca, body.ticker);
       publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
       await traineeCampaigns.ensurePrimary(result.ticker);
-      trade?.stop();
-      trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      if (!configuredTradeToken) {
+        trade?.stop();
+        trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      }
       void publicData.sync(true).catch(error => {
         console.warn(`Public data refresh after token replacement failed: ${error instanceof Error ? error.message : String(error)}`);
       });
