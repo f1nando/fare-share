@@ -1,5 +1,5 @@
 import { address, createKeyPairSignerFromBytes } from '@solana/kit';
-import { initializeProtocol } from '../server/setup.js';
+import { initializeProtocol, loadCollectionSigner } from '../server/setup.js';
 import { parseSecretBytes } from '../server/signing.js';
 import { solanaRpcCall } from '../server/solanaRpc.js';
 import { loadMintAssignments } from '../server/mintAssignments.js';
@@ -31,6 +31,17 @@ if (assignmentManifest.root.toString('hex') !== assignmentRootHex.toLowerCase())
   throw new Error('MINT_ASSIGNMENTS_PATH does not match MINT_ASSIGNMENT_ROOT_HEX');
 }
 const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
+const externalCollectionSignerRequired = process.env.REHEARSAL_MODE === 'true'
+  || process.env.VITE_SOLANA_CHAIN === 'solana:mainnet';
+const collectionKeypairPath = process.env.COLLECTION_KEYPAIR_PATH?.trim();
+const expectedCollectionAddress = process.env.COLLECTION_ADDRESS?.trim();
+let collectionSigner;
+if (externalCollectionSignerRequired || collectionKeypairPath || expectedCollectionAddress) {
+  collectionSigner = await loadCollectionSigner(
+    required('COLLECTION_KEYPAIR_PATH'),
+    address(required('COLLECTION_ADDRESS')),
+  );
+}
 const lookupTableAddress = process.env.VITE_TAXI_LOOKUP_TABLE?.trim();
 const lookupTables = lookupTableAddress ? await loadLookupTable(lookupTableAddress) : {};
 const result = await initializeProtocol({
@@ -48,6 +59,8 @@ const result = await initializeProtocol({
   mintAssignmentRoot: Uint8Array.from(assignmentManifest.root),
   metadataUris: metadataUris(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
   traineeMetadataUri: required('TRAINEE_METADATA_URI'),
+  collectionSigner,
+  requireExternalCollectionSigner: externalCollectionSignerRequired,
   lookupTables,
 });
 

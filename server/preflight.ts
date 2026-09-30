@@ -115,6 +115,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     errors.push('REHEARSAL_MODE: only true or false is allowed');
   }
   const rehearsalMode = rehearsalSetting === 'true';
+  const externalCollectionSignerRequired = rehearsalMode || frontendChain === 'solana:mainnet';
   const workerInitiallyEnabled = value('WORKER_INITIAL_ENABLED');
   if (workerInitiallyEnabled && workerInitiallyEnabled !== 'true' && workerInitiallyEnabled !== 'false') {
     errors.push('WORKER_INITIAL_ENABLED: only true or false is allowed');
@@ -142,6 +143,12 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
 
   const programId = validAddress('TAXI_PROGRAM_ID');
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');
+  const collectionAddress = value('COLLECTION_ADDRESS');
+  const collectionKeypairPath = value('COLLECTION_KEYPAIR_PATH');
+  if (externalCollectionSignerRequired || collectionAddress || collectionKeypairPath) {
+    validAddress('COLLECTION_ADDRESS');
+    required('COLLECTION_KEYPAIR_PATH');
+  }
   const teamAccount = validAddress('TEAM_ACCOUNT');
   validAddress('JUPITER_PROGRAM_ID');
   const rawFareMint = value('FARE_MINT');

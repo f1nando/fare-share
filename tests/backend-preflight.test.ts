@@ -156,6 +156,21 @@ test('rehearsal environment requires explicit safe fixed settings', async () => 
   assert.match(combined, /REHEARSAL_SHARED_ROLE_ADDRESS/);
   assert.match(combined, /REHEARSAL_ORDINARY_BUDGET_LAMPORTS/);
   assert.match(combined, /REHEARSAL_HARD_BUDGET_LAMPORTS/);
+  assert.match(combined, /COLLECTION_KEYPAIR_PATH/);
+  assert.match(combined, /COLLECTION_ADDRESS/);
+});
+
+test('mainnet preflight requires a recoverable external Collection signer', async () => {
+  const env = validEnvironment();
+  env.VITE_SOLANA_CHAIN = 'solana:mainnet';
+  const missing = await validateDeploymentEnvironment(env);
+  assert.match(missing.errors.join('\n'), /COLLECTION_KEYPAIR_PATH/);
+  assert.match(missing.errors.join('\n'), /COLLECTION_ADDRESS/);
+
+  env.COLLECTION_KEYPAIR_PATH = 'C:\\keys\\collection.json';
+  env.COLLECTION_ADDRESS = '5DwDcfC4jsY8tq7VQqLGCmsWmVepVjDfMoWpZWAL5nro';
+  const configured = await validateDeploymentEnvironment(env);
+  assert.doesNotMatch(configured.errors.join('\n'), /COLLECTION_(KEYPAIR_PATH|ADDRESS)/);
 });
 
 function completeRehearsalManifest() {

@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import {
   AccountRole,
   address,
+  createKeyPairSignerFromBytes,
   generateKeyPairSigner,
   getAddressEncoder,
   getProgramDerivedAddress,
@@ -13,7 +15,7 @@ import {
 } from '@solana/kit';
 import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
 import { solanaRpcCall } from './solanaRpc.js';
-import { parseBackendSigner } from './signing.js';
+import { parseBackendSigner, parseSecretBytes } from './signing.js';
 import { sendInstructions } from './transaction.js';
 
 const utf8 = getUtf8Encoder();
@@ -40,6 +42,8 @@ export interface InitializeProtocolInput {
   mintAssignmentRoot: Uint8Array;
   metadataUris: readonly string[];
   traineeMetadataUri: string;
+  collectionSigner?: KeyPairSigner;
+  requireExternalCollectionSigner?: boolean;
   lookupTables?: AddressesByLookupTableAddress;
 }
 
@@ -54,7 +58,10 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
   let collection: Address | undefined;
 
   if (!existing) {
-    const collectionSigner = await generateKeyPairSigner();
+    const collectionSigner = await resolveCollectionSigner(
+      input.collectionSigner,
+      input.requireExternalCollectionSigner === true,
+    );
     collection = collectionSigner.address;
     const instruction = buildInitializeInstruction(input, addresses, collectionSigner.address);
     initializeSignature = String(await sendInstructions(
@@ -111,6 +118,31 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
   }
   const vaultSignature = String(await sendInstructions(input.rpcUrl, input.admin, ataInstructions));
   return { addresses, collection, vaults, initializeSignature, metadataSignatures, vaultSignature };
+}
+
+export async function loadCollectionSigner(keypairPath: string, expectedAddress: Address): Promise<KeyPairSigner> {
+  let serialized: string;
+  try {
+    serialized = await readFile(keypairPath, 'utf8');
+  } catch (error) {
+    throw new Error(`COLLECTION_KEYPAIR_PATH could not be read: ${String(error)}`);
+  }
+  const signer = await createKeyPairSignerFromBytes(parseSecretBytes(serialized, 'COLLECTION_KEYPAIR_PATH'));
+  if (signer.address !== expectedAddress) {
+    throw new Error(`Collection signer address ${signer.address} does not match COLLECTION_ADDRESS ${expectedAddress}`);
+  }
+  return signer;
+}
+
+export async function resolveCollectionSigner(
+  externalSigner: KeyPairSigner | undefined,
+  externalSignerRequired: boolean,
+): Promise<KeyPairSigner> {
+  if (externalSigner) return externalSigner;
+  if (externalSignerRequired) {
+    throw new Error('An external Collection signer is required; set COLLECTION_KEYPAIR_PATH and COLLECTION_ADDRESS');
+  }
+  return generateKeyPairSigner();
 }
 
 export function buildInitializeInstruction(
