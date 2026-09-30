@@ -102,6 +102,7 @@
 | D-50 | Для transfer smoke создаётся отдельный disposable user wallet | На него передаётся один paid NFT и проверяется успешная смена owner через DAS/Garage. На этом же wallet активируется Trainee, после чего его transfer обязан завершиться ожидаемым on-chain отказом. Keypair хранится в том же Desktop ZIP и не используется в production. |
 | D-51 | Второй disposable user wallet получает максимум `0.05 SOL` | SOL используется только для user-paid rehearsal transactions: mint account rent/fees, paid NFT transfer, Trainee activation, ожидаемо отклонённый Trainee transfer и claim. Неиспользованный liquid SOL после тестов возвращается на `2NUN…EGVnF`; фактические fees/locked account rent учитываются в общем лимите невозвратных расходов `0.5 SOL`. |
 | D-52 | Четыре обязательных paid mint выполняются со второго disposable user wallet | Перед каждым mint wallet получает только рассчитанный объём текущего `$FARE`; signed quote и on-chain transfer должны перевести 100% суммы из canonical user ATA в canonical team ATA `2NUN…EGVnF`. Mint от самого team wallet не используется как payment proof, чтобы source и destination ATA были различными. |
+| D-53 | Четыре paid mint делятся `2 + 2` между старым test CA и новым `FARETEST` | Сначала выполняются два mint с `4fg5…pump`, затем после `start_sale` admin меняет runtime CA на новый `FARETEST`. Quote со старым CA обязан быть отклонён, после чего выполняются ещё два mint с `FARETEST`. Configuration, API, UI, Trade и team/user ATA проверяются после переключения. |
 
 ## L-01. Worker/Jupiter reserve routes
 
