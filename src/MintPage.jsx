@@ -296,14 +296,11 @@ export function MintPage({ wallet, connectWallet }) {
                 {MINT_CLASSES.map((item, index) => {
                   const minted = mintedByClass[index];
                   const progress = minted / item.supply * 100;
-                  const isSelected = preparedMint && Number(preparedMint.quote.classIndex) === index;
 
                   return (
                     <div className="fare-mint-class-option" key={item.name}>
                       <button
-                        className={isSelected ? 'is-selected' : undefined}
                         type="button"
-                        aria-pressed={isSelected}
                         disabled
                       >
                         {item.name} · {item.odds}
@@ -332,7 +329,7 @@ export function MintPage({ wallet, connectWallet }) {
               </div>
 
               <div className="fare-mint-summary">
-                <div><span>Next taxi</span><strong>{preparedMint ? `${MINT_CLASSES[Number(preparedMint.quote.classIndex)]?.name} · ${MINT_CLASSES[Number(preparedMint.quote.classIndex)]?.sceneNames[Number(preparedMint.quote.variantIndex)]}` : wallet ? 'Preparing quote…' : 'Connect wallet'}</strong></div>
+                <div><span>Taxi</span><strong>Random · Revealed after mint</strong></div>
                 <div><span>Mint price</span><strong>{databaseMint ? formatUsdCents(priceUsdCents) : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
                 <div className="is-total"><span>Total</span><strong>{databaseMint ? formatUsdCents(priceUsdCents * BigInt(quantity)) : '—'}</strong></div>
