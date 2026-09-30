@@ -21,10 +21,10 @@ import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
 import { notifyError, notifySuccess } from './siteToasts.js';
 
 const MINT_CLASSES = [
-  { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
-  { name: 'Comfort', tone: 'comfort', weight: 3, supply: 278, odds: '22.75%', sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
-  { name: 'Business', tone: 'business', weight: 10, supply: 83, odds: '6.79%', sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
-  { name: 'Legend', tone: 'legend', weight: 30, supply: 28, odds: '2.29%', sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
+  { name: 'Economy', tone: 'economy', weight: 1, supply: 833, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', tone: 'comfort', weight: 3, supply: 278, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', tone: 'business', weight: 10, supply: 83, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', tone: 'legend', weight: 30, supply: 28, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ].map(item => ({
   ...item,
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
@@ -98,7 +98,11 @@ export function MintPage({ wallet, connectWallet }) {
   const [traineeSignature, setTraineeSignature] = useState('');
   const [preview, dispatchPreview] = useReducer(previewReducer, undefined, createPreviewState);
   const selectedPreview = PREVIEW_ITEMS[preview.currentIndex];
-  const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
+  const onchainMintedByClass = status?.config?.mintedByClass;
+  const mintedByClass = (onchainMintedByClass?.length === 4
+    ? onchainMintedByClass
+    : databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0]
+  ).map(Number);
   const totalMinted = mintedByClass.reduce((total, value) => total + value, 0);
   const remaining = Math.max(0, 1222 - totalMinted);
   const priceUsdCents = databaseMint?.mintPricesUsdCents?.[0] ? BigInt(databaseMint.mintPricesUsdCents[0]) : 0n;
@@ -366,6 +370,8 @@ export function MintPage({ wallet, connectWallet }) {
                 {MINT_CLASSES.map((item, index) => {
                   const minted = mintedByClass[index];
                   const progress = minted / item.supply * 100;
+                  const classRemaining = Math.max(0, item.supply - minted);
+                  const currentOdds = remaining > 0 ? `${(classRemaining / remaining * 100).toFixed(2)}%` : '0.00%';
 
                   return (
                     <div className="fare-mint-class-option" key={item.name}>
@@ -373,7 +379,7 @@ export function MintPage({ wallet, connectWallet }) {
                         type="button"
                         disabled
                       >
-                        {item.name} · {item.odds}
+                        {item.name} · {currentOdds}
                       </button>
                       <div className="fare-mint-class-count"><span>Minted</span><strong>{minted}/{item.supply}</strong></div>
                       <div
