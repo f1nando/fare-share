@@ -143,9 +143,9 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   if (BigInt(manifest.limits.estimatedPeakFundingLamports) !== expectedPeak) {
     throw new Error(`Peak funding mismatch: expected ${expectedPeak}`);
   }
-  const existingProgram = run('solana', ['program', 'show', manifest.addresses.programId, '--url', options.rpcUrl]);
+  const existingProgram = run('solana', ['program', 'show', manifest.addresses.programId, '--url', options.rpcUrl, '--keypair', options.feePayerKeypair]);
   if (existingProgram.status === 0) throw new Error(`Program ${manifest.addresses.programId} already exists; refusing an upgrade`);
-  const existingBuffer = run('solana', ['program', 'show', options.bufferAddress, '--url', options.rpcUrl]);
+  const existingBuffer = run('solana', ['program', 'show', options.bufferAddress, '--url', options.rpcUrl, '--keypair', options.feePayerKeypair]);
   let fundedBufferRent = 0n;
   if (existingBuffer.status === 0) {
     if (!existingBuffer.stdout.includes(`Authority: ${manifest.addresses.upgradeAuthority}`)) {
