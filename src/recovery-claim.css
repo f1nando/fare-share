@@ -1,0 +1,40 @@
+:root { color: #f5f5f0; background: #080808; font-family: Inter, Arial, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: radial-gradient(circle at 50% 0, #292300 0, #080808 42%); }
+button { font: inherit; }
+.recovery-page { min-height: 100vh; display: grid; place-items: center; padding: 40px 20px; }
+.recovery-card { width: min(840px, 100%); padding: 40px; border: 1px solid #3b3b33; border-radius: 24px; background: rgba(10, 10, 10, .96); box-shadow: 0 24px 80px rgba(0, 0, 0, .55); }
+.recovery-mark { color: #ffd400; font: 700 12px/1.3 "Roboto Mono", monospace; letter-spacing: 2px; }
+.recovery-card h1 { margin: 16px 0 10px; color: #ffd400; font-size: 52px; line-height: .95; letter-spacing: -2px; }
+.recovery-lead { max-width: 670px; margin: 0 0 28px; color: #c9c9c1; font-size: 17px; line-height: 1.55; }
+.recovery-warning { display: grid; gap: 4px; padding: 16px 18px; border: 1px solid #ffd400; border-radius: 14px; color: #f7f2cf; background: #221e00; }
+.recovery-warning strong { color: #ffd400; }
+.recovery-warning span { font-size: 14px; line-height: 1.45; }
+.recovery-identities { display: grid; gap: 1px; margin: 24px 0; overflow: hidden; border: 1px solid #292925; border-radius: 14px; background: #292925; }
+.recovery-identities div { padding: 14px 16px; background: #11110f; }
+.recovery-identities dt { margin-bottom: 6px; color: #8c8c84; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+.recovery-identities dd { margin: 0; overflow-wrap: anywhere; font: 500 13px/1.5 "Roboto Mono", monospace; }
+.recovery-state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.recovery-state-grid > div { display: grid; gap: 7px; padding: 16px; border-radius: 14px; background: #171714; }
+.recovery-state-grid span, .recovery-state-grid small { color: #8c8c84; font-size: 12px; }
+.recovery-state-grid strong { font-size: 16px; }
+.recovery-rewards { margin: 24px 0; padding: 18px; border-radius: 14px; background: #11110f; }
+.recovery-rewards h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+.recovery-rewards div { display: flex; justify-content: space-between; gap: 20px; padding: 9px 0; border-top: 1px solid #282824; }
+.recovery-rewards span { color: #b8b8af; }
+.recovery-rewards strong { overflow-wrap: anywhere; color: #ffd400; font: 600 13px/1.4 "Roboto Mono", monospace; text-align: right; }
+.recovery-notice { min-height: 48px; margin: 0 0 14px; padding: 14px 16px; border-radius: 12px; color: #e7e2bd; background: #24210c; line-height: 1.4; }
+.recovery-notice.is-ready { color: #c9f7d6; background: #0c2615; }
+.recovery-signature { display: inline-block; margin: 0 0 18px; color: #ffd400; }
+.recovery-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
+.recovery-actions button { min-height: 54px; padding: 13px 18px; border: 0; border-radius: 12px; font-weight: 800; cursor: pointer; }
+.recovery-connect { color: #f5f5f0; background: #292925; }
+.recovery-claim { color: #080808; background: #ffd400; }
+.recovery-actions button:disabled { cursor: not-allowed; opacity: .38; }
+.recovery-steps { margin: 24px 0 0; padding-left: 22px; color: #a8a8a0; font-size: 14px; line-height: 1.7; }
+@media (max-width: 700px) {
+  .recovery-page { padding: 18px 12px; }
+  .recovery-card { padding: 24px 18px; border-radius: 18px; }
+  .recovery-card h1 { font-size: 38px; }
+  .recovery-state-grid, .recovery-actions { grid-template-columns: 1fr; }
+}

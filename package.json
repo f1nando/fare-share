@@ -23,6 +23,7 @@
     "protocol:smoke-claim-many": "node --env-file-if-exists=.env --import tsx scripts/devnet-claim-many-smoke.ts",
     "protocol:audit-devnet-recovery": "node --env-file-if-exists=.env.devnet scripts/audit-devnet-recovery.mjs",
     "protocol:audit-mainnet-recovery": "node --env-file-if-exists=.env.mainnet-recovery --import tsx scripts/audit-mainnet-recovery.ts",
+    "protocol:audit-shutdown-claims": "node --env-file-if-exists=.env.mainnet-recovery --import tsx scripts/audit-shutdown-claims.ts",
     "protocol:close-mainnet-programdata": "node --import tsx scripts/close-mainnet-programdata.ts",
     "protocol:admin": "node --env-file-if-exists=.env --import tsx scripts/admin.ts",
     "protocol:benchmark": "node --env-file-if-exists=.env --import tsx scripts/benchmark-reward-batch.ts",
