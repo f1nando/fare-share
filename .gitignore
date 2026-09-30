@@ -9,6 +9,7 @@ test-ledger/
 .env
 .env.*
 !.env.example
+!.env.rehearsal.example
 *.log
 .qa/
 dist-nft/

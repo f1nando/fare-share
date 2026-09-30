@@ -55,7 +55,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: () => publicToken.ticker || 'FARE' }, database);
-const workerDefaults = { enabled: false, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
+const workerDefaults = { enabled: config.workerInitiallyEnabled, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
 await loadWorkerSettings(database.workerStatus, workerDefaults);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
 const traineeCampaigns = createTraineeCampaignAdmin({

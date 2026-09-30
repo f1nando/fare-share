@@ -8,6 +8,9 @@ export const OFFICIAL_XSTOCK_MINTS = [
   'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg',
 ] as const;
 
+export const REHEARSAL_DATABASE = 'fare_share_disposable_rehearsal';
+export const REHEARSAL_SHARED_ROLE_ADDRESS = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+
 export interface PreflightResult {
   errors: string[];
   warnings: string[];
@@ -107,10 +110,29 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (testMintSetting === 'true' && frontendChain !== 'solana:devnet') {
     errors.push('DEVNET_ALLOW_TEST_MINTS: allowed only for solana:devnet');
   }
+  const rehearsalSetting = value('REHEARSAL_MODE');
+  if (rehearsalSetting && rehearsalSetting !== 'true' && rehearsalSetting !== 'false') {
+    errors.push('REHEARSAL_MODE: only true or false is allowed');
+  }
+  const rehearsalMode = rehearsalSetting === 'true';
+  const workerInitiallyEnabled = value('WORKER_INITIAL_ENABLED');
+  if (workerInitiallyEnabled && workerInitiallyEnabled !== 'true' && workerInitiallyEnabled !== 'false') {
+    errors.push('WORKER_INITIAL_ENABLED: only true or false is allowed');
+  }
+  if (rehearsalMode) {
+    if (value('MONGODB_DATABASE') !== REHEARSAL_DATABASE) {
+      errors.push(`MONGODB_DATABASE: rehearsal requires ${REHEARSAL_DATABASE}`);
+    }
+    if (frontendChain !== 'solana:mainnet') errors.push('VITE_SOLANA_CHAIN: rehearsal requires solana:mainnet');
+    if (workerInitiallyEnabled !== 'false') errors.push('WORKER_INITIAL_ENABLED: rehearsal must explicitly start with false');
+    if (value('REHEARSAL_SHARED_ROLE_ADDRESS') !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+      errors.push(`REHEARSAL_SHARED_ROLE_ADDRESS: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
+    }
+  }
 
   const programId = validAddress('TAXI_PROGRAM_ID');
   const frontendProgramId = validAddress('VITE_TAXI_PROGRAM_ID');
-  validAddress('TEAM_ACCOUNT');
+  const teamAccount = validAddress('TEAM_ACCOUNT');
   validAddress('JUPITER_PROGRAM_ID');
   const rawFareMint = value('FARE_MINT');
   const fareMint = rawFareMint ? validAddress('FARE_MINT', rawFareMint) : '';
@@ -155,13 +177,15 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
 
   const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY'] as const;
   const secrets: string[] = [];
+  const signerAddresses: string[] = [];
   for (const name of secretNames) {
     const raw = required(name);
     if (!raw) continue;
     try {
       const bytes = parseSecretBytes(raw, name);
-      await createKeyPairSignerFromBytes(bytes);
+      const signer = await createKeyPairSignerFromBytes(bytes);
       secrets.push(Buffer.from(bytes).toString('hex'));
+      signerAddresses.push(String(signer.address));
     } catch (error) {
       const message = (error as Error).message;
       errors.push(message.startsWith(`${name} `)
@@ -169,13 +193,19 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
         : `${name}: private and public keypair parts do not match`);
     }
   }
-  if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
+  if (!rehearsalMode && secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
     errors.push('ADMIN and BACKEND_SIGNER must use different keypairs');
+  }
+  if (rehearsalMode && signerAddresses.some(signerAddress => signerAddress !== REHEARSAL_SHARED_ROLE_ADDRESS)) {
+    errors.push(`ADMIN_KEYPAIR_SECRET_KEY and BACKEND_SIGNER_SECRET_KEY: rehearsal signers must match ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
   }
   const workerSecret = value('WORKER_KEYPAIR_SECRET_KEY');
   if (workerSecret) {
     try {
-      await createKeyPairSignerFromBytes(parseSecretBytes(workerSecret, 'WORKER_KEYPAIR_SECRET_KEY'));
+      const signer = await createKeyPairSignerFromBytes(parseSecretBytes(workerSecret, 'WORKER_KEYPAIR_SECRET_KEY'));
+      if (rehearsalMode && String(signer.address) !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+        errors.push(`WORKER_KEYPAIR_SECRET_KEY: rehearsal signer must match ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
+      }
     } catch (error) {
       const message = (error as Error).message;
       errors.push(message.startsWith('WORKER_KEYPAIR_SECRET_KEY ')
@@ -189,12 +219,15 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (feeRecipientSecret) {
     try {
       const signer = await createKeyPairSignerFromBytes(parseSecretBytes(feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
-      if (frontendChain === 'solana:mainnet' && String(signer.address) !== '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF') {
+      if (frontendChain === 'solana:mainnet' && String(signer.address) !== REHEARSAL_SHARED_ROLE_ADDRESS) {
         errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: must match the fixed 2NUN… mainnet wallet');
       }
     } catch (error) {
       errors.push(String((error as Error).message));
     }
+  }
+  if (rehearsalMode && teamAccount && teamAccount !== REHEARSAL_SHARED_ROLE_ADDRESS) {
+    errors.push(`TEAM_ACCOUNT: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
   }
   required('ADMIN_USERNAME');
   const adminPassword = required('ADMIN_PASSWORD_SCRYPT');

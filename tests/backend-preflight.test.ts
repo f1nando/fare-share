@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OFFICIAL_XSTOCK_MINTS, validateDeploymentEnvironment, validateProgramIdSources } from '../server/preflight.js';
+import { OFFICIAL_XSTOCK_MINTS, REHEARSAL_DATABASE, REHEARSAL_SHARED_ROLE_ADDRESS, validateDeploymentEnvironment, validateProgramIdSources } from '../server/preflight.js';
+import { MAINNET_GENESIS_HASH, validateRehearsalManifest } from '../server/rehearsalManifest.js';
 
 const secret = (seed: string, publicKey: string) => JSON.stringify([...Buffer.from(seed, 'hex'), ...Buffer.from(publicKey, 'hex')]);
 const SECRETS = [
@@ -115,6 +116,113 @@ test('deployment preflight rejects legacy lamport values used as USD cents', asy
   env.MINT_PRICES_USD_CENTS = '350000000,1000000000,3000000000,8000000000';
   const result = await validateDeploymentEnvironment(env);
   assert.match(result.errors.join('\n'), /every mint price must equal 2500/);
+});
+
+test('rehearsal environment is fail-closed around mainnet, database, worker and approved shared role', async () => {
+  const env = validEnvironment();
+  env.REHEARSAL_MODE = 'true';
+  env.REHEARSAL_SHARED_ROLE_ADDRESS = REHEARSAL_SHARED_ROLE_ADDRESS;
+  env.MONGODB_DATABASE = REHEARSAL_DATABASE;
+  env.VITE_SOLANA_CHAIN = 'solana:mainnet';
+  env.WORKER_INITIAL_ENABLED = 'false';
+  env.TEAM_ACCOUNT = REHEARSAL_SHARED_ROLE_ADDRESS;
+  env.ADMIN_KEYPAIR_SECRET_KEY = SECRETS[0];
+  env.BACKEND_SIGNER_SECRET_KEY = SECRETS[0];
+  env.WORKER_KEYPAIR_SECRET_KEY = SECRETS[0];
+  const rehearsal = await validateDeploymentEnvironment(env);
+  const combined = rehearsal.errors.join('\n');
+  assert.doesNotMatch(combined, /ADMIN and BACKEND_SIGNER must use different keypairs/);
+  assert.match(combined, /rehearsal signers must match 2NUN/);
+
+  env.REHEARSAL_MODE = 'false';
+  const production = await validateDeploymentEnvironment(env);
+  assert.match(production.errors.join('\n'), /ADMIN and BACKEND_SIGNER must use different keypairs/);
+});
+
+test('rehearsal environment requires explicit safe fixed settings', async () => {
+  const env = validEnvironment();
+  env.REHEARSAL_MODE = 'true';
+  env.REHEARSAL_SHARED_ROLE_ADDRESS = '11111111111111111111111111111111';
+  env.MONGODB_DATABASE = 'taxi_park';
+  env.WORKER_INITIAL_ENABLED = 'true';
+  const result = await validateDeploymentEnvironment(env);
+  const combined = result.errors.join('\n');
+  assert.match(combined, /fare_share_disposable_rehearsal/);
+  assert.match(combined, /requires solana:mainnet/);
+  assert.match(combined, /must explicitly start with false/);
+  assert.match(combined, /REHEARSAL_SHARED_ROLE_ADDRESS/);
+});
+
+function completeRehearsalManifest() {
+  const sharedRole = REHEARSAL_SHARED_ROLE_ADDRESS;
+  return {
+    validationMode: 'complete',
+    releaseSha: '1'.repeat(40),
+    sbf: { sha256: '2'.repeat(64), sizeBytes: 669_552 },
+    cluster: { chain: 'solana:mainnet', genesisHash: MAINNET_GENESIS_HASH },
+    database: REHEARSAL_DATABASE,
+    workerInitiallyEnabled: false,
+    mintPricesUsdCents: [2500, 2500, 2500, 2500],
+    addresses: {
+      programId: 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
+      programData: 'F3B4QLnRRBumZ27TARxSKQdZ75sb7pU3crbnU5A3LHLo',
+      collection: '5DwDcfC4jsY8tq7VQqLGCmsWmVepVjDfMoWpZWAL5nro',
+      fareMint: '4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump',
+      replacementFareMint: 'So11111111111111111111111111111111111111112',
+      jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
+      stockMints: [...OFFICIAL_XSTOCK_MINTS],
+      sharedRole, feePayer: sharedRole, upgradeAuthority: sharedRole, admin: sharedRole,
+      backendSigner: sharedRole, worker: sharedRole, team: sharedRole,
+      pumpCreatorFeeRecipient: sharedRole, recoveryRecipient: sharedRole,
+    },
+    assignmentRootHex: 'ab'.repeat(12),
+    metadata: {
+      collectionUri: 'ar://collection',
+      machineUris: Array.from({ length: 16 }, (_, index) => `ar://machine-${index}`),
+      traineeUri: 'ar://trainee',
+    },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '3400000000' },
+  };
+}
+
+test('complete rehearsal manifest binds the frozen release and safety limits', () => {
+  assert.deepEqual(validateRehearsalManifest(completeRehearsalManifest(), 'complete'), {
+    errors: [], warnings: [], deploymentAuthorized: true,
+  });
+});
+
+test('preparation manifest can be incomplete but never authorizes deployment', () => {
+  const manifest = completeRehearsalManifest();
+  manifest.validationMode = 'preparation';
+  manifest.releaseSha = '<40_CHAR_RELEASE_SHA>';
+  manifest.sbf = { sha256: '<64_CHAR_SBF_SHA256>', sizeBytes: 0 };
+  manifest.addresses.programId = '<DISPOSABLE_PROGRAM_ID>';
+  manifest.addresses.programData = '<DISPOSABLE_PROGRAM_DATA>';
+  manifest.addresses.collection = '<DISPOSABLE_COLLECTION>';
+  manifest.addresses.replacementFareMint = '<DISPOSABLE_REPLACEMENT_FARE_MINT>';
+  manifest.assignmentRootHex = '<24_CHAR_ASSIGNMENT_ROOT>';
+  manifest.metadata = { collectionUri: '<PERMANENT_COLLECTION_URI>', machineUris: [], traineeUri: '<PERMANENT_TRAINEE_URI>' };
+  manifest.limits.recoverableRentLamports = '<EXACT_RECOVERABLE_RENT_LAMPORTS>';
+  const result = validateRehearsalManifest(manifest, 'preparation');
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.deploymentAuthorized, false);
+  assert.match(result.warnings.join('\n'), /cannot authorize deployment/);
+});
+
+test('complete rehearsal manifest rejects placeholders and safety drift', () => {
+  const manifest = completeRehearsalManifest();
+  manifest.releaseSha = '<RELEASE_SHA>';
+  manifest.database = 'taxi_park';
+  manifest.workerInitiallyEnabled = true;
+  manifest.limits = { automaticStopSol: 0.8, irreversibleMaximumSol: 0.9, recoverableRentLamports: '0' };
+  const result = validateRehearsalManifest(manifest, 'complete');
+  assert.equal(result.deploymentAuthorized, false);
+  const combined = result.errors.join('\n');
+  assert.match(combined, /complete mode rejects placeholders/);
+  assert.match(combined, /fare_share_disposable_rehearsal/);
+  assert.match(combined, /automaticStopSol/);
+  assert.match(combined, /irreversibleMaximumSol/);
+  assert.match(combined, /positive lamport string/);
 });
 
 test('deployment preflight requires 16 distinct ordered machine metadata URIs', async () => {

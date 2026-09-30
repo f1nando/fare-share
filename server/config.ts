@@ -36,6 +36,13 @@ function boundedNumber(name: string, fallback: number, minimum: number, maximum:
   return value;
 }
 
+function boolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw !== 'true' && raw !== 'false') throw new Error(`${name} must be true or false`);
+  return raw === 'true';
+}
+
 export type ServerConfig = ReturnType<typeof loadServerConfig>;
 
 export function loadServerConfig() {
@@ -54,6 +61,7 @@ export function loadServerConfig() {
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
     workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),
+    workerInitiallyEnabled: boolean('WORKER_INITIAL_ENABLED', false),
     workerIntervalMs: integer('WORKER_INTERVAL_MS', 300_000, 10_000),
     wordPepper: required('TRAINEE_WORD_PEPPER'),
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
