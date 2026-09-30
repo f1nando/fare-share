@@ -893,10 +893,11 @@ pub mod taxi_park {
             &expected_message,
         )
         .map_err(|_| error!(TaxiError::InvalidMintQuoteSignature))?;
-        let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
-        require!(serial <= cap, TaxiError::ClassSoldOut);
+        let class_serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        require!(class_serial <= cap, TaxiError::ClassSoldOut);
         let variant = assignment.variant;
-        let name = format!("TAXI {} #{:04}", class_name(class)?, serial);
+        let serial = assignment.index.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        let name = format!("TAXI {} #{:04}", model_name(class, variant)?, serial);
         let uri = ctx
             .accounts
             .config
@@ -975,7 +976,7 @@ pub mod taxi_park {
             .accounts
             .config
             .protocol_time(Clock::get()?.unix_timestamp)?;
-        ctx.accounts.config.minted_by_class[class_index] = serial;
+        ctx.accounts.config.minted_by_class[class_index] = class_serial;
         initialize_machine_and_events(
             &mut ctx.accounts.machine,
             &mut ctx.accounts.queue,
@@ -2760,6 +2761,10 @@ mod accounting_tests {
         assert_eq!(CLASS_CAPS, [833, 278, 83, 28]);
         assert_eq!(CLASS_CAPS.iter().sum::<u16>(), TOTAL_PAID_SUPPLY);
         assert_eq!(CLASS_WEIGHTS, [1, 3, 10, 30]);
+        assert_eq!(model_name(1, 2).unwrap(), "Toyota Camry");
+        assert_eq!(model_name(3, 3).unwrap(), "Porsche 911");
+        assert!(model_name(4, 0).is_err());
+        assert!(model_name(0, 4).is_err());
         assert!(metadata_uris_are_valid(&config.metadata_uris));
         let mut duplicate_uris = config.metadata_uris.clone();
         duplicate_uris[15] = duplicate_uris[0].clone();
@@ -3000,14 +3005,18 @@ fn truncated_hash(parts: &[&[u8]]) -> [u8; 12] {
     digest[..12].try_into().expect("fixed hash prefix")
 }
 
-fn class_name(class: u8) -> Result<&'static str> {
-    match class {
-        0 => Ok("Economy"),
-        1 => Ok("Comfort"),
-        2 => Ok("Business"),
-        3 => Ok("Legend"),
-        _ => err!(TaxiError::InvalidClass),
-    }
+fn model_name(class: u8, variant: u8) -> Result<&'static str> {
+    const MODELS: [[&str; VARIANTS_PER_CLASS]; CLASS_COUNT] = [
+        ["Checker Marathon", "London Taxi", "Chevrolet Caprice", "Toyota Sienna"],
+        ["Toyota Prius", "Ford Crown Victoria", "Toyota Camry", "Mercedes E211"],
+        ["Tesla Model 3", "Bentley Flying Spur", "Mercedes G63", "Rolls-Royce Cullinan"],
+        ["BMW M3 E46", "Lamborghini Huracán", "Bugatti Chiron", "Porsche 911"],
+    ];
+    MODELS
+        .get(usize::from(class))
+        .and_then(|models| models.get(usize::from(variant)))
+        .copied()
+        .ok_or_else(|| error!(TaxiError::InvalidClass))
 }
 
 fn metadata_uris_are_valid(metadata_uris: &[String; METADATA_URI_COUNT]) -> bool {
