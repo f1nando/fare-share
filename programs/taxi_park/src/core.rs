@@ -4,6 +4,7 @@ use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 use crate::TaxiError;
 
 pub const MPL_CORE_ID: Pubkey = pubkey!("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
+pub const TRAINEE_ASSET_NAME: &str = "TAXI Trainee — Dacia Logan";
 
 const ASSET_V1_KEY: u8 = 1;
 const COLLECTION_V1_KEY: u8 = 5;
@@ -201,6 +202,7 @@ mod tests {
 
     #[test]
     fn trainee_asset_is_created_permanently_frozen() {
+        assert_eq!(TRAINEE_ASSET_NAME, "TAXI Trainee — Dacia Logan");
         let args = CreateAsset {
             asset: Pubkey::new_unique(),
             collection: Pubkey::new_unique(),
@@ -208,7 +210,7 @@ mod tests {
             payer: Pubkey::new_unique(),
             owner: Pubkey::new_unique(),
             system_program: anchor_lang::system_program::ID,
-            name: "TAXI Trainee",
+            name: TRAINEE_ASSET_NAME,
             uri: "https://example.test/trainee.json",
             permanently_frozen: true,
         };

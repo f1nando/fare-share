@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTraineeCampaignAdmin, loadActivationCounts } from '../server/traineeCampaignAdmin.js';
+import { createTraineeCampaignAdmin, fixedTraineeCampaignWord, loadActivationCounts } from '../server/traineeCampaignAdmin.js';
 import { keywordHash } from '../server/signing.js';
 
 test('trainee campaign activation counts come from finalized on-chain accounts', async () => {
@@ -46,4 +46,31 @@ test('primary trainee word follows the configured token ticker', async () => {
   assert.equal(update.value.$set.keywordHash, keywordHash('TAXI', 'test-pepper'));
   assert.equal(update.value.$set.durationMinutes, 1_440);
   assert.deepEqual(update.options, { upsert: true });
+});
+
+test('rehearsal primary trainee word stays TAXI after runtime ticker replacement', async () => {
+  const updates: any[] = [];
+  const database = {
+    campaigns: {
+      async updateOne(filter: unknown, value: unknown, options: unknown) { updates.push({ filter, value, options }); },
+    },
+  } as any;
+  const service = createTraineeCampaignAdmin({
+    solanaRpcUrl: 'https://rpc.invalid',
+    programId: '11111111111111111111111111111111',
+    wordPepper: 'test-pepper',
+    primaryWord: fixedTraineeCampaignWord('fare_share_disposable_rehearsal'),
+  }, database);
+
+  await service.ensurePrimary('FARE');
+  await service.ensurePrimary('FARETEST');
+
+  assert.equal(updates.length, 2);
+  for (const update of updates) {
+    assert.deepEqual(update.filter, { campaignId: '1' });
+    assert.equal(update.value.$set.label, 'TAXI');
+    assert.equal(update.value.$set.displayWord, 'TAXI');
+    assert.equal(update.value.$set.keywordHash, keywordHash('TAXI', 'test-pepper'));
+  }
+  assert.equal(fixedTraineeCampaignWord('taxi_park'), undefined);
 });

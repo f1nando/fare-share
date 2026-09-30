@@ -1364,7 +1364,7 @@ pub mod taxi_park {
             payer: ctx.accounts.owner.key(),
             owner: ctx.accounts.owner.key(),
             system_program: ctx.accounts.system_program.key(),
-            name: "TAXI Trainee",
+            name: metaplex_core::TRAINEE_ASSET_NAME,
             uri: &ctx.accounts.config.trainee_metadata_uri,
             permanently_frozen: true,
         })?;

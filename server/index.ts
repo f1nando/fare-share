@@ -10,7 +10,7 @@ import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
 import { createPublicDataService, PublicDataError } from './publicData.js';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
-import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
+import { createTraineeCampaignAdmin, fixedTraineeCampaignWord, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
 import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
 import { performWorkerAction } from './workerAutomation.js';
 import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
@@ -58,7 +58,10 @@ const publicData = createPublicDataService({ ...config, fareSymbol: () => public
 const workerDefaults = { enabled: false, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
 await loadWorkerSettings(database.workerStatus, workerDefaults);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
-const traineeCampaigns = createTraineeCampaignAdmin(config, database);
+const traineeCampaigns = createTraineeCampaignAdmin({
+  ...config,
+  primaryWord: fixedTraineeCampaignWord(config.mongoDatabase),
+}, database);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
 
 const server = createServer(async (request, response) => {
