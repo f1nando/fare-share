@@ -72,7 +72,9 @@ export function buildMetadataFiles(imageUris: readonly string[], requestedMode: 
       data: {
         name: 'TAXI Trainee — Dacia Logan',
         symbol,
-        description: 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
+        description: mode === 'rehearsal'
+          ? 'A temporary, non-transferable trainee taxi from the disposable Fare Share Taxi rehearsal collection. Not a production NFT. It cannot be repaired and earns only during its activation period. No fixed APY.'
+          : 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
         image: imageUris[17],
         attributes: [
           { trait_type: 'Type', value: 'Trainee' },

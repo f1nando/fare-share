@@ -128,6 +128,16 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     if (value('REHEARSAL_SHARED_ROLE_ADDRESS') !== REHEARSAL_SHARED_ROLE_ADDRESS) {
       errors.push(`REHEARSAL_SHARED_ROLE_ADDRESS: rehearsal requires ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
     }
+    if (value('REHEARSAL_ORDINARY_BUDGET_LAMPORTS') !== '700000000') {
+      errors.push('REHEARSAL_ORDINARY_BUDGET_LAMPORTS: rehearsal requires 700000000');
+    }
+    if (value('REHEARSAL_HARD_BUDGET_LAMPORTS') !== '800000000') {
+      errors.push('REHEARSAL_HARD_BUDGET_LAMPORTS: rehearsal requires 800000000');
+    }
+    const initialSpent = value('REHEARSAL_INITIAL_SPENT_LAMPORTS');
+    if (!/^\d+$/.test(initialSpent) || BigInt(initialSpent) > 700_000_000n) {
+      errors.push('REHEARSAL_INITIAL_SPENT_LAMPORTS: must be finalized lamports between 0 and 700000000');
+    }
   }
 
   const programId = validAddress('TAXI_PROGRAM_ID');

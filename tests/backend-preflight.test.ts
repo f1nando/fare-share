@@ -125,6 +125,9 @@ test('rehearsal environment is fail-closed around mainnet, database, worker and 
   env.MONGODB_DATABASE = REHEARSAL_DATABASE;
   env.VITE_SOLANA_CHAIN = 'solana:mainnet';
   env.WORKER_INITIAL_ENABLED = 'false';
+  env.REHEARSAL_ORDINARY_BUDGET_LAMPORTS = '700000000';
+  env.REHEARSAL_HARD_BUDGET_LAMPORTS = '800000000';
+  env.REHEARSAL_INITIAL_SPENT_LAMPORTS = '0';
   env.TEAM_ACCOUNT = REHEARSAL_SHARED_ROLE_ADDRESS;
   env.ADMIN_KEYPAIR_SECRET_KEY = SECRETS[0];
   env.BACKEND_SIGNER_SECRET_KEY = SECRETS[0];
@@ -151,6 +154,8 @@ test('rehearsal environment requires explicit safe fixed settings', async () => 
   assert.match(combined, /requires solana:mainnet/);
   assert.match(combined, /must explicitly start with false/);
   assert.match(combined, /REHEARSAL_SHARED_ROLE_ADDRESS/);
+  assert.match(combined, /REHEARSAL_ORDINARY_BUDGET_LAMPORTS/);
+  assert.match(combined, /REHEARSAL_HARD_BUDGET_LAMPORTS/);
 });
 
 function completeRehearsalManifest() {

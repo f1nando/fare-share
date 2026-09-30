@@ -30,6 +30,7 @@
     "rehearsal:preflight": "node --import tsx scripts/validate-rehearsal-manifest.ts",
     "admin:hash-password": "node --import tsx scripts/hash-admin-password.ts",
     "metadata:build": "node --env-file-if-exists=.env --import tsx scripts/build-nft-metadata.ts",
+    "metadata:build-faretest": "node --env-file-if-exists=.env --import tsx scripts/build-faretest-metadata.ts",
     "mint-assignments:generate": "node --import tsx scripts/generate-mint-assignments.ts",
     "build": "vite build",
     "build:city": "vite build --mode city",

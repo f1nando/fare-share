@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { buildMetadataFiles, NFT_CLASSES } from '../scripts/build-nft-metadata.js';
+import { buildFaretestMetadata } from '../scripts/build-faretest-metadata.js';
 
 const imageUris = Array.from({ length: 18 }, (_, index) => `https://example.test/image-${index}.png`);
 const drivingSceneManifest = JSON.parse(readFileSync(
@@ -68,4 +69,16 @@ test('rehearsal metadata uses the approved collection identity', () => {
   assert.equal(files[0].data.symbol, 'TAXITEST');
   assert.match(files[0].data.description, /Disposable.*rehearsal/i);
   for (const item of files.slice(1)) assert.equal(item.data.symbol, 'TAXITEST');
+  assert.match(files[17].data.description, /Not a production NFT/);
+});
+
+test('FARETEST metadata uses the approved disposable identity', () => {
+  const metadata = buildFaretestMetadata('https://example.test/faretest.svg');
+  assert.deepEqual(metadata, {
+    name: 'Fare Share Rehearsal',
+    symbol: 'FARETEST',
+    description: 'Disposable Fare Share token for the public Solana Mainnet rehearsal. Not the production FARE token.',
+    image: 'https://example.test/faretest.svg',
+  });
+  assert.throws(() => buildFaretestMetadata('file:///faretest.svg'), /HTTPS URL/);
 });
