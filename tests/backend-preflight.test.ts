@@ -188,6 +188,7 @@ function completeRehearsalManifest() {
       programData: 'F3B4QLnRRBumZ27TARxSKQdZ75sb7pU3crbnU5A3LHLo',
       buffer: '4Z2mUq8Y3BYqg6f1a2WMbLsGGBYbXmRYXKf7q5R1ft2m',
       collection: '5DwDcfC4jsY8tq7VQqLGCmsWmVepVjDfMoWpZWAL5nro',
+      userWallet: 'DixHreV9jd2wdnA1FJYcrN5kdfuv5TbYGk7XEd2pxG6w',
       fareMint: '4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump',
       replacementFareMint: 'So11111111111111111111111111111111111111112',
       jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
@@ -197,12 +198,21 @@ function completeRehearsalManifest() {
       pumpCreatorFeeRecipient: sharedRole, recoveryRecipient: sharedRole,
     },
     assignmentRootHex: 'ab'.repeat(12),
+    assignmentManifestSha256: 'cd'.repeat(32),
+    deploymentIdHex: 'ef'.repeat(32),
     metadata: {
       collectionUri: 'ar://collection',
       machineUris: Array.from({ length: 16 }, (_, index) => `ar://machine-${index}`),
       traineeUri: 'ar://trainee',
+      imageUris: Array.from({ length: 18 }, (_, index) => `ar://image-${index}`),
+      faretestArtworkUri: 'ar://faretest-artwork',
+      faretestMetadataUri: 'ar://faretest-metadata',
     },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '3400000000' },
+    limits: {
+      automaticStopSol: 0.7, irreversibleMaximumSol: 0.8,
+      recoverableRentLamports: '3400000000', uploadBufferRentLamports: '3399990000',
+      programTombstoneLamports: '833120', estimatedPeakFundingLamports: '7600000000',
+    },
   };
 }
 
@@ -223,8 +233,18 @@ test('preparation manifest can be incomplete but never authorizes deployment', (
   manifest.addresses.collection = '<DISPOSABLE_COLLECTION>';
   manifest.addresses.replacementFareMint = '<DISPOSABLE_REPLACEMENT_FARE_MINT>';
   manifest.assignmentRootHex = '<24_CHAR_ASSIGNMENT_ROOT>';
-  manifest.metadata = { collectionUri: '<PERMANENT_COLLECTION_URI>', machineUris: [], traineeUri: '<PERMANENT_TRAINEE_URI>' };
+  manifest.metadata = {
+    collectionUri: '<PERMANENT_COLLECTION_URI>',
+    machineUris: [],
+    traineeUri: '<PERMANENT_TRAINEE_URI>',
+    imageUris: [],
+    faretestArtworkUri: '<PERMANENT_FARETEST_ARTWORK_URI>',
+    faretestMetadataUri: '<PERMANENT_FARETEST_METADATA_URI>',
+  };
   manifest.limits.recoverableRentLamports = '<EXACT_RECOVERABLE_RENT_LAMPORTS>';
+  manifest.limits.uploadBufferRentLamports = '<EXACT_UPLOAD_BUFFER_RENT_LAMPORTS>';
+  manifest.limits.programTombstoneLamports = '<EXACT_PROGRAM_TOMBSTONE_LAMPORTS>';
+  manifest.limits.estimatedPeakFundingLamports = '<EXACT_PEAK_FUNDING_LAMPORTS>';
   const result = validateRehearsalManifest(manifest, 'preparation');
   assert.deepEqual(result.errors, []);
   assert.equal(result.deploymentAuthorized, false);
@@ -236,7 +256,14 @@ test('complete rehearsal manifest rejects placeholders and safety drift', () => 
   manifest.releaseSha = '<RELEASE_SHA>';
   manifest.database = 'taxi_park';
   manifest.workerInitiallyEnabled = true;
-  manifest.limits = { automaticStopSol: 0.8, irreversibleMaximumSol: 0.9, recoverableRentLamports: '0' };
+  manifest.limits = {
+    automaticStopSol: 0.8,
+    irreversibleMaximumSol: 0.9,
+    recoverableRentLamports: '0',
+    uploadBufferRentLamports: '0',
+    programTombstoneLamports: '0',
+    estimatedPeakFundingLamports: '0',
+  };
   const result = validateRehearsalManifest(manifest, 'complete');
   assert.equal(result.deploymentAuthorized, false);
   const combined = result.errors.join('\n');

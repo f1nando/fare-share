@@ -47,7 +47,7 @@ export function validateRehearsalManifest(
   }
 
   const addresses = record(root.addresses, 'addresses', errors);
-  const disposableAddressNames = ['programId', 'programData', 'buffer', 'collection', 'fareMint', 'replacementFareMint'] as const;
+  const disposableAddressNames = ['programId', 'programData', 'buffer', 'collection', 'userWallet', 'fareMint', 'replacementFareMint'] as const;
   for (const name of disposableAddressNames) {
     validateAddress(addresses[name], `addresses.${name}`, errors, allowIncomplete);
   }
@@ -66,6 +66,8 @@ export function validateRehearsalManifest(
   }
 
   validateHex(text(root.assignmentRootHex, 'assignmentRootHex', errors, allowIncomplete), 'assignmentRootHex', 24, errors, allowIncomplete, true);
+  validateHex(text(root.assignmentManifestSha256, 'assignmentManifestSha256', errors, allowIncomplete), 'assignmentManifestSha256', 64, errors, allowIncomplete);
+  validateHex(text(root.deploymentIdHex, 'deploymentIdHex', errors, allowIncomplete), 'deploymentIdHex', 64, errors, allowIncomplete, true);
 
   const metadata = record(root.metadata, 'metadata', errors);
   validateUri(metadata.collectionUri, 'metadata.collectionUri', errors, allowIncomplete);
@@ -77,14 +79,24 @@ export function validateRehearsalManifest(
     if (completeUris.length === 16 && new Set(completeUris).size !== 16) errors.push('metadata.machineUris: URIs must be distinct');
   }
   validateUri(metadata.traineeUri, 'metadata.traineeUri', errors, allowIncomplete);
+  const imageUris = array(metadata.imageUris, 'metadata.imageUris', errors);
+  if (!allowIncomplete || imageUris.length > 0) {
+    if (imageUris.length !== 18) errors.push('metadata.imageUris: exactly 18 ordered Collection/machine/Trainee image URIs are required');
+    imageUris.forEach((uri, index) => validateUri(uri, `metadata.imageUris[${index}]`, errors, allowIncomplete));
+    const completeImages = imageUris.filter(uri => typeof uri === 'string' && !placeholder(uri));
+    if (completeImages.length === 18 && new Set(completeImages).size !== 18) errors.push('metadata.imageUris: URIs must be distinct');
+  }
+  validateUri(metadata.faretestArtworkUri, 'metadata.faretestArtworkUri', errors, allowIncomplete);
+  validateUri(metadata.faretestMetadataUri, 'metadata.faretestMetadataUri', errors, allowIncomplete);
 
   const limits = record(root.limits, 'limits', errors);
   exact(limits.automaticStopSol, 'limits.automaticStopSol', 0.7, errors);
   exact(limits.irreversibleMaximumSol, 'limits.irreversibleMaximumSol', 0.8, errors);
   const rent = text(limits.recoverableRentLamports, 'limits.recoverableRentLamports', errors, allowIncomplete);
-  if (!incomplete(rent, allowIncomplete) && (!/^\d+$/.test(rent) || BigInt(rent) <= 0n)) {
-    errors.push('limits.recoverableRentLamports: must be a positive lamport string');
-  }
+  positiveLamportString(rent, 'limits.recoverableRentLamports', errors, allowIncomplete);
+  positiveLamportString(text(limits.uploadBufferRentLamports, 'limits.uploadBufferRentLamports', errors, allowIncomplete), 'limits.uploadBufferRentLamports', errors, allowIncomplete);
+  positiveLamportString(text(limits.programTombstoneLamports, 'limits.programTombstoneLamports', errors, allowIncomplete), 'limits.programTombstoneLamports', errors, allowIncomplete);
+  positiveLamportString(text(limits.estimatedPeakFundingLamports, 'limits.estimatedPeakFundingLamports', errors, allowIncomplete), 'limits.estimatedPeakFundingLamports', errors, allowIncomplete);
 
   if (requestedMode === 'complete') {
     findPlaceholders(input, 'manifest', errors);
@@ -145,6 +157,12 @@ function validateHex(value: string, name: string, length: number, errors: string
 function positiveInteger(value: unknown, name: string, errors: string[], allowIncomplete: boolean) {
   if (incomplete(value, allowIncomplete)) return;
   if (!Number.isSafeInteger(value) || Number(value) <= 0) errors.push(`${name}: must be a positive integer`);
+}
+
+function positiveLamportString(value: string, name: string, errors: string[], allowIncomplete: boolean) {
+  if (!incomplete(value, allowIncomplete) && (!/^\d+$/.test(value) || BigInt(value) <= 0n)) {
+    errors.push(`${name}: must be a positive lamport string`);
+  }
 }
 
 function validateAddress(value: unknown, name: string, errors: string[], allowIncomplete: boolean) {

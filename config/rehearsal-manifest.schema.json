@@ -4,7 +4,7 @@
   "title": "Disposable mainnet rehearsal manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["validationMode", "releaseSha", "sbf", "cluster", "database", "workerInitiallyEnabled", "mintPricesUsdCents", "addresses", "assignmentRootHex", "metadata", "limits"],
+  "required": ["validationMode", "releaseSha", "sbf", "cluster", "database", "workerInitiallyEnabled", "mintPricesUsdCents", "addresses", "assignmentRootHex", "assignmentManifestSha256", "deploymentIdHex", "metadata", "limits"],
   "properties": {
     "$schema": { "type": "string" },
     "validationMode": { "enum": ["preparation", "complete"] },
@@ -37,12 +37,13 @@
     "addresses": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["programId", "programData", "buffer", "collection", "fareMint", "replacementFareMint", "jupiterProgramId", "stockMints", "sharedRole", "feePayer", "upgradeAuthority", "admin", "backendSigner", "worker", "team", "pumpCreatorFeeRecipient", "recoveryRecipient"],
+      "required": ["programId", "programData", "buffer", "collection", "userWallet", "fareMint", "replacementFareMint", "jupiterProgramId", "stockMints", "sharedRole", "feePayer", "upgradeAuthority", "admin", "backendSigner", "worker", "team", "pumpCreatorFeeRecipient", "recoveryRecipient"],
       "properties": {
         "programId": { "type": "string" },
         "programData": { "type": "string" },
         "buffer": { "type": "string" },
         "collection": { "type": "string" },
+        "userWallet": { "type": "string" },
         "fareMint": { "type": "string" },
         "replacementFareMint": { "type": "string" },
         "jupiterProgramId": { "const": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" },
@@ -68,24 +69,32 @@
       }
     },
     "assignmentRootHex": { "type": "string" },
+    "assignmentManifestSha256": { "type": "string" },
+    "deploymentIdHex": { "type": "string" },
     "metadata": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["collectionUri", "machineUris", "traineeUri"],
+      "required": ["collectionUri", "machineUris", "traineeUri", "imageUris", "faretestArtworkUri", "faretestMetadataUri"],
       "properties": {
         "collectionUri": { "type": "string" },
         "machineUris": { "type": "array", "items": { "type": "string" }, "maxItems": 16 },
-        "traineeUri": { "type": "string" }
+        "traineeUri": { "type": "string" },
+        "imageUris": { "type": "array", "items": { "type": "string" }, "maxItems": 18 },
+        "faretestArtworkUri": { "type": "string" },
+        "faretestMetadataUri": { "type": "string" }
       }
     },
     "limits": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["automaticStopSol", "irreversibleMaximumSol", "recoverableRentLamports"],
+      "required": ["automaticStopSol", "irreversibleMaximumSol", "recoverableRentLamports", "uploadBufferRentLamports", "programTombstoneLamports", "estimatedPeakFundingLamports"],
       "properties": {
         "automaticStopSol": { "const": 0.7 },
         "irreversibleMaximumSol": { "const": 0.8 },
-        "recoverableRentLamports": { "type": "string" }
+        "recoverableRentLamports": { "type": "string" },
+        "uploadBufferRentLamports": { "type": "string" },
+        "programTombstoneLamports": { "type": "string" },
+        "estimatedPeakFundingLamports": { "type": "string" }
       }
     }
   },

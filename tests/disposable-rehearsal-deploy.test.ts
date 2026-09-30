@@ -31,15 +31,16 @@ async function fixture(): Promise<{ options: DeployOptions; calls: string[][] }>
     database: 'fare_share_disposable_rehearsal', workerInitiallyEnabled: false,
     mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId: PROGRAM, programData: PROGRAM_DATA, buffer: BUFFER, collection: PROGRAM, fareMint: PROGRAM, replacementFareMint: PROGRAM,
+      programId: PROGRAM, programData: PROGRAM_DATA, buffer: BUFFER, collection: PROGRAM, userWallet: BUFFER, fareMint: PROGRAM, replacementFareMint: PROGRAM,
       jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
       stockMints: ['XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB', 'XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB', 'XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN', 'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'],
       sharedRole: SHARED, feePayer: SHARED, upgradeAuthority: SHARED, admin: SHARED, backendSigner: SHARED,
       worker: SHARED, team: SHARED, pumpCreatorFeeRecipient: SHARED, recoveryRecipient: SHARED,
     },
     assignmentRootHex: '1'.repeat(24),
-    metadata: { collectionUri: 'https://example.com/collection', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.com/${i}`), traineeUri: 'https://example.com/trainee' },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '108' },
+    assignmentManifestSha256: '2'.repeat(64), deploymentIdHex: '3'.repeat(64),
+    metadata: { collectionUri: 'https://example.com/collection', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.com/${i}`), traineeUri: 'https://example.com/trainee', imageUris: Array.from({ length: 18 }, (_, i) => `https://example.com/image-${i}`), faretestArtworkUri: 'https://example.com/faretest.svg', faretestMetadataUri: 'https://example.com/faretest.json' },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '108', uploadBufferRentLamports: '100', programTombstoneLamports: '1', estimatedPeakFundingLamports: '900000209' },
   }));
   const programSo = join(directory, 'program.so');
   await writeFile(programSo, binary);
@@ -63,6 +64,7 @@ function fakeRunner(options: DeployOptions, calls: string[][]) {
     }
     if (args[0] === 'genesis-hash') return ok('5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d\n');
     if (args[0] === 'rent') return ok(`${args[1] === '40' ? 100 : 108} lamports\n`);
+    if (args[0] === 'balance') return ok('900000209 lamports\n');
     if (args[0] === 'program' && args[1] === 'show') return { status: 1, stdout: '', stderr: 'not found' };
     return ok('');
   };

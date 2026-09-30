@@ -27,15 +27,16 @@ async function fixture(overrides: Partial<{
     cluster: { chain: 'solana:mainnet', genesisHash: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d' },
     database: 'fare_share_disposable_rehearsal', workerInitiallyEnabled: false, mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId: MINT, programData: MINT, buffer: MINT, collection: MINT, fareMint: MINT, replacementFareMint: MINT,
+      programId: MINT, programData: MINT, buffer: MINT, collection: MINT, userWallet: MINT, fareMint: MINT, replacementFareMint: MINT,
       jupiterProgramId: JUPITER,
       stockMints: ['XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB', 'XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB', 'XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN', 'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'],
       sharedRole: SHARED, feePayer: SHARED, upgradeAuthority: SHARED, admin: SHARED, backendSigner: SHARED,
       worker: SHARED, team: SHARED, pumpCreatorFeeRecipient: SHARED, recoveryRecipient: SHARED,
     },
     assignmentRootHex: '1'.repeat(24),
-    metadata: { collectionUri: 'https://example.com/c', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.com/${i}`), traineeUri: 'https://example.com/t' },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '1' },
+    assignmentManifestSha256: '2'.repeat(64), deploymentIdHex: '3'.repeat(64),
+    metadata: { collectionUri: 'https://example.com/c', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.com/${i}`), traineeUri: 'https://example.com/t', imageUris: Array.from({ length: 18 }, (_, i) => `https://example.com/image-${i}`), faretestArtworkUri: 'https://example.com/fa.svg', faretestMetadataUri: 'https://example.com/fa.json' },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '1', uploadBufferRentLamports: '1', programTombstoneLamports: '1', estimatedPeakFundingLamports: '3' },
   }));
   const [ata] = await findAssociatedTokenPda({ owner: address(SHARED), mint: address(MINT), tokenProgram: address(TOKEN) });
   let submissions = 0;

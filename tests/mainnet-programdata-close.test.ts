@@ -94,7 +94,7 @@ function completeManifest() {
     cluster: { chain: 'solana:mainnet', genesisHash: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d' },
     database: 'fare_share_disposable_rehearsal', workerInitiallyEnabled: false, mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId, programData, buffer, collection: '56acKgFW1Tn9vzcsBysWiYNjQYBzTySdLfZzUk1NCctp',
+      programId, programData, buffer, collection: '56acKgFW1Tn9vzcsBysWiYNjQYBzTySdLfZzUk1NCctp', userWallet: buffer,
       fareMint: '4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump', replacementFareMint: 'So11111111111111111111111111111111111111112',
       jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
       stockMints: ['XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB','XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB','XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN','Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'],
@@ -102,8 +102,9 @@ function completeManifest() {
       team: shared, pumpCreatorFeeRecipient: shared, recoveryRecipient: shared,
     },
     assignmentRootHex: '1234567890abcdef12345678',
-    metadata: { collectionUri: 'https://example.invalid/collection', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.invalid/${i}`), traineeUri: 'https://example.invalid/trainee' },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: String(rent) },
+    assignmentManifestSha256: 'c'.repeat(64), deploymentIdHex: 'd'.repeat(64),
+    metadata: { collectionUri: 'https://example.invalid/collection', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.invalid/${i}`), traineeUri: 'https://example.invalid/trainee', imageUris: Array.from({ length: 18 }, (_, i) => `https://example.invalid/image-${i}`), faretestArtworkUri: 'https://example.invalid/faretest.svg', faretestMetadataUri: 'https://example.invalid/faretest.json' },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: String(rent), uploadBufferRentLamports: '3400000000', programTombstoneLamports: '833120', estimatedPeakFundingLamports: '7600000000' },
   };
 }
 

@@ -39,7 +39,12 @@ interface CompleteManifest {
     upgradeAuthority: string;
     recoveryRecipient: string;
   };
-  limits: { recoverableRentLamports: string };
+  limits: {
+    recoverableRentLamports: string;
+    uploadBufferRentLamports: string;
+    programTombstoneLamports: string;
+    estimatedPeakFundingLamports: string;
+  };
 }
 
 export interface DeployPreflight {
@@ -121,10 +126,21 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   const bufferRent = rent(run, size + BUFFER_METADATA_BYTES, options.rpcUrl);
   const programDataRent = rent(run, size + PROGRAMDATA_METADATA_BYTES, options.rpcUrl);
   const expectedProgramDataRent = BigInt(manifest.limits.recoverableRentLamports);
+  const expectedBufferRent = BigInt(manifest.limits.uploadBufferRentLamports);
   if (programDataRent !== expectedProgramDataRent) {
     throw new Error(`ProgramData rent mismatch: manifest ${expectedProgramDataRent}, current ${programDataRent}`);
   }
   if (bufferRent >= programDataRent) throw new Error('Buffer rent must be lower than ProgramData rent');
+  if (bufferRent !== expectedBufferRent) {
+    throw new Error(`Buffer rent mismatch: manifest ${expectedBufferRent}, current ${bufferRent}`);
+  }
+  const expectedPeak = bufferRent + programDataRent + BigInt(manifest.limits.programTombstoneLamports) + 900_000_000n;
+  if (BigInt(manifest.limits.estimatedPeakFundingLamports) !== expectedPeak) {
+    throw new Error(`Peak funding mismatch: expected ${expectedPeak}`);
+  }
+  const payerBalanceOutput = checked(run, 'solana', ['balance', manifest.addresses.feePayer, '--lamports', '--url', options.rpcUrl], 'fee payer balance');
+  const payerBalance = BigInt(payerBalanceOutput.trim().match(/^([0-9]+)/)?.[1] || '0');
+  if (payerBalance < expectedPeak) throw new Error(`Fee payer balance ${payerBalance} is below required peak ${expectedPeak}`);
 
   const existingProgram = run('solana', ['program', 'show', manifest.addresses.programId, '--url', options.rpcUrl]);
   if (existingProgram.status === 0) throw new Error(`Program ${manifest.addresses.programId} already exists; refusing an upgrade`);

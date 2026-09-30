@@ -21,7 +21,7 @@ function manifest() {
     cluster: { chain: 'solana:mainnet', genesisHash: MAINNET_GENESIS_HASH }, database: REHEARSAL_DATABASE,
     workerInitiallyEnabled: false, mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId: disposable, programData: disposable, collection: disposable, fareMint: disposable,
+      programId: disposable, programData: disposable, buffer: disposable, collection: disposable, userWallet: disposable, fareMint: disposable,
       replacementFareMint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
       jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4', stockMints: OFFICIAL_XSTOCK_MINTS,
       sharedRole: REHEARSAL_SHARED_ROLE_ADDRESS, feePayer: REHEARSAL_SHARED_ROLE_ADDRESS,
@@ -31,8 +31,9 @@ function manifest() {
       recoveryRecipient: REHEARSAL_SHARED_ROLE_ADDRESS,
     },
     assignmentRootHex: '1234567890abcdef12345678',
-    metadata: { collectionUri: 'ar://collection', machineUris: Array.from({ length: 16 }, (_, i) => `ar://machine-${i}`), traineeUri: 'ar://trainee' },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '1' },
+    assignmentManifestSha256: 'c'.repeat(64), deploymentIdHex: 'd'.repeat(64),
+    metadata: { collectionUri: 'ar://collection', machineUris: Array.from({ length: 16 }, (_, i) => `ar://machine-${i}`), traineeUri: 'ar://trainee', imageUris: Array.from({ length: 18 }, (_, i) => `ar://image-${i}`), faretestArtworkUri: 'ar://faretest-artwork', faretestMetadataUri: 'ar://faretest-metadata' },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '1', uploadBufferRentLamports: '1', programTombstoneLamports: '1', estimatedPeakFundingLamports: '3' },
   };
 }
 
