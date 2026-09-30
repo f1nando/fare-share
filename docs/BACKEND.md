@@ -87,7 +87,7 @@ npm run protocol:initialize
 
 Первая транзакция атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`. Затем setup записывает metadata URI по классам и идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Повторная запись тех же URI разрешена даже после старта sale, но их изменение после старта блокируется; прерванный setup можно безопасно повторить.
 
-До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS`, `MINT_PRICES_USD_CENTS` (`5000` для Economy) и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. `$FARE` CA, ticker и USD targets задаются через setup/admin до `start-sale`, после чего on-chain блокировка запрещает замену. MongoDB хранит public read-model, но не хранит краткоживущие token quotes.
+До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS`, `MINT_PRICES_USD_CENTS=2500,2500,2500,2500`, случайный 32-байтовый `DEPLOYMENT_ID_HEX`, созданный `npm run mint-assignments:generate` файл и совпадающий `MINT_ASSIGNMENT_ROOT_HEX`. `$FARE` CA и ticker задаются через setup/admin и остаются runtime-replaceable. MongoDB хранит public read-model, но не хранит краткоживущие token quotes.
 
 `POST /api/mint/quote` принимает owner, заранее созданный Asset pubkey и class. Backend читает finalized Configuration, проверяет sale/pause/supply/CA, реальные `$FARE → USDC` liquidity, price impact, свежесть и контрольную Jupiter USD price, округляет raw `$FARE` вверх и подписывает domain-separated payload текущим backend signer. Default TTL — 45 секунд. Клиент строит одну транзакцию: idempotent team ATA → Ed25519 verify → `mint_machine`.
 
@@ -100,7 +100,7 @@ npm run protocol:initialize
 Административных HTTP endpoints и web-панели нет. Оператор запускает отдельную CLI с ключом из `ADMIN_KEYPAIR_SECRET_KEY`:
 
 ```sh
-npm run protocol:admin -- set-mint-prices 5000,10000,30000,80000 # USD cents
+npm run protocol:admin -- set-mint-prices 2500,2500,2500,2500 # USD cents
 npm run protocol:admin -- start-sale
 npm run protocol:admin -- pause
 npm run protocol:admin -- unpause

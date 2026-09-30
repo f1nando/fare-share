@@ -146,16 +146,17 @@ test('durability uses finalized Solana time and freezes during pause', () => {
   assert.equal(calculateDurabilityPercent(4 * 24 * 60 * 60 + 6 * 60 * 60), 85);
 });
 
-test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
+test('mint instruction carries the precommitted class, variant, and Merkle proof', async () => {
   const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
   const [owner, configAddress, queue, fareMint, teamAccount] = signers.map(signer => signer.address);
   const assetSigner = await generateKeyPairSigner();
   const quote = {
-    owner, asset: assetSigner.address, fareMint, classIndex: 2,
-    amountFareRaw: '123456', priceUsdCents: '30000', expiresAt: '2000000000',
+    owner, asset: assetSigner.address, fareMint, assignmentIndex: 12, classIndex: 2, variantIndex: 3,
+    assignmentProof: Array(11).fill('07'.repeat(12)),
+    amountFareRaw: '123456', priceUsdCents: '2500', expiresAt: '2000000000',
     backendSigner: teamAccount,
     signature: Buffer.alloc(64, 7).toString('base64'),
-    message: Buffer.alloc(203, 9).toString('base64'),
+    message: Buffer.alloc(202, 9).toString('base64'),
   };
   const collection = address('11111111111111111111111111111111');
   const result = await buildMintMachine({
@@ -164,13 +165,12 @@ test('mint instruction accepts only class and queue page, never a client-selecte
     configAddress,
     config: { collection, teamAccount, fareMint },
     queue,
-    classIndex: 2,
     pageIndex: 7,
     fareTokenProgram: TOKEN_PROGRAM,
     assetSigner,
     quote,
   });
-  assert.deepEqual([...result.instruction.data.slice(0, 10)], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
+  assert.deepEqual([...result.instruction.data.slice(0, 14)], [...TAXI_DISCRIMINATORS.mintMachine, 7, 12, 0, 2, 3, 11]);
   assert.equal(result.instructions.length, 3);
   assert.equal(String(result.instructions.at(-2).programAddress), 'Ed25519SigVerify111111111111111111111111111');
   assert.equal(result.instructions.at(-1), result.instruction);
@@ -201,7 +201,6 @@ test('mint instruction accepts only class and queue page, never a client-selecte
     configAddress,
     config: { collection, teamAccount, fareMint },
     queue,
-    classIndex: 2,
     pageIndex: 7,
     fareTokenProgram: TOKEN_PROGRAM,
     teamFareAccountExists: true,
@@ -233,7 +232,7 @@ test('configuration decoder reads all 16 metadata URIs in class and variant orde
     traineeUri,
     Buffer.alloc(8 * 4),
     Buffer.alloc(2 * 4),
-    Buffer.alloc(1 + 8 + 8 + 1),
+    Buffer.alloc(1 + 8 + 8 + 1 + 12),
   ]);
   const decoded = decodeConfiguration(bytes);
   assert.deepEqual(decoded.metadataUris, strings);

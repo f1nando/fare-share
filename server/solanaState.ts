@@ -33,6 +33,7 @@ export interface WorkerConfiguration {
   saleStarted: boolean;
   pausedAt: bigint;
   totalPausedSeconds: bigint;
+  mintAssignmentRoot: Uint8Array;
 }
 
 export async function loadProtocolClock(rpcUrl: string, programId: Address): Promise<ProtocolClock> {
@@ -91,6 +92,8 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
   const saleStarted = reader.u8() !== 0;
   const pausedAt = reader.i64();
   const totalPausedSeconds = reader.i64();
+  reader.u8();
+  const mintAssignmentRoot = reader.take(12);
   return {
     backendSigner,
     teamAccount,
@@ -106,6 +109,7 @@ export function decodeWorkerConfiguration(bytes: Uint8Array): WorkerConfiguratio
     saleStarted,
     pausedAt,
     totalPausedSeconds,
+    mintAssignmentRoot,
   };
 }
 

@@ -17,7 +17,7 @@ export function AdminPage() {
   const [notice, setNotice] = useState('');
   const [machineQuery, setMachineQuery] = useState('');
   const [teamAccount, setTeamAccount] = useState('');
-  const [mintPricesUsd, setMintPricesUsd] = useState(['50', '', '', '']);
+  const [mintPricesUsd, setMintPricesUsd] = useState(['25', '25', '25', '25']);
   const [inspectedMint, setInspectedMint] = useState(null);
   const [rescueRecipient, setRescueRecipient] = useState('');
   const [rescueConfirmation, setRescueConfirmation] = useState('');
@@ -122,7 +122,7 @@ export function AdminPage() {
   }
 
   async function updateMintPrices() {
-    if (!window.confirm(`Save class targets at ${mintPricesUsd.map(value => `$${value}`).join(' / ')}? These values lock after the sale starts.`)) return;
+    if (!window.confirm(`Set every random taxi mint to $${mintPricesUsd[0]}? This price locks after the sale starts.`)) return;
     await action('mint-prices', async () => {
       const result = await request('/api/admin/mint/prices', { method: 'POST', body: { pricesUsd: mintPricesUsd }, csrf });
       setNotice(`USD mint prices updated on-chain. ${result.signature}`);
@@ -258,8 +258,8 @@ export function AdminPage() {
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
 function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
-  return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>USD class targets</h2><p className="muted">Economy is fixed at $50. Final FARE amounts use live liquidity immediately before minting.</p>
-    <div className="button-row">{['Economy', 'Comfort', 'Business', 'Legend'].map((name, index) => <label key={name}>{name}<input type="number" min="0.01" step="0.01" value={prices[index]} disabled={locked || index === 0} onChange={event => setPrices(values => values.map((value, valueIndex) => valueIndex === index ? event.target.value : value))} /></label>)}</div>
+  return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
+    <label>Price, USD<input type="number" min="25" max="25" step="0.01" value={prices[0]} disabled onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>
     {inspected && <><p className="muted">{inspected.metadata.name || 'Token metadata unavailable'}{inspected.metadata.symbol ? ` ($${inspected.metadata.symbol})` : ''} · {inspected.decimals} decimals<br />{inspected.tokenProgram}<br />Market: ${inspected.market.usdPrice} · liquidity {inspected.market.liquidity}<br />Examples: {inspected.market.examples.map(item => `${Number(item.amountFareRaw) / 10 ** inspected.decimals} tokens`).join(' / ')}</p>{inspected.metadata.image && <img src={inspected.metadata.image} alt={`${inspected.metadata.name || inspected.ticker} token`} width="96" height="96" />}</>}
     <button className="wide" onClick={save} disabled={locked || prices.some(value => !value) || busy === 'mint-prices'}>{locked ? 'Prices locked after sale start' : 'Review and save USD prices'}</button>
   </div>;

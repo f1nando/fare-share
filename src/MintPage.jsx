@@ -15,10 +15,10 @@ import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 
 const MINT_CLASSES = [
-  { name: 'Economy', tone: 'economy', weight: 1, supply: 1000, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
-  { name: 'Comfort', tone: 'comfort', weight: 3, supply: 300, sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
-  { name: 'Business', tone: 'business', weight: 10, supply: 100, sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
-  { name: 'Legend', tone: 'legend', weight: 30, supply: 25, sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
+  { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', tone: 'comfort', weight: 3, supply: 278, odds: '22.75%', sceneNames: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', tone: 'business', weight: 10, supply: 83, odds: '6.79%', sceneNames: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', tone: 'legend', weight: 30, supply: 28, odds: '2.29%', sceneNames: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ].map(item => ({
   ...item,
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
@@ -57,7 +57,7 @@ export function MintPage({ wallet, connectWallet }) {
   const tokenConfig = useTokenConfig();
   const ticker = tokenConfig.ticker || '';
   const previewRef = useRef(null);
-  const [quantity, setQuantity] = useState(1);
+  const quantity = 1;
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const [status, setStatus] = useState(null);
   const [databaseMint, setDatabaseMint] = useState(null);
@@ -79,9 +79,9 @@ export function MintPage({ wallet, connectWallet }) {
   const previewSceneIndex = preview.current.sceneIndex;
   const selectedClass = MINT_CLASSES[selectedClassIndex];
   const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
-  const selectedMinted = mintedByClass[selectedClassIndex];
-  const remaining = Math.max(0, selectedClass.supply - selectedMinted);
-  const priceUsdCents = databaseMint?.mintPricesUsdCents?.[selectedClassIndex] ? BigInt(databaseMint.mintPricesUsdCents[selectedClassIndex]) : 0n;
+  const totalMinted = mintedByClass.reduce((total, value) => total + value, 0);
+  const remaining = Math.max(0, 1222 - totalMinted);
+  const priceUsdCents = databaseMint?.mintPricesUsdCents?.[0] ? BigInt(databaseMint.mintPricesUsdCents[0]) : 0n;
   const fareDecimals = Number(databaseMint?.fareDecimals ?? 0);
   const fareTicker = ticker || 'FARE';
   const paused = Boolean(databaseMint?.paused);
@@ -101,20 +101,17 @@ export function MintPage({ wallet, connectWallet }) {
   }, [tokenConfig.mint]);
 
   useEffect(() => {
-    setQuantity(value => Math.max(1, Math.min(value, Math.max(1, remaining))));
-  }, [remaining, selectedClassIndex]);
-
-  useEffect(() => {
     if (!wallet || !status?.deployed || paused || remaining === 0) {
       setPreparedMint(null);
       return undefined;
     }
     let active = true;
     let timer;
-    const refresh = () => prepareMintQuote(wallet, selectedClassIndex, status)
+    const refresh = () => prepareMintQuote(wallet, status)
       .then(value => {
         if (!active) return;
         setPreparedMint(value);
+        dispatchPreview({ type: 'select-class', classIndex: Number(value.quote.classIndex) });
         setQuoteError('');
         const refreshMs = Math.max(1_000, Number(BigInt(value.quote.expiresAt) * 1_000n - BigInt(Date.now()) - 5_000n));
         timer = window.setTimeout(refresh, refreshMs);
@@ -126,7 +123,7 @@ export function MintPage({ wallet, connectWallet }) {
       });
     refresh();
     return () => { active = false; window.clearTimeout(timer); };
-  }, [wallet, status?.deployed, status?.config?.fareMint, selectedClassIndex, paused, remaining]);
+  }, [wallet, status?.deployed, status?.config?.fareMint, paused, remaining]);
 
   useEffect(() => {
     if (!wallet || !status?.deployed) {
@@ -148,32 +145,28 @@ export function MintPage({ wallet, connectWallet }) {
   async function handleMint() {
     if (!status?.deployed) return setNotice('The mint program is not available.');
     if (paused) return setNotice('The protocol is paused. Minting is temporarily disabled.');
-    if (remaining === 0) return setNotice(`${selectedClass.name} is sold out.`);
+    if (remaining === 0) return setNotice('The taxi collection is sold out.');
     setBusy(true);
     setSignature('');
-    setNotice(`Approve ${quantity} transaction${quantity === 1 ? '' : 's'} in Phantom…`);
+    setNotice('Approve the transaction in Phantom…');
     let lastSignature = '';
     let mintedCount = 0;
     try {
       const connection = wallet || await connectWallet();
-      let currentStatus = status;
-      for (let index = 0; index < quantity; index += 1) {
-        const result = await mintMachine(connection, selectedClassIndex, currentStatus, index === 0 ? preparedMint : null);
-        lastSignature = result.signature;
-        mintedCount += 1;
-        setSignature(lastSignature);
-        await saveMintToDatabase({
-          signature: result.signature,
-          asset: String(result.asset),
-          owner: String(connection.account.address),
-        });
-        setDatabaseMint((await loadPublicOverview()).mint);
-        currentStatus = await loadProtocolStatus();
-        setStatus(currentStatus);
-        setPreparedMint(null);
-      }
+      const result = await mintMachine(connection, status, preparedMint);
+      lastSignature = result.signature;
+      mintedCount = 1;
       setSignature(lastSignature);
-      setNotice(`${quantity} ${selectedClass.name} taxi${quantity === 1 ? '' : 's'} minted. The onchain serial selects the variant automatically.`);
+      await saveMintToDatabase({
+        signature: result.signature,
+        asset: String(result.asset),
+        owner: String(connection.account.address),
+      });
+      setDatabaseMint((await loadPublicOverview()).mint);
+      setStatus(await loadProtocolStatus());
+      setPreparedMint(null);
+      setSignature(lastSignature);
+      setNotice('Taxi NFT minted from the precommitted random collection.');
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       setNotice(mintedCount
@@ -270,7 +263,7 @@ export function MintPage({ wallet, connectWallet }) {
               <span>GENESIS TAXI COLLECTION</span>
               <h1 className="fare-page-title is-long" id="mint-page-title">MINT YOUR TAXI</h1>
             </div>
-            <p>Choose a class, mint the NFT and put the car to work immediately. After that, you only need to keep it fueled.</p>
+            <p>Preview the next precommitted taxi, mint the NFT and put the car to work immediately. After that, you only need to keep it fueled.</p>
           </div>
 
           <div className="fare-mint-layout">
@@ -295,13 +288,14 @@ export function MintPage({ wallet, connectWallet }) {
             </div>
 
             <div className="fare-mint-panel">
-              <h2>CHOOSE YOUR CLASS</h2>
+              <h2>RANDOM TAXI MINT</h2>
+              <p className="muted">Every mint costs $25. The next taxi comes from a precommitted shuffled supply of 1,222 cars.</p>
 
               <div className="fare-mint-classes" aria-label="Taxi class">
                 {MINT_CLASSES.map((item, index) => {
                   const minted = mintedByClass[index];
                   const progress = minted / item.supply * 100;
-                  const isSelected = index === selectedClassIndex;
+                  const isSelected = preparedMint && Number(preparedMint.quote.classIndex) === index;
 
                   return (
                     <div className="fare-mint-class-option" key={item.name}>
@@ -309,11 +303,9 @@ export function MintPage({ wallet, connectWallet }) {
                         className={isSelected ? 'is-selected' : undefined}
                         type="button"
                         aria-pressed={isSelected}
-                        onClick={() => {
-                          dispatchPreview({ type: 'select-class', classIndex: index });
-                        }}
+                        disabled
                       >
-                        {item.name}
+                        {item.name} · {item.odds}
                       </button>
                       <div className="fare-mint-class-count"><span>Minted</span><strong>{minted}/{item.supply}</strong></div>
                       <div
@@ -332,22 +324,14 @@ export function MintPage({ wallet, connectWallet }) {
               </div>
 
               <div className="fare-mint-quantity-row">
-                <div>
-                  <div className="fare-mint-quantity-copy"><span>Quantity</span></div>
-                  <div className="fare-mint-quantity">
-                    <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(value => Math.max(1, value - 1))}>−</button>
-                    <strong>{quantity}</strong>
-                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(value => Math.min(Math.max(1, remaining), value + 1))}>+</button>
-                  </div>
-                </div>
-                <div className="fare-mint-weight" aria-label={`Class weight ${selectedClass.weight}`}>
-                  <span>Class weight</span>
-                  <strong>×{selectedClass.weight}</strong>
+                <div className="fare-mint-weight" aria-label="Total remaining supply">
+                  <span>Remaining</span>
+                  <strong>{remaining}</strong>
                 </div>
               </div>
 
               <div className="fare-mint-summary">
-                <div><span>Class</span><strong>{selectedClass.name}</strong></div>
+                <div><span>Next taxi</span><strong>{preparedMint ? `${MINT_CLASSES[Number(preparedMint.quote.classIndex)]?.name} · ${MINT_CLASSES[Number(preparedMint.quote.classIndex)]?.sceneNames[Number(preparedMint.quote.variantIndex)]}` : wallet ? 'Preparing quote…' : 'Connect wallet'}</strong></div>
                 <div><span>Mint price</span><strong>{databaseMint ? formatUsdCents(priceUsdCents) : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
                 <div className="is-total"><span>Total</span><strong>{databaseMint ? formatUsdCents(priceUsdCents * BigInt(quantity)) : '—'}</strong></div>

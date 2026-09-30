@@ -18,11 +18,11 @@ pub mod voucher;
 pub use error::*;
 pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
-pub use voucher::{ActivateTraineeArgs, MintQuoteArgs};
+pub use voucher::{ActivateTraineeArgs, MintAssignmentArgs, MintQuoteArgs};
 
 declare_id!("GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4");
 
-const ECONOMY_PRICE_USD_CENTS: u64 = 5_000;
+const MINT_PRICE_USD_CENTS: u64 = 2_500;
 
 #[program]
 pub mod taxi_park {
@@ -51,6 +51,7 @@ pub mod taxi_park {
         config.metadata_uris = std::array::from_fn(|_| String::new());
         config.trainee_metadata_uri = String::new();
         config.mint_prices = args.mint_prices;
+        config.mint_assignment_root = args.mint_assignment_root;
         config.sale_started = false;
         config.paused_at = 0;
         config.total_paused_seconds = 0;
@@ -100,7 +101,7 @@ pub mod taxi_park {
             TaxiError::SaleAlreadyStarted
         );
         require!(
-            prices.iter().all(|price| *price > 0) && prices[0] == ECONOMY_PRICE_USD_CENTS,
+            prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS),
             TaxiError::InvalidPrice
         );
         ctx.accounts.config.mint_prices = prices;
@@ -194,8 +195,8 @@ pub mod taxi_park {
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
         require_fare_ready(config.fare_mint)?;
         require!(
-            config.mint_prices.iter().all(|price| *price > 0)
-                && config.mint_prices[0] == ECONOMY_PRICE_USD_CENTS,
+            config.mint_prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS)
+                && config.mint_assignment_root != [0; 12],
             TaxiError::InvalidPrice
         );
         require!(
@@ -842,8 +843,8 @@ pub mod taxi_park {
 
     pub fn mint_machine(
         ctx: Context<MintMachine>,
-        class: u8,
         page_index: u8,
+        assignment: MintAssignmentArgs,
         quote: MintQuoteArgs,
     ) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
@@ -857,10 +858,17 @@ pub mod taxi_park {
             TaxiError::EventPageCapacity
         );
 
+        let class = assignment.class;
         let class_index = usize::from(class);
         let (weight, cap) = class_terms(class)?;
+        require!(usize::from(assignment.variant) < VARIANTS_PER_CLASS, TaxiError::InvalidClass);
+        let global_index = ctx.accounts.config.minted_by_class.iter().try_fold(0_u16, |total, value| {
+            total.checked_add(*value).ok_or(TaxiError::MathOverflow)
+        })?;
+        require!(global_index < TOTAL_PAID_SUPPLY && assignment.index == global_index, TaxiError::InvalidMintAssignment);
+        require!(verify_mint_assignment(&ctx.accounts.config.mint_assignment_root, &assignment), TaxiError::InvalidMintAssignment);
         let minted = ctx.accounts.config.minted_by_class[class_index];
-        let price_usd_cents = ctx.accounts.config.mint_prices[class_index];
+        let price_usd_cents = ctx.accounts.config.mint_prices[0];
         validate_mint_quote(price_usd_cents, &quote, Clock::get()?.unix_timestamp)?;
         let current_index = load_current_index_checked(&ctx.accounts.instructions)?;
         require!(current_index > 0, TaxiError::InvalidMintQuoteSignature);
@@ -869,7 +877,9 @@ pub mod taxi_park {
             &ctx.accounts.config.deployment_id,
             &ctx.accounts.owner.key(),
             &ctx.accounts.asset.key(),
+            assignment.index,
             class,
+            assignment.variant,
             &ctx.accounts.config.fare_mint,
             &quote,
         );
@@ -883,7 +893,9 @@ pub mod taxi_park {
             &expected_message,
         )
         .map_err(|_| error!(TaxiError::InvalidMintQuoteSignature))?;
-        let (serial, variant) = next_mint_selection(minted, cap)?;
+        let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
+        require!(serial <= cap, TaxiError::ClassSoldOut);
+        let variant = assignment.variant;
         let name = format!("TAXI {} #{:04}", class_name(class)?, serial);
         let uri = ctx
             .accounts
@@ -1864,6 +1876,7 @@ pub struct InitializeArgs {
     pub collection_uri: String,
     pub stock_mints: [Pubkey; STOCK_COUNT],
     pub mint_prices: [u64; CLASS_COUNT],
+    pub mint_assignment_root: [u8; 12],
 }
 
 #[derive(Accounts)]
@@ -2041,7 +2054,7 @@ pub struct ProcessStockSwap<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(class: u8, page_index: u8, quote: MintQuoteArgs)]
+#[instruction(page_index: u8, assignment: MintAssignmentArgs, quote: MintQuoteArgs)]
 pub struct MintMachine<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -2548,6 +2561,7 @@ mod accounting_tests {
                 Pubkey::new_unique(),
             ],
             mint_prices: [1; CLASS_COUNT],
+            mint_assignment_root: [7; 12],
         };
         assert!(validate_initial_addresses(&args).is_err());
     }
@@ -2580,6 +2594,7 @@ mod accounting_tests {
             paused_at: 0,
             total_paused_seconds: 0,
             bump: 1,
+            mint_assignment_root: [7; 12],
         };
         let fare_mint = Pubkey::new_unique();
         assert!(require_fare_ready(config.fare_mint).is_err());
@@ -2709,7 +2724,7 @@ mod accounting_tests {
     }
 
     #[test]
-    fn variants_are_bounded_balanced_and_use_class_scoped_uris() {
+    fn exact_caps_and_class_scoped_variant_uris_are_valid() {
         let metadata_uris = std::array::from_fn(|index| format!("uri-{index}"));
         let config = Configuration {
             admin: Pubkey::new_unique(),
@@ -2731,45 +2746,64 @@ mod accounting_tests {
             paused_at: 0,
             total_paused_seconds: 0,
             bump: 1,
+            mint_assignment_root: [7; 12],
         };
 
         for class in 0..CLASS_COUNT {
-            for serial in 1..=12_u16 {
-                let variant = variant_for_serial(serial).unwrap();
-                assert!(usize::from(variant) < VARIANTS_PER_CLASS);
+            for variant in 0..VARIANTS_PER_CLASS {
                 assert_eq!(
-                    config.metadata_uri(class, usize::from(variant)).unwrap(),
-                    format!("uri-{}", class * VARIANTS_PER_CLASS + usize::from(variant)),
+                    config.metadata_uri(class, variant).unwrap(),
+                    format!("uri-{}", class * VARIANTS_PER_CLASS + variant),
                 );
             }
         }
-        assert_eq!(CLASS_CAPS, [1000, 300, 100, 25]);
+        assert_eq!(CLASS_CAPS, [833, 278, 83, 28]);
+        assert_eq!(CLASS_CAPS.iter().sum::<u16>(), TOTAL_PAID_SUPPLY);
         assert_eq!(CLASS_WEIGHTS, [1, 3, 10, 30]);
-        assert_eq!(
-            (1..=8)
-                .map(|serial| variant_for_serial(serial).unwrap())
-                .collect::<Vec<_>>(),
-            [0, 1, 2, 3, 0, 1, 2, 3]
-        );
-        assert_eq!(next_mint_selection(0, 1000).unwrap(), (1, 0));
-        assert_eq!(next_mint_selection(999, 1000).unwrap(), (1000, 3));
-        assert!(next_mint_selection(1000, 1000).is_err());
         assert!(metadata_uris_are_valid(&config.metadata_uris));
         let mut duplicate_uris = config.metadata_uris.clone();
         duplicate_uris[15] = duplicate_uris[0].clone();
         assert!(!metadata_uris_are_valid(&duplicate_uris));
-        assert!(variant_for_serial(0).is_err());
         assert!(config.metadata_uri(4, 0).is_err());
         assert!(config.metadata_uri(0, 4).is_err());
     }
 
     #[test]
+    fn mint_assignment_proof_binds_index_class_and_variant() {
+        let mut assignment = MintAssignmentArgs {
+            index: 12,
+            class: 2,
+            variant: 3,
+            proof: vec![[7; 12]; 11],
+        };
+        let index_bytes = assignment.index.to_le_bytes();
+        let mut root = truncated_hash(&[
+            b"TAXI_MINT_ASSIGNMENT_V1",
+            &index_bytes,
+            &[assignment.class],
+            &[assignment.variant],
+        ]);
+        let mut position = usize::from(assignment.index);
+        for sibling in &assignment.proof {
+            root = if position & 1 == 0 {
+                truncated_hash(&[&root, sibling])
+            } else {
+                truncated_hash(&[sibling, &root])
+            };
+            position >>= 1;
+        }
+        assert!(verify_mint_assignment(&root, &assignment));
+        assignment.variant = 2;
+        assert!(!verify_mint_assignment(&root, &assignment));
+    }
+
+    #[test]
     fn configuration_layout_requires_new_initialization() {
         const LEGACY_CONFIGURATION_INIT_SPACE: usize = 1298;
-        assert_eq!(Configuration::INIT_SPACE, 3950);
+        assert_eq!(Configuration::INIT_SPACE, 3962);
         assert_eq!(
             Configuration::INIT_SPACE - LEGACY_CONFIGURATION_INIT_SPACE,
-            13 * (4 + MAX_METADATA_URI_LEN),
+            13 * (4 + MAX_METADATA_URI_LEN) + 12,
         );
     }
 
@@ -2939,6 +2973,33 @@ fn class_terms(class: u8) -> Result<(u16, u16)> {
     Ok((CLASS_WEIGHTS[index], CLASS_CAPS[index]))
 }
 
+fn verify_mint_assignment(root: &[u8; 12], assignment: &MintAssignmentArgs) -> bool {
+    const DOMAIN: &[u8] = b"TAXI_MINT_ASSIGNMENT_V1";
+    const PROOF_DEPTH: usize = 11;
+    if assignment.proof.len() != PROOF_DEPTH {
+        return false;
+    }
+    let index_bytes = assignment.index.to_le_bytes();
+    let class = [assignment.class];
+    let variant = [assignment.variant];
+    let mut current = truncated_hash(&[DOMAIN, &index_bytes, &class, &variant]);
+    let mut position = usize::from(assignment.index);
+    for sibling in &assignment.proof {
+        current = if position & 1 == 0 {
+            truncated_hash(&[&current, sibling])
+        } else {
+            truncated_hash(&[sibling, &current])
+        };
+        position >>= 1;
+    }
+    &current == root
+}
+
+fn truncated_hash(parts: &[&[u8]]) -> [u8; 12] {
+    let digest = solana_sha256_hasher::hashv(parts).to_bytes();
+    digest[..12].try_into().expect("fixed hash prefix")
+}
+
 fn class_name(class: u8) -> Result<&'static str> {
     match class {
         0 => Ok("Economy"),
@@ -2947,18 +3008,6 @@ fn class_name(class: u8) -> Result<&'static str> {
         3 => Ok("Legend"),
         _ => err!(TaxiError::InvalidClass),
     }
-}
-
-fn variant_for_serial(serial: u16) -> Result<u8> {
-    require!(serial > 0, TaxiError::MathOverflow);
-    u8::try_from((serial - 1) % VARIANTS_PER_CLASS as u16)
-        .map_err(|_| error!(TaxiError::MathOverflow))
-}
-
-fn next_mint_selection(minted: u16, cap: u16) -> Result<(u16, u8)> {
-    require!(minted < cap, TaxiError::ClassSoldOut);
-    let serial = minted.checked_add(1).ok_or(TaxiError::MathOverflow)?;
-    Ok((serial, variant_for_serial(serial)?))
 }
 
 fn metadata_uris_are_valid(metadata_uris: &[String; METADATA_URI_COUNT]) -> bool {

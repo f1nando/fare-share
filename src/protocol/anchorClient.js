@@ -125,6 +125,7 @@ export function decodeConfiguration(bytes) {
     pausedAt: reader.i64(),
     totalPausedSeconds: reader.i64(),
     bump: reader.u8(),
+    mintAssignmentRoot: reader.take(12),
   };
   return config;
 }
@@ -271,7 +272,6 @@ export async function buildMintMachine({
   configAddress,
   config,
   queue,
-  classIndex,
   pageIndex,
   fareTokenProgram,
   teamFareAccountExists = false,
@@ -288,16 +288,21 @@ export async function buildMintMachine({
   const [teamFareAccount] = await findAssociatedTokenPda({ owner: config.teamAccount, mint: fareMint, tokenProgram });
   if (String(quote.owner) !== String(owner)
     || String(quote.asset) !== String(assetSigner.address)
-    || String(quote.fareMint) !== String(fareMint)
-    || Number(quote.classIndex) !== classIndex) {
+    || String(quote.fareMint) !== String(fareMint)) {
     throw new Error('The backend returned a quote for different mint accounts.');
   }
   const amountFareRaw = BigInt(quote.amountFareRaw);
   const priceUsdCents = BigInt(quote.priceUsdCents);
   const expiresAt = BigInt(quote.expiresAt);
+  const proof = quote.assignmentProof?.map(hexBytes) || [];
+  if (proof.length !== 11 || proof.some(value => value.length !== 12)) throw new Error('The backend returned an invalid mint assignment proof.');
   const data = concatBytes(
     TAXI_DISCRIMINATORS.mintMachine,
-    Uint8Array.of(classIndex, pageIndex),
+    Uint8Array.of(pageIndex),
+    u16Bytes(Number(quote.assignmentIndex)),
+    Uint8Array.of(Number(quote.classIndex), Number(quote.variantIndex)),
+    u32Bytes(proof.length),
+    ...proof,
     u64Bytes(amountFareRaw),
     u64Bytes(priceUsdCents),
     i64Bytes(expiresAt),
@@ -335,6 +340,11 @@ export async function buildMintMachine({
     instruction,
   ];
   return { instruction, instructions, assetSigner, machine, ownerFareAccount, teamFareAccount };
+}
+
+function hexBytes(value) {
+  if (typeof value !== 'string' || !/^[0-9a-f]{24}$/i.test(value)) return new Uint8Array();
+  return Uint8Array.from({ length: value.length / 2 }, (_, index) => Number.parseInt(value.slice(index * 2, index * 2 + 2), 16));
 }
 
 export async function createMintAssetSigner() {
@@ -789,6 +799,12 @@ function meta(value, role) {
 function u16Bytes(value) {
   const bytes = new Uint8Array(2);
   new DataView(bytes.buffer).setUint16(0, Number(value), true);
+  return bytes;
+}
+
+function u32Bytes(value) {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, Number(value), true);
   return bytes;
 }
 

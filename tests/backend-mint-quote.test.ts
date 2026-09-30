@@ -23,7 +23,8 @@ function state(overrides: Record<string, unknown> = {}) {
       backendSigner: signer.publicKey,
       deploymentId: new Uint8Array(32).fill(9),
       mintedByClass: [0, 0, 0, 0],
-      mintPrices: [5000n, 10000n, 30000n, 80000n],
+      mintPrices: [2500n, 2500n, 2500n, 2500n],
+      mintAssignmentRoot: new Uint8Array(12).fill(7),
       ...overrides,
     },
     decimals: 6,
@@ -56,16 +57,17 @@ const config = {
   mintQuoteMaxPriceImpactPct: 3,
   mintQuoteMaxPriceDivergencePct: 10,
 } as any;
+const assignment = async (index: number) => ({ assignmentIndex: index, classIndex: 0, variantIndex: 2, proof: Array(11).fill('00'.repeat(12)) });
 
 test('USD cents convert to raw FARE with upward rounding and a signed bound payload', async () => {
-  const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000, loadState: async () => state() });
-  const quote = await issue({ owner: OWNER, asset: ASSET, classIndex: 0 });
-  assert.equal(quote.priceUsdCents, '5000');
-  assert.equal(quote.amountFareRaw, '10000000000');
+  const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment });
+  const quote = await issue({ owner: OWNER, asset: ASSET });
+  assert.equal(quote.priceUsdCents, '2500');
+  assert.equal(quote.amountFareRaw, '5000000000');
   assert.equal(quote.expiresAt, '1045');
   const expected = buildMintQuoteMessage(PROGRAM, new Uint8Array(32).fill(9), {
-    owner: OWNER, asset: ASSET, classIndex: 0, fareMint: FARE,
-    amountFareRaw: 10_000_000_000n, priceUsdCents: 5_000n, expiresAt: 1_045n,
+    owner: OWNER, asset: ASSET, assignmentIndex: 0, classIndex: 0, variantIndex: 2, fareMint: FARE,
+    amountFareRaw: 5_000_000_000n, priceUsdCents: 2_500n, expiresAt: 1_045n,
   });
   assert.deepEqual(Buffer.from(quote.message, 'base64'), Buffer.from(expected));
   assert.equal(Buffer.from(quote.signature, 'base64').length, 64);
@@ -74,29 +76,29 @@ test('USD cents convert to raw FARE with upward rounding and a signed bound payl
 
 test('stale market data is rejected', async () => {
   const stale = market({ referenceUsd: async () => ({ usdPrice: 0.005, observedAtMs: 900_000 }) });
-  const issue = createMintQuoteService(config, { market: stale, now: () => 1_000_000, loadState: async () => state() });
-  await assert.rejects(issue({ owner: OWNER, asset: ASSET, classIndex: 0 }), (error: unknown) => error instanceof MintQuoteError && /stale/.test(error.message));
+  const issue = createMintQuoteService(config, { market: stale, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment });
+  await assert.rejects(issue({ owner: OWNER, asset: ASSET }), (error: unknown) => error instanceof MintQuoteError && /stale/.test(error.message));
 });
 
 test('missing liquidity and excessive price impact are rejected', async () => {
   const empty = market({ sellToUsdc: async (_mint, amount) => ({ inAmount: amount.toString(), outAmount: '0', routePlan: [] }) });
-  await assert.rejects(createMintQuoteService(config, { market: empty, now: () => 1_000_000, loadState: async () => state() })({ owner: OWNER, asset: ASSET, classIndex: 0 }), /liquid/);
+  await assert.rejects(createMintQuoteService(config, { market: empty, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /liquid/);
   const impact = market({ sellToUsdc: async (_mint, amount) => ({ inAmount: amount.toString(), outAmount: (amount / 200n).toString(), priceImpactPct: '4', routePlan: [{}] }) });
-  await assert.rejects(createMintQuoteService(config, { market: impact, now: () => 1_000_000, loadState: async () => state() })({ owner: OWNER, asset: ASSET, classIndex: 0 }), /price impact/);
+  await assert.rejects(createMintQuoteService(config, { market: impact, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /price impact/);
 });
 
 test('a route for another CA is rejected', async () => {
   const mismatch = market({ sellToUsdc: async (_mint, amount) => ({ inputMint: String(OWNER), inAmount: amount.toString(), outAmount: (amount / 200n).toString(), routePlan: [{}] }) });
-  await assert.rejects(createMintQuoteService(config, { market: mismatch, now: () => 1_000_000, loadState: async () => state() })({ owner: OWNER, asset: ASSET, classIndex: 0 }), /liquid/);
+  await assert.rejects(createMintQuoteService(config, { market: mismatch, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /liquid/);
 });
 
 test('paused, sold-out, and wrong Economy price states are rejected', async () => {
   for (const configuration of [
     { pausedAt: 1n },
-    { mintedByClass: [1000, 0, 0, 0] },
-    { mintPrices: [4999n, 10000n, 30000n, 80000n] },
+    { mintedByClass: [833, 278, 83, 28] },
+    { mintPrices: [2499n, 2500n, 2500n, 2500n] },
   ]) {
-    const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000, loadState: async () => state(configuration) });
-    await assert.rejects(issue({ owner: OWNER, asset: ASSET, classIndex: 0 }));
+    const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000, loadState: async () => state(configuration), loadAssignment: assignment });
+    await assert.rejects(issue({ owner: OWNER, asset: ASSET }));
   }
 });

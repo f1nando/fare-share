@@ -60,6 +60,7 @@ export function loadServerConfig() {
     mintQuoteMarketMaxAgeMs: boundedInteger('MINT_QUOTE_MARKET_MAX_AGE_MS', 15_000, 1_000, 60_000),
     mintQuoteMaxPriceImpactPct: boundedNumber('MINT_QUOTE_MAX_PRICE_IMPACT_PCT', 3, 0, 25),
     mintQuoteMaxPriceDivergencePct: boundedNumber('MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT', 10, 0, 50),
+    mintAssignmentsPath: process.env.MINT_ASSIGNMENTS_PATH?.trim() || 'config/mint-assignments.json',
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
     trustProxy: process.env.TRUST_PROXY === 'true',
     jupiterApiKey: optional('JUPITER_API_KEY'),

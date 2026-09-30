@@ -54,6 +54,7 @@
 | D-02 | Rent временных Jupiter ATA возвращается admin/worker payer | Закрывается только canonical пустой ATA, созданный для подтверждённого route. Возврат идёт исходному payer после swap; закрытие чужого или непустого аккаунта запрещено. |
 | D-03 | Worker управляется из admin runtime-настройками и ручными actions | MongoDB хранит ON/OFF, частоту и minimum SOL threshold. Отдельные admin-кнопки запускают creator-fee claim+deposit, contract split, swaps, reward calculation и полный цикл; MongoDB lock запрещает параллельные запуски. |
 | D-04 | Первый production-запуск worker начинается в состоянии OFF | После deploy оператор вручную запускает полный цикл, сверяет creator fees, reserves, покупки и rewards, и только после успешной проверки включает automation в admin. |
+| D-05 | Paid mint — случайная машина из точного тиража 1222 по единой цене $25 | Классы: `833 / 278 / 83 / 28`; веса наград `1 / 3 / 10 / 30`. Четыре варианта внутри каждого класса распределяются максимально поровну, лишние варианты выбираются случайно. Весь порядок заранее перемешивается и фиксируется 96-bit Merkle root. Следующая машина показывается до wallet confirmation; владелец принимает риск конкуренции за заранее видимую редкую позицию. |
 
 ## L-01. Worker/Jupiter reserve routes
 
@@ -100,7 +101,7 @@ Collection contents нельзя очистить до состояния буд
 
 ### Сценарии
 
-- [ ] USD target → signed `$FARE` quote; Economy строго `5000` cents.
+- [ ] Единая цена `2500` cents → signed `$FARE` quote; assignment index/class/variant и proof связаны с текущей позицией.
 - [ ] Paid mint переводит 100% текущего `$FARE` в canonical team ATA.
 - [ ] CA меняется после `start_sale`; Configuration, `/api/token`, admin, Trade,
       public overview и новые quotes переключаются на новый CA.
@@ -193,12 +194,12 @@ Collection и всех 17 типов assets.
 - [ ] Разрешённый Jupiter Program ID.
 - [ ] Collection name/URI и 16 machine metadata URI.
 - [ ] Trainee metadata URI.
-- [ ] USD prices: Economy `5000`; Comfort, Business и Legend — утверждённые cents.
+- [ ] Единая paid mint price `2500` cents ($25).
 - [ ] Backend signer public key и общий admin/worker public key с минимальным
       рабочим SOL budget.
 - [ ] MongoDB database name, RPC/DAS endpoints и allowed origin.
 - [ ] Quote TTL, market max age, price impact/divergence, slippage и minimum swap.
-- [ ] Caps `[1000, 300, 100, 25]`, weights `[1, 3, 10, 30]` и trainee semantics.
+- [ ] Caps `[833, 278, 83, 28]`, total `1222`, weights `[1, 3, 10, 30]`, assignment root и trainee semantics.
 
 Metadata URI и USD targets после `start_sale` блокируются. `$FARE` CA остаётся
 runtime-replaceable согласно принятому решению.

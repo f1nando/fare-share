@@ -92,7 +92,7 @@ solana program deploy -u devnet \
 
 1. Проверить окончательные collection cover, 16 изображений и 17 metadata JSON в production Irys manifest `9evKWgrS3Jp6cGdDD3oBMRCoy7SYJ7gb6jBupX7ZMsaE`.
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
-3. Зафиксировать USD targets в `MINT_PRICES_USD_CENTS` (Economy `5000`) и проверить live `$FARE → USDC` route, price impact, TTL и signer.
+3. Сгенерировать один неизменяемый shuffled assignment manifest на 1222 paid NFT, сохранить его backup, записать совпадающий `MINT_ASSIGNMENT_ROOT_HEX`, установить `MINT_PRICES_USD_CENTS=2500,2500,2500,2500` и проверить live `$FARE → USDC` route, price impact, TTL и signer.
 4. Заполнить production RPC/DAS, MongoDB, домены, API key и три разных server keypair.
 5. Выполнить `npm run protocol:addresses` и подготовить параметры будущего `$FARE` с полученным `pumpCreator`, не создавая токен заранее.
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.

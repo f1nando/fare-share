@@ -4,19 +4,19 @@ import { resolve } from 'node:path';
 
 export const NFT_CLASSES = [
   {
-    className: 'Economy', slug: 'economy', weight: 1, supply: 1000,
+    className: 'Economy', slug: 'economy', weight: 1, supply: 833,
     models: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'],
   },
   {
-    className: 'Comfort', slug: 'comfort', weight: 3, supply: 300,
+    className: 'Comfort', slug: 'comfort', weight: 3, supply: 278,
     models: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'],
   },
   {
-    className: 'Business', slug: 'business', weight: 10, supply: 100,
+    className: 'Business', slug: 'business', weight: 10, supply: 83,
     models: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'],
   },
   {
-    className: 'Legend', slug: 'legend', weight: 30, supply: 25,
+    className: 'Legend', slug: 'legend', weight: 30, supply: 28,
     models: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'],
   },
 ] as const;

@@ -118,6 +118,8 @@ pub enum TaxiError {
     InvalidMintQuote,
     #[msg("Mint quote signature is missing or invalid")]
     InvalidMintQuoteSignature,
+    #[msg("Invalid precommitted mint assignment")]
+    InvalidMintAssignment,
     #[msg("Source token account balance is insufficient")]
     InsufficientTokenBalance,
     #[msg("Trainee bucket does not match the expected minute")]

@@ -30,7 +30,9 @@ function validEnvironment(): NodeJS.ProcessEnv {
     JUPITER_PROGRAM_ID: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
     FARE_MINT: 'So11111111111111111111111111111111111111112',
     STOCK_MINTS: OFFICIAL_XSTOCK_MINTS.join(','),
-    MINT_PRICES_USD_CENTS: '5000,10000,30000,80000',
+    MINT_PRICES_USD_CENTS: '2500,2500,2500,2500',
+    MINT_ASSIGNMENT_ROOT_HEX: '11'.repeat(12),
+    MINT_ASSIGNMENTS_PATH: 'config/mint-assignments.json',
     DEPLOYMENT_ID_HEX: '12'.repeat(32),
     ADMIN_KEYPAIR_SECRET_KEY: SECRETS[0],
     BACKEND_SIGNER_SECRET_KEY: SECRETS[1],
@@ -67,7 +69,7 @@ test('deployment preflight rejects placeholders, wrong mint order and zero price
   env.BACKEND_SIGNER_SECRET_KEY = '[0,0]';
   env.TRAINEE_WORD_PEPPER = 'replace-with-a-long-random-secret';
   env.DEPLOYMENT_ID_HEX = '0'.repeat(64);
-  env.MINT_PRICES_USD_CENTS = '5000,0,3,4';
+  env.MINT_PRICES_USD_CENTS = '2500,0,3,4';
   env.STOCK_MINTS = [...OFFICIAL_XSTOCK_MINTS].reverse().join(',');
   const result = await validateDeploymentEnvironment(env);
   const combined = result.errors.join('\n');
@@ -112,7 +114,7 @@ test('deployment preflight rejects legacy lamport values used as USD cents', asy
   const env = validEnvironment();
   env.MINT_PRICES_USD_CENTS = '350000000,1000000000,3000000000,8000000000';
   const result = await validateDeploymentEnvironment(env);
-  assert.match(result.errors.join('\n'), /Economy must equal 5000/);
+  assert.match(result.errors.join('\n'), /every mint price must equal 2500/);
 });
 
 test('deployment preflight requires 16 distinct ordered machine metadata URIs', async () => {

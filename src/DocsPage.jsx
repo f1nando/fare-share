@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 const steps = [
-  ['01', 'MINT A TAXI', 'Choose a class and mint one permanent NFT.'],
+  ['01', 'MINT A TAXI', 'Mint the next taxi from the precommitted shuffled collection.'],
   ['02', 'EARN BY WEIGHT', 'An active taxi shares actual protocol rewards.'],
   ['03', 'REPAIR WITH FARE', 'Restore five days of durability when needed.'],
   ['04', 'CLAIM ASSETS', 'Collect FARE and available xStocks to your wallet.'],
@@ -104,8 +104,8 @@ export function DocsPage() {
 
               <section className="fare-docs-copy-section" id="cars">
                 <SectionTitle number="02">TAXIS, CLASSES & SUPPLY</SectionTitle>
-                <p>The collection has a hard maximum of 1,425 taxis: 1,000 Economy cars with weight 1, 300 Comfort cars with weight 3, 100 Business cars with weight 10, and 25 Legend cars with weight 30. Weight affects a taxi’s share of a reward period; it is not a guaranteed return.</p>
-                <p>{tokenText('Each class has a USD target, with Economy fixed at $50. Immediately before minting, a short-lived signed quote converts that target into $FARE using live market liquidity. The full token payment goes directly to the team wallet; it is not burned or added to reward pools.', ticker)}</p>
+                <p>The paid collection has exactly 1,222 taxis: 833 Economy cars with weight 1, 278 Comfort cars with weight 3, 83 Business cars with weight 10, and 28 Legend cars with weight 30. Class and model follow a precommitted shuffled order. Weight affects a taxi’s share of a reward period; it is not a guaranteed return.</p>
+                <p>{tokenText('Every taxi mint costs $25. The class and one of its four models come from a precommitted shuffled supply of 1,222 cars. Immediately before minting, a short-lived signed quote converts $25 into $FARE using live market liquidity. The full token payment goes directly to the team wallet.', ticker)}</p>
                 <p>The team receives tokens rather than guaranteed dollars. The minted Metaplex Core Asset remains transferable and may be listed on Magic Eden for SOL.</p>
                 <p>Names, artwork and permanent traits are stored through immutable Arweave metadata. Live information—durability, checkpoints and unclaimed rewards—is read from the taxi’s Solana account instead of being written into static NFT metadata.</p>
                 <p>Burning a taxi permanently removes the NFT and does not reopen its place in the collection. After the burn is finalized and cleaned up onchain, its future weight is removed and any unclaimed assets return to the relevant reward pools.</p>

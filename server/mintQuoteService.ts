@@ -5,13 +5,14 @@ import { buildMintQuoteMessage, parseBackendSigner } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
 import { decodeWorkerConfiguration } from './solanaState.js';
 import { protocolAddresses } from './setup.js';
+import { loadMintAssignments, TOTAL_PAID_SUPPLY, type MintAssignmentWithProof } from './mintAssignments.js';
 
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 const ZERO_ADDRESS = '11111111111111111111111111111111';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-const CLASS_CAPS = [1_000, 300, 100, 25] as const;
+const MINT_PRICE_USD_CENTS = 2_500n;
 
 interface MarketQuote {
   inputMint?: string;
@@ -40,12 +41,20 @@ export function createMintQuoteService(
     market?: MintMarketProvider;
     now?: () => number;
     loadState?: () => Promise<Awaited<ReturnType<typeof loadMintState>>>;
+    loadAssignment?: (index: number, root: Uint8Array) => Promise<MintAssignmentWithProof>;
   } = {},
 ) {
   const signer = parseBackendSigner(config.signerSecret);
   const now = options.now || Date.now;
   const market = options.market || jupiterMarket(config);
   const loadState = options.loadState || (() => loadMintState(config));
+  let assignmentsPromise: ReturnType<typeof loadMintAssignments> | undefined;
+  const loadAssignment = options.loadAssignment || (async (index: number, root: Uint8Array) => {
+    assignmentsPromise ||= loadMintAssignments(config.mintAssignmentsPath);
+    const assignments = await assignmentsPromise;
+    if (!Buffer.from(assignments.root).equals(Buffer.from(root))) throw new Error('MINT_ASSIGNMENTS_PATH does not match the on-chain assignment root');
+    return assignments.assignment(index);
+  });
 
   return async function issueMintQuote(input: unknown) {
     const body = validateInput(input);
@@ -54,15 +63,15 @@ export function createMintQuoteService(
     if (state.configuration.pausedAt !== 0n) throw new MintQuoteError('The protocol is paused.', 503);
     if (String(state.configuration.fareMint) === ZERO_ADDRESS) throw new MintQuoteError('FARE is not configured.', 503);
     if (state.configuration.backendSigner !== signer.publicKey) throw new Error('BACKEND_SIGNER_SECRET_KEY does not match the on-chain backend signer');
-    if (state.configuration.mintedByClass[body.classIndex] >= CLASS_CAPS[body.classIndex]) {
-      throw new MintQuoteError('This taxi class is sold out.', 409);
-    }
+    const assignmentIndex = state.configuration.mintedByClass.reduce((total, value) => total + value, 0);
+    if (assignmentIndex >= TOTAL_PAID_SUPPLY) throw new MintQuoteError('The taxi collection is sold out.', 409);
     if (![TOKEN_PROGRAM, TOKEN_2022_PROGRAM].includes(state.tokenProgram)) throw new MintQuoteError('FARE uses an unsupported Token Program.', 503);
     if (state.tokenProgram === TOKEN_2022_PROGRAM && state.mintDataLength !== 82) {
       throw new MintQuoteError('This Token-2022 mint has extensions that cannot guarantee an exact payment.', 503);
     }
-    const priceUsdCents = state.configuration.mintPrices[body.classIndex];
-    if (body.classIndex === 0 && priceUsdCents !== 5_000n) throw new MintQuoteError('Economy must cost exactly $50.', 503);
+    const priceUsdCents = state.configuration.mintPrices[0];
+    if (!state.configuration.mintPrices.every(price => price === MINT_PRICE_USD_CENTS)) throw new MintQuoteError('Mint price must be exactly $25.', 503);
+    const assignment = await loadAssignment(assignmentIndex, state.configuration.mintAssignmentRoot);
     const reference = await market.referenceUsd(state.configuration.fareMint);
     if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
     if (now() - reference.observedAtMs > config.mintQuoteMarketMaxAgeMs) throw new MintQuoteError('FARE market data is stale.', 503);
@@ -90,7 +99,9 @@ export function createMintQuoteService(
     const fields = {
       owner: body.owner,
       asset: body.asset,
-      classIndex: body.classIndex,
+      assignmentIndex,
+      classIndex: assignment.classIndex,
+      variantIndex: assignment.variantIndex,
       fareMint: state.configuration.fareMint,
       amountFareRaw,
       priceUsdCents,
@@ -111,6 +122,7 @@ export function createMintQuoteService(
       signature: Buffer.from(signer.sign(message)).toString('base64'),
       quotedUsdcRaw: route.outAmount,
       priceImpactPct: Number(route.priceImpactPct || 0),
+      assignmentProof: assignment.proof,
     };
   };
 }
@@ -121,13 +133,13 @@ export function ceilDiv(numerator: bigint, denominator: bigint) {
 }
 
 export async function loadMintMarketPreview(config: ServerConfig, mint: Address, decimals: number, rawPricesUsd: unknown) {
-  if (!Array.isArray(rawPricesUsd) || rawPricesUsd.length !== 4) throw new MintQuoteError('Four USD prices are required for liquidity inspection.');
+  if (!Array.isArray(rawPricesUsd) || rawPricesUsd.length !== 4) throw new MintQuoteError('Four matching USD prices are required for liquidity inspection.');
   const pricesUsdCents = rawPricesUsd.map((value, index) => {
     const cents = Math.round(Number(value) * 100);
     if (!Number.isSafeInteger(cents) || cents <= 0) throw new MintQuoteError(`Class ${index + 1} USD price is invalid.`);
     return BigInt(cents);
   });
-  if (pricesUsdCents[0] !== 5_000n) throw new MintQuoteError('Economy must cost exactly $50.');
+  if (!pricesUsdCents.every(price => price === MINT_PRICE_USD_CENTS)) throw new MintQuoteError('Every mint must cost exactly $25.');
   const provider = jupiterMarket(config);
   const reference = await provider.referenceUsd(mint);
   if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
@@ -173,9 +185,7 @@ function validateInput(input: unknown) {
   let asset: Address;
   try { owner = address(String(value.owner || '').trim()); } catch { throw new MintQuoteError('Invalid owner wallet.'); }
   try { asset = address(String(value.asset || '').trim()); } catch { throw new MintQuoteError('Invalid asset address.'); }
-  const classIndex = Number(value.classIndex);
-  if (!Number.isInteger(classIndex) || classIndex < 0 || classIndex >= CLASS_CAPS.length) throw new MintQuoteError('Invalid taxi class.');
-  return { owner, asset, classIndex };
+  return { owner, asset };
 }
 
 async function loadMintState(config: ServerConfig) {

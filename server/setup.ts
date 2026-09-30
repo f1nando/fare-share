@@ -37,6 +37,7 @@ export interface InitializeProtocolInput {
   collectionUri: string;
   stockMints: [Address, Address, Address, Address];
   mintPricesUsdCents: [bigint, bigint, bigint, bigint];
+  mintAssignmentRoot: Uint8Array;
   metadataUris: readonly string[];
   traineeMetadataUri: string;
   lookupTables?: AddressesByLookupTableAddress;
@@ -44,6 +45,7 @@ export interface InitializeProtocolInput {
 
 export async function initializeProtocol(input: InitializeProtocolInput) {
   if (input.deploymentId.length !== 32) throw new Error('deploymentId must contain 32 bytes');
+  if (input.mintAssignmentRoot.length !== 12) throw new Error('mintAssignmentRoot must contain 12 bytes');
   assertMetadataUris(input.metadataUris);
   assertMetadataUri(input.traineeMetadataUri, 'traineeMetadataUri');
   const addresses = await protocolAddresses(input.programId);
@@ -127,6 +129,7 @@ export function buildInitializeInstruction(
     stringBytes(input.collectionUri),
     ...input.stockMints.map(key),
     ...input.mintPricesUsdCents.map(u64),
+    input.mintAssignmentRoot,
   );
   return {
     programAddress: input.programId,

@@ -2,7 +2,7 @@ import { createHmac, createPrivateKey, randomBytes, sign, timingSafeEqual } from
 import { address, getAddressEncoder, type Address } from '@solana/kit';
 
 const VOUCHER_DOMAIN = Buffer.from('TAXI_TRAINEE_V1');
-const MINT_QUOTE_DOMAIN = Buffer.from('TAXI_MINT_QUOTE_V1');
+const MINT_QUOTE_DOMAIN = Buffer.from('TAXI_MINT_Q_V2');
 const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 const addressEncoder = getAddressEncoder();
 
@@ -24,7 +24,9 @@ export interface BackendSigner {
 export interface MintQuoteFields {
   owner: Address;
   asset: Address;
+  assignmentIndex: number;
   classIndex: number;
+  variantIndex: number;
   fareMint: Address;
   amountFareRaw: bigint;
   priceUsdCents: bigint;
@@ -89,8 +91,11 @@ export function buildMintQuoteMessage(
   fields: MintQuoteFields,
 ): Uint8Array {
   if (deploymentId.length !== 32) throw new Error('deploymentId must contain 32 bytes');
-  if (!Number.isInteger(fields.classIndex) || fields.classIndex < 0 || fields.classIndex > 255) {
-    throw new Error('classIndex must fit in one byte');
+  if (!Number.isInteger(fields.assignmentIndex) || fields.assignmentIndex < 0 || fields.assignmentIndex > 65_535) {
+    throw new Error('assignmentIndex must fit in two bytes');
+  }
+  if (![fields.classIndex, fields.variantIndex].every(value => Number.isInteger(value) && value >= 0 && value <= 255)) {
+    throw new Error('classIndex and variantIndex must fit in one byte');
   }
   return concat(
     MINT_QUOTE_DOMAIN,
@@ -98,7 +103,8 @@ export function buildMintQuoteMessage(
     deploymentId,
     Uint8Array.from(addressEncoder.encode(fields.owner)),
     Uint8Array.from(addressEncoder.encode(fields.asset)),
-    Uint8Array.of(fields.classIndex),
+    u16(fields.assignmentIndex),
+    Uint8Array.of(fields.classIndex, fields.variantIndex),
     Uint8Array.from(addressEncoder.encode(fields.fareMint)),
     u64(fields.amountFareRaw),
     u64(fields.priceUsdCents),

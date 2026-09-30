@@ -369,7 +369,7 @@ async function loadFinalizedChainTime() {
   return timeBody.result;
 }
 
-export async function prepareMintQuote(connection, classIndex, knownStatus) {
+export async function prepareMintQuote(connection, knownStatus) {
   const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   if (!status.deployed) throw new Error('The program is not deployed on the selected network yet.');
   if (!status.config.saleStarted) throw new Error('The car sale is not open yet.');
@@ -378,7 +378,7 @@ export async function prepareMintQuote(connection, classIndex, knownStatus) {
   const quoteResponse = await fetch(`${BACKEND_URL}/api/mint/quote`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ owner: String(owner), asset: String(assetSigner.address), classIndex }),
+    body: JSON.stringify({ owner: String(owner), asset: String(assetSigner.address) }),
   });
   const quote = await quoteResponse.json();
   if (!quoteResponse.ok) throw new Error(quote.error || 'A safe FARE mint quote is unavailable.');
@@ -394,11 +394,10 @@ export async function prepareMintQuote(connection, classIndex, knownStatus) {
   return { assetSigner, quote, status, ownerFareBalance };
 }
 
-export async function mintMachine(connection, classIndex, knownStatus, preparedQuote) {
-  const prepared = preparedQuote && Number(preparedQuote.quote?.classIndex) === classIndex
-    && BigInt(preparedQuote.quote.expiresAt) > BigInt(Math.floor(Date.now() / 1000) + 5)
+export async function mintMachine(connection, knownStatus, preparedQuote) {
+  const prepared = preparedQuote && BigInt(preparedQuote.quote.expiresAt) > BigInt(Math.floor(Date.now() / 1000) + 5)
     ? preparedQuote
-    : await prepareMintQuote(connection, classIndex, knownStatus);
+    : await prepareMintQuote(connection, knownStatus);
   const status = prepared.status?.deployed ? prepared.status : knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   const pageIndex = chooseEventPage(status.queue, 2);
   const owner = address(connection.account.address);
@@ -424,7 +423,6 @@ export async function mintMachine(connection, classIndex, knownStatus, preparedQ
     configAddress: status.addresses.config,
     config: status.config,
     queue: status.addresses.queue,
-    classIndex,
     pageIndex,
     fareTokenProgram,
     teamFareAccountExists: Boolean(paymentAccounts.value[1]),

@@ -381,7 +381,7 @@ export async function createFeeAdminService(
         if (!Number.isFinite(dollars) || dollars <= 0 || !Number.isSafeInteger(cents)) throw new FeeAdminError(`Class ${index + 1} price is invalid.`);
         return BigInt(cents);
       }) as [bigint, bigint, bigint, bigint];
-      if (prices[0] !== 5_000n) throw new FeeAdminError('Economy must cost exactly $50.');
+      if (!prices.every(price => price === 2_500n)) throw new FeeAdminError('Every taxi mint must cost exactly $25.');
       const current = await configuredState();
       if (current.saleStarted) throw new FeeAdminError('Mint prices are locked after the sale starts.', 409);
       const signature = String(await sendInstructions(config.rpcUrl, admin, [

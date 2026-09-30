@@ -3,7 +3,7 @@ use anchor_lang::{prelude::*, solana_program::instruction::Instruction};
 use crate::TaxiError;
 
 const DOMAIN: &[u8] = b"TAXI_TRAINEE_V1";
-const MINT_QUOTE_DOMAIN: &[u8] = b"TAXI_MINT_QUOTE_V1";
+const MINT_QUOTE_DOMAIN: &[u8] = b"TAXI_MINT_Q_V2";
 const OFFSETS_START: usize = 2;
 const OFFSETS_LEN: usize = 14;
 const SIGNATURE_LEN: usize = 64;
@@ -28,12 +28,22 @@ pub struct MintQuoteArgs {
     pub expires_at: i64,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Eq, PartialEq)]
+pub struct MintAssignmentArgs {
+    pub index: u16,
+    pub class: u8,
+    pub variant: u8,
+    pub proof: Vec<[u8; 12]>,
+}
+
 pub fn mint_quote_message(
     program_id: &Pubkey,
     deployment_id: &[u8; 32],
     owner: &Pubkey,
     asset: &Pubkey,
+    assignment_index: u16,
     class: u8,
+    variant: u8,
     fare_mint: &Pubkey,
     quote: &MintQuoteArgs,
 ) -> Vec<u8> {
@@ -43,7 +53,9 @@ pub fn mint_quote_message(
     result.extend_from_slice(deployment_id);
     result.extend_from_slice(owner.as_ref());
     result.extend_from_slice(asset.as_ref());
+    result.extend_from_slice(&assignment_index.to_le_bytes());
     result.push(class);
+    result.push(variant);
     result.extend_from_slice(fare_mint.as_ref());
     result.extend_from_slice(&quote.amount_fare_raw.to_le_bytes());
     result.extend_from_slice(&quote.price_usd_cents.to_le_bytes());
@@ -233,28 +245,29 @@ mod tests {
             price_usd_cents: 5_000,
             expires_at: 456,
         };
-        let message = mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &quote);
+        let message = mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &mint, &quote);
         assert!(message.starts_with(MINT_QUOTE_DOMAIN));
         assert!(message.windows(32).any(|value| value == owner.as_ref()));
         assert!(message.windows(32).any(|value| value == asset.as_ref()));
         assert!(message.windows(32).any(|value| value == mint.as_ref()));
         let mut changed = quote;
         changed.amount_fare_raw += 1;
-        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &changed));
-        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 1, &mint, &quote));
+        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &mint, &changed));
+        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 12, 2, 3, &mint, &quote));
 
         let signer = Pubkey::new_unique();
         let instruction = inline_instruction(&signer, &message);
         verify_ed25519_instruction(&instruction, &signer, &message).unwrap();
         assert!(verify_ed25519_instruction(&instruction, &Pubkey::new_unique(), &message).is_err());
         for changed_message in [
-            mint_quote_message(&program, &deployment, &Pubkey::new_unique(), &asset, 2, &mint, &quote),
-            mint_quote_message(&program, &deployment, &owner, &Pubkey::new_unique(), 2, &mint, &quote),
-            mint_quote_message(&program, &deployment, &owner, &asset, 1, &mint, &quote),
-            mint_quote_message(&program, &deployment, &owner, &asset, 2, &Pubkey::new_unique(), &quote),
-            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &changed),
-            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &MintQuoteArgs { price_usd_cents: 4_999, ..quote }),
-            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &MintQuoteArgs { expires_at: 455, ..quote }),
+            mint_quote_message(&program, &deployment, &Pubkey::new_unique(), &asset, 11, 2, 3, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &Pubkey::new_unique(), 11, 2, 3, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 1, 3, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 2, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &Pubkey::new_unique(), &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &mint, &changed),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &mint, &MintQuoteArgs { price_usd_cents: 4_999, ..quote }),
+            mint_quote_message(&program, &deployment, &owner, &asset, 11, 2, 3, &mint, &MintQuoteArgs { expires_at: 455, ..quote }),
         ] {
             assert!(verify_ed25519_instruction(&instruction, &signer, &changed_message).is_err());
         }

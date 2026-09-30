@@ -140,7 +140,13 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
       errors.push(`MINT_PRICES_USD_CENTS[${index}]: must be a positive integer amount of USD cents`);
     }
   }
-  if (prices[0] !== '5000') errors.push('MINT_PRICES_USD_CENTS[0]: Economy must equal 5000 ($50)');
+  if (prices.some(price => price !== '2500')) errors.push('MINT_PRICES_USD_CENTS: every mint price must equal 2500 ($25)');
+
+  const assignmentRoot = required('MINT_ASSIGNMENT_ROOT_HEX');
+  if (assignmentRoot && (!/^[0-9a-fA-F]{24}$/.test(assignmentRoot) || /^0+$/.test(assignmentRoot))) {
+    errors.push('MINT_ASSIGNMENT_ROOT_HEX: must contain a non-zero 12-byte root in hex');
+  }
+  required('MINT_ASSIGNMENTS_PATH');
 
   const deploymentId = required('DEPLOYMENT_ID_HEX');
   if (deploymentId && (!/^[0-9a-fA-F]{64}$/.test(deploymentId) || /^0+$/.test(deploymentId))) {
