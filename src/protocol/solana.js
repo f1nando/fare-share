@@ -395,7 +395,7 @@ export async function prepareMintQuote(connection, knownStatus) {
   return { assetSigner, quote, status, ownerFareBalance };
 }
 
-export async function mintMachine(connection, knownStatus, preparedQuote) {
+export async function mintMachine(connection, knownStatus, preparedQuote, options = {}) {
   const prepared = preparedQuote && BigInt(preparedQuote.quote.expiresAt) > BigInt(Math.floor(Date.now() / 1000) + 5)
     ? preparedQuote
     : await prepareMintQuote(connection, knownStatus);
@@ -433,6 +433,9 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
   let purchaseLookupTables = {};
   const missingFareRaw = BigInt(quote.amountFareRaw) - ownerFareBalance;
   if (missingFareRaw > 0n) {
+    if (options.purchaseMissing === false) {
+      throw new Error(`The completed purchase did not provide enough FARE for the refreshed mint quote.`);
+    }
     try {
       purchase = await backendRequest('/api/mint/buy-quote', { outputAmountRaw: missingFareRaw.toString() });
       const swap = await backendRequest('/api/mint/buy-build', { quoteId: purchase.quoteId, wallet: String(owner) });
@@ -449,15 +452,38 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
     }
   }
   const protocolLookupTables = await loadProtocolLookupTable();
-  const signature = await sendWalletInstructions({
-    rpc,
-    wallet: connection.wallet,
-    account: connection.account,
-    chain: SOLANA_CHAIN,
-    instructions: [...purchaseInstructions, ...built.instructions],
-    additionalSigners: [built.assetSigner],
-    lookupTables: { ...purchaseLookupTables, ...protocolLookupTables },
-  });
+  let signature;
+  let purchaseSignature;
+  try {
+    signature = await sendWalletInstructions({
+      rpc,
+      wallet: connection.wallet,
+      account: connection.account,
+      chain: SOLANA_CHAIN,
+      instructions: [...purchaseInstructions, ...built.instructions],
+      additionalSigners: [built.assetSigner],
+      lookupTables: { ...purchaseLookupTables, ...protocolLookupTables },
+    });
+  } catch (error) {
+    if (!purchase || !/does not fit into one Solana transaction/i.test(error.message || '')) throw error;
+    purchaseSignature = await sendWalletInstructions({
+      rpc,
+      wallet: connection.wallet,
+      account: connection.account,
+      chain: SOLANA_CHAIN,
+      instructions: purchaseInstructions,
+      lookupTables: purchaseLookupTables,
+    });
+    const refreshed = await prepareMintQuote(connection, status);
+    try {
+      const minted = await mintMachine(connection, status, refreshed, { purchaseMissing: false });
+      return { ...minted, purchase, purchaseSignature };
+    } catch (mintError) {
+      mintError.signature ||= purchaseSignature;
+      mintError.message = `FARE purchase finalized, but NFT mint still needs attention: ${mintError.message || 'unknown error'}`;
+      throw mintError;
+    }
+  }
   return { signature, asset: built.assetSigner.address, quote, ownerFareBalance, purchase };
 }
 

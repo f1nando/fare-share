@@ -339,7 +339,7 @@ export function MintPage({ wallet, connectWallet }) {
               </div>
 
               {preparedMint && <p className="fare-mint-note">≈ {formatTokenAmount(BigInt(preparedMint.quote.amountFareRaw), fareDecimals)} ${fareTicker} per taxi · quote expires in {Math.max(0, Number(BigInt(preparedMint.quote.expiresAt) - BigInt(Math.floor(Date.now() / 1000))))}s<br />Balance: {formatTokenAmount(preparedMint.ownerFareBalance, fareDecimals)} ${fareTicker}</p>}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note" role="status">Your wallet will buy the missing ${fareTicker} and mint the taxi atomically in one transaction.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note" role="status">Your wallet will buy the missing ${fareTicker} and mint the taxi. The app tries one atomic transaction first; if it exceeds Solana's size limit, your wallet will request two approvals: buy, then mint.</p>}
               {quoteError && <p className="fare-garage-notice" role="status">{quoteError}</p>}
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
@@ -348,7 +348,7 @@ export function MintPage({ wallet, connectWallet }) {
                 <span>{busy ? (!hasQuotedBalance ? `Buying ${fareTicker} & minting…` : 'Minting…') : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : preparedMint && !hasQuotedBalance ? `Buy ${fareTicker} & mint NFT` : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">Atomic purchase unavailable? <a href={appPath('/trade/')}>Buy ${fareTicker} on Trade</a>, then return to mint.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">Prefer to buy separately? <a href={appPath('/trade/')}>Buy ${fareTicker} on Trade</a>, then return to mint.</p>}
               <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
           </div>
