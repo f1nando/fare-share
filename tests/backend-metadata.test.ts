@@ -60,3 +60,12 @@ test('metadata generator requires collection, 16 machine and trainee image URLs'
   assert.throws(() => buildMetadataFiles(imageUris.slice(0, 17)), /18 comma-separated HTTPS URLs/);
   assert.throws(() => buildMetadataFiles([...imageUris.slice(0, 17), 'ar://not-an-image-url']), /18 comma-separated HTTPS URLs/);
 });
+
+test('rehearsal metadata uses the approved collection identity', () => {
+  const files = buildMetadataFiles(imageUris, 'rehearsal');
+  assert.ok('name' in files[0].data);
+  assert.equal(files[0].data.name, 'Fare Share Taxi Rehearsal');
+  assert.equal(files[0].data.symbol, 'TAXITEST');
+  assert.match(files[0].data.description, /Disposable.*rehearsal/i);
+  for (const item of files.slice(1)) assert.equal(item.data.symbol, 'TAXITEST');
+});
