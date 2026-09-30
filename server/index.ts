@@ -9,6 +9,7 @@ import { AdminAuthError, createAdminAuth } from './adminAuth.js';
 import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
 import { createPublicDataService, PublicDataError } from './publicData.js';
+import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -39,6 +40,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
+const proxySolana = createSolanaProxy(config.solanaRpcUrl);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -64,6 +66,11 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && url.pathname === '/api/public/market') {
       json(response, 200, await publicData.market());
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/solana-rpc') {
+      requirePublicOrigin(request);
+      json(response, 200, await proxySolana(await readJson(request, 65_536), clientAddress(request)));
       return;
     }
     const walletFleetRoute = /^\/api\/fleet\/wallet\/([^/]+)$/.exec(url.pathname);
@@ -284,7 +291,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }
@@ -365,6 +372,18 @@ function requireAdminOrigin(request: IncomingMessage) {
   if (typeof origin !== 'string') throw new AdminAuthError('Origin header is required.', 403);
   const local = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin);
   if (!local && origin !== config.allowedOrigin) throw new AdminAuthError('Origin is not allowed.', 403);
+}
+
+function requirePublicOrigin(request: IncomingMessage) {
+  const origin = request.headers.origin;
+  if (typeof origin !== 'string') throw new SolanaProxyError('Origin header is required.', 403);
+  const local = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(origin);
+  if (!local && origin !== config.allowedOrigin) throw new SolanaProxyError('Origin is not allowed.', 403);
+}
+
+function clientAddress(request: IncomingMessage) {
+  const forwarded = config.trustProxy ? request.headers['x-forwarded-for'] : undefined;
+  return (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim()) || request.socket.remoteAddress || 'unknown';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
