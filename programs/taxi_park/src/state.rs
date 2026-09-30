@@ -197,16 +197,16 @@ impl RewardPool {
                 let segment_budget = target_after
                     .checked_sub(target_before)
                     .ok_or(TaxiError::MathOverflow)?;
-                let (increment, assigned) =
+                let (increment, _assigned) =
                     math::reward_per_weight(segment_budget, self.total_active_weight)?;
                 self.accumulators[index] = self.accumulators[index]
                     .checked_add(increment)
                     .ok_or(TaxiError::MathOverflow)?;
                 self.series_remaining[index] = self.series_remaining[index]
-                    .checked_sub(assigned)
+                    .checked_sub(segment_budget)
                     .ok_or(TaxiError::MathOverflow)?;
                 self.obligations[index] = self.obligations[index]
-                    .checked_add(assigned)
+                    .checked_add(segment_budget)
                     .ok_or(TaxiError::MathOverflow)?;
             }
         }
@@ -226,6 +226,19 @@ impl RewardPool {
         self.series_initial = [0; ASSET_COUNT];
         self.series_remaining = [0; ASSET_COUNT];
         self.series_active = false;
+        Ok(())
+    }
+
+    pub fn consume_obligation(&mut self, index: usize, paid_amount: u64) -> Result<()> {
+        let obligation = self
+            .obligations
+            .get_mut(index)
+            .ok_or(TaxiError::MathOverflow)?;
+        // Older deployments requeued accumulator rounding dust and could understate
+        // obligations by a few raw units. The token transfer remains the source of
+        // truth for solvency; saturating here lets a fully backed legacy claim heal
+        // that bookkeeping discrepancy without wrapping or blocking the claim.
+        *obligation = obligation.saturating_sub(paid_amount);
         Ok(())
     }
 }
@@ -355,11 +368,12 @@ impl Machine {
                 self.reward_active = false;
                 self.closed = true;
                 for index in 0..ASSET_COUNT {
+                    let backed_amount = self.claimable[index].min(pool.obligations[index]);
                     pool.obligations[index] = pool.obligations[index]
-                        .checked_sub(self.claimable[index])
+                        .checked_sub(backed_amount)
                         .ok_or(TaxiError::MathOverflow)?;
                     pool.next_pool[index] = pool.next_pool[index]
-                        .checked_add(self.claimable[index])
+                        .checked_add(backed_amount)
                         .ok_or(TaxiError::MathOverflow)?;
                     self.claimable[index] = 0;
                 }
@@ -624,11 +638,67 @@ mod tests {
         };
         pool.start_series(4 * 60 * 60, 0).unwrap();
         pool.distribute_until(60 * 60).unwrap();
-        assert_eq!(pool.series_remaining[0], 76); // 25 budget, 24 assigned across weight 3.
+        assert_eq!(pool.series_remaining[0], 75); // The full accumulator budget is reserved.
         pool.total_active_weight = 2;
         pool.finish_series().unwrap();
-        assert_eq!(pool.obligations[0], 99);
-        assert_eq!(pool.next_pool[0], 1);
+        assert_eq!(pool.obligations[0], 100);
+        assert_eq!(pool.next_pool[0], 0);
+    }
+
+    #[test]
+    fn accumulator_rounding_dust_is_reserved_once_instead_of_requeued() {
+        let mut pool = RewardPool {
+            calculated_until: 0,
+            total_active_weight: 3,
+            next_pool: [1, 0, 0, 0, 0],
+            ..RewardPool::default()
+        };
+
+        pool.start_series(1, 0).unwrap();
+        pool.finish_series().unwrap();
+
+        assert_eq!(pool.next_pool[0], 0);
+        assert_eq!(pool.obligations[0], 1);
+        assert_eq!(math::machine_reward(pool.accumulators[0], 0, 1).unwrap(), 0);
+    }
+
+    #[test]
+    fn paid_legacy_claim_heals_an_underreported_obligation() {
+        let mut pool = RewardPool {
+            obligations: [8, 0, 0, 0, 0],
+            ..RewardPool::default()
+        };
+        pool.consume_obligation(0, 10).unwrap();
+        assert_eq!(pool.obligations[0], 0);
+    }
+
+    #[test]
+    fn burn_requeues_only_the_backed_part_of_legacy_claimable_rewards() {
+        let asset = Pubkey::new_unique();
+        let mut pool = RewardPool {
+            total_active_weight: 1,
+            obligations: [8, 0, 0, 0, 0],
+            ..RewardPool::default()
+        };
+        let mut machine = Machine {
+            asset,
+            weight: 1,
+            reward_active: true,
+            closed: true,
+            claimable: [10, 0, 0, 0, 0],
+            ..Machine::default()
+        };
+
+        machine
+            .apply_event(
+                &mut pool,
+                &MachineEvent::new(10, 1, asset, EventKind::Burn, 0),
+            )
+            .unwrap();
+
+        assert_eq!(pool.obligations[0], 0);
+        assert_eq!(pool.next_pool[0], 8);
+        assert_eq!(machine.claimable[0], 0);
     }
 
     #[test]

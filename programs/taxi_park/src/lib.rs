@@ -1515,9 +1515,7 @@ pub mod taxi_park {
         }
 
         for (index, amount) in amounts.into_iter().enumerate() {
-            ctx.accounts.pool.obligations[index] = ctx.accounts.pool.obligations[index]
-                .checked_sub(amount)
-                .ok_or(TaxiError::MathOverflow)?;
+            ctx.accounts.pool.consume_obligation(index, amount)?;
             ctx.accounts.machine.claimable[index] = 0;
         }
         emit!(RewardsClaimed {
@@ -1643,9 +1641,7 @@ pub mod taxi_park {
                     &[signer_seeds],
                 )?;
             }
-            ctx.accounts.pool.obligations[index] = ctx.accounts.pool.obligations[index]
-                .checked_sub(amount)
-                .ok_or(TaxiError::MathOverflow)?;
+            ctx.accounts.pool.consume_obligation(index, amount)?;
         }
         Ok(())
     }
