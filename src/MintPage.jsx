@@ -3,6 +3,7 @@ import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 import {
   activateTrainee,
+  buyMissingFare,
   claimTrainee,
   explorerTransaction,
   formatTokenAmount,
@@ -64,6 +65,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [databaseMint, setDatabaseMint] = useState(null);
   const [notice, setNotice] = useState('Loading live Solana mint state…');
   const [busy, setBusy] = useState(false);
+  const [buyBusy, setBuyBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [preparedMint, setPreparedMint] = useState(null);
   const [quoteError, setQuoteError] = useState('');
@@ -87,6 +89,9 @@ export function MintPage({ wallet, connectWallet }) {
   const fareTicker = ticker || 'FARE';
   const paused = Boolean(databaseMint?.paused);
   const hasQuotedBalance = !preparedMint || preparedMint.ownerFareBalance >= BigInt(preparedMint.quote.amountFareRaw) * BigInt(quantity);
+  const missingFareRaw = preparedMint && !hasQuotedBalance
+    ? BigInt(preparedMint.quote.amountFareRaw) * BigInt(quantity) - preparedMint.ownerFareBalance
+    : 0n;
 
   useEffect(() => {
     let active = true;
@@ -112,7 +117,6 @@ export function MintPage({ wallet, connectWallet }) {
       .then(value => {
         if (!active) return;
         setPreparedMint(value);
-        dispatchPreview({ type: 'select-class', classIndex: Number(value.quote.classIndex) });
         setQuoteError('');
         const refreshMs = Math.max(1_000, Number(BigInt(value.quote.expiresAt) * 1_000n - BigInt(Date.now()) - 5_000n));
         timer = window.setTimeout(refresh, refreshMs);
@@ -175,6 +179,30 @@ export function MintPage({ wallet, connectWallet }) {
         : error.message || 'Mint failed.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleBuyMissingFare() {
+    if (!preparedMint || missingFareRaw <= 0n) return;
+    setBuyBusy(true);
+    setSignature('');
+    setNotice(`Approve the ${fareTicker} purchase in Phantom…`);
+    try {
+      const connection = wallet || await connectWallet();
+      const result = await buyMissingFare(connection, status, preparedMint);
+      if (result.signature) setSignature(result.signature);
+      setNotice(`${fareTicker} purchase confirmed. Refreshing your balance…`);
+      const refreshed = await prepareMintQuote(connection, status);
+      setPreparedMint(refreshed);
+      setQuoteError('');
+      setNotice(refreshed.ownerFareBalance >= BigInt(refreshed.quote.amountFareRaw)
+        ? `${fareTicker} is ready. You can mint your taxi now.`
+        : `Your balance is still below the refreshed mint quote. Buy the remaining ${fareTicker} amount.`);
+    } catch (error) {
+      if (error.signature) setSignature(error.signature);
+      setNotice(error.message || `${fareTicker} purchase failed.`);
+    } finally {
+      setBuyBusy(false);
     }
   }
 
@@ -336,16 +364,20 @@ export function MintPage({ wallet, connectWallet }) {
               </div>
 
               {preparedMint && <p className="fare-mint-note">≈ {formatTokenAmount(BigInt(preparedMint.quote.amountFareRaw), fareDecimals)} ${fareTicker} per taxi · quote expires in {Math.max(0, Number(BigInt(preparedMint.quote.expiresAt) - BigInt(Math.floor(Date.now() / 1000))))}s<br />Balance: {formatTokenAmount(preparedMint.ownerFareBalance, fareDecimals)} ${fareTicker}</p>}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note" role="status">Your wallet will buy the missing ${fareTicker} and mint the taxi. The app tries one atomic transaction first; if it exceeds Solana's size limit, your wallet will request two approvals: buy, then mint.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note" role="status">Buy the missing {formatTokenAmount(missingFareRaw, fareDecimals)} ${fareTicker} before minting.</p>}
               {quoteError && <p className="fare-garage-notice" role="status">{quoteError}</p>}
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
               {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
-              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && !preparedMint)} onClick={handleMint}>
-                <span>{busy ? (!hasQuotedBalance ? `Buying ${fareTicker} & minting…` : 'Minting…') : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : preparedMint && !hasQuotedBalance ? `Buy ${fareTicker} & mint NFT` : 'Mint taxi NFT'}</span>
+              {preparedMint && !hasQuotedBalance && <button className="fare-mint-submit" type="button" disabled={busy || buyBusy} onClick={handleBuyMissingFare}>
+                <span>{buyBusy ? `Buying ${fareTicker}…` : `Buy missing ${fareTicker}`}</span>
+                <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
+              </button>}
+              <button className="fare-mint-submit" type="button" disabled={busy || buyBusy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && (!preparedMint || !hasQuotedBalance))} onClick={handleMint}>
+                <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">Prefer to buy separately? <a href={appPath('/trade/')}>Buy ${fareTicker} on Trade</a>, then return to mint.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">You can also <a href={appPath('/trade/')}>buy ${fareTicker} on Trade</a>.</p>}
               <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
           </div>
