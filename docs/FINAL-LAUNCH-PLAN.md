@@ -81,6 +81,7 @@
 | D-29 | Trainee NFT называется `TAXI Trainee — Dacia Logan` | Trainee metadata содержит `Type: Trainee`, `Model: Dacia Logan`, `Weight: 1`, `Transferable: No` и `Repairable: No`. Один metadata type используется для unlimited campaign assets; уникальность on-chain остаётся `owner + campaign_id`. |
 | D-30 | Wallet `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF` выполняет все совместимые rehearsal-роли | Он является deploy fee payer, upgrade authority, protocol admin, worker payer/signer, backend signer, team wallet, Pump creator/fee recipient и recovery recipient. Владелец явно принял риск размещения этого authority secret на rehearsal server и увеличенный blast radius. Новый Program ID keypair и Collection asset signer всё равно существуют отдельно по требованиям Solana/Core, но их payer и authority — `2NUN…EGVnF`. |
 | D-31 | Локальный keypair `2NUN…EGVnF` найден и проверен | Внешний к репозиторию Desktop-файл содержит base58-encoded 64-byte keypair; локальная derivation без вывода secret подтвердила точный public key `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`. Файл не копируется в Git, manifest, логи или чат. |
+| D-32 | Публичный disposable rehearsal размещается на основном домене `https://ownataxi.com/` | Отдельный subdomain не используется. Текущая старая test-only копия предварительно архивируется для rollback, после чего frontend/backend заменяются rehearsal release. Само решение домена не является командой начать deployment. |
 
 ## L-01. Worker/Jupiter reserve routes
 
