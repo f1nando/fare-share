@@ -14,9 +14,19 @@ import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './trainee
 import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
 import { performWorkerAction } from './workerAutomation.js';
 import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
+import { createRehearsalBudgetGuard } from './rehearsalBudget.js';
+import { configureTransactionBudgetGuard } from './transaction.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
+if (config.rehearsalMode) configureTransactionBudgetGuard(await createRehearsalBudgetGuard({
+  rpcUrl: config.solanaRpcUrl,
+  collection: database.rehearsalBudget,
+  ordinaryLimitLamports: config.rehearsalOrdinaryBudgetLamports,
+  hardLimitLamports: config.rehearsalHardBudgetLamports,
+  transactionReserveLamports: config.rehearsalTransactionReserveLamports,
+  initialSpentLamports: config.rehearsalInitialSpentLamports,
+}));
 const issueVoucher = createVoucherService(config, database);
 const issueMintQuote = createMintQuoteService(config);
 let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRpcUrl, config.programId, database.tokenConfig)
@@ -122,7 +132,20 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/admin/status') {
       const services = requireAdminServices();
       services.auth.require(request);
-      json(response, 200, await services.fees.status());
+      const status = await services.fees.status();
+      const budget = config.rehearsalMode
+        ? await database.rehearsalBudget.findOne({ key: 'disposable-rehearsal' })
+        : null;
+      json(response, 200, {
+        ...status,
+        ...(budget ? { rehearsalBudget: {
+          spentLamports: String(budget.spentLamports),
+          reservedLamports: String(budget.reservedLamports),
+          ordinaryLimitLamports: String(budget.ordinaryLimitLamports),
+          hardLimitLamports: String(budget.hardLimitLamports),
+          pendingReservations: Object.keys(budget.reservations).length,
+        } } : {}),
+      });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/admin/trainee-campaigns') {

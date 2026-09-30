@@ -551,6 +551,7 @@ export async function createFeeAdminService(
       try {
         const signature = String(await sendInstructions(config.rpcUrl, feeRecipient, instructions, [], {}, {
           onSigned: details => markSubmitted(operation.operationId, details),
+          budgetDebitLamports: amount,
         }));
         return operationResult(await finalizeOperation({ ...operation, signature, status: 'submitted' }));
       } catch (error) {

@@ -105,6 +105,32 @@ export interface TelegramAuditDocument {
   createdAt: Date;
 }
 
+export interface RehearsalBudgetReservation {
+  actionClass: 'ordinary' | 'recovery';
+  fundingWallet: string;
+  maximumDebitLamports: string;
+  signature?: string;
+  createdAt: Date;
+}
+
+export interface RehearsalBudgetEntry extends RehearsalBudgetReservation {
+  reservationId: string;
+  netDebitLamports: string;
+  finalizedAt: Date;
+}
+
+export interface RehearsalBudgetDocument {
+  key: 'disposable-rehearsal';
+  ordinaryLimitLamports: number;
+  hardLimitLamports: number;
+  spentLamports: number;
+  reservedLamports: number;
+  reservations: Record<string, RehearsalBudgetReservation>;
+  entries: RehearsalBudgetEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface FleetMachineDocument {
   asset: string;
   machine: string;
@@ -189,6 +215,7 @@ export interface TaxiDatabase {
   telegramAlerts: Collection<TelegramAlertDocument>;
   telegramAlertStates: Collection<TelegramAlertStateDocument>;
   telegramAudit: Collection<TelegramAuditDocument>;
+  rehearsalBudget: Collection<RehearsalBudgetDocument>;
   fleetMachines: Collection<FleetMachineDocument>;
   fleetTrainees: Collection<FleetTraineeDocument>;
   publicSnapshots: Collection<PublicSnapshotDocument>;
@@ -215,6 +242,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const telegramAlerts = db.collection<TelegramAlertDocument>('telegram_alerts');
   const telegramAlertStates = db.collection<TelegramAlertStateDocument>('telegram_alert_states');
   const telegramAudit = db.collection<TelegramAuditDocument>('telegram_alert_audit');
+  const rehearsalBudget = db.collection<RehearsalBudgetDocument>('rehearsal_budget');
   const fleetMachines = db.collection<FleetMachineDocument>('fleet_machines');
   const fleetTrainees = db.collection<FleetTraineeDocument>('fleet_trainees');
   const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
@@ -245,6 +273,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     telegramAlerts.createIndex({ key: 1 }, { unique: true }),
     telegramAlertStates.createIndex({ key: 1 }, { unique: true }),
     telegramAudit.createIndex({ createdAt: -1 }),
+    rehearsalBudget.createIndex({ key: 1 }, { unique: true }),
     fleetMachines.createIndex({ asset: 1 }, { unique: true }),
     fleetMachines.createIndex({ owner: 1, closed: 1 }),
     fleetMachines.createIndex({ classIndex: 1, closed: 1 }),
@@ -258,7 +287,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
     ensureFleetEarningRetention(fleetEarningSnapshots),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
 }
 
 export function ensureFleetEarningRetention(

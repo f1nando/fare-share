@@ -5,9 +5,19 @@ import { performWorkerAction } from '../server/workerAutomation.js';
 import { loadWorkerSettings, runWorkerAction } from '../server/workerControl.js';
 import { solanaRpcCall } from '../server/solanaRpc.js';
 import { createTelegramAlertService, type TelegramAlertService } from '../server/telegramAlerts.js';
+import { createRehearsalBudgetGuard, RehearsalBudgetError } from '../server/rehearsalBudget.js';
+import { configureTransactionBudgetGuard } from '../server/transaction.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
+if (config.rehearsalMode) configureTransactionBudgetGuard(await createRehearsalBudgetGuard({
+  rpcUrl: config.solanaRpcUrl,
+  collection: database.rehearsalBudget,
+  ordinaryLimitLamports: config.rehearsalOrdinaryBudgetLamports,
+  hardLimitLamports: config.rehearsalHardBudgetLamports,
+  transactionReserveLamports: config.rehearsalTransactionReserveLamports,
+  initialSpentLamports: config.rehearsalInitialSpentLamports,
+}));
 if (!config.protocolAdminSecret || !config.pumpFeeRecipientSecret) {
   throw new Error('ADMIN_KEYPAIR_SECRET_KEY and PUMP_FEE_RECIPIENT_SECRET_KEY are required for full worker automation');
 }
@@ -118,6 +128,12 @@ while (!stopping) {
     }
   } catch (error) {
     console.error('Worker cycle failed:', error);
+    if (error instanceof RehearsalBudgetError) {
+      await database.workerStatus.updateOne({ key: 'protocol-worker' }, {
+        $set: { enabled: false, state: 'disabled', error: error.message, lastErrorAt: new Date(), updatedAt: new Date() },
+        $unset: { nextRunAt: '' },
+      });
+    }
     const message = error instanceof Error ? error.message : String(error);
     const routeFailure = /swap|quote|jupiter|route/i.test(message);
     await telegramCall(telegram, service => service.failure(

@@ -40,6 +40,7 @@ export type ServerConfig = ReturnType<typeof loadServerConfig>;
 
 export function loadServerConfig() {
   const programId = address(process.env.TAXI_PROGRAM_ID?.trim() || DEFAULT_PROGRAM_ID);
+  const rehearsalMode = process.env.REHEARSAL_MODE === 'true';
   return {
     port: integer('PORT', 8787, 1),
     mongoUri: required('MONGODB_URI'),
@@ -85,6 +86,11 @@ export function loadServerConfig() {
     adminMinimumWalletLamports: BigInt(integer('ADMIN_MINIMUM_WALLET_LAMPORTS', 100_000_000, 1)),
     telegramBotTokenFile: optional('TELEGRAM_BOT_TOKEN_FILE'),
     telegramBackendHealthUrl: optional('TELEGRAM_BACKEND_HEALTH_URL'),
+    rehearsalMode,
+    rehearsalOrdinaryBudgetLamports: BigInt(integer('REHEARSAL_ORDINARY_BUDGET_LAMPORTS', 700_000_000, 1)),
+    rehearsalHardBudgetLamports: BigInt(integer('REHEARSAL_HARD_BUDGET_LAMPORTS', 800_000_000, 1)),
+    rehearsalTransactionReserveLamports: BigInt(integer('REHEARSAL_TRANSACTION_RESERVE_LAMPORTS', 10_000_000, 5_000)),
+    rehearsalInitialSpentLamports: BigInt(integer('REHEARSAL_INITIAL_SPENT_LAMPORTS', 0, 0)),
     solanaCluster: process.env.VITE_SOLANA_CHAIN === 'solana:mainnet' ? 'mainnet-beta' as const : 'devnet' as const,
   };
 }

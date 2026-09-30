@@ -20,6 +20,7 @@ import { performWorkerAction } from '../server/workerAutomation.js';
 import { parseWorkerAction } from '../server/workerControl.js';
 import {
   assertWireTransactionSize,
+  configureTransactionBudgetGuard,
   sendInstructions,
   SolanaTransactionSimulationError,
   SolanaTransactionTooLargeError,
@@ -237,6 +238,39 @@ test('transactions are explicitly simulated before submission', async () => {
     assert.deepEqual(methods, ['getLatestBlockhash', 'simulateTransaction']);
     assert.equal(recordedAsSubmitted, false);
   } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('rehearsal budget is reserved before signing and released when simulation fails', async () => {
+  const secret = Uint8Array.from([
+    ...Buffer.from('9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60', 'hex'),
+    ...Buffer.from('d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a', 'hex'),
+  ]);
+  const signer = await createKeyPairSignerFromBytes(secret);
+  const calls: string[] = [];
+  configureTransactionBudgetGuard({
+    reserve: async input => { calls.push(`reserve:${input.additionalDebitLamports}`); return 'reservation'; },
+    signed: async () => { calls.push('signed'); },
+    finalized: async () => { calls.push('finalized'); },
+    release: async () => { calls.push('release'); },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { method: string };
+    const result = request.method === 'getLatestBlockhash'
+      ? { value: { blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 100 } }
+      : { value: { err: { InstructionError: [0, 'Custom'] }, logs: [] } };
+    return new Response(JSON.stringify({ jsonrpc: '2.0', result }));
+  };
+  try {
+    await assert.rejects(
+      sendInstructions('https://rpc.invalid', signer, [], [], {}, { budgetDebitLamports: 25n }),
+      SolanaTransactionSimulationError,
+    );
+    assert.deepEqual(calls, ['reserve:25', 'release']);
+  } finally {
+    configureTransactionBudgetGuard(undefined);
     globalThis.fetch = originalFetch;
   }
 });
