@@ -57,7 +57,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [trainees, setTrainees] = useState([]);
-  const [campaignId, setCampaignId] = useState('1');
+  const campaignId = '1';
   const [keyword, setKeyword] = useState('Fare');
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
@@ -146,7 +146,7 @@ export function MintPage({ wallet, connectWallet }) {
     event.preventDefault();
     if (!status?.deployed) return setTraineeNotice('The trainee program is not available.');
     if (paused) return setTraineeNotice('The protocol is paused. Trainee activation is temporarily disabled.');
-    if (!campaignId || !keyword.trim()) return setTraineeNotice('Enter the campaign ID and keyword.');
+    if (!keyword.trim()) return setTraineeNotice('Enter the code word.');
     setTraineeBusy('activate');
     setTraineeNotice('Approve one activation transaction in Phantom…');
     setTraineeSignature('');
@@ -325,20 +325,19 @@ export function MintPage({ wallet, connectWallet }) {
             <div className="fare-trainee-mint-copy">
               <span>FREE TEMPORARY TAXI</span>
               <h2 id="trainee-mint-title">START AS A TRAINEE</h2>
-              <p>Enter the campaign ID and keyword published by Fare Share. The trainee taxi is virtual, non-transferable and participates automatically for the campaign period.</p>
+              <p>Enter the code word published by Fare Share. The trainee taxi is virtual, non-transferable and participates automatically for the campaign period.</p>
               <p className="fare-trainee-mint-note">Activation does not mint an NFT. Your wallet pays only Solana account rent and the network fee.</p>
             </div>
             <div className="fare-trainee-mint-panel">
               <form onSubmit={handleActivateTrainee}>
-                <label htmlFor="trainee-campaign-id">Campaign ID<input id="trainee-campaign-id" inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="For example, 1" /></label>
-                <label htmlFor="trainee-keyword">Campaign keyword<input id="trainee-keyword" value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Keyword from the official post" /></label>
-                <button type="submit" disabled={Boolean(traineeBusy) || paused || !campaignId || !keyword.trim()}>{traineeBusy === 'activate' ? 'Activating…' : wallet ? 'Activate trainee taxi' : 'Connect and activate'}</button>
+                <label htmlFor="trainee-keyword">Code word<input id="trainee-keyword" value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Code word from the official post" /></label>
+                <button type="submit" disabled={Boolean(traineeBusy) || paused || !keyword.trim()}>{traineeBusy === 'activate' ? 'Activating…' : wallet ? 'Activate trainee taxi' : 'Connect and activate'}</button>
               </form>
               {traineeNotice && <p className="fare-trainee-message" role="status">{traineeNotice}</p>}
               {traineeSignature && <a className="fare-garage-signature" href={explorerTransaction(traineeSignature)} target="_blank" rel="noreferrer">View transaction</a>}
               {trainees.length > 0 && <div className="fare-trainee-list">
                 {trainees.map(trainee => <article key={String(trainee.campaignId)}>
-                  <div><strong>Campaign #{String(trainee.campaignId)}</strong><span>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</span><small>{trainee.rewardDisplay} TAXI claimable</small></div>
+                  <div><strong>Trainee taxi</strong><span>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</span><small>{trainee.rewardDisplay} TAXI claimable</small></div>
                   <button type="button" disabled={Boolean(traineeBusy) || paused || trainee.reward === 0n} onClick={() => handleClaimTrainee(trainee)}>{traineeBusy === `claim-${trainee.campaignId}` ? 'Claiming…' : 'Claim TAXI'}</button>
                 </article>)}
               </div>}
