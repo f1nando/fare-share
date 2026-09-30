@@ -62,7 +62,13 @@ pub fn mint_view(mint: &AccountInfo<'_>, token_program: &Pubkey) -> Result<MintV
     );
     require_keys_eq!(*mint.owner, *token_program, TaxiError::InvalidTokenProgram);
     let data = mint.try_borrow_data()?;
+    require!(mint_data_is_exact_transfer_compatible(token_program, data.len()), TaxiError::InvalidTokenProgram);
     parse_mint_data(&data)
+}
+
+fn mint_data_is_exact_transfer_compatible(token_program: &Pubkey, data_len: usize) -> bool {
+    *token_program == TOKEN_PROGRAM_ID
+        || (*token_program == TOKEN_2022_PROGRAM_ID && data_len == MINT_BASE_LEN)
 }
 
 fn parse_mint_data(data: &[u8]) -> Result<MintView> {
@@ -335,5 +341,8 @@ mod tests {
         let mut mint_data = vec![0_u8; spl_token::state::Mint::LEN];
         spl_token::state::Mint::pack(mint_state, &mut mint_data).unwrap();
         assert_eq!(parse_mint_data(&mint_data).unwrap().decimals, 8);
+        assert!(mint_data_is_exact_transfer_compatible(&TOKEN_PROGRAM_ID, 82));
+        assert!(mint_data_is_exact_transfer_compatible(&TOKEN_2022_PROGRAM_ID, 82));
+        assert!(!mint_data_is_exact_transfer_compatible(&TOKEN_2022_PROGRAM_ID, 200));
     }
 }

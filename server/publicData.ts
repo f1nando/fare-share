@@ -110,7 +110,7 @@ export function createPublicDataService(config: {
       } satisfies Omit<PublicSnapshotDocument, 'overview'>;
       const machines = await database.fleetMachines.find({ closed: false }).toArray();
       if (dashboard.machines.length) await saveEarningSnapshots(database, now, machines);
-      const preparedOverview = buildPublicOverview(snapshot, machines);
+      const preparedOverview = buildPublicOverview(snapshot, machines, config.fareSymbol);
       await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
         ...snapshot,
         overview: preparedOverview,
@@ -128,7 +128,7 @@ export function createPublicDataService(config: {
       const snapshot = await database.publicSnapshots.findOne({ key: 'overview' });
       if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
       const value = snapshot.overview as PublicOverview | undefined
-        || buildPublicOverview(snapshot, await database.fleetMachines.find({ closed: false }).toArray());
+        || buildPublicOverview(snapshot, await database.fleetMachines.find({ closed: false }).toArray(), config.fareSymbol);
       cachedOverview = { value, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS };
       return value;
     })().finally(() => { activeOverviewRead = null; });
@@ -231,6 +231,7 @@ export function createPublicDataService(config: {
 export function buildPublicOverview(
   snapshot: Pick<PublicSnapshotDocument, 'protocol' | 'distribution' | 'vaults' | 'observedAt'>,
   machines: FleetMachineDocument[],
+  fareTicker = 'FARE',
 ) {
   const ownerRows = new Map<string, { owner: string; cars: number; activeWeight: number; claimableFareRaw: bigint }>();
   for (const machine of machines) {
@@ -248,7 +249,11 @@ export function buildPublicOverview(
   for (const machine of machines) classCounts[machine.classIndex] += 1;
   return {
     mint: {
-      pricesFareRaw: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      mintPricesUsdCents: Array.isArray(snapshot.protocol.mintPricesUsdCents)
+        ? snapshot.protocol.mintPricesUsdCents.map(String)
+        : Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      fareMint: String(snapshot.protocol.fareMint || ''),
+      fareTicker,
       fareDecimals: Array.isArray(snapshot.distribution.assets)
         ? Number((snapshot.distribution.assets[0] as { decimals?: unknown } | undefined)?.decimals ?? 0)
         : 0,

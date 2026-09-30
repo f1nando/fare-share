@@ -36,7 +36,7 @@ export interface InitializeProtocolInput {
   collectionName: string;
   collectionUri: string;
   stockMints: [Address, Address, Address, Address];
-  mintPricesFareRaw: [bigint, bigint, bigint, bigint];
+  mintPricesUsdCents: [bigint, bigint, bigint, bigint];
   metadataUris: readonly string[];
   lookupTables?: AddressesByLookupTableAddress;
 }
@@ -116,7 +116,7 @@ export function buildInitializeInstruction(
     stringBytes(input.collectionName),
     stringBytes(input.collectionUri),
     ...input.stockMints.map(key),
-    ...input.mintPricesFareRaw.map(u64),
+    ...input.mintPricesUsdCents.map(u64),
   );
   return {
     programAddress: input.programId,

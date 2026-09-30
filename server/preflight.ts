@@ -134,12 +134,13 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     errors.push('FARE_MINT and STOCK_MINTS must use different addresses');
   }
 
-  const prices = tuple('MINT_PRICES_FARE_RAW');
+  const prices = tuple('MINT_PRICES_USD_CENTS');
   for (const [index, price] of prices.entries()) {
     if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
-      errors.push(`MINT_PRICES_FARE_RAW[${index}]: must be a positive integer amount of raw FARE units`);
+      errors.push(`MINT_PRICES_USD_CENTS[${index}]: must be a positive integer amount of USD cents`);
     }
   }
+  if (prices[0] !== '5000') errors.push('MINT_PRICES_USD_CENTS[0]: Economy must equal 5000 ($50)');
 
   const deploymentId = required('DEPLOYMENT_ID_HEX');
   if (deploymentId && (!/^[0-9a-fA-F]{64}$/.test(deploymentId) || /^0+$/.test(deploymentId))) {

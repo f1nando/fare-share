@@ -37,7 +37,7 @@ const result = await initializeProtocol({
   collectionName: process.env.COLLECTION_NAME || 'FARE Taxi Park',
   collectionUri: required('COLLECTION_URI'),
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
-  mintPricesFareRaw: tuple((process.env.MINT_PRICES_FARE_RAW || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_FARE_RAW'),
+  mintPricesUsdCents: tuple((process.env.MINT_PRICES_USD_CENTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_USD_CENTS'),
   metadataUris: metadataUris(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
   lookupTables,
 });

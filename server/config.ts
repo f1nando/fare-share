@@ -27,6 +27,15 @@ function optional(name: string): string | undefined {
   return process.env[name]?.trim() || undefined;
 }
 
+function boundedNumber(name: string, fallback: number, minimum: number, maximum: number): number {
+  const raw = process.env[name];
+  const value = raw === undefined ? fallback : Number(raw);
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new Error(`${name} must be between ${minimum} and ${maximum}`);
+  }
+  return value;
+}
+
 export type ServerConfig = ReturnType<typeof loadServerConfig>;
 
 export function loadServerConfig() {
@@ -47,6 +56,10 @@ export function loadServerConfig() {
     workerIntervalMs: integer('WORKER_INTERVAL_MS', 60_000, 10_000),
     wordPepper: required('TRAINEE_WORD_PEPPER'),
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
+    mintQuoteTtlSeconds: boundedInteger('MINT_QUOTE_TTL_SECONDS', 45, 10, 120),
+    mintQuoteMarketMaxAgeMs: boundedInteger('MINT_QUOTE_MARKET_MAX_AGE_MS', 15_000, 1_000, 60_000),
+    mintQuoteMaxPriceImpactPct: boundedNumber('MINT_QUOTE_MAX_PRICE_IMPACT_PCT', 3, 0, 25),
+    mintQuoteMaxPriceDivergencePct: boundedNumber('MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT', 10, 0, 50),
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
     trustProxy: process.env.TRUST_PROXY === 'true',
     jupiterApiKey: optional('JUPITER_API_KEY'),

@@ -3,6 +3,7 @@ use anchor_lang::{prelude::*, solana_program::instruction::Instruction};
 use crate::TaxiError;
 
 const DOMAIN: &[u8] = b"TAXI_TRAINEE_V1";
+const MINT_QUOTE_DOMAIN: &[u8] = b"TAXI_MINT_QUOTE_V1";
 const OFFSETS_START: usize = 2;
 const OFFSETS_LEN: usize = 14;
 const SIGNATURE_LEN: usize = 64;
@@ -18,6 +19,36 @@ pub struct ActivateTraineeArgs {
     pub active_from: i64,
     pub active_until: i64,
     pub page_index: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MintQuoteArgs {
+    pub amount_fare_raw: u64,
+    pub price_usd_cents: u64,
+    pub expires_at: i64,
+}
+
+pub fn mint_quote_message(
+    program_id: &Pubkey,
+    deployment_id: &[u8; 32],
+    owner: &Pubkey,
+    asset: &Pubkey,
+    class: u8,
+    fare_mint: &Pubkey,
+    quote: &MintQuoteArgs,
+) -> Vec<u8> {
+    let mut result = Vec::with_capacity(MINT_QUOTE_DOMAIN.len() + 32 * 5 + 1 + 8 * 3);
+    result.extend_from_slice(MINT_QUOTE_DOMAIN);
+    result.extend_from_slice(program_id.as_ref());
+    result.extend_from_slice(deployment_id);
+    result.extend_from_slice(owner.as_ref());
+    result.extend_from_slice(asset.as_ref());
+    result.push(class);
+    result.extend_from_slice(fare_mint.as_ref());
+    result.extend_from_slice(&quote.amount_fare_raw.to_le_bytes());
+    result.extend_from_slice(&quote.price_usd_cents.to_le_bytes());
+    result.extend_from_slice(&quote.expires_at.to_le_bytes());
+    result
 }
 
 pub fn message(
@@ -120,6 +151,28 @@ fn read_u16(data: &[u8], offset: usize) -> Result<u16> {
 mod tests {
     use super::*;
 
+    fn inline_instruction(signer: &Pubkey, message: &[u8]) -> Instruction {
+        let public_key_offset = 16_u16;
+        let signature_offset = public_key_offset + PUBLIC_KEY_LEN as u16;
+        let message_offset = signature_offset + SIGNATURE_LEN as u16;
+        let mut data = vec![1, 0];
+        for value in [
+            signature_offset,
+            u16::MAX,
+            public_key_offset,
+            u16::MAX,
+            message_offset,
+            message.len() as u16,
+            u16::MAX,
+        ] {
+            data.extend_from_slice(&value.to_le_bytes());
+        }
+        data.extend_from_slice(signer.as_ref());
+        data.extend_from_slice(&[7; SIGNATURE_LEN]);
+        data.extend_from_slice(message);
+        Instruction { program_id: ED25519_PROGRAM_ID, accounts: vec![], data }
+    }
+
     #[test]
     fn accepts_one_inline_ed25519_verification() {
         let signer = Pubkey::new_unique();
@@ -166,5 +219,44 @@ mod tests {
             data,
         };
         assert!(verify_ed25519_instruction(&ix, &signer, &[1]).is_err());
+    }
+
+    #[test]
+    fn mint_quote_message_binds_every_payment_field() {
+        let program = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let asset = Pubkey::new_unique();
+        let mint = Pubkey::new_unique();
+        let deployment = [9_u8; 32];
+        let quote = MintQuoteArgs {
+            amount_fare_raw: 123,
+            price_usd_cents: 5_000,
+            expires_at: 456,
+        };
+        let message = mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &quote);
+        assert!(message.starts_with(MINT_QUOTE_DOMAIN));
+        assert!(message.windows(32).any(|value| value == owner.as_ref()));
+        assert!(message.windows(32).any(|value| value == asset.as_ref()));
+        assert!(message.windows(32).any(|value| value == mint.as_ref()));
+        let mut changed = quote;
+        changed.amount_fare_raw += 1;
+        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &changed));
+        assert_ne!(message, mint_quote_message(&program, &deployment, &owner, &asset, 1, &mint, &quote));
+
+        let signer = Pubkey::new_unique();
+        let instruction = inline_instruction(&signer, &message);
+        verify_ed25519_instruction(&instruction, &signer, &message).unwrap();
+        assert!(verify_ed25519_instruction(&instruction, &Pubkey::new_unique(), &message).is_err());
+        for changed_message in [
+            mint_quote_message(&program, &deployment, &Pubkey::new_unique(), &asset, 2, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &Pubkey::new_unique(), 2, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 1, &mint, &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 2, &Pubkey::new_unique(), &quote),
+            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &changed),
+            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &MintQuoteArgs { price_usd_cents: 4_999, ..quote }),
+            mint_quote_message(&program, &deployment, &owner, &asset, 2, &mint, &MintQuoteArgs { expires_at: 455, ..quote }),
+        ] {
+            assert!(verify_ed25519_instruction(&instruction, &signer, &changed_message).is_err());
+        }
     }
 }

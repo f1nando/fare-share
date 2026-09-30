@@ -116,7 +116,7 @@ export async function createFeeAdminService(
     if (current.saleStarted && String(current.fareMint) !== String(mint)) {
       throw new FeeAdminError(`The sale has started and $FARE is locked as ${current.fareMint}. Use a paused migration instead of direct replacement.`, 409);
     }
-    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), creator: curve.creator, complete: curve.complete, feeMode };
+    return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), decimals: mintAccount.data[44], creator: curve.creator, complete: curve.complete, feeMode };
   }
 
   async function feeSnapshot(mint?: Address) {
@@ -372,6 +372,22 @@ export async function createFeeAdminService(
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker, unchanged: false };
+    },
+    async setMintPrices(rawPrices: unknown) {
+      if (!Array.isArray(rawPrices) || rawPrices.length !== 4) throw new FeeAdminError('Four USD prices are required.');
+      const prices = rawPrices.map((value, index) => {
+        const dollars = Number(value);
+        const cents = Math.round(dollars * 100);
+        if (!Number.isFinite(dollars) || dollars <= 0 || !Number.isSafeInteger(cents)) throw new FeeAdminError(`Class ${index + 1} price is invalid.`);
+        return BigInt(cents);
+      }) as [bigint, bigint, bigint, bigint];
+      if (prices[0] !== 5_000n) throw new FeeAdminError('Economy must cost exactly $50.');
+      const current = await configuredState();
+      if (current.saleStarted) throw new FeeAdminError('Mint prices are locked after the sale starts.', 409);
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [
+        buildSimpleAdminInstruction(config.programId, admin.address, addresses.config, { name: 'set-mint-prices', prices }),
+      ]));
+      return { signature, mintPricesUsdCents: prices.map(String) };
     },
     async setTeamAccount(rawTeamAccount: unknown) {
       if (typeof rawTeamAccount !== 'string') throw new FeeAdminError('Team wallet is required.');

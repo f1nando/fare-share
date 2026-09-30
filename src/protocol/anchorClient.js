@@ -273,8 +273,10 @@ export async function buildMintMachine({
   pageIndex,
   fareTokenProgram,
   teamFareAccountExists = false,
+  assetSigner,
+  quote,
 }) {
-  const assetSigner = await generateKeyPairSigner();
+  if (!assetSigner) throw new Error('The mint asset signer must be created before requesting a quote.');
   const payer = createNoopSigner(address(owner));
   const machine = (await deriveTaxiAddresses(programAddress, assetSigner.address)).machine;
   const eventPage = await deriveEventPage(programAddress, pageIndex);
@@ -282,7 +284,22 @@ export async function buildMintMachine({
   const tokenProgram = address(fareTokenProgram);
   const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
   const [teamFareAccount] = await findAssociatedTokenPda({ owner: config.teamAccount, mint: fareMint, tokenProgram });
-  const data = concatBytes(TAXI_DISCRIMINATORS.mintMachine, Uint8Array.of(classIndex, pageIndex));
+  if (String(quote.owner) !== String(owner)
+    || String(quote.asset) !== String(assetSigner.address)
+    || String(quote.fareMint) !== String(fareMint)
+    || Number(quote.classIndex) !== classIndex) {
+    throw new Error('The backend returned a quote for different mint accounts.');
+  }
+  const amountFareRaw = BigInt(quote.amountFareRaw);
+  const priceUsdCents = BigInt(quote.priceUsdCents);
+  const expiresAt = BigInt(quote.expiresAt);
+  const data = concatBytes(
+    TAXI_DISCRIMINATORS.mintMachine,
+    Uint8Array.of(classIndex, pageIndex),
+    u64Bytes(amountFareRaw),
+    u64Bytes(priceUsdCents),
+    i64Bytes(expiresAt),
+  );
   const instruction = {
     programAddress,
     accounts: [
@@ -297,22 +314,54 @@ export async function buildMintMachine({
       meta(ownerFareAccount, AccountRole.WRITABLE),
       meta(teamFareAccount, AccountRole.WRITABLE),
       meta(tokenProgram, AccountRole.READONLY),
+      meta(INSTRUCTIONS_SYSVAR, AccountRole.READONLY),
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
     data,
   };
-  const instructions = teamFareAccountExists ? [instruction] : [
-    getCreateAssociatedTokenIdempotentInstruction({
+  const ed25519Instruction = buildInlineEd25519Instruction(quote);
+  const instructions = [
+    ...(!teamFareAccountExists ? [getCreateAssociatedTokenIdempotentInstruction({
       payer,
       ata: teamFareAccount,
       owner: config.teamAccount,
       mint: fareMint,
       tokenProgram,
-    }),
+    })] : []),
+    ed25519Instruction,
     instruction,
   ];
   return { instruction, instructions, assetSigner, machine, ownerFareAccount, teamFareAccount };
+}
+
+export async function createMintAssetSigner() {
+  return generateKeyPairSigner();
+}
+
+function buildInlineEd25519Instruction(signed) {
+  const signature = base64Bytes(signed.signature);
+  const message = base64Bytes(signed.message);
+  const signer = addressBytes(signed.backendSigner);
+  if (signature.length !== 64 || signer.length !== 32 || message.length > 65_535) {
+    throw new Error('The backend returned an invalid mint quote signature.');
+  }
+  const publicKeyOffset = 16;
+  const signatureOffset = publicKeyOffset + 32;
+  const messageOffset = signatureOffset + 64;
+  return {
+    programAddress: ED25519_PROGRAM,
+    accounts: [],
+    data: concatBytes(
+      Uint8Array.of(1, 0),
+      u16Bytes(signatureOffset), u16Bytes(65_535),
+      u16Bytes(publicKeyOffset), u16Bytes(65_535),
+      u16Bytes(messageOffset), u16Bytes(message.length), u16Bytes(65_535),
+      signer,
+      signature,
+      message,
+    ),
+  };
 }
 
 export async function buildClaimInstructions({

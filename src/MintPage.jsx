@@ -9,6 +9,7 @@ import {
   loadOwnedTrainees,
   loadProtocolStatus,
   mintMachine,
+  prepareMintQuote,
 } from './protocol/solana.js';
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
@@ -22,6 +23,10 @@ const MINT_CLASSES = [
   ...item,
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
 }));
+
+function formatUsdCents(cents) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(cents) / 100);
+}
 
 function previewReducer(state, action) {
   if (action.type === 'select-class') {
@@ -58,6 +63,8 @@ export function MintPage({ wallet, connectWallet }) {
   const [notice, setNotice] = useState('Loading live Solana mint state…');
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
+  const [preparedMint, setPreparedMint] = useState(null);
+  const [quoteError, setQuoteError] = useState('');
   const [trainees, setTrainees] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [traineeBusy, setTraineeBusy] = useState('');
@@ -73,10 +80,11 @@ export function MintPage({ wallet, connectWallet }) {
   const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
   const selectedMinted = mintedByClass[selectedClassIndex];
   const remaining = Math.max(0, selectedClass.supply - selectedMinted);
-  const priceFareRaw = databaseMint?.pricesFareRaw?.[selectedClassIndex] ? BigInt(databaseMint.pricesFareRaw[selectedClassIndex]) : 0n;
+  const priceUsdCents = databaseMint?.mintPricesUsdCents?.[selectedClassIndex] ? BigInt(databaseMint.mintPricesUsdCents[selectedClassIndex]) : 0n;
   const fareDecimals = Number(databaseMint?.fareDecimals ?? 0);
   const fareTicker = ticker || 'FARE';
   const paused = Boolean(databaseMint?.paused);
+  const hasQuotedBalance = !preparedMint || preparedMint.ownerFareBalance >= BigInt(preparedMint.quote.amountFareRaw) * BigInt(quantity);
 
   useEffect(() => {
     let active = true;
@@ -94,6 +102,30 @@ export function MintPage({ wallet, connectWallet }) {
   useEffect(() => {
     setQuantity(value => Math.max(1, Math.min(value, Math.max(1, remaining))));
   }, [remaining, selectedClassIndex]);
+
+  useEffect(() => {
+    if (!wallet || !status?.deployed || paused || remaining === 0) {
+      setPreparedMint(null);
+      return undefined;
+    }
+    let active = true;
+    let timer;
+    const refresh = () => prepareMintQuote(wallet, selectedClassIndex, status)
+      .then(value => {
+        if (!active) return;
+        setPreparedMint(value);
+        setQuoteError('');
+        const refreshMs = Math.max(1_000, Number(BigInt(value.quote.expiresAt) * 1_000n - BigInt(Date.now()) - 5_000n));
+        timer = window.setTimeout(refresh, refreshMs);
+      })
+      .catch(error => {
+        if (!active) return;
+        setPreparedMint(null);
+        setQuoteError(error.message || 'A safe FARE quote is unavailable.');
+      });
+    refresh();
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [wallet, status?.deployed, status?.config?.fareMint, selectedClassIndex, paused, remaining]);
 
   useEffect(() => {
     if (!wallet || !status?.deployed) {
@@ -125,7 +157,7 @@ export function MintPage({ wallet, connectWallet }) {
       const connection = wallet || await connectWallet();
       let currentStatus = status;
       for (let index = 0; index < quantity; index += 1) {
-        const result = await mintMachine(connection, selectedClassIndex, currentStatus);
+        const result = await mintMachine(connection, selectedClassIndex, currentStatus, index === 0 ? preparedMint : null);
         lastSignature = result.signature;
         mintedCount += 1;
         setSignature(lastSignature);
@@ -137,6 +169,7 @@ export function MintPage({ wallet, connectWallet }) {
         setDatabaseMint((await loadPublicOverview()).mint);
         currentStatus = await loadProtocolStatus();
         setStatus(currentStatus);
+        setPreparedMint(null);
       }
       setSignature(lastSignature);
       setNotice(`${quantity} ${selectedClass.name} taxi${quantity === 1 ? '' : 's'} minted. The onchain serial selects the variant automatically.`);
@@ -314,18 +347,22 @@ export function MintPage({ wallet, connectWallet }) {
 
               <div className="fare-mint-summary">
                 <div><span>Class</span><strong>{selectedClass.name}</strong></div>
-                <div><span>Mint price</span><strong>{databaseMint ? `${formatTokenAmount(priceFareRaw, fareDecimals)} $${fareTicker}` : '—'}</strong></div>
+                <div><span>Mint price</span><strong>{databaseMint ? formatUsdCents(priceUsdCents) : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
-                <div className="is-total"><span>Total</span><strong>{databaseMint ? `${formatTokenAmount(priceFareRaw * BigInt(quantity), fareDecimals)} $${fareTicker}` : '—'}</strong></div>
+                <div className="is-total"><span>Total</span><strong>{databaseMint ? formatUsdCents(priceUsdCents * BigInt(quantity)) : '—'}</strong></div>
               </div>
+
+              {preparedMint && <p className="fare-mint-note">≈ {formatTokenAmount(BigInt(preparedMint.quote.amountFareRaw), fareDecimals)} ${fareTicker} per taxi · quote expires in {Math.max(0, Number(BigInt(preparedMint.quote.expiresAt) - BigInt(Math.floor(Date.now() / 1000))))}s<br />Balance: {formatTokenAmount(preparedMint.ownerFareBalance, fareDecimals)} ${fareTicker}</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-garage-notice" role="status">Your ${fareTicker} balance is too low. Get ${fareTicker} on the Trade page before minting.</p>}
+              {quoteError && <p className="fare-garage-notice" role="status">{quoteError}</p>}
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
               {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
-              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0} onClick={handleMint}>
+              <button className="fare-mint-submit" type="button" disabled={busy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && (!preparedMint || !hasQuotedBalance))} onClick={handleMint}>
                 <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>
-              <p className="fare-mint-note">The full mint payment is sent in ${fareTicker} to the team wallet. You also pay the Solana network fee and account rent.</p>
+              <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for network fees and account rent. Need ${fareTicker}? Use the Trade page before minting.</p>
             </div>
           </div>
 

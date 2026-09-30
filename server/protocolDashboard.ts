@@ -59,7 +59,7 @@ export async function loadProtocolDashboard(
       teamWalletMinimumLamports: teamWallet.minimumLamports.toString(),
       teamWalletReady: teamWallet.ready,
       fareMint: String(configuration.fareMint),
-      mintPrices: configuration.mintPrices.map(String),
+      mintPricesUsdCents: configuration.mintPrices.map(String),
       mintedByClass: configuration.mintedByClass,
       machineCount: machines.length,
     },

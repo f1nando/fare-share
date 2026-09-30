@@ -18,9 +18,11 @@ pub mod voucher;
 pub use error::*;
 pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
-pub use voucher::ActivateTraineeArgs;
+pub use voucher::{ActivateTraineeArgs, MintQuoteArgs};
 
 declare_id!("GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4");
+
+const ECONOMY_PRICE_USD_CENTS: u64 = 5_000;
 
 #[program]
 pub mod taxi_park {
@@ -97,7 +99,7 @@ pub mod taxi_park {
             TaxiError::SaleAlreadyStarted
         );
         require!(
-            prices.iter().all(|price| *price > 0),
+            prices.iter().all(|price| *price > 0) && prices[0] == ECONOMY_PRICE_USD_CENTS,
             TaxiError::InvalidPrice
         );
         ctx.accounts.config.mint_prices = prices;
@@ -175,7 +177,8 @@ pub mod taxi_park {
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
         require_fare_ready(config.fare_mint)?;
         require!(
-            config.mint_prices.iter().all(|price| *price > 0),
+            config.mint_prices.iter().all(|price| *price > 0)
+                && config.mint_prices[0] == ECONOMY_PRICE_USD_CENTS,
             TaxiError::InvalidPrice
         );
         require!(
@@ -815,7 +818,12 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn mint_machine(ctx: Context<MintMachine>, class: u8, page_index: u8) -> Result<()> {
+    pub fn mint_machine(
+        ctx: Context<MintMachine>,
+        class: u8,
+        page_index: u8,
+        quote: MintQuoteArgs,
+    ) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(ctx.accounts.config.sale_started, TaxiError::SaleNotStarted);
         require!(
@@ -830,7 +838,29 @@ pub mod taxi_park {
         let class_index = usize::from(class);
         let (weight, cap) = class_terms(class)?;
         let minted = ctx.accounts.config.minted_by_class[class_index];
-        let price = ctx.accounts.config.mint_prices[class_index];
+        let price_usd_cents = ctx.accounts.config.mint_prices[class_index];
+        validate_mint_quote(price_usd_cents, &quote, Clock::get()?.unix_timestamp)?;
+        let current_index = load_current_index_checked(&ctx.accounts.instructions)?;
+        require!(current_index > 0, TaxiError::InvalidMintQuoteSignature);
+        let expected_message = voucher::mint_quote_message(
+            &crate::ID,
+            &ctx.accounts.config.deployment_id,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.asset.key(),
+            class,
+            &ctx.accounts.config.fare_mint,
+            &quote,
+        );
+        let signature_instruction = load_instruction_at_checked(
+            usize::from(current_index - 1),
+            &ctx.accounts.instructions,
+        )?;
+        voucher::verify_ed25519_instruction(
+            &signature_instruction,
+            &ctx.accounts.config.backend_signer,
+            &expected_message,
+        )
+        .map_err(|_| error!(TaxiError::InvalidMintQuoteSignature))?;
         let (serial, variant) = next_mint_selection(minted, cap)?;
         let name = format!("FARE {} #{:04}", class_name(class)?, serial);
         let uri = ctx
@@ -848,6 +878,7 @@ pub mod taxi_park {
             &ctx.accounts.owner_fare_account,
             &ctx.accounts.fare_token_program.key(),
         )?;
+        validate_source_balance(owner_fare.amount, quote.amount_fare_raw)?;
         let team_fare = token::account_view(
             &ctx.accounts.team_fare_account,
             &ctx.accounts.fare_token_program.key(),
@@ -870,7 +901,7 @@ pub mod taxi_park {
                 destination: &ctx.accounts.team_fare_account,
                 authority: &ctx.accounts.owner.to_account_info(),
             },
-            price,
+            quote.amount_fare_raw,
             fare_mint.decimals,
             &[],
         )?;
@@ -930,7 +961,9 @@ pub mod taxi_park {
             serial,
             weight,
             active_until: ctx.accounts.machine.active_until,
-            paid_fare_raw: price,
+            fare_mint: ctx.accounts.config.fare_mint,
+            paid_fare_raw: quote.amount_fare_raw,
+            price_usd_cents,
         });
         Ok(())
     }
@@ -1947,7 +1980,7 @@ pub struct ProcessStockSwap<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(class: u8, page_index: u8)]
+#[instruction(class: u8, page_index: u8, quote: MintQuoteArgs)]
 pub struct MintMachine<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -1992,6 +2025,9 @@ pub struct MintMachine<'info> {
     pub team_fare_account: UncheckedAccount<'info>,
     /// CHECK: Must be the supported Token Program that owns fare_mint and both token accounts.
     pub fare_token_program: UncheckedAccount<'info>,
+    /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding Ed25519 verification.
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,
@@ -2311,6 +2347,18 @@ fn validate_mint_payment_accounts(
     Ok(())
 }
 
+fn validate_mint_quote(expected_price_usd_cents: u64, quote: &MintQuoteArgs, now: i64) -> Result<()> {
+    require!(quote.amount_fare_raw > 0, TaxiError::InvalidMintQuote);
+    require!(quote.price_usd_cents == expected_price_usd_cents, TaxiError::InvalidMintQuote);
+    require!(quote.expires_at >= now, TaxiError::MintQuoteExpired);
+    Ok(())
+}
+
+fn validate_source_balance(balance: u64, required: u64) -> Result<()> {
+    require!(balance >= required, TaxiError::InsufficientTokenBalance);
+    Ok(())
+}
+
 fn require_fare_ready(fare_mint: Pubkey) -> Result<()> {
     require!(fare_mint != Pubkey::default(), TaxiError::FareMintNotSet);
     Ok(())
@@ -2576,6 +2624,17 @@ mod accounting_tests {
     }
 
     #[test]
+    fn mint_quote_requires_current_price_positive_amount_and_live_expiry() {
+        let quote = MintQuoteArgs { amount_fare_raw: 100, price_usd_cents: 5_000, expires_at: 1_045 };
+        assert!(validate_mint_quote(5_000, &quote, 1_000).is_ok());
+        assert!(validate_mint_quote(4_999, &quote, 1_000).is_err());
+        assert!(validate_mint_quote(5_000, &MintQuoteArgs { amount_fare_raw: 0, ..quote }, 1_000).is_err());
+        assert!(validate_mint_quote(5_000, &quote, 1_046).is_err());
+        assert!(validate_source_balance(100, 100).is_ok());
+        assert!(validate_source_balance(99, 100).is_err());
+    }
+
+    #[test]
     fn variants_are_bounded_balanced_and_use_class_scoped_uris() {
         let metadata_uris = std::array::from_fn(|index| format!("uri-{index}"));
         let config = Configuration {
@@ -2649,7 +2708,9 @@ mod accounting_tests {
             serial: 17,
             weight: 10,
             active_until: 42,
+            fare_mint: Pubkey::new_unique(),
             paid_fare_raw: 99,
+            price_usd_cents: 5_000,
         };
         let bytes = event.try_to_vec().unwrap();
         assert_eq!(bytes[64], 2);
@@ -2968,7 +3029,9 @@ pub struct MachineMinted {
     pub serial: u16,
     pub weight: u16,
     pub active_until: i64,
+    pub fare_mint: Pubkey,
     pub paid_fare_raw: u64,
+    pub price_usd_cents: u64,
 }
 
 #[event]

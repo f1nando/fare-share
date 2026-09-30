@@ -18,14 +18,16 @@ test('public overview aggregates the bounded leaderboard once during synchroniza
     weight: index === 104 ? 30 : 1,
     classIndex: index === 104 ? 3 : 0,
   }));
-  const overview = buildPublicOverview(snapshot(), machines);
+  const overview = buildPublicOverview(snapshot(), machines, 'FARE');
   assert.equal(overview.stats.mintedCars, 105);
   assert.equal(overview.stats.uniqueOwners, 105);
   assert.equal(overview.leaders.length, 100);
   assert.equal(overview.leaders[0].owner, 'owner-104');
   assert.deepEqual(overview.classCounts, [104, 0, 0, 1]);
-  assert.deepEqual(overview.mint.pricesFareRaw, ['1', '2', '3', '4']);
+  assert.deepEqual(overview.mint.mintPricesUsdCents, ['1', '2', '3', '4']);
   assert.equal(overview.mint.fareDecimals, 6);
+  assert.equal(overview.mint.fareMint, 'fare-mint');
+  assert.equal(overview.mint.fareTicker, 'FARE');
 });
 
 test('public read endpoints use MongoDB snapshots without starting an on-chain sync', async () => {
@@ -85,7 +87,7 @@ test('earning history expires after a 45-day safety window', async () => {
 
 function snapshot() {
   return {
-    protocol: { mintPrices: ['1', '2', '3', '4'], mintedByClass: [1, 0, 0, 0], paused: false, saleStarted: true },
+    protocol: { fareMint: 'fare-mint', mintPricesUsdCents: ['1', '2', '3', '4'], mintedByClass: [1, 0, 0, 0], paused: false, saleStarted: true },
     distribution: { activeWeight: '1', protocolNow: '100', assets: [{ symbol: 'FARE', decimals: 6 }] },
     vaults: { solLamports: '20', tokens: [{ amount: '10' }] },
     observedAt: new Date('2026-09-30T10:00:00.000Z'),

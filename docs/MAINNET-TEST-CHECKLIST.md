@@ -41,6 +41,10 @@
 
 ### Gate 3 — конфигурация и preflight
 
+- [ ] Для нового поколения задать `MINT_PRICES_USD_CENTS` с Economy `5000`, проверить backend signer и 45-секундный mint quote TTL.
+- [ ] Подтвердить live `$FARE → USDC` либо fallback `$FARE → SOL → USD` routes, допустимый price impact и отказ при stale/divergent данных.
+- [ ] Smoke mint должен иметь порядок `team ATA (optional) → Ed25519 → mint_machine`, точный перевод 100% `$FARE` в team ATA и обычный transferable Core Asset для Magic Eden.
+
 - [x] Создать отдельный некоммитимый target `.env` для `mainnet-test-rc` и завершить `protocol:preflight`: PASS с ожидаемыми warnings о позднем FARE CA и общем Helius RPC/DAS endpoint; `getGenesisHash` и `getAssetsByOwner` проверены.
 - [x] Подтвердить mainnet genesis отдельно для server RPC, browser RPC и DAS; test-конфигурация использует один Helius mainnet endpoint.
 - [x] Использовать отдельный test-mainnet MongoDB database name `taxi_park_mainnet_test`, локальный backend URL и allowed origin.

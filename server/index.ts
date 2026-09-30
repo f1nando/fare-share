@@ -11,10 +11,12 @@ import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from '
 import { createPublicDataService, PublicDataError } from './publicData.js';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
 import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
+import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
 const issueVoucher = createVoucherService(config, database);
+const issueMintQuote = createMintQuoteService(config);
 let publicToken: PublicTokenConfig = await loadPublicTokenConfig(config.solanaRpcUrl, config.programId, database.tokenConfig)
   .catch(error => {
     console.warn(`Public token configuration is unavailable: ${error instanceof Error ? error.message : String(error)}`);
@@ -137,7 +139,11 @@ const server = createServer(async (request, response) => {
       const body = asRecord(await readJson(request));
       const inspected = await services.fees.inspectMint(body.ca);
       const ticker = normalizeAdminTicker(body.ticker);
-      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, ready: true });
+      const [market, metadata] = await Promise.all([
+        loadMintMarketPreview(config, inspected.mint, inspected.decimals, body.pricesUsd),
+        loadMintMetadata(config.solanaRpcUrl, inspected.mint),
+      ]);
+      json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, decimals: inspected.decimals, tokenProgram: String(inspected.tokenProgram), metadata, market, ready: true });
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/bind') {
@@ -193,6 +199,18 @@ const server = createServer(async (request, response) => {
         ? forwarded[0]
         : forwarded?.split(',')[0]?.trim() || request.socket.remoteAddress || 'unknown';
       json(response, 200, await issueVoucher(body, remote));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/prices') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.setMintPrices(body.pricesUsd));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/mint/quote') {
+      requirePublicOrigin(request);
+      json(response, 200, await issueMintQuote(await readJson(request)));
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
@@ -307,7 +325,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }

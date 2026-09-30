@@ -148,6 +148,14 @@ test('durability uses finalized Solana time and freezes during pause', () => {
 test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
   const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
   const [owner, configAddress, queue, fareMint, teamAccount] = signers.map(signer => signer.address);
+  const assetSigner = await generateKeyPairSigner();
+  const quote = {
+    owner, asset: assetSigner.address, fareMint, classIndex: 2,
+    amountFareRaw: '123456', priceUsdCents: '30000', expiresAt: '2000000000',
+    backendSigner: teamAccount,
+    signature: Buffer.alloc(64, 7).toString('base64'),
+    message: Buffer.alloc(203, 9).toString('base64'),
+  };
   const collection = address('11111111111111111111111111111111');
   const result = await buildMintMachine({
     programAddress: PROGRAM_ID,
@@ -158,10 +166,14 @@ test('mint instruction accepts only class and queue page, never a client-selecte
     classIndex: 2,
     pageIndex: 7,
     fareTokenProgram: TOKEN_PROGRAM,
+    assetSigner,
+    quote,
   });
-  assert.deepEqual([...result.instruction.data], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
-  assert.equal(result.instructions.length, 2);
-  assert.equal(result.instruction.accounts.length, 13);
+  assert.deepEqual([...result.instruction.data.slice(0, 10)], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
+  assert.equal(result.instructions.length, 3);
+  assert.equal(String(result.instructions.at(-2).programAddress), 'Ed25519SigVerify111111111111111111111111111');
+  assert.equal(result.instructions.at(-1), result.instruction);
+  assert.equal(result.instruction.accounts.length, 14);
   const [expectedOwnerFare] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
   const [expectedTeamFare] = await findAssociatedTokenPda({ owner: teamAccount, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
   assert.equal(String(result.instruction.accounts[7].address), String(fareMint));
@@ -192,8 +204,10 @@ test('mint instruction accepts only class and queue page, never a client-selecte
     pageIndex: 7,
     fareTokenProgram: TOKEN_PROGRAM,
     teamFareAccountExists: true,
+    assetSigner,
+    quote,
   });
-  assert.equal(existingTeamAta.instructions.length, 1);
+  assert.equal(existingTeamAta.instructions.length, 2);
 });
 
 test('configuration decoder reads all 16 metadata URIs in class and variant order', () => {
@@ -240,7 +254,7 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
 });
 
-test('SOL fees and raw FARE mint prices use their own decimals', () => {
+test('SOL fees and token estimates use their own decimals', () => {
   assert.equal(formatSolAmount(49_000_000n), '0.049');
   assert.equal(formatSolAmount(1_000_000_001n), '1.000000001');
   assert.equal(formatTokenAmount(3_500_000n, 6).replace(',', '.'), '3.5');

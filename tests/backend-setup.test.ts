@@ -30,7 +30,7 @@ test('initialize instruction matches Anchor account and field order', async () =
     collectionName: 'Taxi Park',
     collectionUri: 'https://example.test/collection.json',
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
-    mintPricesFareRaw: [49n, 129n, 399n, 1099n],
+    mintPricesUsdCents: [5000n, 12900n, 39900n, 109900n],
     metadataUris: Array.from({ length: 16 }, (_, index) => `uri-${index}`),
   };
   const collection = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
@@ -59,7 +59,7 @@ test('initialize instruction matches Anchor account and field order', async () =
   offset += 32 * 4;
   assert.deepEqual(
     [0, 1, 2, 3].map(index => data.readBigUInt64LE(offset + (index * 8))),
-    [49n, 129n, 399n, 1099n],
+    [5000n, 12900n, 39900n, 109900n],
   );
   offset += 8 * 4;
   assert.equal(offset, data.length);

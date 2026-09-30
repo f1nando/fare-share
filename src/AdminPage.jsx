@@ -17,12 +17,15 @@ export function AdminPage() {
   const [notice, setNotice] = useState('');
   const [machineQuery, setMachineQuery] = useState('');
   const [teamAccount, setTeamAccount] = useState('');
+  const [mintPricesUsd, setMintPricesUsd] = useState(['50', '', '', '']);
+  const [inspectedMint, setInspectedMint] = useState(null);
   const [rescueRecipient, setRescueRecipient] = useState('');
   const [rescueConfirmation, setRescueConfirmation] = useState('');
   const [migrationConfirmation, setMigrationConfirmation] = useState('');
   const [campaigns, setCampaigns] = useState([]);
   const [codeWord, setCodeWord] = useState('');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
+  const pricesInitialized = useRef(false);
   const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
   const selectedCa = fareLocked ? status?.mint || '' : ca || status?.mint || '';
 
@@ -34,6 +37,11 @@ export function AdminPage() {
         request('/api/admin/trainee-campaigns'),
       ]);
       setStatus(next);
+      const cents = next.dashboard?.protocol?.mintPricesUsdCents;
+      if (!pricesInitialized.current && Array.isArray(cents) && cents.length === 4) {
+        setMintPricesUsd(cents.map(value => (Number(value) / 100).toFixed(2)));
+        pricesInitialized.current = true;
+      }
       setCampaigns(trainee.campaigns);
       setError('');
     } catch (reason) {
@@ -63,11 +71,12 @@ export function AdminPage() {
 
   async function inspect() {
     await action('inspect', async () => {
-      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca: selectedCa, ticker }, csrf });
+      const result = await request('/api/admin/mint/inspect', { method: 'POST', body: { ca: selectedCa, ticker, pricesUsd: mintPricesUsd }, csrf });
       setVerifiedCa(result.mint);
       setVerifiedTicker(result.ticker);
+      setInspectedMint(result);
       setTicker(result.ticker);
-      setNotice(`CA and ticker $${result.ticker} verified. Creator, Pump curve, SOL quote, and fee mode are valid.`);
+      setNotice(`CA and ticker $${result.ticker} verified. ${result.decimals} decimals, market price $${result.market.usdPrice}, liquidity ${result.market.liquidity}.`);
     });
   }
 
@@ -101,6 +110,15 @@ export function AdminPage() {
       const result = await request('/api/admin/team', { method: 'POST', body: { teamAccount: selected }, csrf });
       setTeamAccount('');
       setNotice(result.unchanged ? 'This wallet is already the active team recipient.' : `Team wallet updated on-chain. ${result.signature}`);
+      await refresh();
+    });
+  }
+
+  async function updateMintPrices() {
+    if (!window.confirm(`Save class targets at ${mintPricesUsd.map(value => `$${value}`).join(' / ')}? These values lock after the sale starts.`)) return;
+    await action('mint-prices', async () => {
+      const result = await request('/api/admin/mint/prices', { method: 'POST', body: { pricesUsd: mintPricesUsd }, csrf });
+      setNotice(`USD mint prices updated on-chain. ${result.signature}`);
       await refresh();
     });
   }
@@ -187,6 +205,7 @@ export function AdminPage() {
           <label>Ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="For example, FARE" maxLength="10" /></label>
           <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Verify</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Bind CA and ticker</button></div>
         </>}{status.mint && !fareLocked && <><label>Replacement contract address<input className="mono" value={selectedCa} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste a new CA" /></label><label>Replacement ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder={status.ticker || 'FARE'} maxLength="10" /></label><div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || selectedCa === status.mint || busy === 'inspect'}>Verify replacement</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Replace CA</button></div></>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations use this wallet, and NFT mint payments go to its canonical token account for the configured CA. Previous transfers are not moved.</p><TeamWalletWarning protocol={status.dashboard?.protocol} /><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
+        <MintPricingSettings prices={mintPricesUsd} setPrices={setMintPricesUsd} inspected={inspectedMint} locked={fareLocked} busy={busy} save={updateMintPrices} />
         <div className="admin-card"><p className="eyebrow">OPERATIONS</p><h2>Claim and distribution</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Claiming…' : 'Claim fees'}</button>
           <form onSubmit={deposit}><label>Send to contract, SOL<input inputMode="decimal" value={amount} onChange={event => { setAmount(event.target.value); clearOperationId(operationIds, 'deposit'); }} placeholder="0.000000000" /></label><button className="wide" disabled={!status.mint || !amount || busy === 'deposit'}>{busy === 'deposit' ? 'Sending…' : 'Send fees to contract'}</button></form>
@@ -205,6 +224,13 @@ export function AdminPage() {
 }
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
+function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
+  return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>USD class targets</h2><p className="muted">Economy is fixed at $50. Final FARE amounts use live liquidity immediately before minting.</p>
+    <div className="button-row">{['Economy', 'Comfort', 'Business', 'Legend'].map((name, index) => <label key={name}>{name}<input type="number" min="0.01" step="0.01" value={prices[index]} disabled={locked || index === 0} onChange={event => setPrices(values => values.map((value, valueIndex) => valueIndex === index ? event.target.value : value))} /></label>)}</div>
+    {inspected && <><p className="muted">{inspected.metadata.name || 'Token metadata unavailable'}{inspected.metadata.symbol ? ` ($${inspected.metadata.symbol})` : ''} · {inspected.decimals} decimals<br />{inspected.tokenProgram}<br />Market: ${inspected.market.usdPrice} · liquidity {inspected.market.liquidity}<br />Examples: {inspected.market.examples.map(item => `${Number(item.amountFareRaw) / 10 ** inspected.decimals} tokens`).join(' / ')}</p>{inspected.metadata.image && <img src={inspected.metadata.image} alt={`${inspected.metadata.name || inspected.ticker} token`} width="96" height="96" />}</>}
+    <button className="wide" onClick={save} disabled={locked || prices.some(value => !value) || busy === 'mint-prices'}>{locked ? 'Prices locked after sale start' : 'Review and save USD prices'}</button>
+  </div>;
+}
 function TeamWalletWarning({ protocol }) {
   if (!protocol || protocol.teamWalletReady !== false) return null;
   const missing = BigInt(protocol.teamWalletMinimumLamports) - BigInt(protocol.teamWalletLamports);

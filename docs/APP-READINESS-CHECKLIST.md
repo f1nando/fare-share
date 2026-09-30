@@ -9,7 +9,7 @@
 - test token: `4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump` (`TAXI`);
 - mint prices: `1 / 3 / 10 / 30` lamports;
 - эти Program ID, Collection и token нельзя переносить в production.
-- следующая версия меняет только способ оплаты новых NFT: цена хранится в raw `$FARE`, а текущий публичный test deployment остаётся историческим SOL-вариантом до отдельного релиза.
+- следующая версия хранит USD targets и принимает динамически рассчитанный `$FARE` raw amount по короткой backend-signed quote; текущий публичный test deployment остаётся историческим SOL-вариантом до отдельного релиза.
 
 ## Обозначения
 
@@ -214,7 +214,8 @@
 - [ ] Создать новый production Program ID и сохранить recoverable upgrade-authority/buffer procedure.
 - [ ] Создать новую production Core Collection и подтвердить 16 canonical immutable metadata.
 - [ ] Создать production token с утверждёнными Pump settings и `2NUN… = 100%` fee sharing.
-- [ ] Установить реальные `MINT_PRICES_FARE_RAW` и финальный `$FARE` CA до `start_sale`; после старта изменить их нельзя.
+- [ ] Установить `MINT_PRICES_USD_CENTS` (Economy `5000`) и финальный `$FARE` CA до `start_sale`; после старта изменить их нельзя.
+- [ ] Проверить отказ mint quote при stale/no-liquidity/high-impact/divergent market data и мониторинг доступности Jupiter.
 - [ ] Проверить атомарный mint: 100% `$FARE` приходит только в canonical ATA team wallet, неправильные mint/source/destination отклоняются, burn и reward-pool пополнение отсутствуют.
 - [ ] Повторить preflight, ProgramData/authority/recovery dry-run и release manifest.
 - [ ] Выполнить минимальный production smoke до открытия публичной продажи.

@@ -16,7 +16,6 @@ import {
   repairMachine,
   repairAllMachines,
   transferMachine,
-  formatTokenAmount,
   shortAddress,
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
@@ -245,8 +244,8 @@ export function TaxiDashboard({ simple = false, background = null }) {
           {simple && <p className="mint-cost-note">Phantom will show the NFT price in ${ticker} plus SOL network fees and rent for the Metaplex Core asset, Machine account, and any missing team token account.</p>}
           <div className="class-grid">
             {CLASSES.map((item, classIndex) => {
-              const farePrice = status.deployed && status.config.fareDecimals !== null
-                ? formatTokenAmount(status.config.mintPrices[classIndex], status.config.fareDecimals)
+              const usdPrice = status.deployed
+                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(status.config.mintPrices[classIndex]) / 100)
                 : null;
               const remaining = status.deployed
                 ? item.count - Number(status.config.mintedByClass[classIndex])
@@ -255,11 +254,11 @@ export function TaxiDashboard({ simple = false, background = null }) {
                 <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
                 <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} loading="lazy" decoding="async" />
                 <dl>
-                  <div><dt>Price</dt><dd>{farePrice ? `${farePrice} $${ticker}` : item.price}</dd></div>
+                  <div><dt>Target price</dt><dd>{usdPrice || item.price}</dd></div>
                   <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>
                 </dl>
                 <button disabled={Boolean(busy) || protocolPaused || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
-                  {remaining === 0 ? 'Sold out' : farePrice ? `Buy · ${farePrice} $${ticker}` : `Buy with $${ticker}`}
+                  {remaining === 0 ? 'Sold out' : usdPrice ? `Buy · ${usdPrice} in $${ticker}` : `Buy with $${ticker}`}
                 </button>
               </article>;
             })}

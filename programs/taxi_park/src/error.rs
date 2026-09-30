@@ -112,6 +112,14 @@ pub enum TaxiError {
     InvalidTraineeTimes,
     #[msg("Trainee voucher signature is missing or invalid")]
     InvalidVoucherSignature,
+    #[msg("Mint quote has expired")]
+    MintQuoteExpired,
+    #[msg("Mint quote fields are invalid")]
+    InvalidMintQuote,
+    #[msg("Mint quote signature is missing or invalid")]
+    InvalidMintQuoteSignature,
+    #[msg("Source token account balance is insufficient")]
+    InsufficientTokenBalance,
     #[msg("Trainee bucket does not match the expected minute")]
     InvalidTraineeBucket,
     #[msg("Trainee bucket has already been processed")]
