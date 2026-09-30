@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './clientErrorLog.js';
 import { CityBackground } from './CityBackground.jsx';
 import { TaxiDashboard } from './TaxiDashboard.jsx';
 import { TokenConfigProvider } from './tokenConfig.jsx';

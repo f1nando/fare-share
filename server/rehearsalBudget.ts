@@ -108,7 +108,11 @@ export async function createRehearsalBudgetGuard(input: {
       const reservation = document?.reservations?.[reservationId];
       if (!reservation) return;
       const netDebit = await finalizedFundingWalletDebit(input.rpcUrl, signature, reservation.fundingWallet);
-      if (netDebit === undefined) return;
+      if (netDebit === undefined) {
+        const stale = Date.now() - reservation.createdAt.getTime() > 10 * 60_000;
+        if (stale && !await signatureExists(input.rpcUrl, signature)) await guard.release(reservationId);
+        return;
+      }
       const maximumDebit = BigInt(reservation.maximumDebitLamports);
       const finalizedAt = new Date();
       await input.collection.updateOne(
@@ -163,4 +167,13 @@ async function finalizedFundingWalletDebit(rpcUrl: string, signature: string, fu
   const index = keys.findIndex(key => (typeof key === 'string' ? key : key.pubkey) === fundingWallet);
   if (index < 0) throw new RehearsalBudgetError('Finalized transaction does not contain the reserved funding wallet.');
   return BigInt(transaction.meta.preBalances[index]) - BigInt(transaction.meta.postBalances[index]);
+}
+
+async function signatureExists(rpcUrl: string, signature: string) {
+  const result = await solanaRpcCall<{ value: Array<{ err: unknown; confirmationStatus?: string | null } | null> }>(
+    rpcUrl,
+    'getSignatureStatuses',
+    [[signature], { searchTransactionHistory: true }],
+  );
+  return Boolean(result.value[0]);
 }

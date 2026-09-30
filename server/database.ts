@@ -5,6 +5,22 @@ import type { AdminLoginLimitDocument } from './adminAuth.js';
 import type { TokenConfigDocument } from './tokenConfig.js';
 
 export const FLEET_EARNING_RETENTION_SECONDS = 45 * 24 * 60 * 60;
+export const ERROR_LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
+
+export interface ErrorLogDocument {
+  errorId: string;
+  source: 'server' | 'client';
+  level: 'error' | 'warning';
+  name: string;
+  message: string;
+  stack?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  context?: Record<string, string | number | boolean | null>;
+  createdAt: Date;
+  expiresAt: Date;
+}
 
 export interface CampaignDocument {
   campaignId: string;
@@ -221,6 +237,7 @@ export interface TaxiDatabase {
   publicSnapshots: Collection<PublicSnapshotDocument>;
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
   fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
+  errorLogs: Collection<ErrorLogDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -248,6 +265,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
+  const errorLogs = db.collection<ErrorLogDocument>('error_logs');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     campaigns.createIndex({ keywordHash: 1 }, { unique: true }),
@@ -286,8 +304,12 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetEarningSnapshots.createIndex({ owner: 1, bucketAt: 1 }, { unique: true }),
     fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
     ensureFleetEarningRetention(fleetEarningSnapshots),
+    errorLogs.createIndex({ errorId: 1 }, { unique: true }),
+    errorLogs.createIndex({ createdAt: -1 }),
+    errorLogs.createIndex({ source: 1, status: 1, createdAt: -1 }),
+    errorLogs.createIndex({ expiresAt: 1 }, { name: 'error_logs_ttl', expireAfterSeconds: 0 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, errorLogs };
 }
 
 export function ensureFleetEarningRetention(

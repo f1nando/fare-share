@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './clientErrorLog.js';
 import { FareShareApp } from './FareShareApp.jsx';
 import './fare-share.css';
 

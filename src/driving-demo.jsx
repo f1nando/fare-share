@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import './clientErrorLog.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import { BACKEND_URL as API_BASE } from './backendUrl.js';
 import './driving-demo.css';

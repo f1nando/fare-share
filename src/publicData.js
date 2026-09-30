@@ -4,6 +4,7 @@ import {
   formatTokenAmount,
 } from './protocol/solana.js';
 import { BACKEND_URL as API_URL } from './backendUrl.js';
+import { apiErrorMessage } from './clientErrorLog.js';
 
 const MAX_DURABILITY = 5 * 24 * 60 * 60;
 
@@ -73,6 +74,6 @@ async function request(path, options = {}) {
     headers: { 'content-type': 'application/json', ...(options.headers || {}) },
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Public data API failed with HTTP ${response.status}`);
+  if (!response.ok) throw new Error(apiErrorMessage(body, `Public data API failed with HTTP ${response.status}`));
   return body;
 }

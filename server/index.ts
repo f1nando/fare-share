@@ -14,12 +14,14 @@ import { createTraineeCampaignAdmin, fixedTraineeCampaignWord, TraineeCampaignAd
 import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
 import { performWorkerAction } from './workerAutomation.js';
 import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
-import { createRehearsalBudgetGuard } from './rehearsalBudget.js';
+import { createRehearsalBudgetGuard, RehearsalBudgetError } from './rehearsalBudget.js';
 import { configureTransactionBudgetGuard } from './transaction.js';
 import { createTelegramAlertService } from './telegramAlerts.js';
+import { installConsoleErrorPersistence, recordError } from './errorLog.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
+installConsoleErrorPersistence(database.errorLogs);
 if (config.rehearsalMode) configureTransactionBudgetGuard(await createRehearsalBudgetGuard({
   rpcUrl: config.solanaRpcUrl,
   collection: database.rehearsalBudget,
@@ -287,6 +289,25 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
+    if (request.method === 'POST' && url.pathname === '/api/errors') {
+      requirePublicOrigin(request);
+      if (!allowClientError(clientAddress(request))) {
+        json(response, 429, { error: 'Too many error reports.' });
+        return;
+      }
+      const body = asRecord(await readJson(request, 16_384));
+      if (typeof body.message !== 'string' || !body.message.trim()) throw new VoucherError('Error message is required.', 400);
+      const errorId = await recordError(database.errorLogs, {
+        source: 'client',
+        name: body.name,
+        message: body.message,
+        stack: body.stack,
+        path: body.path,
+        context: body.context,
+      });
+      json(response, 202, { logged: true, errorId });
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/mint/buy-quote') {
       requirePublicOrigin(request);
       requireTrade(trade);
@@ -411,9 +432,19 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof WorkerControlError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
-    if (status === 500) console.error(error);
-    json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
+    const status = error instanceof RehearsalBudgetError ? 409 : error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof WorkerControlError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
+    const url = new URL(request.url || '/', 'http://localhost');
+    const errorId = await recordError(database.errorLogs, {
+      source: 'server', error, status, method: request.method, path: url.pathname,
+      context: { rehearsalMode: config.rehearsalMode },
+    }).catch(logError => {
+      console.error('Unable to persist request error', logError, error);
+      return undefined;
+    });
+    json(response, status, {
+      error: status === 500 ? 'Internal server error.' : String((error as Error).message),
+      ...(errorId ? { errorId } : {}),
+    });
   }
 });
 
@@ -504,6 +535,18 @@ function requirePublicOrigin(request: IncomingMessage) {
 function clientAddress(request: IncomingMessage) {
   const forwarded = config.trustProxy ? request.headers['x-forwarded-for'] : undefined;
   return (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim()) || request.socket.remoteAddress || 'unknown';
+}
+
+const clientErrorWindows = new Map<string, { startedAt: number; count: number }>();
+function allowClientError(client: string) {
+  const now = Date.now();
+  const current = clientErrorWindows.get(client);
+  if (!current || now - current.startedAt >= 60_000) {
+    clientErrorWindows.set(client, { startedAt: now, count: 1 });
+    return true;
+  }
+  current.count += 1;
+  return current.count <= 20;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

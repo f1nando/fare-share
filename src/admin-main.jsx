@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './clientErrorLog.js';
 import { AdminPage } from './AdminPage.jsx';
 import './admin.css';
 import './admin-live.css';

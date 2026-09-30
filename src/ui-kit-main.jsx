@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './clientErrorLog.js';
 import { UIKitPage } from './UIKitPage.jsx';
 import { TokenConfigProvider } from './tokenConfig.jsx';
 import './fare-share.css';

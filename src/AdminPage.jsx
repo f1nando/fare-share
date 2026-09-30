@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BACKEND_URL as API } from './backendUrl.js';
+import { apiErrorMessage } from './clientErrorLog.js';
 
 const OPERATION_STORAGE = { claim: 'taxi.admin.claimOperationId', deposit: 'taxi.admin.depositOperationId' };
 
@@ -360,4 +361,4 @@ function createOperationId() { return globalThis.crypto?.randomUUID?.() || `${Da
 function storedOperationId(kind) { try { return localStorage.getItem(OPERATION_STORAGE[kind]) || ''; } catch { return ''; } }
 function storeOperationId(kind, value) { try { localStorage.setItem(OPERATION_STORAGE[kind], value); } catch { /* MongoDB lock remains authoritative. */ } }
 function clearOperationId(reference, kind) { reference.current[kind] = ''; try { localStorage.removeItem(OPERATION_STORAGE[kind]); } catch { /* Ignore unavailable storage. */ } }
-async function request(path, options = {}) { const response = await fetch(`${API}${path}`, { method: options.method || 'GET', credentials: 'include', headers: { ...(options.body ? { 'content-type': 'application/json' } : {}), ...(options.csrf ? { 'x-csrf-token': options.csrf } : {}) }, body: options.body ? JSON.stringify(options.body) : undefined }); if (!response.ok) { const payload = await response.json().catch(() => ({})); const error = new Error(payload.error || `HTTP ${response.status}`); error.status = response.status; throw error; } return response.status === 204 ? null : response.json(); }
+async function request(path, options = {}) { const response = await fetch(`${API}${path}`, { method: options.method || 'GET', credentials: 'include', headers: { ...(options.body ? { 'content-type': 'application/json' } : {}), ...(options.csrf ? { 'x-csrf-token': options.csrf } : {}) }, body: options.body ? JSON.stringify(options.body) : undefined }); if (!response.ok) { const payload = await response.json().catch(() => ({})); const error = new Error(apiErrorMessage(payload, `HTTP ${response.status}`)); error.status = response.status; error.errorId = payload.errorId; throw error; } return response.status === 204 ? null : response.json(); }

@@ -8,6 +8,7 @@ import {
 import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
 import { getWallets } from '@wallet-standard/app';
 import { BACKEND_URL } from '../backendUrl.js';
+import { apiErrorMessage } from '../clientErrorLog.js';
 import {
   base64Bytes,
   buildClaimAllInstructions,
@@ -225,7 +226,7 @@ export async function activateTrainee(connection, keyword, knownStatus) {
     body: JSON.stringify({ wallet: owner, keyword, pageIndex }),
   });
   const voucher = await response.json();
-  if (!response.ok) throw new Error(voucher.error || 'The backend did not issue a voucher.');
+  if (!response.ok) throw new Error(apiErrorMessage(voucher, 'The backend did not issue a voucher.'));
   const built = await buildActivateTraineeInstructions({
     programAddress: PROGRAM_ID,
     owner,
@@ -384,7 +385,7 @@ export async function prepareMintQuote(connection, knownStatus) {
     body: JSON.stringify({ owner: String(owner), asset: String(assetSigner.address) }),
   });
   const quote = await quoteResponse.json();
-  if (!quoteResponse.ok) throw new Error(quote.error || 'A safe FARE mint quote is unavailable.');
+  if (!quoteResponse.ok) throw new Error(apiErrorMessage(quote, 'A safe FARE mint quote is unavailable.'));
   const fareMint = address(status.config.fareMint);
   const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
   if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
@@ -674,7 +675,7 @@ async function backendRequest(path, body) {
     body: JSON.stringify(body),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `Backend request failed with HTTP ${response.status}`);
+  if (!response.ok) throw new Error(apiErrorMessage(payload, `Backend request failed with HTTP ${response.status}`));
   return payload;
 }
 
