@@ -263,10 +263,25 @@ export function chooseEventPage(queue, requiredSlots = 2) {
   return page.index;
 }
 
-export async function buildMintMachine({ programAddress, owner, configAddress, config, queue, classIndex, pageIndex }) {
+export async function buildMintMachine({
+  programAddress,
+  owner,
+  configAddress,
+  config,
+  queue,
+  classIndex,
+  pageIndex,
+  fareTokenProgram,
+  teamFareAccountExists = false,
+}) {
   const assetSigner = await generateKeyPairSigner();
+  const payer = createNoopSigner(address(owner));
   const machine = (await deriveTaxiAddresses(programAddress, assetSigner.address)).machine;
   const eventPage = await deriveEventPage(programAddress, pageIndex);
+  const fareMint = address(config.fareMint);
+  const tokenProgram = address(fareTokenProgram);
+  const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
+  const [teamFareAccount] = await findAssociatedTokenPda({ owner: config.teamAccount, mint: fareMint, tokenProgram });
   const data = concatBytes(TAXI_DISCRIMINATORS.mintMachine, Uint8Array.of(classIndex, pageIndex));
   const instruction = {
     programAddress,
@@ -278,13 +293,26 @@ export async function buildMintMachine({ programAddress, owner, configAddress, c
       meta(assetSigner.address, AccountRole.WRITABLE_SIGNER),
       meta(machine, AccountRole.WRITABLE),
       meta(config.collection, AccountRole.WRITABLE),
-      meta(config.teamAccount, AccountRole.WRITABLE),
+      meta(fareMint, AccountRole.READONLY),
+      meta(ownerFareAccount, AccountRole.WRITABLE),
+      meta(teamFareAccount, AccountRole.WRITABLE),
+      meta(tokenProgram, AccountRole.READONLY),
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
     data,
   };
-  return { instruction, assetSigner, machine };
+  const instructions = teamFareAccountExists ? [instruction] : [
+    getCreateAssociatedTokenIdempotentInstruction({
+      payer,
+      ata: teamFareAccount,
+      owner: config.teamAccount,
+      mint: fareMint,
+      tokenProgram,
+    }),
+    instruction,
+  ];
+  return { instruction, instructions, assetSigner, machine, ownerFareAccount, teamFareAccount };
 }
 
 export async function buildClaimInstructions({

@@ -30,7 +30,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     JUPITER_PROGRAM_ID: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
     FARE_MINT: 'So11111111111111111111111111111111111111112',
     STOCK_MINTS: OFFICIAL_XSTOCK_MINTS.join(','),
-    MINT_PRICES_LAMPORTS: '1,2,3,4',
+    MINT_PRICES_FARE_RAW: '1,2,3,4',
     DEPLOYMENT_ID_HEX: '12'.repeat(32),
     ADMIN_KEYPAIR_SECRET_KEY: SECRETS[0],
     BACKEND_SIGNER_SECRET_KEY: SECRETS[1],
@@ -66,14 +66,14 @@ test('deployment preflight rejects placeholders, wrong mint order and zero price
   env.BACKEND_SIGNER_SECRET_KEY = '[0,0]';
   env.TRAINEE_WORD_PEPPER = 'replace-with-a-long-random-secret';
   env.DEPLOYMENT_ID_HEX = '0'.repeat(64);
-  env.MINT_PRICES_LAMPORTS = '1,0,3,4';
+  env.MINT_PRICES_FARE_RAW = '1,0,3,4';
   env.STOCK_MINTS = [...OFFICIAL_XSTOCK_MINTS].reverse().join(',');
   const result = await validateDeploymentEnvironment(env);
   const combined = result.errors.join('\n');
   assert.match(combined, /BACKEND_SIGNER_SECRET_KEY/);
   assert.match(combined, /TRAINEE_WORD_PEPPER/);
   assert.match(combined, /DEPLOYMENT_ID_HEX/);
-  assert.match(combined, /MINT_PRICES_LAMPORTS\[1\]/);
+  assert.match(combined, /MINT_PRICES_FARE_RAW\[1\]/);
   assert.match(combined, /expected UBERx,TSLAx,GOOGLx,AMZNx order/);
   assert.doesNotMatch(combined, /a-secure-random-pepper/);
 });

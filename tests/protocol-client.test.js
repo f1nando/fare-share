@@ -16,6 +16,7 @@ import {
   setTransactionMessageFeePayer,
   setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
+import { findAssociatedTokenPda } from '@solana-program/token';
 
 import {
   PROGRAM_ID,
@@ -145,18 +146,54 @@ test('durability uses finalized Solana time and freezes during pause', () => {
 });
 
 test('mint instruction accepts only class and queue page, never a client-selected variant', async () => {
-  const owner = address('11111111111111111111111111111111');
-  const configAddress = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
+  const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, queue, fareMint, teamAccount] = signers.map(signer => signer.address);
+  const collection = address('11111111111111111111111111111111');
   const result = await buildMintMachine({
-    programAddress: configAddress,
+    programAddress: PROGRAM_ID,
     owner,
     configAddress,
-    config: { collection: owner, teamAccount: owner },
-    queue: owner,
+    config: { collection, teamAccount, fareMint },
+    queue,
     classIndex: 2,
     pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM,
   });
   assert.deepEqual([...result.instruction.data], [...TAXI_DISCRIMINATORS.mintMachine, 2, 7]);
+  assert.equal(result.instructions.length, 2);
+  assert.equal(result.instruction.accounts.length, 13);
+  const [expectedOwnerFare] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
+  const [expectedTeamFare] = await findAssociatedTokenPda({ owner: teamAccount, mint: fareMint, tokenProgram: TOKEN_PROGRAM });
+  assert.equal(String(result.instruction.accounts[7].address), String(fareMint));
+  assert.equal(String(result.instruction.accounts[8].address), String(expectedOwnerFare));
+  assert.equal(String(result.instruction.accounts[9].address), String(expectedTeamFare));
+  assert.equal(String(result.instruction.accounts[10].address), String(TOKEN_PROGRAM));
+  assert.equal(result.instruction.accounts[8].role, AccountRole.WRITABLE);
+  assert.equal(result.instruction.accounts[9].role, AccountRole.WRITABLE);
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(result.instructions, transaction),
+  );
+  const transactionBytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(transactionBytes.length <= 1232, `mint transaction is ${transactionBytes.length} bytes`);
+
+  const existingTeamAta = await buildMintMachine({
+    programAddress: PROGRAM_ID,
+    owner,
+    configAddress,
+    config: { collection, teamAccount, fareMint },
+    queue,
+    classIndex: 2,
+    pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM,
+    teamFareAccountExists: true,
+  });
+  assert.equal(existingTeamAta.instructions.length, 1);
 });
 
 test('configuration decoder reads all 16 metadata URIs in class and variant order', () => {
@@ -203,9 +240,10 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
 });
 
-test('mint prices are displayed from exact on-chain lamports', () => {
+test('SOL fees and raw FARE mint prices use their own decimals', () => {
   assert.equal(formatSolAmount(49_000_000n), '0.049');
   assert.equal(formatSolAmount(1_000_000_001n), '1.000000001');
+  assert.equal(formatTokenAmount(3_500_000n, 6).replace(',', '.'), '3.5');
 });
 
 test('DAS garage loads every page when a wallet owns more than one thousand assets', async () => {

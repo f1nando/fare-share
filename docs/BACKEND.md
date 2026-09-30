@@ -87,14 +87,16 @@ npm run protocol:initialize
 
 Первая транзакция атомарно создаёт основные PDA и официальную Metaplex Core Collection с `ImmutableMetadata`. Затем setup записывает metadata URI по классам и идемпотентно создаёт шесть token accounts конфигурации: WSOL, `$FARE` и четыре xStocks. Для каждого mint автоматически используется его фактическая Token Program. Повторная запись тех же URI разрешена даже после старта sale, но их изменение после старта блокируется; прерванный setup можно безопасно повторить.
 
-До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS` в порядке Economy 0–3, Comfort 0–3, Business 0–3, Legend 0–3, точные `MINT_PRICES_LAMPORTS` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Из-за лимита размера Solana transaction setup записывает URI четырьмя отдельными class-level инструкциями до старта sale; `start-sale` проверяет заполнение всех 16 позиций. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и записывает mint; protocol admin может заменить его до `start-sale`. После старта прямая замена блокируется и требует отдельной paused migration. После finalization MongoDB сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До настройки CA `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
+До выполнения нужны четыре `STOCK_MINTS`, постоянный `COLLECTION_URI`, ровно 16 постоянных `MACHINE_METADATA_URIS` в порядке Economy 0–3, Comfort 0–3, Business 0–3, Legend 0–3, точные `MINT_PRICES_FARE_RAW` и случайный 32-байтовый `DEPLOYMENT_ID_HEX`. Цены задаются в raw units будущего `$FARE`, а UI форматирует их по фактическому `decimals` mint account. Из-за лимита размера Solana transaction setup записывает URI четырьмя отдельными class-level инструкциями до старта sale; `start-sale` проверяет заполнение всех 16 позиций. `$FARE` можно создать позже: после появления CA укажите CA и тикер в `/admin/`. Админка в одной атомарной транзакции создаёт protocol ATA и записывает mint; protocol admin может заменить его до `start-sale`. После старта прямая замена блокируется и требует отдельной paused migration. После finalization MongoDB сохраняет единую runtime-конфигурацию для hero, trade и остальных страниц. До настройки CA `start-sale` запрещён. Заглушки из `.env.example` использовать нельзя.
+
+`mint_machine` принимает только привязанный `$FARE` mint и соответствующий ему legacy Token Program или Token-2022, проверяет owner/mint source account и canonical ATA командного кошелька, затем выполняет `transfer_checked` на полную цену. Клиент идемпотентно создаёт team ATA за SOL пользователя перед `mint_machine`, если ATA отсутствует. Перевод `$FARE`, создание Core NFT и Machine PDA входят в одну Solana-транзакцию и откатываются вместе.
 
 ## Ручное управление через SSH
 
 Административных HTTP endpoints и web-панели нет. Оператор запускает отдельную CLI с ключом из `ADMIN_KEYPAIR_SECRET_KEY`:
 
 ```sh
-npm run protocol:admin -- set-mint-prices 1000000000,2000000000,3000000000,4000000000
+npm run protocol:admin -- set-mint-prices 1000000,3000000,10000000,30000000 # raw FARE units
 npm run protocol:admin -- start-sale
 npm run protocol:admin -- pause
 npm run protocol:admin -- unpause

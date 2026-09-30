@@ -248,7 +248,10 @@ export function buildPublicOverview(
   for (const machine of machines) classCounts[machine.classIndex] += 1;
   return {
     mint: {
-      pricesLamports: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      pricesFareRaw: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      fareDecimals: Array.isArray(snapshot.distribution.assets)
+        ? Number((snapshot.distribution.assets[0] as { decimals?: unknown } | undefined)?.decimals ?? 0)
+        : 0,
       mintedByClass: Array.isArray(snapshot.protocol.mintedByClass) ? snapshot.protocol.mintedByClass.map(Number) : [],
       paused: Boolean(snapshot.protocol.paused),
       saleStarted: Boolean(snapshot.protocol.saleStarted),

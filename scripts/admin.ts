@@ -106,7 +106,7 @@ function parseSimpleCommand(name: string, values: string[]): SimpleAdminCommand 
   if (name === 'set-mint-prices') {
     exactArgs(values, 1);
     const prices = values[0].split(',').map(positiveBigInt);
-    if (prices.length !== 4) throw new Error('set-mint-prices expects four comma-separated lamport values');
+    if (prices.length !== 4) throw new Error('set-mint-prices expects four comma-separated raw FARE values');
     return { name, prices: prices as [bigint, bigint, bigint, bigint] };
   }
   if (name === 'propose-admin' || name === 'set-team' || name === 'set-backend-signer' || name === 'set-jupiter') {

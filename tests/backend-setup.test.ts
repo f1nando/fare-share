@@ -30,7 +30,7 @@ test('initialize instruction matches Anchor account and field order', async () =
     collectionName: 'Taxi Park',
     collectionUri: 'https://example.test/collection.json',
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
-    mintPrices: [49n, 129n, 399n, 1099n],
+    mintPricesFareRaw: [49n, 129n, 399n, 1099n],
     metadataUris: Array.from({ length: 16 }, (_, index) => `uri-${index}`),
   };
   const collection = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');

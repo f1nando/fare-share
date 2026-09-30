@@ -134,10 +134,10 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     errors.push('FARE_MINT and STOCK_MINTS must use different addresses');
   }
 
-  const prices = tuple('MINT_PRICES_LAMPORTS');
+  const prices = tuple('MINT_PRICES_FARE_RAW');
   for (const [index, price] of prices.entries()) {
     if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
-      errors.push(`MINT_PRICES_LAMPORTS[${index}]: must be a positive integer amount of lamports`);
+      errors.push(`MINT_PRICES_FARE_RAW[${index}]: must be a positive integer amount of raw FARE units`);
     }
   }
 

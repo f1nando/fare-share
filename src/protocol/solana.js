@@ -139,13 +139,21 @@ export async function loadProtocolStatus() {
   }).send();
   const deployed = accounts.value.every(Boolean);
   if (!deployed) return { addresses, deployed: false, network: networkName() };
-  const chainUnixTime = await loadFinalizedChainTime().catch(() => Math.floor(Date.now() / 1000));
+  const config = decodeConfiguration(accountBytes(accounts.value[0]));
+  const [chainUnixTime, fareMintAccount] = await Promise.all([
+    loadFinalizedChainTime().catch(() => Math.floor(Date.now() / 1000)),
+    rpc.getAccountInfo(config.fareMint, { commitment: 'finalized', encoding: 'base64' }).send().catch(() => ({ value: null })),
+  ]);
+  let fareDecimals = null;
+  if (fareMintAccount.value) {
+    try { fareDecimals = mintDecimals(accountBytes(fareMintAccount.value)); } catch { fareDecimals = null; }
+  }
   return {
     addresses,
     deployed,
     network: networkName(),
     chainUnixTime,
-    config: decodeConfiguration(accountBytes(accounts.value[0])),
+    config: { ...config, fareDecimals },
     pool: decodeRewardPool(accountBytes(accounts.value[1])),
     queue: decodeEventQueue(accountBytes(accounts.value[2])),
     traineePool: decodeRewardPool(accountBytes(accounts.value[3])),
@@ -364,6 +372,17 @@ export async function mintMachine(connection, classIndex, knownStatus) {
   if (!status.config.saleStarted) throw new Error('The car sale is not open yet.');
   const pageIndex = chooseEventPage(status.queue, 2);
   const owner = address(connection.account.address);
+  const fareMint = address(status.config.fareMint);
+  const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
+  const fareTokenProgram = address(mintAccount.value.owner);
+  const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram: fareTokenProgram });
+  const [teamFareAccount] = await findAssociatedTokenPda({ owner: status.config.teamAccount, mint: fareMint, tokenProgram: fareTokenProgram });
+  const paymentAccounts = await rpc.getMultipleAccounts([ownerFareAccount, teamFareAccount], {
+    commitment: 'finalized',
+    encoding: 'base64',
+  }).send();
+  if (!paymentAccounts.value[0]) throw new Error('Your wallet does not have a FARE token account for this mint.');
   const built = await buildMintMachine({
     programAddress: PROGRAM_ID,
     owner,
@@ -372,13 +391,15 @@ export async function mintMachine(connection, classIndex, knownStatus) {
     queue: status.addresses.queue,
     classIndex,
     pageIndex,
+    fareTokenProgram,
+    teamFareAccountExists: Boolean(paymentAccounts.value[1]),
   });
   const signature = await sendWalletInstructions({
     rpc,
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
-    instructions: [built.instruction],
+    instructions: built.instructions,
     additionalSigners: [built.assetSigner],
   });
   return { signature, asset: built.assetSigner.address };

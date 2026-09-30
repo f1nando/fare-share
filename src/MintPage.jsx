@@ -5,7 +5,7 @@ import {
   activateTrainee,
   claimTrainee,
   explorerTransaction,
-  formatSolAmount,
+  formatTokenAmount,
   loadOwnedTrainees,
   loadProtocolStatus,
   mintMachine,
@@ -73,7 +73,9 @@ export function MintPage({ wallet, connectWallet }) {
   const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
   const selectedMinted = mintedByClass[selectedClassIndex];
   const remaining = Math.max(0, selectedClass.supply - selectedMinted);
-  const priceLamports = databaseMint?.pricesLamports?.[selectedClassIndex] ? BigInt(databaseMint.pricesLamports[selectedClassIndex]) : 0n;
+  const priceFareRaw = databaseMint?.pricesFareRaw?.[selectedClassIndex] ? BigInt(databaseMint.pricesFareRaw[selectedClassIndex]) : 0n;
+  const fareDecimals = Number(databaseMint?.fareDecimals ?? 0);
+  const fareTicker = ticker || 'FARE';
   const paused = Boolean(databaseMint?.paused);
 
   useEffect(() => {
@@ -312,9 +314,9 @@ export function MintPage({ wallet, connectWallet }) {
 
               <div className="fare-mint-summary">
                 <div><span>Class</span><strong>{selectedClass.name}</strong></div>
-                <div><span>Mint price</span><strong>{databaseMint ? `${formatSolAmount(priceLamports)} SOL` : '—'}</strong></div>
+                <div><span>Mint price</span><strong>{databaseMint ? `${formatTokenAmount(priceFareRaw, fareDecimals)} $${fareTicker}` : '—'}</strong></div>
                 <div><span>Cars</span><strong>{quantity}</strong></div>
-                <div className="is-total"><span>Total</span><strong>{databaseMint ? `${formatSolAmount(priceLamports * BigInt(quantity))} SOL` : '—'}</strong></div>
+                <div className="is-total"><span>Total</span><strong>{databaseMint ? `${formatTokenAmount(priceFareRaw * BigInt(quantity), fareDecimals)} $${fareTicker}` : '—'}</strong></div>
               </div>
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
@@ -323,7 +325,7 @@ export function MintPage({ wallet, connectWallet }) {
                 <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
                 <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
               </button>
-              <p className="fare-mint-note">The minted car appears in your garage and starts working automatically with a full tank.</p>
+              <p className="fare-mint-note">The full mint payment is sent in ${fareTicker} to the team wallet. You also pay the Solana network fee and account rent.</p>
             </div>
           </div>
 

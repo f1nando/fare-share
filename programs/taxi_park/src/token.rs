@@ -39,6 +39,14 @@ pub fn is_supported_program(program: &Pubkey) -> bool {
     *program == TOKEN_PROGRAM_ID || *program == TOKEN_2022_PROGRAM_ID
 }
 
+pub fn associated_token_address(owner: &Pubkey, mint: &Pubkey, token_program: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[owner.as_ref(), token_program.as_ref(), mint.as_ref()],
+        &ASSOCIATED_TOKEN_PROGRAM_ID,
+    )
+    .0
+}
+
 pub fn assert_program(program: &AccountInfo<'_>) -> Result<()> {
     require!(
         is_supported_program(program.key) && program.executable,

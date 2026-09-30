@@ -839,13 +839,40 @@ pub mod taxi_park {
             .metadata_uri(class_index, usize::from(variant))?
             .to_owned();
 
-        let payment = anchor_lang::system_program::Transfer {
-            from: ctx.accounts.owner.to_account_info(),
-            to: ctx.accounts.team_account.to_account_info(),
-        };
-        anchor_lang::system_program::transfer(
-            CpiContext::new(ctx.accounts.system_program.to_account_info(), payment),
+        token::assert_program(&ctx.accounts.fare_token_program)?;
+        let fare_mint = token::mint_view(
+            &ctx.accounts.fare_mint,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        let owner_fare = token::account_view(
+            &ctx.accounts.owner_fare_account,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        let team_fare = token::account_view(
+            &ctx.accounts.team_fare_account,
+            &ctx.accounts.fare_token_program.key(),
+        )?;
+        validate_mint_payment_accounts(
+            ctx.accounts.config.fare_mint,
+            ctx.accounts.config.team_account,
+            ctx.accounts.owner.key(),
+            ctx.accounts.fare_mint.key(),
+            ctx.accounts.fare_token_program.key(),
+            &owner_fare,
+            ctx.accounts.team_fare_account.key(),
+            &team_fare,
+        )?;
+        token::transfer_checked(
+            token::TransferCheckedAccounts {
+                program: &ctx.accounts.fare_token_program,
+                source: &ctx.accounts.owner_fare_account,
+                mint: &ctx.accounts.fare_mint,
+                destination: &ctx.accounts.team_fare_account,
+                authority: &ctx.accounts.owner.to_account_info(),
+            },
             price,
+            fare_mint.decimals,
+            &[],
         )?;
 
         let config_info = ctx.accounts.config.to_account_info();
@@ -903,7 +930,7 @@ pub mod taxi_park {
             serial,
             weight,
             active_until: ctx.accounts.machine.active_until,
-            paid_lamports: price,
+            paid_fare_raw: price,
         });
         Ok(())
     }
@@ -1928,8 +1955,7 @@ pub struct MintMachine<'info> {
         mut,
         seeds = [b"config"],
         bump = config.bump,
-        has_one = collection @ TaxiError::InvalidCollection,
-        has_one = team_account @ TaxiError::InvalidTeamAccount
+        has_one = collection @ TaxiError::InvalidCollection
     )]
     pub config: Box<Account<'info, Configuration>>,
     #[account(mut, seeds = [b"queue".as_ref(), b"main".as_ref()], bump = queue.bump)]
@@ -1955,9 +1981,17 @@ pub struct MintMachine<'info> {
     /// CHECK: Address, owner and update authority are validated by metaplex_core::assert_collection.
     #[account(mut, address = config.collection)]
     pub collection: UncheckedAccount<'info>,
-    /// CHECK: Address is constrained by Configuration::has_one and only receives SOL.
+    /// CHECK: Mint address is constrained by config and its owner/decimals are validated in the handler.
+    #[account(address = config.fare_mint @ TaxiError::InvalidRewardMint)]
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Token account mint and owner are validated in the handler.
     #[account(mut)]
-    pub team_account: UncheckedAccount<'info>,
+    pub owner_fare_account: UncheckedAccount<'info>,
+    /// CHECK: Must be the canonical ATA for config.team_account and config.fare_mint.
+    #[account(mut)]
+    pub team_fare_account: UncheckedAccount<'info>,
+    /// CHECK: Must be the supported Token Program that owns fare_mint and both token accounts.
+    pub fare_token_program: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,
@@ -2253,6 +2287,30 @@ fn validate_fare_assignment(config: &Configuration, fare_mint: Pubkey) -> Result
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn validate_mint_payment_accounts(
+    configured_fare_mint: Pubkey,
+    team_account: Pubkey,
+    owner: Pubkey,
+    fare_mint: Pubkey,
+    fare_token_program: Pubkey,
+    owner_fare: &token::TokenAccountView,
+    team_fare_address: Pubkey,
+    team_fare: &token::TokenAccountView,
+) -> Result<()> {
+    require_keys_eq!(fare_mint, configured_fare_mint, TaxiError::InvalidRewardMint);
+    require_keys_eq!(owner_fare.mint, fare_mint, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(owner_fare.owner, owner, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(team_fare.mint, fare_mint, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(team_fare.owner, team_account, TaxiError::InvalidTokenAccount);
+    require_keys_eq!(
+        team_fare_address,
+        token::associated_token_address(&team_account, &fare_mint, &fare_token_program),
+        TaxiError::InvalidTokenAccount
+    );
+    Ok(())
+}
+
 fn require_fare_ready(fare_mint: Pubkey) -> Result<()> {
     require!(fare_mint != Pubkey::default(), TaxiError::FareMintNotSet);
     Ok(())
@@ -2415,6 +2473,109 @@ mod accounting_tests {
     }
 
     #[test]
+    fn mint_payment_accepts_only_owner_tokens_and_the_team_canonical_ata() {
+        let fare_mint = Pubkey::new_unique();
+        let owner = Pubkey::new_unique();
+        let team = Pubkey::new_unique();
+        let token_program = token::TOKEN_2022_PROGRAM_ID;
+        let owner_fare = token::TokenAccountView {
+            mint: fare_mint,
+            owner,
+            amount: 500,
+        };
+        let team_fare = token::TokenAccountView {
+            mint: fare_mint,
+            owner: team,
+            amount: 0,
+        };
+        let team_ata = token::associated_token_address(&team, &fare_mint, &token_program);
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            team_ata,
+            &team_fare,
+        )
+        .is_ok());
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            Pubkey::new_unique(),
+            token_program,
+            &owner_fare,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_source_mint = token::TokenAccountView {
+            mint: Pubkey::new_unique(),
+            ..owner_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &wrong_source_mint,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_source_owner = token::TokenAccountView {
+            owner: Pubkey::new_unique(),
+            ..owner_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &wrong_source_owner,
+            team_ata,
+            &team_fare,
+        )
+        .is_err());
+
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            Pubkey::new_unique(),
+            &team_fare,
+        )
+        .is_err());
+
+        let wrong_destination = token::TokenAccountView {
+            owner: Pubkey::new_unique(),
+            ..team_fare
+        };
+        assert!(validate_mint_payment_accounts(
+            fare_mint,
+            team,
+            owner,
+            fare_mint,
+            token_program,
+            &owner_fare,
+            team_ata,
+            &wrong_destination,
+        )
+        .is_err());
+    }
+
+    #[test]
     fn variants_are_bounded_balanced_and_use_class_scoped_uris() {
         let metadata_uris = std::array::from_fn(|index| format!("uri-{index}"));
         let config = Configuration {
@@ -2488,7 +2649,7 @@ mod accounting_tests {
             serial: 17,
             weight: 10,
             active_until: 42,
-            paid_lamports: 99,
+            paid_fare_raw: 99,
         };
         let bytes = event.try_to_vec().unwrap();
         assert_eq!(bytes[64], 2);
@@ -2807,7 +2968,7 @@ pub struct MachineMinted {
     pub serial: u16,
     pub weight: u16,
     pub active_until: i64,
-    pub paid_lamports: u64,
+    pub paid_fare_raw: u64,
 }
 
 #[event]

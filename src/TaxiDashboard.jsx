@@ -16,7 +16,7 @@ import {
   repairMachine,
   repairAllMachines,
   transferMachine,
-  formatSolAmount,
+  formatTokenAmount,
   shortAddress,
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
@@ -242,10 +242,12 @@ export function TaxiDashboard({ simple = false, background = null }) {
 
         <section className="panel mint-panel" aria-labelledby="mint-title">
           <div className="section-title"><div><p className="eyebrow">1,425 cars</p><h2 id="mint-title">Choose a class</h2></div></div>
-          {simple && <p className="mint-cost-note">Phantom will show the NFT price plus approximately 0.0045 SOL for the personal Metaplex Core asset and Machine account rent. This is account creation cost, not network gas. The shared Devnet event page has already been prepaid by the deployer.</p>}
+          {simple && <p className="mint-cost-note">Phantom will show the NFT price in ${ticker} plus SOL network fees and rent for the Metaplex Core asset, Machine account, and any missing team token account.</p>}
           <div className="class-grid">
             {CLASSES.map((item, classIndex) => {
-              const solPrice = status.deployed ? formatSolAmount(status.config.mintPrices[classIndex]) : null;
+              const farePrice = status.deployed && status.config.fareDecimals !== null
+                ? formatTokenAmount(status.config.mintPrices[classIndex], status.config.fareDecimals)
+                : null;
               const remaining = status.deployed
                 ? item.count - Number(status.config.mintedByClass[classIndex])
                 : item.count;
@@ -253,11 +255,11 @@ export function TaxiDashboard({ simple = false, background = null }) {
                 <div className="class-top"><span>{item.name}</span><b>×{item.weight}</b></div>
                 <img className="class-image" src={item.image} alt={`${item.name} NFT taxi`} loading="lazy" decoding="async" />
                 <dl>
-                  <div><dt>Price</dt><dd>{solPrice ? `${solPrice} SOL` : item.price}</dd></div>
+                  <div><dt>Price</dt><dd>{farePrice ? `${farePrice} $${ticker}` : item.price}</dd></div>
                   <div><dt>Remaining</dt><dd>{remaining} / {item.count}</dd></div>
                 </dl>
                 <button disabled={Boolean(busy) || protocolPaused || remaining === 0} onClick={() => runAction(`mint-${classIndex}`, () => mintMachine(wallet, classIndex, status), `${item.name} NFT car minted.`)}>
-                  {remaining === 0 ? 'Sold out' : solPrice ? `Buy · ${solPrice} SOL` : 'Buy with SOL'}
+                  {remaining === 0 ? 'Sold out' : farePrice ? `Buy · ${farePrice} $${ticker}` : `Buy with $${ticker}`}
                 </button>
               </article>;
             })}

@@ -24,6 +24,8 @@ test('public overview aggregates the bounded leaderboard once during synchroniza
   assert.equal(overview.leaders.length, 100);
   assert.equal(overview.leaders[0].owner, 'owner-104');
   assert.deepEqual(overview.classCounts, [104, 0, 0, 1]);
+  assert.deepEqual(overview.mint.pricesFareRaw, ['1', '2', '3', '4']);
+  assert.equal(overview.mint.fareDecimals, 6);
 });
 
 test('public read endpoints use MongoDB snapshots without starting an on-chain sync', async () => {

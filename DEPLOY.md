@@ -38,7 +38,7 @@ deploy или SOL; они не являются частью release и не д�
 1. Собрать актуальный `taxi_park.so` через `cargo build-sbf`.
 2. Выполнить `npm run protocol:addresses` и сохранить выведенный `pumpCreator`; для вычисления PDA опубликованная программа ещё не нужна.
 3. Создать обычный тестовый SOL-paired `$FARE` через официальный pump.fun, указав этот `pumpCreator` как creator.
-4. Заполнить `$FARE` mint, четыре неизменяемых xStocks mint, devnet/test metadata URI, цены и остальные значения `.env`.
+4. Заполнить `$FARE` mint, четыре неизменяемых xStocks mint, devnet/test metadata URI, `MINT_PRICES_FARE_RAW` и остальные значения `.env`.
 5. Выполнить `npm run protocol:preflight`.
 6. Опубликовать программу в devnet с подготовленным program keypair и временной upgrade authority, затем выполнить `npm run protocol:initialize`.
 7. Создать protocol Address Lookup Table, добавить адреса из `npm run protocol:claim-lookup-addresses` и записать её адрес в `VITE_TAXI_LOOKUP_TABLE`. Без ALT атомарный Claim ограничен четырьмя машинами, с ALT — десятью.
@@ -92,12 +92,12 @@ solana program deploy -u devnet \
 
 1. Проверить окончательные collection cover, 16 изображений и 17 metadata JSON в production Irys manifest `9evKWgrS3Jp6cGdDD3oBMRCoy7SYJ7gb6jBupX7ZMsaE`.
 2. Повторно проверить официальные xStocks mint и выполнить `npm run protocol:check-xstocks`.
-3. Зафиксировать точные mint-цены в lamports по согласованным долларовым ориентирам.
+3. Зафиксировать точные mint-цены в raw units финального `$FARE` (`MINT_PRICES_FARE_RAW`) и проверить форматирование по фактическому `decimals` mint account.
 4. Заполнить production RPC/DAS, MongoDB, домены, API key и три разных server keypair.
 5. Выполнить `npm run protocol:addresses` и подготовить параметры будущего `$FARE` с полученным `pumpCreator`, не создавая токен заранее.
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.
 7. Выполнить `protocol:initialize`; на этом этапе `$FARE` ещё может не существовать, а `fare_mint` в Configuration PDA останется пустым.
-8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. Команда атомарно создаёт canonical protocol ATA и задаёт CA. До `start-sale` protocol admin может исправить CA повторной командой; после старта прямая замена запрещена и требует отдельной paused migration активов и обязательств.
+8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. Команда атомарно создаёт canonical protocol ATA и задаёт CA. До `start-sale` protocol admin может исправить CA повторной командой; после старта прямая замена запрещена и требует отдельной paused migration активов и обязательств. До открытия sale отдельно проверить mint: source принадлежит покупателю, destination совпадает с canonical ATA team wallet, 100% цены поступает команде, а vault/reward pools и supply `$FARE` не меняются.
 9. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
    Если initialize с полными metadata превышает лимит транзакции, сначала выполнить
    `npm run protocol:create-initialize-lookup`, сохранить выведенный адрес в
