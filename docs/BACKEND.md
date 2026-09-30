@@ -120,6 +120,8 @@ npm run campaign:create -- 1 360 кодовое-слово "Первая кам�
 
 Frontend отправляет `wallet`, найденное слово и свободную страницу очереди в `POST /api/trainee/voucher`. Backend находит внутренний campaign ID по hash слова, читает finalized Configuration PDA, рассчитывает ближайшую полную минуту protocol time и подписывает каноническое сообщение `TAXI_TRAINEE_V1`. Пользователь сам отправляет Ed25519 verify + `activate_trainee` одной Solana-транзакцией и оплачивает network fee/rent для Trainee PDA, bucket accounts и непередаваемого Metaplex Core NFT.
 
+Trainee PDA уникален по `wallet + campaignId`: повтор одной кампании невозможен, разные кампании разрешены, глобального supply cap нет. Indexer записывает `fleet_trainees` только когда DAS asset owner совпадает с Trainee owner и grouping указывает текущую `config.collection`. Rate limit защищает voucher endpoint, но не является on-chain квотой.
+
 Для списка Metaplex Core NFT frontend использует DAS-метод `getAssetsByOwner`. В production `VITE_SOLANA_DAS_URL` обязан указывать на DAS-совместимый RPC (например, Helius или QuickNode). Если метод недоступен, интерфейс показывает ошибку настройки, а не пустой гараж.
 
 Повторно запросить ваучер разрешено: предыдущая транзакция могла истечь или не попасть в сеть. Ограничение «один кошелёк — одна активация каждой кампании» обеспечивает уникальный Trainee PDA в программе. API дополнительно ограничен десятью попытками за десять минут на пару IP+wallet.

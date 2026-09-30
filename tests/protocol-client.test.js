@@ -50,6 +50,7 @@ import {
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
+  deriveTraineeAddresses,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
   sendWalletInstructions,
@@ -344,6 +345,15 @@ test('trainee activation puts Ed25519 verification immediately before the progra
     value => appendTransactionMessageInstructions(instructions, value),
   ));
   assert.ok(getTransactionEncoder().encode(transaction).length <= 1232);
+});
+
+test('trainee PDA allows different campaigns but not duplicate wallet and campaign pairs', async () => {
+  const owner = (await generateKeyPairSigner()).address;
+  const first = await deriveTraineeAddresses(PROGRAM_ID, owner, 7n, 60n, 3600n, 0);
+  const duplicate = await deriveTraineeAddresses(PROGRAM_ID, owner, 7n, 120n, 7200n, 1);
+  const anotherCampaign = await deriveTraineeAddresses(PROGRAM_ID, owner, 8n, 60n, 3600n, 0);
+  assert.equal(String(first.trainee), String(duplicate.trainee));
+  assert.notEqual(String(first.trainee), String(anotherCampaign.trainee));
 });
 
 test('claim transaction size is measured with five missing destination accounts', async () => {

@@ -98,6 +98,7 @@ solana program deploy -u devnet \
 6. Выполнить `npm run protocol:preflight` и только затем опубликовать тот же проверенный SBF в mainnet-beta, сначала сохранив upgrade authority.
 7. Выполнить `protocol:initialize`; на этом этапе `$FARE` ещё может не существовать, а `fare_mint` в Configuration PDA останется пустым.
 8. После создания финального `$FARE` выполнить `npm run protocol:admin -- set-fare-mint <CA>`. До `start-sale` CA можно исправить, после старта он блокируется. Проверить quote и mint: подписаны owner/asset/class/CA/raw amount/USD cents/expiry, Ed25519 непосредственно перед mint, 100% `$FARE` поступает в canonical ATA team wallet, а burn/vault/reward pools не меняются. Команда получает `$FARE`, не гарантированную сумму USD.
+9. До `start-sale` загрузить отдельную trainee metadata и записать `TRAINEE_METADATA_URI`. Smoke activation должна создать asset в основной Collection с `PermanentFreezeDelegate.frozen = true` и immutable `PluginAuthority::None`; transfer trainee обязан завершаться ошибкой, transfer платной машины — проходить.
 9. Создать и проверить отдельную mainnet ALT по процедуре Devnet, затем записать её адрес в production `VITE_TAXI_LOOKUP_TABLE`.
    Если initialize с полными metadata превышает лимит транзакции, сначала выполнить
    `npm run protocol:create-initialize-lookup`, сохранить выведенный адрес в

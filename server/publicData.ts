@@ -14,7 +14,7 @@ const HISTORY_PERIODS = {
   '30d': { durationMs: 30 * 24 * 60 * 60 * 1_000, groupMs: 24 * 60 * 60 * 1_000 },
 } as const;
 
-interface DasAsset {
+export interface DasAsset {
   id: string;
   content?: {
     metadata?: { name?: string };
@@ -22,6 +22,7 @@ interface DasAsset {
     files?: Array<{ uri?: string; mime?: string }>;
   };
   ownership?: { owner?: string };
+  grouping?: Array<{ group_key?: string; group_value?: string }>;
 }
 
 export class PublicDataError extends Error {
@@ -106,6 +107,7 @@ export function createPublicDataService(config: {
       if (dashboard.trainees.length) {
         await database.fleetTrainees.bulkWrite(dashboard.trainees.map(trainee => {
           const asset = assetsById.get(trainee.asset);
+          validateTraineeAsset(asset, trainee.owner, String(dashboard.protocol.collection));
           return {
             updateOne: {
               filter: { asset: trainee.asset },
@@ -249,6 +251,16 @@ export function createPublicDataService(config: {
   }
 
   return { overview, walletFleet, recordMint, earningHistory, market, sync };
+}
+
+export function validateTraineeAsset(asset: DasAsset | undefined, expectedOwner: string, expectedCollection: string) {
+  if (!asset || asset.id === '' || asset.ownership?.owner !== expectedOwner) {
+    throw new Error('Trainee Core asset owner does not match its on-chain Trainee account');
+  }
+  const collection = asset.grouping?.find(item => item.group_key === 'collection')?.group_value;
+  if (collection !== expectedCollection) {
+    throw new Error('Trainee Core asset is not in the configured collection');
+  }
 }
 
 export function buildPublicOverview(

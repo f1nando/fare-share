@@ -134,6 +134,8 @@
 - ✅ Campaign/rate-limit/backend tests существуют.
 - 🟡 Docs и landing рассказывают о trainee campaign.
 - ✅ В branded `/mint/` добавлены code word, активация временного непередаваемого trainee NFT, список активаций и отдельный Claim; внутренний campaign ID пользователю не показывается.
+- ✅ Trainee не имеет глобальной квоты и не меняет paid caps `[1000, 300, 100, 25]`; один wallet может активировать по одному asset в каждой кампании.
+- [ ] Перед production подтвердить Core integration smoke: immutable frozen trainee transfer отклонён, обычная платная машина остаётся transferable, DAS показывает owner и основную Collection.
 - ⬜ Опубликовать новый trainee UI и проверить его с реальной тестовой кампанией.
 - ⬜ Выполнить end-to-end smoke: создать campaign → получить voucher → activate → дождаться reward → claim.
 - ⬜ Проверить wrong keyword, expired campaign, повторную активацию и rate limit.

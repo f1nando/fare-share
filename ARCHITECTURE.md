@@ -12,6 +12,7 @@
 - `$FARE`: стандартный SPL-совместимый mint, создаваемый pump.fun, без собственных Token-2022 extensions и административных mint/freeze-возможностей проекта.
 - Stock assets: только официальные xStocks mint на Solana; смешивание нескольких эмитентов не используется.
 - NFT supply: максимум 1425 Metaplex Core Assets — 1000 «Эконом» с весом 1, 300 «Комфорт» с весом 3, 100 «Бизнес» с весом 10 и 25 «Легенда» с весом 30. Максимальный совокупный вес — 3650.
+- Trainee supply не имеет бизнес-лимита и не входит в эти 1425: activation не меняет `minted_by_class` и paid class caps. Trainee находятся в той же Collection, поэтому DAS/marketplace могут включать их в общий displayed item count, но immutable frozen assets нельзя transfer или выставить на marketplace.
 - Лимиты NFT считаются по количеству когда-либо выпущенных машин. Burn уменьшает обращающийся supply, но не счётчик minted и не открывает место для нового выпуска.
 - NFT mint prices хранятся в `Configuration.mint_prices` как USD cents. Economy всегда равен `5000` ($50), остальные классы задаются admin до `start_sale`; после открытия продажи USD targets и CA неизменяемы.
 - NFT mint не имеет лимита на один кошелёк: один адрес может последовательно выпустить любое количество машин, пока не исчерпан тираж выбранного класса. Каждая транзакция выпускает одну машину.
@@ -62,7 +63,7 @@
 - Main pool PDA и SPL vaults: текущая серия, следующий пул, фиксированные raw-обязательства уже рассчитанных выплат, доход на единицу веса и остатки округления по mint.
 - Machine PDA на каждый Metaplex Core Asset: вес, версия, `activeUntil`, checkpoints, `fareBase` и `claimable` по поддерживаемым mint. Core Asset хранит владение и публичные NFT-метаданные; изменяемое состояние машины хранится только в Machine PDA.
 - Event queue PDA: min-heap событий `MINT`, `REPAIR`, `EXPIRE`, упорядоченных по `timestamp + eventNumber`.
-- Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и записи `wallet + campaignId`. Активация также создаёт видимый в кошельке Metaplex Core NFT с Permanent Freeze Delegate; он непередаваемый и не имеет Machine PDA, поэтому ремонт для него невозможен.
+- Trainee pool и minute-bucket PDA: отдельные от основного парка пулы, очередь, доход на вес и уникальные записи `wallet + campaignId`. Глобальной квоты trainee нет; разные кампании одного кошелька создают разные NFT. Активация создаёт видимый в кошельке Core Asset в той же официальной Collection. `PermanentFreezeDelegate { frozen: true }` получает явный immutable `PluginAuthority::None`, поэтому owner, backend, admin и Configuration PDA не могут thaw/remove plugin. Trainee не имеет Machine PDA, цены, ремонта или продления.
 - Program-controlled SPL token accounts: один reward account конфигурации для `$FARE`, по одному для каждого stock mint и отдельный WSOL account. Один и тот же token account принимает результат Jupiter swap и хранит рассчитанные активы до пользовательского `claim`; логические main/trainee/stock-пулы разделяются бухгалтерскими счётчиками программы, а не лишними token accounts.
 - Прямой перевод `$FARE` или xStocks в reward account не меняет бухгалтерские пулы: sync-инструкций нет. Такой физический избыток доступен только административному `rescue_token` во время глобальной паузы.
 
@@ -75,10 +76,10 @@
 - `claim(asset)`: текущий owner получает рассчитанный доход одной NFT.
 - `cleanup_burned_machine(asset)`: permissionless проверяет, что Core Asset сожжён, и ставит событие удаления машины из расчёта на текущее `protocolTime`.
 - `repair(asset)`: текущий owner сжигает рассчитанную сумму `$FARE` и восстанавливает 5 дней прочности.
-- `activate_trainee(voucher)`: проверяет ed25519-ваучер backend, создаёт временную стажёрскую запись и непередаваемый trainee Core NFT в новой коллекции.
+- `activate_trainee(voucher)`: проверяет ed25519-ваучер backend и атомарно создаёт Trainee PDA, bucket events и непередаваемый trainee Core NFT в основной collection.
 - `claim_trainee(campaign_id)`: выплачивает одну стажёрскую машину.
 - Административные инструкции: `pause`, `unpause`, двухшаговая смена admin, замена явно разрешённых зависимостей и согласованный rescue.
-- Global pause замораживает `protocolTime` и блокирует инструкции Taxi, но не блокирует стандартный transfer Metaplex Core Asset. Collection Freeze Plugin не используется.
+- Global pause замораживает `protocolTime` и блокирует инструкции Taxi. Платные Core Asset остаются transferable; trainee всегда frozen собственным immutable Permanent Freeze Delegate.
 - Одноразовый setup создаёт основные PDA и неизменяемую Metaplex Core Collection одной транзакцией, после чего идемпотентно создаёт WSOL/FARE/xStocks token accounts конфигурации. Частично завершённый setup можно безопасно повторить.
 
 ## Неизменные экономические правила

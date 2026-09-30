@@ -108,11 +108,11 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
   assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match/);
 });
 
-test('deployment preflight rejects old positive mint prices', async () => {
+test('deployment preflight rejects legacy lamport values used as USD cents', async () => {
   const env = validEnvironment();
-  env.MINT_PRICES_LAMPORTS = '1,3,10,30';
+  env.MINT_PRICES_USD_CENTS = '350000000,1000000000,3000000000,8000000000';
   const result = await validateDeploymentEnvironment(env);
-  assert.match(result.errors.join('\n'), /expected fixed Economy\/Comfort\/Business\/Legend prices/);
+  assert.match(result.errors.join('\n'), /Economy must equal 5000/);
 });
 
 test('deployment preflight requires 16 distinct ordered machine metadata URIs', async () => {

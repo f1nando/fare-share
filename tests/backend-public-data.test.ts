@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { address } from '@solana/kit';
-import { buildPublicOverview, createPublicDataService } from '../server/publicData.js';
+import { buildPublicOverview, createPublicDataService, validateTraineeAsset } from '../server/publicData.js';
 import {
   ensureFleetEarningRetention,
   FLEET_EARNING_RETENTION_SECONDS,
@@ -84,6 +84,18 @@ test('earning history expires after a 45-day safety window', async () => {
     keys: { observedAt: 1 },
     options: { name: 'earning_history_ttl', expireAfterSeconds: 45 * 24 * 60 * 60 },
   }]);
+});
+
+test('trainee indexer requires the on-chain owner and configured Core collection', () => {
+  const asset = {
+    id: 'trainee-asset',
+    ownership: { owner: OWNER },
+    grouping: [{ group_key: 'collection', group_value: 'official-collection' }],
+  };
+  assert.doesNotThrow(() => validateTraineeAsset(asset, OWNER, 'official-collection'));
+  assert.throws(() => validateTraineeAsset(asset, 'another-owner', 'official-collection'), /owner/);
+  assert.throws(() => validateTraineeAsset(asset, OWNER, 'another-collection'), /collection/);
+  assert.throws(() => validateTraineeAsset(undefined, OWNER, 'official-collection'), /owner/);
 });
 
 function snapshot() {

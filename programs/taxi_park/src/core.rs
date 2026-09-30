@@ -74,11 +74,13 @@ pub fn create_asset_v1(args: CreateAsset<'_>) -> Result<Instruction> {
     push_string(&mut data, args.name)?;
     push_string(&mut data, args.uri)?;
     if args.permanently_frozen {
-        // Some([PermanentFreezeDelegate { frozen: true }]) with the
-        // collection update authority as the plugin authority.
+        // Some([PermanentFreezeDelegate { frozen: true }]) with an explicit
+        // PluginAuthority::None. The plugin can never be updated or removed.
         data.push(1);
         data.extend_from_slice(&1_u32.to_le_bytes());
         data.push(PERMANENT_FREEZE_DELEGATE_PLUGIN);
+        data.push(1);
+        // authority: Some(PluginAuthority::None)
         data.push(1);
         data.push(0);
     } else {
@@ -229,7 +231,7 @@ mod tests {
                 plugin: mpl_core::types::Plugin::PermanentFreezeDelegate(
                     mpl_core::types::PermanentFreezeDelegate { frozen: true },
                 ),
-                authority: None,
+                authority: Some(mpl_core::types::PluginAuthority::None),
             }]),
         });
         assert_eq!(instruction, expected);

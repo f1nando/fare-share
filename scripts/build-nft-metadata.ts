@@ -67,7 +67,7 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
         description: 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
         image: imageUris[17],
         attributes: [
-          { trait_type: 'Class', value: 'Trainee' },
+          { trait_type: 'Type', value: 'Trainee' },
           { trait_type: 'Weight', value: 1 },
           { trait_type: 'Transferable', value: 'No' },
           { trait_type: 'Repairable', value: 'No' },
