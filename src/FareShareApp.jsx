@@ -16,7 +16,7 @@ import { PUBLIC_HOLDING } from './buildMode.js';
 import './trade.css';
 
 const routes = {
-  '/fare-share/': {
+  '/': {
     className: 'fare-landing-page',
     component: FareShareLanding,
     activeItem: 'home',
@@ -90,8 +90,8 @@ function MarketRedirect() {
 }
 
 function normalizePathname(pathname) {
-  if (pathname === '/') return '/fare-share/';
-  return pathname.endsWith('/') ? pathname : `${pathname}/`;
+  const normalized = pathname.endsWith('/') ? pathname : `${pathname}/`;
+  return normalized === '/fare-share/' ? '/' : normalized;
 }
 
 function readLocation() {
@@ -102,9 +102,16 @@ export function FareShareApp() {
   const [location, setLocation] = useState(readLocation);
   const [wallet, setWallet] = useState(null);
   const pathname = location.split('#')[0];
-  const route = PUBLIC_HOLDING ? routes['/fare-share/'] : routes[pathname] || routes['/fare-share/'];
+  const route = PUBLIC_HOLDING ? routes['/'] : routes[pathname] || routes['/'];
   const Page = route.component;
-  const isLanding = pathname === '/fare-share/';
+  const isLanding = pathname === '/';
+
+  useEffect(() => {
+    const canonicalPathname = isRehearsalPath() ? appPath(pathname) : pathname;
+    if (window.location.pathname !== canonicalPathname) {
+      window.history.replaceState({}, '', `${canonicalPathname}${window.location.hash}`);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const handleNavigation = (event) => {
@@ -161,9 +168,9 @@ export function FareShareApp() {
   return (
     <TokenConfigProvider><div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix={appPath('/fare-share/')} activeItem={route.activeItem} landingOnly={PUBLIC_HOLDING} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <FareHeader linkPrefix={appPath('/')} activeItem={route.activeItem} landingOnly={PUBLIC_HOLDING} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
       <Page wallet={wallet} connectWallet={handleConnectWallet} publicHolding={PUBLIC_HOLDING} />
-      <FareFooter linkPrefix={appPath('/fare-share/')} landingOnly={PUBLIC_HOLDING} />
+      <FareFooter linkPrefix={appPath('/')} landingOnly={PUBLIC_HOLDING} />
     </div></TokenConfigProvider>
   );
 }

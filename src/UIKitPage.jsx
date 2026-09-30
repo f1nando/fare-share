@@ -64,7 +64,7 @@ export function UIKitPage() {
           <span className="ui-kit-eyebrow">FARE SHARE SYSTEM</span>
           <h1>UI KIT</h1>
         </div>
-        <a href={appPath('/fare-share/')}>Back to site</a>
+        <a href={appPath('/')}>Back to site</a>
       </header>
 
       <main>
