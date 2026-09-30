@@ -662,7 +662,7 @@ test('wallet transaction timeout keeps its signature for Explorer verification',
   assert.equal(error.signature, 'pending-signature');
 });
 
-test('multi-signer mint lets the wallet sign before adding the asset signature', async () => {
+test('multi-signer mint adds the asset signature before requesting the wallet signature', async () => {
   const owner = await generateKeyPairSigner();
   const asset = await generateKeyPairSigner();
   const blockhash = await generateKeyPairSigner();
@@ -684,6 +684,7 @@ test('multi-signer mint lets the wallet sign before adding the asset signature',
     'solana:signTransaction': {
       signTransaction: async ({ transaction }) => {
         const decoded = getTransactionDecoder().decode(transaction);
+        assert.ok(decoded.signatures[asset.address]);
         const signed = await partiallySignTransaction([owner.keyPair], decoded);
         return [{ signedTransaction: getTransactionEncoder().encode(signed) }];
       },
