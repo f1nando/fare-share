@@ -38,12 +38,14 @@ export interface InitializeProtocolInput {
   stockMints: [Address, Address, Address, Address];
   mintPricesUsdCents: [bigint, bigint, bigint, bigint];
   metadataUris: readonly string[];
+  traineeMetadataUri: string;
   lookupTables?: AddressesByLookupTableAddress;
 }
 
 export async function initializeProtocol(input: InitializeProtocolInput) {
   if (input.deploymentId.length !== 32) throw new Error('deploymentId must contain 32 bytes');
   assertMetadataUris(input.metadataUris);
+  assertMetadataUri(input.traineeMetadataUri, 'traineeMetadataUri');
   const addresses = await protocolAddresses(input.programId);
   const existing = await getAccount(input.rpcUrl, addresses.config);
   let initializeSignature: string | undefined;
@@ -75,6 +77,14 @@ export async function initializeProtocol(input: InitializeProtocolInput) {
       ),
     ])));
   }
+  metadataSignatures.push(String(await sendInstructions(input.rpcUrl, input.admin, [
+    buildSetTraineeMetadataUriInstruction(
+      input.programId,
+      input.admin.address,
+      addresses.config,
+      input.traineeMetadataUri,
+    ),
+  ])));
 
   const mints = [WSOL_MINT, ...input.stockMints];
   const mintAccounts = await Promise.all(mints.map(mint => getAccount(input.rpcUrl, mint)));
@@ -174,6 +184,29 @@ export function assertMetadataUris(metadataUris: readonly string[]) {
   }
   if (new Set(metadataUris).size !== METADATA_URI_COUNT) {
     throw new Error('every class/variant metadata URI must be distinct');
+  }
+}
+
+export function buildSetTraineeMetadataUriInstruction(
+  programId: Address,
+  admin: Address,
+  config: Address,
+  uri: string,
+): Instruction {
+  assertMetadataUri(uri, 'traineeMetadataUri');
+  return {
+    programAddress: programId,
+    accounts: [
+      meta(admin, AccountRole.READONLY_SIGNER),
+      meta(config, AccountRole.WRITABLE),
+    ],
+    data: concat(anchorDiscriminator('set_trainee_metadata_uri'), stringBytes(uri)),
+  };
+}
+
+function assertMetadataUri(uri: string, name: string) {
+  if (!uri || Buffer.byteLength(uri, 'utf8') > 200) {
+    throw new Error(`${name} must contain 1 to 200 UTF-8 bytes`);
   }
 }
 

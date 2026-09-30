@@ -48,7 +48,10 @@ export function createPublicDataService(config: {
     activeSync = (async () => {
       const worker = await database.workerStatus.findOne({ key: 'protocol-worker' });
       const dashboard = await loadProtocolDashboard(config.solanaRpcUrl, config.programId, worker, config.workerIntervalMs, config.fareSymbol);
-      const assets = await loadAssets(config.solanaRpcUrl, dashboard.machines.map(machine => machine.asset));
+      const assets = await loadAssets(config.solanaRpcUrl, [
+        ...dashboard.machines.map(machine => machine.asset),
+        ...dashboard.trainees.map(trainee => trainee.asset),
+      ]);
       const assetsById = new Map(assets.map(asset => [asset.id, asset]));
       const now = new Date();
       if (dashboard.machines.length) {
@@ -100,6 +103,24 @@ export function createPublicDataService(config: {
           ]);
         }
       }
+      if (dashboard.trainees.length) {
+        await database.fleetTrainees.bulkWrite(dashboard.trainees.map(trainee => {
+          const asset = assetsById.get(trainee.asset);
+          return {
+            updateOne: {
+              filter: { asset: trainee.asset },
+              update: { $set: {
+                ...trainee,
+                name: asset?.content?.metadata?.name || 'TAXI Trainee',
+                image: asset?.content?.links?.image || asset?.content?.files?.find(file => file.mime?.startsWith('image/'))?.uri || '',
+                lastSeenAt: now,
+                updatedAt: now,
+              } },
+              upsert: true,
+            },
+          };
+        }));
+      }
       const snapshot = {
         key: 'overview',
         protocol: dashboard.protocol,
@@ -138,13 +159,15 @@ export function createPublicDataService(config: {
   async function walletFleet(rawOwner: string) {
     let owner: Address;
     try { owner = address(rawOwner); } catch { throw new PublicDataError('Invalid wallet address.'); }
-    const [snapshot, machines] = await Promise.all([
+    const [snapshot, machines, trainees] = await Promise.all([
       database.publicSnapshots.findOne({ key: 'overview' }),
       database.fleetMachines.find({ owner: String(owner), closed: false }).sort({ activeUntil: -1 }).toArray(),
+      database.fleetTrainees.find({ owner: String(owner) }).sort({ activeUntil: -1 }).toArray(),
     ]);
     if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
     return {
       machines: machines.map(({ _id, lastSeenAt, updatedAt, ...machine }) => machine),
+      trainees: trainees.map(({ _id, lastSeenAt, updatedAt, ...trainee }) => trainee),
       assets: snapshot.distribution.assets,
       protocolNow: String(snapshot.distribution.protocolNow || '0'),
       observedAt: snapshot.observedAt,

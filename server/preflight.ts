@@ -205,6 +205,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (metadataUris.length === 16 && new Set(metadataUris).size !== 16) {
     errors.push('MACHINE_METADATA_URIS: every class/variant entry must use a distinct URI');
   }
+  validateMetadataUri('TRAINEE_METADATA_URI', required('TRAINEE_METADATA_URI'), errors);
 
   if (value('SOLANA_RPC_URL') !== value('VITE_SOLANA_RPC_URL')) {
     warnings.push('SOLANA_RPC_URL and VITE_SOLANA_RPC_URL differ; make sure they use the same network');

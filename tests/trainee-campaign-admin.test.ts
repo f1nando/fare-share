@@ -12,8 +12,8 @@ test('trainee campaign activation counts come from finalized on-chain accounts',
   const fetchImplementation = (async (_url, init) => {
     const request = JSON.parse(String(init?.body));
     assert.equal(request.method, 'getProgramAccounts');
-    assert.deepEqual(request.params[1].filters, [{ dataSize: 90 }]);
-    assert.deepEqual(request.params[1].dataSlice, { offset: 40, length: 8 });
+    assert.deepEqual(request.params[1].filters, [{ dataSize: 122 }]);
+    assert.deepEqual(request.params[1].dataSlice, { offset: 72, length: 8 });
     return new Response(JSON.stringify({
       jsonrpc: '2.0',
       id: 1,

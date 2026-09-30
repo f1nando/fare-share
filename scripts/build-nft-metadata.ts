@@ -29,14 +29,14 @@ const modelSlug = (model: string) => model
   .replace(/^-|-$/g, '');
 
 export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest = false) {
-  if (imageUris.length !== 17 || imageUris.some(uri => !/^https:\/\//.test(uri))) {
-    throw new Error('NFT_IMAGE_URIS must contain 17 comma-separated HTTPS URLs: collection, then 16 class/variant images');
+  if (imageUris.length !== 18 || imageUris.some(uri => !/^https:\/\//.test(uri))) {
+    throw new Error('NFT_IMAGE_URIS must contain 18 comma-separated HTTPS URLs: collection, 16 class/variant images, then trainee');
   }
-  const collectionName = isMainnetTest ? 'FARE Taxi Park Mainnet Test' : 'FARE Taxi Park';
-  const symbol = isMainnetTest ? 'FARETEST' : 'FARE';
+  const collectionName = isMainnetTest ? 'TAXI Taxi Park Mainnet Test' : 'TAXI Taxi Park';
+  const symbol = isMainnetTest ? 'TAXITEST' : 'TAXI';
   const collectionDescription = isMainnetTest
-    ? 'Disposable FARE Taxi Park mainnet validation collection. Not the production collection. No fixed APY.'
-    : 'The official FARE Taxi Park collection on Solana. Rewards depend on actual protocol fees. No fixed APY.';
+    ? 'Disposable TAXI Taxi Park mainnet validation collection. Not the production collection. No fixed APY.'
+    : 'The official TAXI Taxi Park collection on Solana. Rewards depend on actual protocol fees. No fixed APY.';
   let imageIndex = 1;
   return [
     {
@@ -48,8 +48,8 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
       data: {
         symbol,
         description: isMainnetTest
-          ? `A ${model} ${item.className} taxi from the disposable FARE Taxi Park mainnet validation collection. Not a production NFT. No fixed APY.`
-          : `A ${model} ${item.className} taxi from FARE Taxi Park. Rewards depend on actual protocol fees. No fixed APY.`,
+          ? `A ${model} ${item.className} taxi from the disposable TAXI Taxi Park mainnet validation collection. Not a production NFT. No fixed APY.`
+          : `A ${model} ${item.className} taxi from TAXI Taxi Park. Rewards depend on actual protocol fees. No fixed APY.`,
         image: imageUris[imageIndex++],
         attributes: [
           { trait_type: 'Class', value: item.className },
@@ -59,6 +59,21 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
         ],
       },
     }))),
+    {
+      file: 'trainee.json',
+      data: {
+        name: 'TAXI Trainee',
+        symbol,
+        description: 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
+        image: imageUris[17],
+        attributes: [
+          { trait_type: 'Class', value: 'Trainee' },
+          { trait_type: 'Weight', value: 1 },
+          { trait_type: 'Transferable', value: 'No' },
+          { trait_type: 'Repairable', value: 'No' },
+        ],
+      },
+    },
   ];
 }
 

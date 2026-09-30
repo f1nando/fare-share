@@ -2,8 +2,8 @@ import type { TaxiDatabase } from './database.js';
 import { keywordHash, normalizeKeyword } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
 
-const TRAINEE_ACCOUNT_SIZE = 90;
-const CAMPAIGN_ID_OFFSET = 40;
+const TRAINEE_ACCOUNT_SIZE = 122;
+const CAMPAIGN_ID_OFFSET = 72;
 const DEFAULT_DURATION_MINUTES = 360;
 const MAX_U64 = (1n << 64n) - 1n;
 

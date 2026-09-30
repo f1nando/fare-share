@@ -133,7 +133,7 @@
 - ✅ On-chain activate/claim, backend voucher, подпись Ed25519, expiry и защита от повторной кампании реализованы.
 - ✅ Campaign/rate-limit/backend tests существуют.
 - 🟡 Docs и landing рассказывают о trainee campaign.
-- ✅ В branded `/mint/` добавлены campaign ID + keyword, активация временной trainee machine, список кампаний и отдельный Claim.
+- ✅ В branded `/mint/` добавлены code word, активация временного непередаваемого trainee NFT, список активаций и отдельный Claim; внутренний campaign ID пользователю не показывается.
 - ⬜ Опубликовать новый trainee UI и проверить его с реальной тестовой кампанией.
 - ⬜ Выполнить end-to-end smoke: создать campaign → получить voucher → activate → дождаться reward → claim.
 - ⬜ Проверить wrong keyword, expired campaign, повторную активацию и rate limit.

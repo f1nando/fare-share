@@ -118,7 +118,7 @@ npm run campaign:create -- 1 360 кодовое-слово "Первая кам�
 
 Продолжительность указывается в минутах от 60 до 10080 (7 дней). Слово сохраняется только в виде HMAC-SHA256 с серверным pepper. Оно не попадает в Solana, frontend bundle или ответ API.
 
-Frontend отправляет `wallet`, `campaignId`, найденное слово и свободную страницу очереди в `POST /api/trainee/voucher`. Backend читает finalized Configuration PDA, рассчитывает ближайшую полную минуту protocol time и подписывает каноническое сообщение `TAXI_TRAINEE_V1`. Пользователь сам отправляет Ed25519 verify + `activate_trainee` одной Solana-транзакцией и оплачивает network fee/rent.
+Frontend отправляет `wallet`, найденное слово и свободную страницу очереди в `POST /api/trainee/voucher`. Backend находит внутренний campaign ID по hash слова, читает finalized Configuration PDA, рассчитывает ближайшую полную минуту protocol time и подписывает каноническое сообщение `TAXI_TRAINEE_V1`. Пользователь сам отправляет Ed25519 verify + `activate_trainee` одной Solana-транзакцией и оплачивает network fee/rent для Trainee PDA, bucket accounts и непередаваемого Metaplex Core NFT.
 
 Для списка Metaplex Core NFT frontend использует DAS-метод `getAssetsByOwner`. В production `VITE_SOLANA_DAS_URL` обязан указывать на DAS-совместимый RPC (например, Helius или QuickNode). Если метод недоступен, интерфейс показывает ошибку настройки, а не пустой гараж.
 

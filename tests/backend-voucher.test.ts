@@ -72,6 +72,10 @@ test('server decodes protocol pause clock after variable metadata strings', () =
     length.writeUInt32LE(value.length);
     chunks.push(length, value);
   }
+  const traineeUri = Buffer.from('trainee-uri');
+  const traineeLength = Buffer.alloc(4);
+  traineeLength.writeUInt32LE(traineeUri.length);
+  chunks.push(traineeLength, traineeUri);
   chunks.push(Buffer.alloc(8 * 4 + 2 * 4 + 1));
   const pause = Buffer.alloc(16);
   pause.writeBigInt64LE(500n, 0);

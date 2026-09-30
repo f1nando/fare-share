@@ -10,6 +10,7 @@ const addressDecoder = getAddressDecoder();
 const ACCUMULATOR_SCALE = 1_000_000_000_000_000_000n;
 const CLASS_NAMES = new Map([[1, 'Economy'], [3, 'Comfort'], [10, 'Business'], [30, 'Legend']]);
 const STOCK_SYMBOLS = ['UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
+export const TRAINEE_ACCOUNT_SIZE = 122;
 
 export async function loadProtocolDashboard(
   rpcUrl: string,
@@ -20,7 +21,7 @@ export async function loadProtocolDashboard(
 ) {
   const assetSymbols = [fareSymbol, ...STOCK_SYMBOLS];
   const addresses = await protocolAddresses(programId);
-  const [configAccount, poolAccount, traineePoolAccount, queueAccount, traineeQueueAccount, feeVaultAccount, machineAccounts] = await Promise.all([
+  const [configAccount, poolAccount, traineePoolAccount, queueAccount, traineeQueueAccount, feeVaultAccount, machineAccounts, traineeAccounts] = await Promise.all([
     getAccount(rpcUrl, addresses.config),
     getAccount(rpcUrl, addresses.pool),
     getAccount(rpcUrl, addresses.traineePool),
@@ -28,6 +29,7 @@ export async function loadProtocolDashboard(
     getAccount(rpcUrl, addresses.traineeQueue),
     getRpcAccount(rpcUrl, addresses.feeVault),
     listMachines(rpcUrl, programId),
+    listTrainees(rpcUrl, programId),
   ]);
   const configuration = decodeWorkerConfiguration(configAccount);
   const assetMints = [configuration.fareMint, ...configuration.stockMints];
@@ -46,6 +48,7 @@ export async function loadProtocolDashboard(
   const traineeQueue = decodeEventQueueState(traineeQueueAccount);
   const nowSeconds = (configuration.pausedAt || BigInt(Math.floor(Date.now() / 1000))) - configuration.totalPausedSeconds;
   const machines = machineAccounts.map(item => machineSummary(item.pubkey, item.data, pool));
+  const trainees = traineeAccounts.map(item => traineeSummary(item.pubkey, item.data));
   const updatedAt = worker?.updatedAt?.getTime() || 0;
   const online = updatedAt > 0 && Date.now() - updatedAt <= workerIntervalMs * 2 + 15_000;
 
@@ -62,6 +65,7 @@ export async function loadProtocolDashboard(
       mintPricesUsdCents: configuration.mintPrices.map(String),
       mintedByClass: configuration.mintedByClass,
       machineCount: machines.length,
+      traineeCount: trainees.length,
     },
     worker: {
       state: online ? worker?.state || 'idle' : 'offline',
@@ -94,6 +98,7 @@ export async function loadProtocolDashboard(
       tokens: assetSymbols.map((symbol, index) => ({ symbol, mint: String(assetMints[index]), decimals: mintDetails[index].decimals, amount: vaultBalances[index].toString() })),
     },
     machines: machines.sort((a, b) => Number(BigInt(b.claimable[0]) - BigInt(a.claimable[0]))),
+    trainees: trainees.sort((a, b) => Number(BigInt(b.activeUntil) - BigInt(a.activeUntil))),
     observedAt: new Date().toISOString(),
   };
 }
@@ -148,6 +153,18 @@ export function decodeDashboardMachine(bytes: Uint8Array, pool: DashboardPool) {
   return { asset, weight, activeUntil, rewardActive, closed, claimable, pending, fareBase };
 }
 
+export function decodeDashboardTrainee(bytes: Uint8Array) {
+  if (bytes.length !== TRAINEE_ACCOUNT_SIZE) throw new Error('Invalid Trainee account size');
+  const reader = new Reader(bytes);
+  const owner = reader.pubkey();
+  const asset = reader.pubkey();
+  const campaignId = reader.u64();
+  reader.skip(8);
+  const activeFrom = reader.i64();
+  const activeUntil = reader.i64();
+  return { owner, asset, campaignId, activeFrom, activeUntil };
+}
+
 function machineSummary(machine: string, bytes: Uint8Array, pool: DashboardPool) {
   const state = decodeDashboardMachine(bytes, pool);
   return {
@@ -161,6 +178,18 @@ function machineSummary(machine: string, bytes: Uint8Array, pool: DashboardPool)
     claimable: state.claimable.map(String),
     pending: state.pending.map(String),
     fareBase: state.fareBase.toString(),
+  };
+}
+
+function traineeSummary(trainee: string, bytes: Uint8Array) {
+  const state = decodeDashboardTrainee(bytes);
+  return {
+    trainee,
+    owner: String(state.owner),
+    asset: String(state.asset),
+    campaignId: state.campaignId.toString(),
+    activeFrom: state.activeFrom.toString(),
+    activeUntil: state.activeUntil.toString(),
   };
 }
 
@@ -181,6 +210,13 @@ function queueSummary(queue: EventQueueState, pool: DashboardPool, now: bigint) 
 async function listMachines(rpcUrl: string, programId: Address) {
   const result = await solanaRpcCall<Array<{ pubkey: string; account: { data: [string, string] } }>>(rpcUrl, 'getProgramAccounts', [programId, {
     commitment: 'finalized', encoding: 'base64', filters: [{ dataSize: MACHINE_ACCOUNT_SIZE }],
+  }]);
+  return result.map(item => ({ pubkey: item.pubkey, data: Uint8Array.from(Buffer.from(item.account.data[0], 'base64')) }));
+}
+
+async function listTrainees(rpcUrl: string, programId: Address) {
+  const result = await solanaRpcCall<Array<{ pubkey: string; account: { data: [string, string] } }>>(rpcUrl, 'getProgramAccounts', [programId, {
+    commitment: 'finalized', encoding: 'base64', filters: [{ dataSize: TRAINEE_ACCOUNT_SIZE }],
   }]);
   return result.map(item => ({ pubkey: item.pubkey, data: Uint8Array.from(Buffer.from(item.account.data[0], 'base64')) }));
 }

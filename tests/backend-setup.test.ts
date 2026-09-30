@@ -5,6 +5,7 @@ import { AccountRole, address, type KeyPairSigner } from '@solana/kit';
 import {
   buildInitializeInstruction,
   buildSetMetadataUrisInstruction,
+  buildSetTraineeMetadataUriInstruction,
   assertMetadataUris,
   protocolAddresses,
   type InitializeProtocolInput,
@@ -32,6 +33,7 @@ test('initialize instruction matches Anchor account and field order', async () =
     stockMints: [SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS, SYSTEM_ADDRESS],
     mintPricesUsdCents: [5000n, 12900n, 39900n, 109900n],
     metadataUris: Array.from({ length: 16 }, (_, index) => `uri-${index}`),
+    traineeMetadataUri: 'https://example.test/trainee.json',
   };
   const collection = address('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
   const instruction = buildInitializeInstruction(input, addresses, collection);
@@ -90,6 +92,16 @@ test('initialize instruction matches Anchor account and field order', async () =
     assert.deepEqual(values, input.metadataUris.slice(start, start + 4));
     assert.equal(metadataOffset, metadataData.length);
   }
+  const traineeInstruction = buildSetTraineeMetadataUriInstruction(
+    PROGRAM_ID,
+    SYSTEM_ADDRESS,
+    addresses.config,
+    input.traineeMetadataUri,
+  );
+  assert.deepEqual(
+    Buffer.from(traineeInstruction.data!.slice(0, 8)),
+    createHash('sha256').update('global:set_trainee_metadata_uri').digest().subarray(0, 8),
+  );
 });
 
 test('metadata setup rejects missing variants and invalid classes', async () => {

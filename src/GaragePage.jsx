@@ -4,8 +4,10 @@ import drivingScenes from './drivingScenes.json';
 import {
   claimAllMachines,
   claimMachine,
+  claimTrainee,
   explorerTransaction,
   loadProtocolStatus,
+  loadOwnedTrainees,
   MAX_CLAIM_MACHINES_PER_TRANSACTION,
   MAX_REPAIR_MACHINES_PER_TRANSACTION,
   repairAllMachines,
@@ -25,6 +27,7 @@ export function GaragePage({ wallet }) {
   const ticker = displayTicker(useTokenConfig());
   const [status, setStatus] = useState(null);
   const [machines, setMachines] = useState([]);
+  const [trainees, setTrainees] = useState([]);
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
   const [signature, setSignature] = useState('');
@@ -42,6 +45,7 @@ export function GaragePage({ wallet }) {
   useEffect(() => {
     if (!wallet || !status?.deployed) {
       setMachines([]);
+      setTrainees([]);
       setHistory([]);
       return undefined;
     }
@@ -50,12 +54,14 @@ export function GaragePage({ wallet }) {
     Promise.all([
       loadDatabaseFleet(wallet.account.address),
       loadDatabaseEarningHistory(wallet.account.address, historyPeriod),
+      loadOwnedTrainees(wallet.account.address, status),
     ])
-      .then(([next, earningHistory]) => {
+      .then(([next, earningHistory, nextTrainees]) => {
         if (!active) return;
         setMachines(next);
         setHistory(earningHistory.points);
-        setNotice(next.length ? '' : 'This wallet has no Fare Share cars.');
+        setTrainees(nextTrainees);
+        setNotice(next.length || nextTrainees.length ? '' : 'This wallet has no Fare Share cars.');
       })
       .catch(error => active && setNotice(error.message))
       .finally(() => active && setBusy(''));
@@ -97,12 +103,14 @@ export function GaragePage({ wallet }) {
       setSignature(nextSignature);
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
-      const [nextMachines, nextHistory] = await Promise.all([
+      const [nextMachines, nextHistory, nextTrainees] = await Promise.all([
         loadDatabaseFleet(wallet.account.address),
         loadDatabaseEarningHistory(wallet.account.address, historyPeriod),
+        loadOwnedTrainees(wallet.account.address, nextStatus),
       ]);
       setMachines(nextMachines);
       setHistory(nextHistory.points);
+      setTrainees(nextTrainees);
       setNotice(success);
     } catch (error) {
       if (error.signature) setSignature(error.signature);
@@ -205,8 +213,28 @@ export function GaragePage({ wallet }) {
                 </div>
               </article>
             ))}
+            {trainees.map(trainee => (
+              <article className="fare-step-card fare-garage-card fare-trainee-garage-card" key={String(trainee.asset)}>
+                <img src="/nft/trainee.png" alt="Yellow TAXI trainee car" />
+                <span className="fare-fleet-class fare-garage-class is-trainee">TRAINEE</span>
+                <h2>TAXI Trainee</h2>
+                <div className="fare-garage-earned">
+                  <span>Temporary NFT · active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</span>
+                  <strong>{trainee.rewardDisplay} {ticker}</strong>
+                  <small>Non-transferable · cannot be repaired</small>
+                </div>
+                <div className="fare-garage-actions">
+                  <button className="is-secondary" type="button" disabled>Not repairable</button>
+                  <button type="button" disabled={Boolean(busy) || paused || trainee.reward === 0n} onClick={() => runAction(
+                    `claim-trainee-${trainee.campaignId}`,
+                    () => claimTrainee(wallet, trainee, status),
+                    'Trainee rewards claimed.',
+                  )}>Claim</button>
+                </div>
+              </article>
+            ))}
           </div>
-          {wallet && status?.deployed && !busy && displayedCars.length === 0 && <p className="fare-garage-notice">This wallet has no verified taxis.</p>}
+          {wallet && status?.deployed && !busy && displayedCars.length === 0 && trainees.length === 0 && <p className="fare-garage-notice">This wallet has no verified taxis.</p>}
         </section>
       </main>
     </>

@@ -49,6 +49,7 @@ pub mod taxi_park {
         config.fare_mint = Pubkey::default();
         config.stock_mints = args.stock_mints;
         config.metadata_uris = std::array::from_fn(|_| String::new());
+        config.trainee_metadata_uri = String::new();
         config.mint_prices = args.mint_prices;
         config.sale_started = false;
         config.paused_at = 0;
@@ -141,6 +142,22 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn set_trainee_metadata_uri(ctx: Context<AdminState>, uri: String) -> Result<()> {
+        require!(
+            !uri.is_empty() && uri.len() <= MAX_METADATA_URI_LEN,
+            TaxiError::InvalidMetadataUri
+        );
+        if ctx.accounts.config.sale_started {
+            require!(
+                ctx.accounts.config.trainee_metadata_uri == uri,
+                TaxiError::SaleAlreadyStarted
+            );
+            return Ok(());
+        }
+        ctx.accounts.config.trainee_metadata_uri = uri;
+        Ok(())
+    }
+
     pub fn set_fare_mint(ctx: Context<SetFareMint>) -> Result<()> {
         let config = &mut ctx.accounts.config;
         let fare_mint = ctx.accounts.fare_mint.key();
@@ -183,6 +200,11 @@ pub mod taxi_park {
         );
         require!(
             metadata_uris_are_valid(&config.metadata_uris),
+            TaxiError::InvalidMetadataUri
+        );
+        require!(
+            !config.trainee_metadata_uri.is_empty()
+                && config.trainee_metadata_uri.len() <= MAX_METADATA_URI_LEN,
             TaxiError::InvalidMetadataUri
         );
         config.sale_started = true;
@@ -862,7 +884,7 @@ pub mod taxi_park {
         )
         .map_err(|_| error!(TaxiError::InvalidMintQuoteSignature))?;
         let (serial, variant) = next_mint_selection(minted, cap)?;
-        let name = format!("FARE {} #{:04}", class_name(class)?, serial);
+        let name = format!("TAXI {} #{:04}", class_name(class)?, serial);
         let uri = ctx
             .accounts
             .config
@@ -922,6 +944,7 @@ pub mod taxi_park {
             system_program: ctx.accounts.system_program.key(),
             name: &name,
             uri: &uri,
+            permanently_frozen: false,
         })?;
         invoke_signed(
             &instruction,
@@ -1307,14 +1330,47 @@ pub mod taxi_park {
 
         let trainee = &mut ctx.accounts.trainee;
         trainee.owner = ctx.accounts.owner.key();
+        trainee.asset = ctx.accounts.asset.key();
         trainee.campaign_id = args.campaign_id;
         trainee.nonce = args.nonce;
         trainee.active_from = active_from;
         trainee.active_until = active_until;
         trainee.bump = ctx.bumps.trainee;
 
+        metaplex_core::assert_collection(
+            &ctx.accounts.collection,
+            &[ctx.accounts.config.key(), ctx.accounts.config.admin],
+        )?;
+        let config_info = ctx.accounts.config.to_account_info();
+        let config_bump = [ctx.accounts.config.bump];
+        let config_seeds: &[&[u8]] = &[b"config", &config_bump];
+        let instruction = metaplex_core::create_asset_v1(metaplex_core::CreateAsset {
+            asset: ctx.accounts.asset.key(),
+            collection: ctx.accounts.collection.key(),
+            authority: ctx.accounts.config.key(),
+            payer: ctx.accounts.owner.key(),
+            owner: ctx.accounts.owner.key(),
+            system_program: ctx.accounts.system_program.key(),
+            name: "TAXI Trainee",
+            uri: &ctx.accounts.config.trainee_metadata_uri,
+            permanently_frozen: true,
+        })?;
+        invoke_signed(
+            &instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.asset.to_account_info(),
+                ctx.accounts.collection.to_account_info(),
+                config_info,
+                ctx.accounts.owner.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[config_seeds],
+        )?;
+
         emit!(TraineeActivated {
             owner: trainee.owner,
+            asset: trainee.asset,
             campaign_id: trainee.campaign_id,
             active_from,
             active_until,
@@ -1421,6 +1477,11 @@ pub mod taxi_park {
 
     pub fn claim_trainee(ctx: Context<ClaimTrainee>) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+        )?;
         require!(
             ctx.accounts.start_bucket.processed,
             TaxiError::TraineeRewardsNotCalculated
@@ -2134,6 +2195,15 @@ pub struct ActivateTrainee<'info> {
         bump
     )]
     pub trainee: Account<'info, Trainee>,
+    /// CHECK: New Metaplex Core asset created atomically by activate_trainee.
+    #[account(mut)]
+    pub asset: Signer<'info>,
+    /// CHECK: Address, owner and update authority are validated by metaplex_core::assert_collection.
+    #[account(mut, address = config.collection)]
+    pub collection: UncheckedAccount<'info>,
+    /// CHECK: Fixed Metaplex Core program.
+    #[account(address = metaplex_core::MPL_CORE_ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
     #[account(
         init_if_needed,
         payer = owner,
@@ -2179,9 +2249,13 @@ pub struct ClaimTrainee<'info> {
         mut,
         seeds = [b"trainee", owner.key().as_ref(), &trainee.campaign_id.to_le_bytes()],
         bump = trainee.bump,
-        has_one = owner @ TaxiError::Unauthorized
+        has_one = owner @ TaxiError::Unauthorized,
+        has_one = asset @ TaxiError::InvalidAssetOwner
     )]
     pub trainee: Account<'info, Trainee>,
+    /// CHECK: Core owner, asset owner and collection are validated in the handler.
+    #[account(address = trainee.asset)]
+    pub asset: UncheckedAccount<'info>,
     #[account(
         seeds = [b"trainee-bucket".as_ref(), &trainee.active_from.to_le_bytes()],
         bump = start_bucket.bump
@@ -2500,6 +2574,7 @@ mod accounting_tests {
             fare_mint: Pubkey::default(),
             stock_mints,
             metadata_uris: std::array::from_fn(|index| format!("uri-{index}")),
+            trainee_metadata_uri: "trainee-uri".to_owned(),
             mint_prices: [1; CLASS_COUNT],
             minted_by_class: [0; CLASS_COUNT],
             sale_started: false,
@@ -2650,6 +2725,7 @@ mod accounting_tests {
             fare_mint: Pubkey::new_unique(),
             stock_mints: std::array::from_fn(|_| Pubkey::new_unique()),
             metadata_uris,
+            trainee_metadata_uri: "trainee-uri".to_owned(),
             mint_prices: [1, 2, 3, 4],
             minted_by_class: [0; CLASS_COUNT],
             sale_started: false,
@@ -2691,10 +2767,10 @@ mod accounting_tests {
     #[test]
     fn configuration_layout_requires_new_initialization() {
         const LEGACY_CONFIGURATION_INIT_SPACE: usize = 1298;
-        assert_eq!(Configuration::INIT_SPACE, 3746);
+        assert_eq!(Configuration::INIT_SPACE, 3950);
         assert_eq!(
             Configuration::INIT_SPACE - LEGACY_CONFIGURATION_INIT_SPACE,
-            12 * (4 + MAX_METADATA_URI_LEN),
+            13 * (4 + MAX_METADATA_URI_LEN),
         );
     }
 
@@ -3060,6 +3136,7 @@ pub struct StaleEventsPruned {
 #[event]
 pub struct TraineeActivated {
     pub owner: Pubkey,
+    pub asset: Pubkey,
     pub campaign_id: u64,
     pub active_from: i64,
     pub active_until: i64,

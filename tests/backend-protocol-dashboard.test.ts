@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getAddressEncoder, address } from '@solana/kit';
-import { decodeDashboardMachine, decodeDashboardPool, teamWalletHealth } from '../server/protocolDashboard.js';
+import { decodeDashboardMachine, decodeDashboardPool, decodeDashboardTrainee, teamWalletHealth } from '../server/protocolDashboard.js';
 
 const asset = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 
@@ -43,6 +43,20 @@ test('admin dashboard flags a team wallet below rent exemption', () => {
     ready: false,
   });
   assert.equal(teamWalletHealth(890_880n, 890_880n).ready, true);
+});
+
+test('dashboard projects trainee NFT ownership and activation window', () => {
+  const bytes = new Uint8Array(122);
+  const writer = new Writer(bytes);
+  writer.bytes(Uint8Array.from(getAddressEncoder().encode(asset)));
+  writer.bytes(Uint8Array.from(getAddressEncoder().encode(asset)));
+  writer.u64(12n).u64(34n).i64(60n).i64(21_660n).u128(0n).u8(0).u8(1);
+  const trainee = decodeDashboardTrainee(bytes);
+  assert.equal(trainee.owner, asset);
+  assert.equal(trainee.asset, asset);
+  assert.equal(trainee.campaignId, 12n);
+  assert.equal(trainee.activeFrom, 60n);
+  assert.equal(trainee.activeUntil, 21_660n);
 });
 
 class Writer {

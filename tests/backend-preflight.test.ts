@@ -45,6 +45,7 @@ function validEnvironment(): NodeJS.ProcessEnv {
     COLLECTION_NAME: 'FARE Taxi Park',
     COLLECTION_URI: 'https://arweave.net/collection',
     MACHINE_METADATA_URIS: Array.from({ length: 16 }, (_, index) => `ar://machine-${index}`).join(','),
+    TRAINEE_METADATA_URI: 'ar://trainee',
   };
 }
 
@@ -105,6 +106,13 @@ test('deployment preflight rejects a 64-byte array whose key halves do not match
   env.WORKER_KEYPAIR_SECRET_KEY = JSON.stringify(Array.from({ length: 64 }, (_, index) => index));
   const result = await validateDeploymentEnvironment(env);
   assert.match(result.errors.join('\n'), /WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match/);
+});
+
+test('deployment preflight rejects old positive mint prices', async () => {
+  const env = validEnvironment();
+  env.MINT_PRICES_LAMPORTS = '1,3,10,30';
+  const result = await validateDeploymentEnvironment(env);
+  assert.match(result.errors.join('\n'), /expected fixed Economy\/Comfort\/Business\/Legend prices/);
 });
 
 test('deployment preflight requires 16 distinct ordered machine metadata URIs', async () => {

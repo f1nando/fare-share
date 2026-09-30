@@ -174,7 +174,7 @@ export async function loadOwnedTrainees(owner, knownStatus) {
       params: [String(PROGRAM_ID), {
         commitment: 'finalized',
         encoding: 'base64',
-        filters: [{ dataSize: 90 }, { memcmp: { offset: 8, bytes: String(owner) } }],
+        filters: [{ dataSize: 122 }, { memcmp: { offset: 8, bytes: String(owner) } }],
       }],
     }),
   });
@@ -223,11 +223,12 @@ export async function activateTrainee(connection, keyword, knownStatus) {
   });
   const voucher = await response.json();
   if (!response.ok) throw new Error(voucher.error || 'The backend did not issue a voucher.');
-  const instructions = await buildActivateTraineeInstructions({
+  const built = await buildActivateTraineeInstructions({
     programAddress: PROGRAM_ID,
     owner,
     configAddress: status.addresses.config,
     traineeQueue: status.addresses.traineeQueue,
+    collection: status.config.collection,
     voucher,
   });
   return sendWalletInstructions({
@@ -235,7 +236,8 @@ export async function activateTrainee(connection, keyword, knownStatus) {
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
-    instructions,
+    instructions: built.instructions,
+    additionalSigners: [built.assetSigner],
   });
 }
 

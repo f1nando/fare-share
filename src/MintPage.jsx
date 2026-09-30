@@ -370,8 +370,8 @@ export function MintPage({ wallet, connectWallet }) {
             <div className="fare-trainee-mint-copy">
               <span>FREE TEMPORARY TAXI</span>
               <h2 id="trainee-mint-title">START AS A TRAINEE</h2>
-              <p>Enter the code word published by Fare Share. The trainee taxi is virtual, non-transferable and participates automatically for the campaign period.</p>
-              <p className="fare-trainee-mint-note">Activation does not mint an NFT. Your wallet pays only Solana account rent and the network fee.</p>
+              <p>Enter the code word published by Fare Share. The trainee NFT is non-transferable and participates automatically for the campaign period.</p>
+              <p className="fare-trainee-mint-note">The NFT appears in your wallet and Garage. It cannot be transferred or repaired. Your wallet pays only Solana account rent and the network fee.</p>
             </div>
             <div className="fare-trainee-mint-panel">
               <form onSubmit={handleActivateTrainee}>

@@ -218,6 +218,9 @@ test('configuration decoder reads all 16 metadata URIs in class and variant orde
     length.writeUInt32LE(bytes.length);
     return Buffer.concat([length, bytes]);
   });
+  const traineeUri = Buffer.from('trainee-uri');
+  const traineeUriLength = Buffer.alloc(4);
+  traineeUriLength.writeUInt32LE(traineeUri.length);
   const bytes = Buffer.concat([
     Buffer.alloc(8),
     Buffer.alloc(32 * 5),
@@ -225,11 +228,15 @@ test('configuration decoder reads all 16 metadata URIs in class and variant orde
     Buffer.alloc(8 + 8 * 4),
     Buffer.alloc(32 + 32 + 32 * 4),
     ...stringBytes,
+    traineeUriLength,
+    traineeUri,
     Buffer.alloc(8 * 4),
     Buffer.alloc(2 * 4),
     Buffer.alloc(1 + 8 + 8 + 1),
   ]);
-  assert.deepEqual(decodeConfiguration(bytes).metadataUris, strings);
+  const decoded = decodeConfiguration(bytes);
+  assert.deepEqual(decoded.metadataUris, strings);
+  assert.equal(decoded.traineeMetadataUri, 'trainee-uri');
 });
 
 test('trainee reward uses processed start/end bucket boundaries', () => {
@@ -304,11 +311,13 @@ test('machine accounts are loaded in Solana RPC batches of at most one hundred',
 test('trainee activation puts Ed25519 verification immediately before the program instruction', async () => {
   const programAddress = PROGRAM_ID;
   const owner = '11111111111111111111111111111111';
-  const instructions = await buildActivateTraineeInstructions({
+  const collection = (await generateKeyPairSigner()).address;
+  const built = await buildActivateTraineeInstructions({
     programAddress,
     owner,
     configAddress: (await protocolAddresses()).config,
     traineeQueue: (await protocolAddresses()).traineeQueue,
+    collection,
     voucher: {
       backendSigner: owner,
       signature: Buffer.alloc(64, 7).toString('base64'),
@@ -319,10 +328,22 @@ test('trainee activation puts Ed25519 verification immediately before the progra
       },
     },
   });
+  const instructions = built.instructions;
   assert.equal(instructions.length, 2);
   assert.equal(String(instructions[0].programAddress), 'Ed25519SigVerify111111111111111111111111111');
   assert.deepEqual([...instructions[1].data.slice(0, 8)], [...TAXI_DISCRIMINATORS.activateTrainee]);
-  assert.equal(instructions[1].accounts.length, 9);
+  assert.equal(instructions[1].accounts.length, 12);
+  assert.equal(instructions[1].accounts[5].role, AccountRole.WRITABLE_SIGNER);
+  const transaction = compileTransaction(pipe(
+    createTransactionMessage({ version: 0 }),
+    value => setTransactionMessageFeePayer(address(owner), value),
+    value => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111',
+      lastValidBlockHeight: 1n,
+    }, value),
+    value => appendTransactionMessageInstructions(instructions, value),
+  ));
+  assert.ok(getTransactionEncoder().encode(transaction).length <= 1232);
 });
 
 test('claim transaction size is measured with five missing destination accounts', async () => {
@@ -574,14 +595,14 @@ test('repair batch creates the owner FARE account once and fits eight cars', asy
 });
 
 test('trainee claim creates a FARE token account only for a positive reward', async () => {
-  const signers = await Promise.all(Array.from({ length: 5 }, () => generateKeyPairSigner()));
-  const [owner, configAddress, traineePool, traineeAddress, fareMint] = signers.map(signer => signer.address);
+  const signers = await Promise.all(Array.from({ length: 6 }, () => generateKeyPairSigner()));
+  const [owner, configAddress, traineePool, traineeAddress, fareMint, asset] = signers.map(signer => signer.address);
   const input = {
     programAddress: PROGRAM_ID,
     owner,
     configAddress,
     traineePool,
-    trainee: { address: traineeAddress, campaignId: 1n, activeFrom: 60n, activeUntil: 3600n },
+    trainee: { address: traineeAddress, asset, campaignId: 1n, activeFrom: 60n, activeUntil: 3600n },
     fareMint,
     tokenProgram: TOKEN_PROGRAM,
   };
