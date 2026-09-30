@@ -47,6 +47,23 @@ symlink. Install `deploy/ownataxi.nginx.conf` as the enabled `ownataxi.com` site
 and install both `deploy/ownataxi-backend.service` and
 `deploy/ownataxi-worker.service` under `/etc/systemd/system/`.
 
+All source delivery to `feeserv` must go through GitHub. After the approved
+release commit is pushed to `origin/main`, run `git fetch` on the server and
+create a new release directory by checking out that exact commit SHA in detached
+mode. Do not upload full source archives with SCP/SSH and never copy
+`node_modules` between the workstation and server. Keep the previous release and
+its `current` symlink untouched until the new checkout has passed its checks.
+
+Compare `package-lock.json` with the dependency set already installed on the
+server. Run `npm ci` only when the lockfile changed; otherwise reuse the matching
+server-side dependencies without reinstalling them. Build the frontend on the
+server, or transfer only the small ready `dist` artifact when a server build is
+not possible. After backend health, frontend, and `nginx -t` checks pass,
+atomically switch both `current` symlinks and restart the backend. A failed
+pre-switch check leaves the previous release active. Do not rerun the full
+rehearsal for a small fix: use focused checks during development and one complete
+rehearsal only for the frozen release candidate.
+
 The ignored production environment is installed separately as
 `/etc/ownataxi/ownataxi.env` with mode `640`, owned by `root:ownataxi`. Never put
 that file, keypairs or secret values in a frontend release or Git. The frontend

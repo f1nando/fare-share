@@ -1,5 +1,21 @@
 # Развёртывание Taxi Park
 
+## Доставка application release
+
+Исходный код доставляется на сервер только через GitHub: локальный `main`
+проверяется, фиксируется точным commit SHA и после отдельного разрешения
+отправляется в `origin/main`. На сервере выполняются `git fetch` и detached
+checkout этого SHA в новый release-каталог. Полная передача проекта или
+`node_modules` через SCP/SSH запрещена.
+
+`npm ci` выполняется только при изменении `package-lock.json`; при неизменном
+lockfile переиспользуется соответствующий server-side dependency set. `.env`,
+keypair и другие secrets находятся вне Git и release-каталогов и никогда не
+перезаписываются deployment-процессом. `current` переключается атомарно только
+после focused-проверок нового release; при ошибке предыдущий release остаётся
+активным. Полный rehearsal запускается один раз для замороженного release
+candidate, а не после каждой небольшой правки.
+
 > **Текущий статус:** по решению владельца deployment `GHGq…i3i4` и Collection
 > `5DwD…5nroP` являются mainnet-тестом, а не production-релизом. Sale была открыта
 > только для smoke и после тестов снова поставлена на pause. Для настоящего запуска
