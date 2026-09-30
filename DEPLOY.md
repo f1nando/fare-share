@@ -205,6 +205,36 @@ authority keypair. После close тот же Program ID использова�
 Тест доказывает сам механизм Solana, но не заменяет перечисленные выше проверки
 точных production-адресов и balances перед закрытием боевой программы.
 
+### Одноразовый rehearsal deploy
+
+Одноразовая rehearsal-программа использует отдельный скрипт и только полностью
+проверенный manifest (`validationMode: "complete"`). Безопасный режим по умолчанию
+задаётся явно и не отправляет транзакции:
+
+```sh
+npm run rehearsal:deploy -- preflight \
+  --manifest /secure/rehearsal-manifest.json \
+  --program-so /secure/taxi_park.so \
+  --program-keypair /secure/program.json \
+  --upgrade-authority-keypair /secure/authority.json \
+  --fee-payer-keypair /secure/fee-payer.json \
+  --recipient-keypair /secure/recipient.json \
+  --buffer-keypair /secure/persistent-buffer.json \
+  --buffer-address <EXPECTED_BUFFER_ADDRESS> \
+  --backup-marker /secure/rehearsal-key-backup.json \
+  --rpc-url <EXPLICIT_MAINNET_RPC_URL>
+```
+
+Backup marker — JSON вне репозитория с точными `programId`, `upgradeAuthority`,
+`buffer`, значением `backupVerified: true` и непустым `verifiedAt`. Скрипт никогда
+не генерирует ключи. Preflight проверяет mainnet genesis, все keypair/address,
+ProgramData PDA, SBF hash/size и текущий rent buffer/ProgramData. ProgramData rent
+обязан точно совпасть с `limits.recoverableRentLamports` manifest.
+
+Режим `execute` принимает те же аргументы плюс `--confirm` со строкой, напечатанной
+успешным preflight. Любое другое подтверждение блокирует deploy. `--final` запрещён;
+fee payer, authority, recipient и постоянный buffer всегда передаются явно.
+
 ## 5. Что не входит в автоматический deploy
 
 - создание или финансирование production-кошельков;

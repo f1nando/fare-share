@@ -28,6 +28,7 @@
     "protocol:check-xstocks": "node --env-file-if-exists=.env --import tsx scripts/check-xstocks-liquidity.ts",
     "protocol:preflight": "node --env-file-if-exists=.env --import tsx scripts/preflight.ts",
     "rehearsal:preflight": "node --import tsx scripts/validate-rehearsal-manifest.ts",
+    "rehearsal:deploy": "node --import tsx scripts/deploy-disposable-rehearsal.ts",
     "admin:hash-password": "node --import tsx scripts/hash-admin-password.ts",
     "metadata:build": "node --env-file-if-exists=.env --import tsx scripts/build-nft-metadata.ts",
     "metadata:build-faretest": "node --env-file-if-exists=.env --import tsx scripts/build-faretest-metadata.ts",
