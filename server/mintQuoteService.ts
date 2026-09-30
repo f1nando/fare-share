@@ -83,9 +83,12 @@ export function createMintQuoteService(
     if (now() - reference.observedAtMs > config.mintQuoteMarketMaxAgeMs) throw new MintQuoteError('FARE market data is stale.', 503);
 
     const targetUsdcRaw = priceUsdCents * 10_000n;
-    const referenceUsdMicros = BigInt(Math.floor(reference.usdPrice * 1_000_000));
-    if (referenceUsdMicros <= 0n) throw new MintQuoteError('FARE price precision is too low for a safe quote.', 503);
-    let amountFareRaw = ceilDiv(targetUsdcRaw * 10n ** BigInt(state.decimals), referenceUsdMicros);
+    const referenceUsdPicodollars = BigInt(Math.floor(reference.usdPrice * 1_000_000_000_000));
+    if (referenceUsdPicodollars <= 0n) throw new MintQuoteError('FARE price precision is too low for a safe quote.', 503);
+    let amountFareRaw = ceilDiv(
+      targetUsdcRaw * 10n ** BigInt(state.decimals) * 1_000_000n,
+      referenceUsdPicodollars,
+    );
     let route: MarketQuote | undefined;
     for (let attempt = 0; attempt < 4; attempt += 1) {
       route = await market.sellToUsdc(state.configuration.fareMint, amountFareRaw);
@@ -96,8 +99,8 @@ export function createMintQuoteService(
     }
     if (!route || BigInt(route.outAmount) < targetUsdcRaw) throw new MintQuoteError('FARE liquidity is insufficient for this mint.', 503);
     if (amountFareRaw > 18_446_744_073_709_551_615n) throw new MintQuoteError('The required FARE amount exceeds the on-chain limit.', 503);
-    const effectiveMicrosPerToken = Number(BigInt(route.outAmount) * 10n ** BigInt(state.decimals) / amountFareRaw);
-    const effectiveUsd = effectiveMicrosPerToken / 1_000_000;
+    const effectiveUsd = Number(route.outAmount) / 1_000_000
+      / (Number(amountFareRaw) / 10 ** state.decimals);
     const divergencePct = Math.abs(effectiveUsd - reference.usdPrice) / reference.usdPrice * 100;
     if (divergencePct > config.mintQuoteMaxPriceDivergencePct) throw new MintQuoteError('FARE market prices are inconsistent.', 503);
 
@@ -151,7 +154,9 @@ export async function loadMintMarketPreview(config: ServerConfig, mint: Address,
   if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
   const examples = [];
   for (const cents of pricesUsdCents) {
-    const amount = ceilDiv(cents * 10_000n * 10n ** BigInt(decimals), BigInt(Math.floor(reference.usdPrice * 1_000_000)));
+    const referenceUsdPicodollars = BigInt(Math.floor(reference.usdPrice * 1_000_000_000_000));
+    if (referenceUsdPicodollars <= 0n) throw new MintQuoteError('FARE price precision is too low for a safe quote.', 503);
+    const amount = ceilDiv(cents * 10_000n * 10n ** BigInt(decimals) * 1_000_000n, referenceUsdPicodollars);
     const route = await provider.sellToUsdc(mint, amount);
     validateRoute(route, mint, amount, config.mintQuoteMaxPriceImpactPct);
     examples.push({ priceUsdCents: cents.toString(), amountFareRaw: amount.toString(), priceImpactPct: Number(route.priceImpactPct || 0) });

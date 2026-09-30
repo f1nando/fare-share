@@ -80,6 +80,25 @@ test('stale market data is rejected', async () => {
   await assert.rejects(issue({ owner: OWNER, asset: ASSET }), (error: unknown) => error instanceof MintQuoteError && /stale/.test(error.message));
 });
 
+test('low-priced tokens retain enough precision for a safe quote', async () => {
+  const usdPrice = 0.0000034407902217414195;
+  const lowPriceMarket = market({
+    referenceUsd: async () => ({ usdPrice, observedAtMs: 1_000_000 }),
+    sellToUsdc: async (_mint, amount) => ({
+      inputMint: String(FARE),
+      outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      inAmount: amount.toString(),
+      outAmount: (amount * 3_440_790n / 1_000_000_000_000n).toString(),
+      priceImpactPct: '0.1',
+      routePlan: [{}],
+    }),
+  });
+  const issue = createMintQuoteService(config, { market: lowPriceMarket, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment });
+  const quote = await issue({ owner: OWNER, asset: ASSET });
+  assert.equal(quote.priceUsdCents, '2500');
+  assert.ok(BigInt(quote.quotedUsdcRaw) >= 25_000_000n);
+});
+
 test('missing liquidity and excessive price impact are rejected', async () => {
   const empty = market({ sellToUsdc: async (_mint, amount) => ({ inAmount: amount.toString(), outAmount: '0', routePlan: [] }) });
   await assert.rejects(createMintQuoteService(config, { market: empty, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /liquid/);
