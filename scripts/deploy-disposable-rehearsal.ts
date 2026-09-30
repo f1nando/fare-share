@@ -44,6 +44,7 @@ interface CompleteManifest {
     uploadBufferRentLamports: string;
     programTombstoneLamports: string;
     estimatedPeakFundingLamports: string;
+    spentNonRecoverableLamports?: string;
   };
 }
 
@@ -134,7 +135,13 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   if (bufferRent !== expectedBufferRent) {
     throw new Error(`Buffer rent mismatch: manifest ${expectedBufferRent}, current ${bufferRent}`);
   }
-  const expectedPeak = bufferRent + programDataRent + BigInt(manifest.limits.programTombstoneLamports) + 900_000_000n;
+  const spentNonRecoverable = BigInt(manifest.limits.spentNonRecoverableLamports || '0');
+  if (spentNonRecoverable < 0n || spentNonRecoverable > 800_000_000n) {
+    throw new Error('Finalized non-recoverable rehearsal spend must stay within the 0.8 SOL absolute cap');
+  }
+  const remainingFundingReserve = 900_000_000n - spentNonRecoverable;
+  const expectedPeak = bufferRent + programDataRent
+    + BigInt(manifest.limits.programTombstoneLamports) + remainingFundingReserve;
   if (BigInt(manifest.limits.estimatedPeakFundingLamports) !== expectedPeak) {
     throw new Error(`Peak funding mismatch: expected ${expectedPeak}`);
   }
