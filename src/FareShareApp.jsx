@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DocsPage } from './DocsPage.jsx';
-import { FareFooter, FareHeader } from './FareShareChrome.jsx';
+import { FareFooter, FareHeader, MAGIC_EDEN_URL } from './FareShareChrome.jsx';
 import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.jsx';
 import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { DisclaimerPage, PrivacyPage, TermsPage } from './LegalPage.jsx';
-import { MarketPage } from './MarketPage.jsx';
 import { MintPage } from './MintPage.jsx';
 import { TradePage } from './TradePage.jsx';
 import { connectTradeWallet } from './tradeApi.js';
@@ -37,7 +36,7 @@ const routes = {
   },
   '/market/': {
     className: 'fare-market-page',
-    component: MarketPage,
+    component: MarketRedirect,
     activeItem: 'market',
     title: 'Market — Fare Share',
   },
@@ -81,6 +80,14 @@ const routes = {
     title: 'Risk Disclaimer — Fare Share',
   },
 };
+
+function MarketRedirect() {
+  useEffect(() => {
+    window.location.replace(MAGIC_EDEN_URL);
+  }, []);
+
+  return <main id="top"><p><a href={MAGIC_EDEN_URL}>Open Magic Eden</a></p></main>;
+}
 
 function normalizePathname(pathname) {
   if (pathname === '/') return '/fare-share/';

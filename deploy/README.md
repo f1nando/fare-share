@@ -120,7 +120,7 @@ admin-login and trade-stream endpoints. Re-check Security Events before making
 these limits stricter; wallet and trade flows must continue to work without a
 challenge loop.
 
-`VITE_MAGIC_EDEN_MARKET_URL` is a build-time public value. Leave it unset while
-`/market/` is only a UI prototype. Set it only to the verified official production
-collection page after Magic Eden confirmation; a generic marketplace home page or
-the disposable test collection is not an acceptable production value.
+The `MARKET` navigation item and direct `/market/` route currently open the Magic
+Eden home page. Replace that URL with the verified official production collection
+page after Magic Eden confirms it; never link the disposable rehearsal collection
+from production.

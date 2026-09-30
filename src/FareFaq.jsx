@@ -11,7 +11,7 @@ export const FARE_FAQ_ITEMS = [
   },
   {
     question: 'CAN I SELL MY CARS?',
-    answer: 'You can transfer a taxi directly from Garage. The built-in Market is only a non-functional preview; secondary sales will use the verified official collection page on Magic Eden when its production link is published.',
+    answer: 'You can transfer a taxi directly from Garage. The Market link opens Magic Eden; always verify the official collection address before trading.',
   },
   {
     question: 'IS THIS A REAL PRODUCT?',

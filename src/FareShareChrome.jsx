@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { appAssetPath, appPath } from './appPath.js';
 
-const CONFIGURED_MARKET_URL = String(import.meta.env.VITE_MAGIC_EDEN_MARKET_URL || '/market/');
+export const MAGIC_EDEN_URL = 'https://magiceden.io/';
 
 function XIcon() {
   return (
@@ -32,13 +32,12 @@ function MobileWalletIcon() {
 export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home', landingOnly = false, onConnectWallet, walletLabel }) {
   const ticker = displayTicker(useTokenConfig());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
   const navigationItems = [
     { id: 'home', label: 'HOME', href: `${linkPrefix}#top` },
     { id: 'mint', label: 'MINT', href: appPath('/mint/') },
     { id: 'garage', label: 'GARAGE', href: appPath('/garage/') },
     { id: 'leaderboard', label: 'LEADERBOARD', href: appPath('/leaderboard/') },
-    { id: 'market', label: 'MARKET', href: marketUrl },
+    { id: 'market', label: 'MARKET', href: MAGIC_EDEN_URL },
     { id: 'trade', label: 'TRADE', href: appPath('/trade/') },
     { id: 'faq', label: 'FAQ', href: appPath('/faq/') },
     { id: 'docs', label: 'DOCS', href: appPath('/docs/') },
@@ -123,7 +122,6 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
 }
 
 export function FareFooter({ linkPrefix = '', landingOnly = false }) {
-  const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
   return (
     <footer className="fare-footer">
       <div className="fare-footer-watermark" aria-hidden="true"><span>FARE</span>{' '}<span>SHARE</span></div>
@@ -144,7 +142,7 @@ export function FareFooter({ linkPrefix = '', landingOnly = false }) {
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href={appPath('/mint/')}>Mint</a>
           <a href={appPath('/garage/')}>Garage</a>
-          <a href={marketUrl}>Market</a>
+          <a href={MAGIC_EDEN_URL}>Market</a>
           <a href={appPath('/leaderboard/')}>Leaderboard</a>
         </nav>}
         {!landingOnly && <nav className="fare-footer-column" aria-label="Resources">
