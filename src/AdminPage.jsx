@@ -50,7 +50,6 @@ export function AdminPage() {
         intervalSeconds: workerSettings.intervalSeconds,
         minimumSol: formatSolInput(BigInt(workerSettings.minimumLamports)),
       });
-      setError('');
     } catch (reason) {
       if (reason.status === 401) { setCsrf(''); setStatus(null); }
       else setError(reason.message);
@@ -220,8 +219,9 @@ export function AdminPage() {
   </form></main>;
 
   return <main className="admin-shell">
+    {error && <ErrorToast message={error} dismiss={() => setError('')} />}
     <header><div><p className="eyebrow">FARE SHARE</p><h1>Protocol control</h1></div><div className="header-actions"><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button><button className="ghost" onClick={logout}>Sign out</button></div></header>
-    {error && <p className="message error">{error}</p>}{notice && <p className="message success">{notice}</p>}
+    {notice && <p className="message success">{notice}</p>}
     {!status ? <section className="admin-card">Loading on-chain state…</section> : <>
       <section className="metrics">
         <Metric label="Available to claim" value={formatSol(status.availableLamports)} />
@@ -257,6 +257,12 @@ export function AdminPage() {
 }
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
+function ErrorToast({ message, dismiss }) {
+  return <div className="admin-toast error" role="alert" aria-live="assertive">
+    <div><strong>Operation failed</strong><p>{message}</p></div>
+    <button type="button" onClick={dismiss} aria-label="Dismiss error">×</button>
+  </div>;
+}
 function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
   return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
     <label>Price, USD<input type="number" min="25" max="25" step="0.01" value={prices[0]} disabled onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>
