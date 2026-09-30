@@ -99,6 +99,28 @@ test('low-priced tokens retain enough precision for a safe quote', async () => {
   assert.ok(BigInt(quote.quotedUsdcRaw) >= 25_000_000n);
 });
 
+test('curved liquidity converges to the full mint price', async () => {
+  const reserve = 60_000_000_000n;
+  let calls = 0;
+  const curvedMarket = market({
+    sellToUsdc: async (_mint, amount) => {
+      calls += 1;
+      return {
+        inputMint: String(FARE),
+        outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        inAmount: amount.toString(),
+        outAmount: (amount * reserve / (200n * (reserve + amount))).toString(),
+        priceImpactPct: '2.9',
+        routePlan: [{}],
+      };
+    },
+  });
+  const issue = createMintQuoteService(config, { market: curvedMarket, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment });
+  const quote = await issue({ owner: OWNER, asset: ASSET });
+  assert.ok(calls > 4);
+  assert.ok(BigInt(quote.quotedUsdcRaw) >= 25_000_000n);
+});
+
 test('missing liquidity and excessive price impact are rejected', async () => {
   const empty = market({ sellToUsdc: async (_mint, amount) => ({ inAmount: amount.toString(), outAmount: '0', routePlan: [] }) });
   await assert.rejects(createMintQuoteService(config, { market: empty, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /liquid/);

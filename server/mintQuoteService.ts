@@ -13,6 +13,7 @@ const ZERO_ADDRESS = '11111111111111111111111111111111';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const MINT_PRICE_USD_CENTS = 2_500n;
+const MINT_QUOTE_MAX_ATTEMPTS = 8;
 const MINT_BASE_LENGTH = 82;
 const TOKEN_2022_ACCOUNT_TYPE_OFFSET = 165;
 const TOKEN_2022_TLV_OFFSET = 166;
@@ -90,7 +91,7 @@ export function createMintQuoteService(
       referenceUsdPicodollars,
     );
     let route: MarketQuote | undefined;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < MINT_QUOTE_MAX_ATTEMPTS; attempt += 1) {
       route = await market.sellToUsdc(state.configuration.fareMint, amountFareRaw);
       validateRoute(route, state.configuration.fareMint, amountFareRaw, config.mintQuoteMaxPriceImpactPct);
       const output = BigInt(route.outAmount);
