@@ -54,7 +54,7 @@
 | D-02 | Rent временных Jupiter ATA возвращается admin/worker payer | Закрывается только canonical пустой ATA, созданный для подтверждённого route. Возврат идёт исходному payer после swap; закрытие чужого или непустого аккаунта запрещено. |
 | D-03 | Worker управляется из admin runtime-настройками и ручными actions | MongoDB хранит ON/OFF, частоту и minimum SOL threshold. Отдельные admin-кнопки запускают creator-fee claim+deposit, contract split, swaps, reward calculation и полный цикл; MongoDB lock запрещает параллельные запуски. |
 | D-04 | Первый production-запуск worker начинается в состоянии OFF | После deploy оператор вручную запускает полный цикл, сверяет creator fees, reserves, покупки и rewards, и только после успешной проверки включает automation в admin. |
-| D-05 | Paid mint — случайная машина из точного тиража 1222 по единой цене $25 | Классы: `833 / 278 / 83 / 28`; веса наград `1 / 3 / 10 / 30`. Четыре варианта внутри каждого класса распределяются максимально поровну, лишние варианты выбираются случайно. Весь порядок заранее перемешивается и фиксируется 96-bit Merkle root. Следующая машина показывается до wallet confirmation; владелец принимает риск конкуренции за заранее видимую редкую позицию. |
+| D-05 | Paid mint — случайная машина из точного тиража 1222 по единой цене $25 | Классы: `833 / 278 / 83 / 28`; веса наград `1 / 3 / 10 / 30`. Четыре варианта внутри каждого класса распределяются максимально поровну, лишние варианты выбираются случайно. Весь порядок заранее перемешивается и фиксируется 96-bit Merkle root. Класс и модель не раскрываются до подтверждённого mint. |
 | D-06 | Финальная репетиция проводится в отдельном disposable mainnet-контуре | Используются только временные Program ID, Collection, совместимый test token и отдельный MongoDB namespace. Production Program, Collection, token supply и database не затрагиваются. Любые key generation, расходы SOL и mainnet-транзакции всё равно требуют отдельного прямого разрешения владельца. |
 | D-07 | Бюджет disposable mainnet rehearsal разделён на невозвратные расходы и recoverable rent | Суммарные невозвратные комиссии, slippage и прочие потери ограничены `0.8 SOL`. В пределах этого лимита разрешены необходимые утверждённые rehearsal-сценарии без отдельного согласования каждой мелкой комиссии. Recoverable ProgramData/account rent разрешён в фактически необходимом объёме только после точного расчёта Program ID/ProgramData/authority/recipient/expected return. Rent не считается расходом в лимите `0.8 SOL`, но обязан быть возвращён проверенному recipient по recovery-процедуре; любое ожидаемое превышение невозвратного лимита блокирует rehearsal. |
 | D-08 | Recoverable rent disposable rehearsal возвращается funding wallet | Recipient — `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`. Его адрес указывается явно во всех recovery-командах и сверяется с manifest, fee payer и балансами; default signer запрещён. |
@@ -356,6 +356,13 @@ SBF hash; рабочее дерево чистое.
 - [ ] Удалены или исправлены все обещания гарантированной доходности.
 - [ ] Desktop/mobile smoke основных страниц и English-only runtime content.
 - [ ] Phantom connect/sign/reject/warning flow проверен.
+- [ ] После finalized mint интерфейс сразу показывает полученную машину и ссылку на
+      транзакцию, не ожидая DAS/MongoDB indexing. До появления NFT в Garage
+      показывается явное состояние `Mint confirmed — your taxi is being indexed`
+      с автоматическим обновлением и безопасным восстановлением после reload.
+- [ ] Ошибка wallet после фактически успешной on-chain транзакции не предлагает
+      повторный mint: frontend сверяет signature/asset и показывает подтверждённый
+      результат либо состояние indexing.
 - [ ] Magic Eden Creator Hub настроен и публичная ссылка указывает на точную новую
       production Collection; prototype checkout не выдаётся за рабочий market.
 
