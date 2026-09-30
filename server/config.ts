@@ -83,6 +83,8 @@ export function loadServerConfig() {
     protocolAdminSecret: optional('ADMIN_KEYPAIR_SECRET_KEY'),
     pumpFeeRecipientSecret: optional('PUMP_FEE_RECIPIENT_SECRET_KEY'),
     adminMinimumWalletLamports: BigInt(integer('ADMIN_MINIMUM_WALLET_LAMPORTS', 100_000_000, 1)),
+    telegramBotTokenFile: optional('TELEGRAM_BOT_TOKEN_FILE'),
+    telegramBackendHealthUrl: optional('TELEGRAM_BACKEND_HEALTH_URL'),
     solanaCluster: process.env.VITE_SOLANA_CHAIN === 'solana:mainnet' ? 'mainnet-beta' as const : 'devnet' as const,
   };
 }
