@@ -189,7 +189,7 @@ export async function executeDisposableDeploy(
     '--upgrade-authority', options.upgradeAuthorityKeypair,
     '--buffer', options.bufferKeypair,
     '--max-len', String(preflight.manifest.sbf.sizeBytes),
-    '--commitment', 'finalized', '--use-rpc',
+    '--commitment', 'finalized', '--use-quic', '--max-sign-attempts', '10',
   ], 'disposable deployment');
 
   const shown = checked(run, 'solana', [
