@@ -62,12 +62,13 @@ export function buildMetadataFiles(imageUris: readonly string[], isMainnetTest =
     {
       file: 'trainee.json',
       data: {
-        name: 'TAXI Trainee',
+        name: 'TAXI Trainee — Dacia Logan',
         symbol,
         description: 'A temporary, non-transferable trainee taxi. It cannot be repaired and earns only during its activation period. No fixed APY.',
         image: imageUris[17],
         attributes: [
           { trait_type: 'Type', value: 'Trainee' },
+          { trait_type: 'Model', value: 'Dacia Logan' },
           { trait_type: 'Weight', value: 1 },
           { trait_type: 'Transferable', value: 'No' },
           { trait_type: 'Repairable', value: 'No' },
