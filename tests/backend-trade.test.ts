@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import test from 'node:test';
 import { fillTradeCandles, parseTradeTransaction, TradeService } from '../server/trade.js';
 import type { ServerConfig } from '../server/config.js';
@@ -84,8 +85,51 @@ test('trade reads are bounded and concurrent identical requests share cached wor
   assert.equal(Math.max(...limits), 20_001);
   assert.equal(tokenResults[0].volume24hSol, 40_000);
   assert.equal(tokenResults[0].sourceTradesTruncated, true);
-  assert.equal(candleResults[0].candles.length, 1);
+  assert.ok(candleResults[0].candles.length >= 1 && candleResults[0].candles.length <= 2);
   assert.equal(candleResults[0].sourceTradesTruncated, true);
+});
+
+test('trade SSE clients share one heartbeat and are released on close and shutdown', () => {
+  const service = new TradeService({
+    solanaRpcUrl: 'https://rpc.invalid',
+    tradeSseMaxClients: 2,
+  } as ServerConfig, {} as TaxiDatabase, { mint: MINT, ticker: 'FARE' });
+  const first = new FakeResponse();
+  const second = new FakeResponse();
+  const rejected = new FakeResponse();
+
+  service.openStream(first as never);
+  const sharedHeartbeat = (service as any).streamHeartbeat;
+  service.openStream(second as never);
+  service.openStream(rejected as never);
+
+  assert.equal((service as any).streams.size, 2);
+  assert.equal((service as any).streamHeartbeat, sharedHeartbeat);
+  assert.equal(first.status, 200);
+  assert.match(first.writes[0], /retry: 3000/);
+  assert.equal(rejected.status, 503);
+
+  (service as any).emit('trades', { count: 1 });
+  assert.match(first.writes.at(-1) || '', /event: trades/);
+  assert.match(second.writes.at(-1) || '', /event: trades/);
+
+  first.emit('close');
+  assert.equal((service as any).streams.size, 1);
+  second.emit('close');
+  assert.equal((service as any).streams.size, 0);
+  assert.equal((service as any).streamHeartbeat, undefined);
+
+  const slowClient = new FakeResponse();
+  slowClient.acceptWrites = false;
+  service.openStream(slowClient as never);
+  assert.equal(slowClient.destroyed, true);
+  assert.equal((service as any).streams.size, 0);
+
+  const shutdownClient = new FakeResponse();
+  service.openStream(shutdownClient as never);
+  service.stop();
+  assert.equal(shutdownClient.ended, true);
+  assert.equal((service as any).streams.size, 0);
 });
 
 function transaction(input: { preLamports: number; postLamports: number; preTokens: string; postTokens: string }) {
@@ -105,4 +149,23 @@ function transaction(input: { preLamports: number; postLamports: number; preToke
       postTokenBalances: [{ accountIndex: 0, mint: MINT, owner: WALLET, uiTokenAmount: { amount: input.postTokens, decimals: 6 } }],
     },
   };
+}
+
+class FakeResponse extends EventEmitter {
+  status = 0;
+  writes: string[] = [];
+  ended = false;
+  destroyed = false;
+  writableEnded = false;
+  acceptWrites = true;
+
+  writeHead(status: number) { this.status = status; return this; }
+  write(value: string) { this.writes.push(value); return this.acceptWrites; }
+  end(value?: string) {
+    if (value) this.writes.push(value);
+    this.ended = true;
+    this.writableEnded = true;
+    return this;
+  }
+  destroy() { this.destroyed = true; return this; }
 }

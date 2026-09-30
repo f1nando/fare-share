@@ -40,6 +40,7 @@ export function loadServerConfig() {
     tradePollIntervalMs: integer('TRADE_POLL_INTERVAL_MS', 10_000, 1_000),
     tradeHolderRefreshMs: integer('TRADE_HOLDER_REFRESH_MS', 30_000, 10_000),
     tradeStateRefreshMs: integer('TRADE_STATE_REFRESH_MS', 60_000, 5_000),
+    tradeSseMaxClients: boundedInteger('TRADE_SSE_MAX_CLIENTS', 1_000, 10, 10_000),
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
     workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),

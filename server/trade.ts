@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { EventEmitter } from 'node:events';
 import { address, type Address } from '@solana/kit';
 import type { ServerResponse } from 'node:http';
 import WebSocket from 'ws';
@@ -124,8 +123,8 @@ export function fillTradeCandles(buckets: Map<number, TradeCandle>, seconds: num
 
 export class TradeService {
   readonly mint: Address;
-  private readonly events = new EventEmitter();
   private readonly quotes = new Map<string, CachedQuote>();
+  private readonly streams = new Set<ServerResponse>();
   private readonly rpcUrl: string;
   private state: TradeStateDocument;
   private stopped = false;
@@ -138,6 +137,7 @@ export class TradeService {
   private socket?: WebSocket;
   private socketHeartbeat?: NodeJS.Timeout;
   private socketReconnect?: NodeJS.Timeout;
+  private streamHeartbeat?: NodeJS.Timeout;
   private timers: NodeJS.Timeout[] = [];
   private tokenSnapshotCache?: { expiresAt: number; value: JsonRecord };
   private tokenSnapshotRead?: Promise<JsonRecord>;
@@ -184,7 +184,10 @@ export class TradeService {
     if (this.socketHeartbeat) clearInterval(this.socketHeartbeat);
     if (this.socketReconnect) clearTimeout(this.socketReconnect);
     this.socket?.close();
-    this.events.removeAllListeners();
+    if (this.streamHeartbeat) clearInterval(this.streamHeartbeat);
+    this.streamHeartbeat = undefined;
+    for (const response of this.streams) response.end();
+    this.streams.clear();
   }
 
   private async bootstrap() {
@@ -447,22 +450,25 @@ export class TradeService {
   }
 
   openStream(response: ServerResponse) {
+    if (this.stopped || this.streams.size >= this.config.tradeSseMaxClients) {
+      response.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '5' });
+      response.end(JSON.stringify({ error: 'Live trade updates are temporarily at capacity.' }));
+      return;
+    }
     response.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache, no-transform',
       connection: 'keep-alive',
       'x-accel-buffering': 'no',
     });
-    response.write(`event: ready\ndata: ${JSON.stringify(this.publicState())}\n\n`);
-    const listener = (event: { type: string; data: unknown }) => {
-      response.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
-    };
-    const heartbeat = setInterval(() => response.write(': heartbeat\n\n'), 15_000);
-    this.events.on('message', listener);
-    response.once('close', () => {
-      clearInterval(heartbeat);
-      this.events.off('message', listener);
-    });
+    this.streams.add(response);
+    response.once('close', () => this.removeStream(response));
+    response.once('error', () => this.removeStream(response));
+    this.writeStream(response, `retry: 3000\nevent: ready\ndata: ${JSON.stringify(this.publicState())}\n\n`);
+    if (!this.streamHeartbeat && this.streams.size) {
+      this.streamHeartbeat = setInterval(() => this.broadcast(': heartbeat\n\n'), 15_000);
+      this.streamHeartbeat.unref();
+    }
   }
 
   private async refreshState() {
@@ -793,7 +799,26 @@ export class TradeService {
   }
 
   private emit(type: string, data: unknown) {
-    this.events.emit('message', { type, data });
+    this.broadcast(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+
+  private broadcast(message: string) {
+    for (const response of this.streams) this.writeStream(response, message);
+  }
+
+  private writeStream(response: ServerResponse, message: string) {
+    if (response.destroyed || response.writableEnded || !response.write(message)) {
+      this.removeStream(response);
+      if (!response.destroyed) response.destroy();
+    }
+  }
+
+  private removeStream(response: ServerResponse) {
+    this.streams.delete(response);
+    if (!this.streams.size && this.streamHeartbeat) {
+      clearInterval(this.streamHeartbeat);
+      this.streamHeartbeat = undefined;
+    }
   }
 
   private pruneQuotes() {
