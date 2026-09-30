@@ -647,6 +647,27 @@ test('wallet transaction surfaces an on-chain failure before showing success', a
   assert.equal(error.signature, 'signature');
 });
 
+test('wallet preflight explains insufficient SOL without failing to serialize bigint errors', async () => {
+  const owner = await generateKeyPairSigner();
+  const blockhash = await generateKeyPairSigner();
+  const rpc = {
+    getLatestBlockhash: () => ({ send: async () => ({ value: { blockhash: String(blockhash.address), lastValidBlockHeight: 999n } }) }),
+    simulateTransaction: () => ({ send: async () => ({ value: {
+      err: { InstructionError: [1n, { Custom: 1n }] },
+      logs: ['Transfer: insufficient lamports 745310, need 1610360'],
+    } }) }),
+  };
+  const error = await sendWalletInstructions({
+    rpc,
+    wallet: { features: {} },
+    account: { address: owner.address },
+    chain: 'solana:mainnet',
+    instructions: [],
+  }).catch(value => value);
+  assert.match(error.message, /does not have enough SOL/);
+  assert.doesNotMatch(error.message, /serialize a BigInt/);
+});
+
 test('wallet transaction timeout keeps its signature for Explorer verification', async () => {
   const rpc = {
     getSignatureStatuses() {

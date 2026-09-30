@@ -742,8 +742,16 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
     replaceRecentBlockhash: false,
   }).send();
   if (simulation.value.err) {
-    const logs = Array.isArray(simulation.value.logs) ? simulation.value.logs.slice(-4).join(' | ') : '';
-    throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
+    const logEntries = Array.isArray(simulation.value.logs) ? simulation.value.logs : [];
+    const insufficientSol = logEntries.find(entry => /insufficient lamports/i.test(entry));
+    if (insufficientSol) {
+      throw new Error('Your wallet does not have enough SOL for the network fee and NFT account rent. Add SOL and try again. No transaction was sent.');
+    }
+    const logs = logEntries.slice(-4).join(' | ');
+    const errorDetails = JSON.stringify(simulation.value.err, (_key, value) => (
+      typeof value === 'bigint' ? value.toString() : value
+    ));
+    throw new Error(`Transaction simulation failed: ${errorDetails}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
   }
 
   if (additionalSigners.length) {
