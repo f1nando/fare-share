@@ -647,6 +647,22 @@ test('wallet transaction surfaces an on-chain failure before showing success', a
   assert.equal(error.signature, 'signature');
 });
 
+test('wallet transaction preserves bigint Solana error codes', async () => {
+  const rpc = {
+    getSignatureStatuses() {
+      return { send: async () => ({ value: [{ confirmationStatus: 'finalized', err: { InstructionError: [1n, { Custom: 6053n }] } }] }) };
+    },
+  };
+  const error = await waitForFinalizedSignature(
+    rpc,
+    'failed-trainee-signature',
+    { timeoutMs: 1000, pollMs: 0, sleep: async () => {} },
+  ).catch(value => value);
+  assert.match(error.message, /6053/);
+  assert.doesNotMatch(error.message, /serialize a BigInt/);
+  assert.equal(error.signature, 'failed-trainee-signature');
+});
+
 test('wallet preflight explains insufficient SOL without failing to serialize bigint errors', async () => {
   const owner = await generateKeyPairSigner();
   const blockhash = await generateKeyPairSigner();

@@ -748,9 +748,7 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
       throw new Error('Your wallet does not have enough SOL for the network fee and NFT account rent. Add SOL and try again. No transaction was sent.');
     }
     const logs = logEntries.slice(-4).join(' | ');
-    const errorDetails = JSON.stringify(simulation.value.err, (_key, value) => (
-      typeof value === 'bigint' ? value.toString() : value
-    ));
+    const errorDetails = stringifyRpcError(simulation.value.err);
     throw new Error(`Transaction simulation failed: ${errorDetails}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
   }
 
@@ -796,7 +794,7 @@ export async function waitForFinalizedSignature(
     }
     const status = result.value[0];
     if (status?.err) {
-      throw transactionError(`Solana transaction failed: ${JSON.stringify(status.err)}`, signature);
+      throw transactionError(`Solana transaction failed: ${stringifyRpcError(status.err)}`, signature);
     }
     if (status?.confirmationStatus === 'finalized') return;
     if (Date.now() >= deadline) break;
@@ -809,6 +807,10 @@ function transactionError(message, signature) {
   const error = new Error(message);
   error.signature = signature;
   return error;
+}
+
+function stringifyRpcError(value) {
+  return JSON.stringify(value, (_key, item) => typeof item === 'bigint' ? item.toString() : item);
 }
 
 function meta(value, role) {
