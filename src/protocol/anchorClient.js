@@ -735,6 +735,16 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
   if (encoded.length > 1232) {
     throw new Error(`This fleet does not fit into one Solana transaction (${encoded.length}/1232 bytes). No transaction was sent.`);
   }
+  const simulation = await rpc.simulateTransaction(getBase64EncodedWireTransaction(transaction), {
+    commitment: 'confirmed',
+    encoding: 'base64',
+    sigVerify: false,
+    replaceRecentBlockhash: false,
+  }).send();
+  if (simulation.value.err) {
+    const logs = Array.isArray(simulation.value.logs) ? simulation.value.logs.slice(-4).join(' | ') : '';
+    throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
+  }
 
   if (additionalSigners.length) {
     const signFeature = wallet.features['solana:signTransaction'];

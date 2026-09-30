@@ -20,6 +20,23 @@ test('Solana proxy accepts the bounded browser RPC contracts', () => {
   }).method, 'getAssetsByOwner');
 });
 
+test('Solana proxy permits only safe unsigned transaction simulation', () => {
+  const transaction = Buffer.from('bounded transaction').toString('base64');
+  const payload = validatePayload({
+    jsonrpc: '2.0',
+    id: 'simulation',
+    method: 'simulateTransaction',
+    params: [transaction, { commitment: 'confirmed', encoding: 'base64', sigVerify: false, replaceRecentBlockhash: false }],
+  });
+  assert.equal(payload.method, 'simulateTransaction');
+  assert.throws(() => validatePayload({
+    jsonrpc: '2.0',
+    id: 'simulation',
+    method: 'simulateTransaction',
+    params: [transaction, { commitment: 'confirmed', encoding: 'base64', sigVerify: true, replaceRecentBlockhash: false }],
+  }), /sigVerify/);
+});
+
 test('Solana proxy only permits the exact trainee program scan', () => {
   const safeScan = {
     jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PROGRAM_ID, {

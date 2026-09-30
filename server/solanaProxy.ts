@@ -8,6 +8,7 @@ const ALLOWED_METHODS = new Set([
   'getSignatureStatuses',
   'getSlot',
   'sendTransaction',
+  'simulateTransaction',
 ]);
 
 const ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -70,6 +71,7 @@ export function validatePayload(
     case 'getSignatureStatuses': validateGetSignatureStatuses(payload.params); break;
     case 'getSlot': validateGetSlot(payload.params); break;
     case 'sendTransaction': validateSendTransaction(payload.params); break;
+    case 'simulateTransaction': validateSimulateTransaction(payload.params); break;
   }
   return payload as Record<string, unknown> & { method: string };
 }
@@ -85,6 +87,18 @@ function validateGetMultipleAccounts(value: unknown) {
   if (!Array.isArray(params[0]) || params[0].length < 1 || params[0].length > 100) invalid('getMultipleAccounts accepts 1 to 100 addresses.');
   for (const account of params[0]) solanaAddress(account, 'account address');
   if (params[1] !== undefined) accountConfig(params[1]);
+}
+
+function validateSimulateTransaction(value: unknown) {
+  const params = tuple(value, 2, 2);
+  if (typeof params[0] !== 'string' || params[0].length < 1 || params[0].length > 2_000 || !BASE64_PATTERN.test(params[0])) {
+    invalid('simulateTransaction requires one bounded base64 transaction.');
+  }
+  const config = record(params[1], 'simulateTransaction config');
+  exactKeys(config, ['commitment', 'encoding', 'sigVerify', 'replaceRecentBlockhash']);
+  if (config.commitment !== 'confirmed' || config.encoding !== 'base64' || config.sigVerify !== false || config.replaceRecentBlockhash !== false) {
+    invalid('Only confirmed simulation with sigVerify disabled is allowed.');
+  }
 }
 
 function validateGetProgramAccounts(value: unknown, programId?: string) {
