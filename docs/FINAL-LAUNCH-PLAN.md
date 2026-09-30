@@ -111,7 +111,7 @@
 | D-59 | Получатель Telegram alerts меняется только защищённой server-side admin-командой | Первый private chat остаётся единственным получателем по умолчанию. Сброс, передача роли и добавление нового admin из самого Telegram запрещены. При ошибочном захвате или потере аккаунта оператор с действующими server/admin credentials вручную очищает либо заменяет recipient с обязательной audit-записью; bot token при необходимости ротируется отдельно. |
 | D-60 | Telegram alerts дедуплицируются и сообщают о восстановлении | Low SOL и worker-cycle failure отправляются сразу. Одинаковые swap/quote failures становятся alert после трёх последовательных ошибок и повторяются не чаще одного раза в 30 минут. После нормализации соответствующего состояния отправляется один recovery alert, а счётчик и cooldown сбрасываются. |
 | D-61 | Из общего rehearsal budget `0.8 SOL` резервируются последние `0.1 SOL` | Обычные project-funded действия автоматически прекращаются при учтённых невозвратных расходах `0.7 SOL`. Оставшиеся `0.1 SOL` разрешены только для обязательных проверок, безопасной остановки и recovery. Абсолютный предел `0.8 SOL` не превышается; self-funded действия посторонних пользователей в project budget не входят. |
-| D-62 | Mainnet rehearsal требует отдельной финальной команды `начинай репетицию` | До команды разрешены только локальная реализация, проверки, keyless preparation, сборка frozen SBF и подготовка manifest/сметы без внешних необратимых действий. Перед запросом команды владелец получает release SHA, адреса без secrets, recoverable rent и максимальные невозвратные расходы. Key generation, uploads, Pump transaction, mainnet deploy и прочие mainnet-транзакции до команды запрещены, кроме отдельно уже разрешённых безопасных read-only preflight. |
+| D-62 | Mainnet rehearsal требует отдельной финальной команды `начинай репетицию` | До команды разрешены локальная реализация, проверки, keyless sizing build, manifest skeleton и предварительная смета без внешних необратимых действий. Команда разрешает создать и сразу зарезервировать disposable keys; после этого completed manifest получает точные public addresses, release SHA, Program-ID-bound SBF hash, recoverable rent и budget. Ни upload, ни funding, ни Mainnet-транзакция не выполняются, пока completed manifest не пройдёт fail-closed validator и deploy preflight. |
 | D-63 | Rehearsal budget учитывается консервативно по finalized SOL cash flow | Вся project-funded SOL при отправке сразу записывается как расход. Сумма вычитается из расхода только после finalized возврата SOL на funding wallet. Рыночная стоимость оставшихся token/NFT не уменьшает использованный budget. Recoverable account и ProgramData rent ведётся отдельно и не смешивается с лимитом `0.8 SOL`. |
 | D-64 | При будущем shutdown ликвидный остаток `FARETEST` продаётся с slippage до 10% | Продажа выполняется только по безопасному проверенному route, а finalized SOL возвращается на `2NUN…EGVnF`. При отсутствии безопасного route token остаётся в wallet и принудительная продажа не выполняется. Лимит 10% относится только к отдельно разрешённому shutdown/recovery; обычные worker swaps сохраняют максимум 5%. |
 | D-65 | Disposable rehearsal закрывается без отдельного claim-only grace period | После прямой команды shutdown sale, worker и публичные действия останавливаются сразу. Приоритет — вернуть project-owned liquid assets и recoverable rent на `2NUN…EGVnF`. Это не разрешает присваивать чужие token balances или обходить обязательный zero-vault/zero-obligation preflight перед необратимым ProgramData close; если gate не выполнен, финальный close блокируется до отдельного безопасного решения. |
@@ -180,8 +180,11 @@ Collection contents нельзя очистить до состояния буд
 ### Завершение rehearsal
 
 - [ ] Сохранить signatures, account snapshots и результат каждого сценария.
-- [ ] Остановить backend/worker и поставить disposable protocol на pause.
-- [ ] Выполнить recovery **dry-run** из `DEPLOY.md` с точными authority/recipient.
+- [ ] После успешной сверки оставить disposable backend/worker включёнными по D-22.
+- [ ] Сохранить неисполняемый recovery plan с точными authority/recipient и
+      выполнить доступный read-only audit без pause/close.
+- [ ] Остановка сервисов, pause и строгий empty-vault recovery dry-run выполняются
+      только после отдельной будущей команды shutdown/recovery.
 - [ ] Закрытие disposable ProgramData и возврат rent — отдельное необратимое
       действие, не входящее автоматически в rehearsal.
 
