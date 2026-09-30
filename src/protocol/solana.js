@@ -1,10 +1,11 @@
 import {
   AccountRole,
   address,
+  createNoopSigner,
   getProgramDerivedAddress,
   getUtf8Encoder,
 } from '@solana/kit';
-import { findAssociatedTokenPda } from '@solana-program/token';
+import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction } from '@solana-program/token';
 import { getWallets } from '@wallet-standard/app';
 import { BACKEND_URL } from '../backendUrl.js';
 import {
@@ -393,11 +394,36 @@ export async function prepareMintQuote(connection, knownStatus) {
   const ownerFareBalance = balanceAccount.value
     ? new DataView(accountBytes(balanceAccount.value).buffer).getBigUint64(64, true)
     : 0n;
-  return { assetSigner, quote, status, ownerFareBalance };
+  return { assetSigner, quote, status, ownerFareBalance, ownerFareAccountExists: Boolean(balanceAccount.value) };
 }
 
 export function waitForTransaction(signature) {
   return waitForFinalizedSignature(rpc, signature);
+}
+
+export async function ensureFareTokenAccount(connection, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const owner = address(connection.account.address);
+  const fareMint = address(status.config.fareMint);
+  const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
+  const tokenProgram = address(mintAccount.value.owner);
+  const [ata] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
+  const existing = await rpc.getAccountInfo(ata, { commitment: 'finalized', encoding: 'base64' }).send();
+  if (existing.value) return '';
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [getCreateAssociatedTokenIdempotentInstruction({
+      payer: createNoopSigner(owner),
+      ata,
+      owner,
+      mint: fareMint,
+      tokenProgram,
+    })],
+  });
 }
 
 export async function mintMachine(connection, knownStatus, preparedQuote) {

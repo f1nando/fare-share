@@ -4,6 +4,7 @@ import drivingScenes from './drivingScenes.json';
 import {
   activateTrainee,
   claimTrainee,
+  ensureFareTokenAccount,
   explorerTransaction,
   formatTokenAmount,
   loadOwnedTrainees,
@@ -189,6 +190,11 @@ export function MintPage({ wallet, connectWallet }) {
     setNotice(`Preparing the ${fareTicker} purchase…`);
     try {
       const connection = wallet || await connectWallet();
+      if (!preparedMint.ownerFareAccountExists) {
+        setNotice(`Create your ${fareTicker} token account in Phantom…`);
+        const setupSignature = await ensureFareTokenAccount(connection, status);
+        if (setupSignature) setSignature(setupSignature);
+      }
       const sizing = await quoteMintFarePurchase(missingFareRaw);
       const tradeQuote = await quoteTrade('buy', Number(sizing.inputSol) * 1.005);
       setNotice(`Approve the ${fareTicker} purchase in Phantom…`);
