@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
+import traineeDrivingScene from './traineeDrivingScene.json';
+import { appAssetPath } from './appPath.js';
 import {
   activateTrainee,
   claimTrainee,
@@ -28,25 +30,43 @@ const MINT_CLASSES = [
   scenes: item.sceneNames.map(name => drivingScenes.find(car => car.name === name)).filter(Boolean),
 }));
 
+const PREVIEW_ITEMS = [
+  ...MINT_CLASSES.flatMap(item => item.scenes.map(scene => ({ scene, label: item.name, tone: item.tone }))),
+  { scene: traineeDrivingScene, label: 'Trainee', tone: 'trainee' },
+];
+
 function formatUsdCents(cents) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(cents) / 100);
 }
 
-function previewReducer(state, action) {
-  if (action.type === 'select-class') {
-    return {
-      previous: state.current,
-      current: { classIndex: action.classIndex, sceneIndex: 0 },
-    };
+function previewReducer(state) {
+  let order = state.order;
+  let cursor = state.cursor + 1;
+  if (cursor >= order.length) {
+    order = shuffledPreviewOrder();
+    cursor = 0;
+    if (order[0] === state.currentIndex && order.length > 1) [order[0], order[1]] = [order[1], order[0]];
   }
-
   return {
-    previous: state.current,
-    current: {
-      ...state.current,
-      sceneIndex: (state.current.sceneIndex + 1) % action.sceneCount,
-    },
+    order,
+    cursor,
+    previousIndex: state.currentIndex,
+    currentIndex: order[cursor],
   };
+}
+
+function shuffledPreviewOrder() {
+  const order = PREVIEW_ITEMS.map((_item, index) => index);
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+  }
+  return order;
+}
+
+function createPreviewState() {
+  const order = shuffledPreviewOrder();
+  return { order, cursor: 0, previousIndex: null, currentIndex: order[0] };
 }
 
 function ArrowIcon() {
@@ -76,13 +96,8 @@ export function MintPage({ wallet, connectWallet }) {
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
   const [traineeSignature, setTraineeSignature] = useState('');
-  const [preview, dispatchPreview] = useReducer(previewReducer, {
-    current: { classIndex: 0, sceneIndex: 0 },
-    previous: null,
-  });
-  const selectedClassIndex = preview.current.classIndex;
-  const previewSceneIndex = preview.current.sceneIndex;
-  const selectedClass = MINT_CLASSES[selectedClassIndex];
+  const [preview, dispatchPreview] = useReducer(previewReducer, undefined, createPreviewState);
+  const selectedPreview = PREVIEW_ITEMS[preview.currentIndex];
   const mintedByClass = databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0];
   const totalMinted = mintedByClass.reduce((total, value) => total + value, 0);
   const remaining = Math.max(0, 1222 - totalMinted);
@@ -285,16 +300,16 @@ export function MintPage({ wallet, connectWallet }) {
     let interval;
     let cancelled = false;
 
-    Promise.all(selectedClass.scenes.map(scene => new Promise(resolve => {
+    Promise.all(PREVIEW_ITEMS.map(({ scene }) => new Promise(resolve => {
       const image = new Image();
       image.onload = resolve;
       image.onerror = resolve;
-      image.src = scene.imageUrl;
+      image.src = appAssetPath(scene.imageUrl);
       if (image.complete) resolve();
     }))).then(() => {
       if (cancelled) return;
       interval = window.setInterval(() => {
-        dispatchPreview({ type: 'advance', sceneCount: selectedClass.scenes.length });
+        dispatchPreview({ type: 'advance' });
       }, 1000);
     });
 
@@ -302,13 +317,13 @@ export function MintPage({ wallet, connectWallet }) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [isPreviewHovered, selectedClassIndex, selectedClass.scenes.length]);
+  }, [isPreviewHovered]);
 
   useLayoutEffect(() => {
     previewRef.current?.querySelectorAll('.fare-mint-preview-scene:not(.is-active) .fare-fleet-headlight').forEach(light => {
       light.getAnimations().forEach(animation => animation.cancel());
     });
-  }, [selectedClassIndex, previewSceneIndex]);
+  }, [preview.currentIndex]);
 
   return (
     <>
@@ -330,17 +345,17 @@ export function MintPage({ wallet, connectWallet }) {
               onMouseLeave={() => setIsPreviewHovered(false)}
             >
               <div className="fare-mint-preview-scenes">
-                {MINT_CLASSES.flatMap((item, classIndex) => item.scenes.map((scene, sceneIndex) => {
-                  const isActive = classIndex === selectedClassIndex && sceneIndex === previewSceneIndex;
-                  const isPrevious = classIndex === preview.previous?.classIndex && sceneIndex === preview.previous?.sceneIndex;
+                {PREVIEW_ITEMS.map(({ scene }, index) => {
+                  const isActive = index === preview.currentIndex;
+                  const isPrevious = index === preview.previousIndex;
                   return (
                     <div className={`fare-mint-preview-scene${isPrevious ? ' is-previous' : ''}${isActive ? ' is-active' : ''}`} key={scene.id || scene.name}>
                       <FareStepDrivingScene scene={scene} />
                     </div>
                   );
-                }))}
+                })}
               </div>
-              <span className={`fare-fleet-class is-${selectedClass.tone}`}>{selectedClass.name.toUpperCase()}</span>
+              <span className={`fare-fleet-class is-${selectedPreview.tone}`}>{selectedPreview.label.toUpperCase()}</span>
             </div>
 
             <div className="fare-mint-panel">
