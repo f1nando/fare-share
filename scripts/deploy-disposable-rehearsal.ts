@@ -9,7 +9,6 @@ import { address, getAddressEncoder, getProgramDerivedAddress } from '@solana/ki
 import { MAINNET_GENESIS_HASH, validateRehearsalManifest } from '../server/rehearsalManifest.js';
 
 const UPGRADEABLE_LOADER = address('BPFLoaderUpgradeab1e11111111111111111111111');
-const BUFFER_METADATA_BYTES = 37;
 const PROGRAMDATA_METADATA_BYTES = 45;
 
 export interface DeployOptions {
@@ -124,14 +123,13 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   if (size !== manifest.sbf.sizeBytes) throw new Error(`SBF size mismatch: expected ${manifest.sbf.sizeBytes}, got ${size}`);
   if (hash !== manifest.sbf.sha256) throw new Error(`SBF SHA-256 mismatch: expected ${manifest.sbf.sha256}, got ${hash}`);
 
-  const bufferRent = rent(run, size + BUFFER_METADATA_BYTES, options.rpcUrl);
+  const bufferRent = rent(run, size + PROGRAMDATA_METADATA_BYTES, options.rpcUrl);
   const programDataRent = rent(run, size + PROGRAMDATA_METADATA_BYTES, options.rpcUrl);
   const expectedProgramDataRent = BigInt(manifest.limits.recoverableRentLamports);
   const expectedBufferRent = BigInt(manifest.limits.uploadBufferRentLamports);
   if (programDataRent !== expectedProgramDataRent) {
     throw new Error(`ProgramData rent mismatch: manifest ${expectedProgramDataRent}, current ${programDataRent}`);
   }
-  if (bufferRent >= programDataRent) throw new Error('Buffer rent must be lower than ProgramData rent');
   if (bufferRent !== expectedBufferRent) {
     throw new Error(`Buffer rent mismatch: manifest ${expectedBufferRent}, current ${bufferRent}`);
   }
@@ -145,16 +143,22 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   if (BigInt(manifest.limits.estimatedPeakFundingLamports) !== expectedPeak) {
     throw new Error(`Peak funding mismatch: expected ${expectedPeak}`);
   }
-  const payerBalanceOutput = checked(run, 'solana', ['balance', manifest.addresses.feePayer, '--lamports', '--url', options.rpcUrl], 'fee payer balance');
-  const payerBalance = BigInt(payerBalanceOutput.trim().match(/^([0-9]+)/)?.[1] || '0');
-  if (payerBalance < expectedPeak) throw new Error(`Fee payer balance ${payerBalance} is below required peak ${expectedPeak}`);
-
   const existingProgram = run('solana', ['program', 'show', manifest.addresses.programId, '--url', options.rpcUrl]);
   if (existingProgram.status === 0) throw new Error(`Program ${manifest.addresses.programId} already exists; refusing an upgrade`);
   const existingBuffer = run('solana', ['program', 'show', options.bufferAddress, '--url', options.rpcUrl]);
-  if (existingBuffer.status === 0 && !existingBuffer.stdout.includes(`Authority: ${manifest.addresses.upgradeAuthority}`)) {
-    throw new Error('Existing persistent buffer authority mismatch');
+  let fundedBufferRent = 0n;
+  if (existingBuffer.status === 0) {
+    if (!existingBuffer.stdout.includes(`Authority: ${manifest.addresses.upgradeAuthority}`)) {
+      throw new Error('Existing persistent buffer authority mismatch');
+    }
+    const balance = checked(run, 'solana', ['balance', options.bufferAddress, '--lamports', '--url', options.rpcUrl], 'persistent buffer balance');
+    fundedBufferRent = BigInt(balance.trim().match(/^([0-9]+)/)?.[1] || '0');
+    if (fundedBufferRent !== bufferRent) throw new Error(`Existing persistent buffer balance ${fundedBufferRent} does not equal expected rent ${bufferRent}`);
   }
+  const payerBalanceOutput = checked(run, 'solana', ['balance', manifest.addresses.feePayer, '--lamports', '--url', options.rpcUrl], 'fee payer balance');
+  const payerBalance = BigInt(payerBalanceOutput.trim().match(/^([0-9]+)/)?.[1] || '0');
+  const requiredLiquidBalance = expectedPeak - fundedBufferRent;
+  if (payerBalance < requiredLiquidBalance) throw new Error(`Fee payer balance ${payerBalance} is below required liquid balance ${requiredLiquidBalance}`);
 
   return {
     manifest,

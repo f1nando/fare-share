@@ -40,7 +40,7 @@ async function fixture(): Promise<{ options: DeployOptions; calls: string[][] }>
     assignmentRootHex: '1'.repeat(24),
     assignmentManifestSha256: '2'.repeat(64), deploymentIdHex: '3'.repeat(64),
     metadata: { collectionUri: 'https://example.com/collection', machineUris: Array.from({ length: 16 }, (_, i) => `https://example.com/${i}`), traineeUri: 'https://example.com/trainee', imageUris: Array.from({ length: 18 }, (_, i) => `https://example.com/image-${i}`), faretestArtworkUri: 'https://example.com/faretest.svg', faretestMetadataUri: 'https://example.com/faretest.json' },
-    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '108', uploadBufferRentLamports: '100', programTombstoneLamports: '1', estimatedPeakFundingLamports: '900000209' },
+    limits: { automaticStopSol: 0.7, irreversibleMaximumSol: 0.8, recoverableRentLamports: '108', uploadBufferRentLamports: '108', programTombstoneLamports: '1', estimatedPeakFundingLamports: '900000217' },
   }));
   const programSo = join(directory, 'program.so');
   await writeFile(programSo, binary);
@@ -63,8 +63,8 @@ function fakeRunner(options: DeployOptions, calls: string[][]) {
       return ok(`${key}\n`);
     }
     if (args[0] === 'genesis-hash') return ok('5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d\n');
-    if (args[0] === 'rent') return ok(`${args[1] === '40' ? 100 : 108} lamports\n`);
-    if (args[0] === 'balance') return ok('900000209 lamports\n');
+    if (args[0] === 'rent') return ok('108 lamports\n');
+    if (args[0] === 'balance') return ok('900000217 lamports\n');
     if (args[0] === 'program' && args[1] === 'show') return { status: 1, stdout: '', stderr: 'not found' };
     return ok('');
   };
@@ -73,7 +73,7 @@ function fakeRunner(options: DeployOptions, calls: string[][]) {
 test('preflight is read-only and binds every frozen deploy input', async () => {
   const { options, calls } = await fixture();
   const result = await runDisposablePreflight(options, fakeRunner(options, calls));
-  assert.equal(result.bufferRentLamports, 100n);
+  assert.equal(result.bufferRentLamports, 108n);
   assert.equal(result.programDataRentLamports, 108n);
   assert.equal(result.confirmation, `DEPLOY-DISPOSABLE-MAINNET:${'a'.repeat(40)}:${PROGRAM}`);
   assert.equal(calls.some(call => call.includes('deploy') || call.includes('close') || call.includes('new')), false);
