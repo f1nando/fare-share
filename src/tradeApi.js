@@ -30,10 +30,6 @@ export async function quoteTrade(side, amount, slippageBps = 500) {
   return request('/api/trade/quote', { method: 'POST', body: JSON.stringify({ side, amount, slippageBps }) });
 }
 
-export async function quoteMintFarePurchase(outputAmountRaw) {
-  return request('/api/mint/buy-quote', { method: 'POST', body: JSON.stringify({ outputAmountRaw: String(outputAmountRaw) }) });
-}
-
 export async function executeTrade(connection, quoteId) {
   const built = await request('/api/trade/build', {
     method: 'POST',
