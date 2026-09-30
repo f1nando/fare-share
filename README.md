@@ -249,9 +249,12 @@ English-only.
 - **Ivan Dalechenko — CTO**
 - **Email:** [ivandalechenko@gmail.com](mailto:ivandalechenko@gmail.com)
 - **Official X:** [@taxiempire](https://x.com/taxiempire)
+- **Telegram:** [@ivandalechenko](https://t.me/ivandalechenko)
 
 ## License
 
-No open-source license has been selected yet. Source availability does not grant
-permission to copy, modify, distribute, or deploy the project. A license will be
-added before the repository is intentionally published as open source.
+Copyright © 2026 Ivan Dalechenko. All rights reserved.
+
+This is publicly viewable proprietary source code, not an open-source release.
+Source availability does not grant permission to copy, modify, distribute, or
+deploy the project. See [LICENSE](LICENSE).

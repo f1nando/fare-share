@@ -8,8 +8,10 @@ the final production release.
 
 Please report suspected vulnerabilities privately to:
 
-**Ivan Dalechenko, CTO**  
-[ivandalechenko@gmail.com](mailto:ivandalechenko@gmail.com)
+**Ivan Dalechenko, CTO**
+
+- [ivandalechenko@gmail.com](mailto:ivandalechenko@gmail.com)
+- [Telegram: @ivandalechenko](https://t.me/ivandalechenko)
 
 Include, when possible:
 
