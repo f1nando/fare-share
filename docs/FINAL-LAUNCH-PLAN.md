@@ -77,6 +77,7 @@
 | D-25 | Коллекция использует 17 NFT artwork/metadata типов | Это 16 paid вариантов (`4 класса × 4 модели`) и один отдельный Trainee — Dacia Logan. Collection artwork/metadata существует дополнительно и не считается восемнадцатым taxi NFT типом. Paid supply остаётся 1222, а Trainee supply — unlimited по правилу `owner + campaign_id`. |
 | D-26 | Разрешена публичная загрузка disposable NFT assets и metadata | При подготовке rehearsal разрешено загрузить отдельное Collection image/JSON, текущие 16 paid machine images/JSON и Dacia Logan Trainee image/JSON в постоянное публичное хранилище. Все metadata явно относятся к disposable rehearsal и не утверждают production artwork или production URI. Итоговые 18 image URI и 18 JSON (Collection + 17 NFT типов) фиксируются в rehearsal manifest до initialize. |
 | D-27 | Disposable Collection называется `Fare Share Taxi Rehearsal`, symbol `TAXITEST` | Name и symbol используются в Collection и всех 17 rehearsal NFT metadata. Они запрещены для production Collection и должны сопровождаться test/rehearsal description без обещания фиксированной доходности. |
+| D-28 | Artwork disposable Collection — существующий `public/brand/fare-driver.png` | Отдельное изображение Collection для rehearsal не создаётся. Перед upload файл проверяется визуально и по MIME; его постоянный URI фиксируется в rehearsal manifest и используется только в metadata `Fare Share Taxi Rehearsal`. |
 
 ## L-01. Worker/Jupiter reserve routes
 
