@@ -59,7 +59,7 @@ test('deployment preflight permits preparing the program before FARE mint exists
   delete env.FARE_MINT;
   const result = await validateDeploymentEnvironment(env);
   assert.deepEqual(result.errors, []);
-  assert.match(result.warnings.join('\n'), /FARE_MINT.*replaceable until start-sale/);
+  assert.match(result.warnings.join('\n'), /FARE_MINT.*runtime-replaceable/);
 });
 
 test('deployment preflight rejects placeholders, wrong mint order and zero prices', async () => {

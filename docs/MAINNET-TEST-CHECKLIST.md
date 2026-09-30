@@ -61,7 +61,7 @@
 - [ ] Подтвердить ожидаемый максимальный расход на mint, rent и комиссии.
 - [ ] До `start-sale` проверить collection, team recipient, mint prices и все caps непосредственно из Configuration PDA.
 - [x] Разделить запуск на два этапа: `initialize` сохраняет пустой `$FARE`, а `set-fare-mint <CA>` после создания токена атомарно создаёт/проверяет canonical vault; protocol admin может исправить CA до `start-sale`.
-- [ ] После создания финального токена через `/admin/` выполнить `set_fare_mint`, сохранить CA+ticker в MongoDB runtime-конфигурации и проверить Configuration PDA и `/api/token`; до этого `start-sale` обязан отклоняться, после старта прямая замена CA обязана отклоняться.
+- [ ] После создания финального токена через `/admin/` выполнить `set_fare_mint`, сохранить CA+ticker в MongoDB runtime-конфигурации и проверить Configuration PDA, `/api/token`, Trade и quote. Отдельно smoke-проверить runtime replacement после старта и учёт остатка старого vault.
 
 ### Gate 5 — regression и release artifact
 

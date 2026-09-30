@@ -2388,7 +2388,6 @@ fn validate_initial_addresses(args: &InitializeArgs) -> Result<()> {
 }
 
 fn validate_fare_assignment(config: &Configuration, fare_mint: Pubkey) -> Result<()> {
-    require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
     require!(
         fare_mint != Pubkey::default()
             && !config.stock_mints.iter().any(|mint| *mint == fare_mint),
@@ -2554,7 +2553,7 @@ mod accounting_tests {
     }
 
     #[test]
-    fn fare_mint_can_change_before_sale_and_cannot_match_a_stock() {
+    fn fare_mint_can_change_at_any_time_and_cannot_match_a_stock() {
         let stock_mints = [
             Pubkey::new_unique(),
             Pubkey::new_unique(),
@@ -2592,7 +2591,7 @@ mod accounting_tests {
         assert!(require_fare_ready(config.fare_mint).is_ok());
         assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
         config.sale_started = true;
-        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_err());
+        assert!(validate_fare_assignment(&config, Pubkey::new_unique()).is_ok());
     }
 
     #[test]
