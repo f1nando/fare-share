@@ -30,6 +30,7 @@
     "rehearsal:preflight": "node --import tsx scripts/validate-rehearsal-manifest.ts",
     "rehearsal:deploy": "node --import tsx scripts/deploy-disposable-rehearsal.ts",
     "rehearsal:smoke": "node --import tsx scripts/run-rehearsal-smoke.ts",
+    "rehearsal:set-program-id": "node --import tsx scripts/set-disposable-program-id.ts",
     "admin:hash-password": "node --import tsx scripts/hash-admin-password.ts",
     "metadata:build": "node --env-file-if-exists=.env --import tsx scripts/build-nft-metadata.ts",
     "metadata:build-faretest": "node --env-file-if-exists=.env --import tsx scripts/build-faretest-metadata.ts",
