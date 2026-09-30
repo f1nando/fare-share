@@ -311,6 +311,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-driver-cell img { display: block; width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 
 .fare-leaderboard-page-main { position: relative; z-index: 1; min-height: 100vh; padding: 210px 0 120px; }
+.fare-leaderboard-page-main.is-empty { min-height: 0; }
 .fare-leaderboard-page-section { position: relative; }
 .fare-leaderboard-page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
 .fare-leaderboard-page-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .9; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }

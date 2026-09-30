@@ -44,7 +44,7 @@ export function LeaderboardPage({ wallet }) {
 
   return (
     <>
-      <main className="fare-leaderboard-page-main" id="top">
+      <main className={`fare-leaderboard-page-main${leaders.length === 0 ? ' is-empty' : ''}`} id="top">
         <section className="container fare-leaderboard-page-section" aria-labelledby="leaderboard-page-title">
           <div className="fare-leaderboard-page-heading fare-page-heading">
             <h1 className="fare-page-title is-long" id="leaderboard-page-title">LEADERBOARD</h1>
