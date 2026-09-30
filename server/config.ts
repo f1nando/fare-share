@@ -68,7 +68,7 @@ export function loadServerConfig() {
     solanaRpcMaxRequestsPerSecond: boundedInteger('SOLANA_RPC_MAX_REQUESTS_PER_SECOND', 50, 1, 50),
     solanaSendTransactionMaxRequestsPerSecond: boundedInteger('SOLANA_SEND_TRANSACTION_MAX_REQUESTS_PER_SECOND', 5, 1, 5),
     solanaDasMaxRequestsPerSecond: boundedInteger('SOLANA_DAS_MAX_REQUESTS_PER_SECOND', 10, 1, 10),
-    swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 1_000_000, 1)),
+    swapMinimumLamports: BigInt(integer('SWAP_MINIMUM_LAMPORTS', 100_000_000, 1)),
     swapSlippageBps: boundedInteger('SWAP_SLIPPAGE_BPS', 500, 1, 10_000),
     swapPlanTtlSeconds: integer('SWAP_PLAN_TTL_SECONDS', 600, 30),
     jupiterMaxAccounts: boundedInteger('JUPITER_MAX_ACCOUNTS', 48, 1, 64),
