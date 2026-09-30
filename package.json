@@ -1,5 +1,6 @@
 {
-  "name": "taxi-city-background",
+  "name": "fare-share",
+  "description": "An onchain taxi park on Solana with ownable NFT cars, activity-based rewards, repairs, trainee campaigns, and Jupiter trading.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

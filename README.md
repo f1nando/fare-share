@@ -1,12 +1,205 @@
-# FARE Taxi Park
+# Fare Share
 
-Оставшиеся решения перед запуском собраны в [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md); на них можно ответить одним сообщением по номерам.
+<p align="center">
+  <img src="public/brand/fare-driver.png" alt="Fare Share taxi driver" width="520" />
+</p>
 
-Solana Taxi Park состоит из Anchor-программы, примитивного React-интерфейса и Node/MongoDB backend для стажёрских ваучеров. Обычная страница открывает продуктовый интерфейс; процедурный город используется как фон и отдельно доступен по `?city=1`.
+**An onchain taxi park on Solana.** Fare Share combines a finite collection of
+ownable taxi NFTs, activity-based reward accounting, five-day vehicle durability,
+trainee campaigns, and wallet-controlled trading through Jupiter.
 
-Основные документы: [финальный план запуска](docs/FINAL-LAUNCH-PLAN.md), [архитектура](ARCHITECTURE.md), [backend и worker](docs/BACKEND.md), [порядок развёртывания](DEPLOY.md), [решения и открытые вопросы](docs/TECHNICAL-QUESTIONS.md), [пользовательские сценарии](docs/SCENARIO-TESTS.md).
+> **Development status:** Fare Share is under active development and is not yet a
+> production release. The public site currently contains a disposable mainnet
+> rehearsal that uses test-branded assets. Rehearsal tokens and NFTs are not the
+> future production assets, and no fixed return or profit is promised.
 
-## Быстрый запуск Taxi Park
+[Website](https://ownataxi.com/) · [Mainnet rehearsal](https://ownataxi.com/rehearsal/) ·
+[Product documentation](https://ownataxi.com/rehearsal/docs/) ·
+[X / Twitter](https://x.com/taxiempire)
+
+## Concept
+
+Fare Share represents a taxi fleet as Metaplex Core NFTs. A paid taxi remains in
+its owner's wallet while a Solana program account tracks its class weight,
+durability, reward checkpoints, and claimable balances. The Solana program—not
+the backend database—is the source of truth for ownership and financial state.
+
+The product loop is:
+
+```text
+Mint a taxi → keep it active → protocol fees fund reward pools
+→ calculate rewards → claim assets → repair the taxi → repeat
+```
+
+Rewards come only from assets the protocol actually receives. Fare Share does
+not mint synthetic yield, promise a fixed APY, or create debt when a swap route
+is unavailable.
+
+## Taxi collection
+
+The planned paid collection contains exactly **1,222** transferable taxis:
+
+| Class | Supply | Weight | Initial share |
+|---|---:|---:|---:|
+| Economy | 833 | 1 | 68.17% |
+| Comfort | 278 | 3 | 22.75% |
+| Business | 83 | 10 | 6.79% |
+| Legend | 28 | 30 | 2.29% |
+
+- Each class has four vehicle models, for 16 paid NFT variants in total.
+- Users do not select a class or model.
+- The complete assignment order is shuffled before sale and committed onchain
+  through a Merkle root.
+- Each mint consumes the next valid assignment and must provide its Merkle proof.
+- The frontend displays live odds from the remaining supply rather than static
+  launch percentages.
+- Burning an NFT does not reopen its place in the fixed collection.
+- Paid taxis have 0% project creator royalties and remain transferable.
+
+Each paid mint has a target price of **$25**, settled in the configured `$FARE`
+token. Immediately before minting, the backend checks live market liquidity and
+signs a short-lived quote bound to the wallet, asset, assignment, token mint,
+raw amount, and deployment. Payment, NFT creation, and Machine account creation
+then succeed or fail atomically in one Solana transaction.
+
+## Rewards and protocol fees
+
+Fare Share is designed around the actual variable creator fees received from the
+configured pump.fun token. Collected SOL is separated into the following paths:
+
+| Allocation | Purpose |
+|---:|---|
+| 45% | Buy `$FARE` for the paid taxi fleet |
+| 5% | Buy `$FARE` for trainee campaigns |
+| 20% | Buy and burn `$FARE` |
+| 5% each | Buy `UBERx`, `TSLAx`, `GOOGLx`, and `AMZNx` |
+| 10% | Project team |
+
+Each asset is processed independently through a validated Jupiter route. If a
+route is unavailable or fails safety checks, that allocation remains reserved;
+it does not block successful assets or become an artificial obligation.
+
+Rewards are split by **active time × class weight**. Mint, repair, expiry, and
+burn events divide time into deterministic accounting segments. Permissionless
+calculation calls advance bounded event batches and update cumulative reward per
+weight. This avoids iterating over all 1,222 taxis in one transaction.
+
+A claim transfers only rewards already calculated for that taxi. Claim order
+does not change another owner's allocation. Unclaimed rewards belong to the taxi
+account and follow the NFT when ownership changes.
+
+## Durability and repair
+
+Every paid taxi starts with five days of durability. Once durability reaches
+zero, its weight leaves the active fleet and it stops earning until repaired.
+
+A repair:
+
+1. settles rewards through the current calculated boundary;
+2. burns the required `$FARE` from the current owner;
+3. restores five full days from the repair time;
+4. schedules new activation and expiry events atomically.
+
+The repair price is derived from the taxi's calculated `$FARE` activity since
+its previous mint or repair. Claiming rewards does not restore durability.
+
+## Trainee campaigns
+
+Trainee campaigns provide a separate onboarding path:
+
+- the backend validates a campaign code and issues an expiring signed voucher;
+- the Solana program verifies the voucher and prevents reuse;
+- activation creates a visible Metaplex Core NFT and a unique
+  `wallet + campaign` account;
+- the trainee NFT is permanently frozen and cannot be transferred or repaired;
+- trainees participate only in their separate 5% `$FARE` pool;
+- participation ends automatically at the voucher-defined time.
+
+The backend signature authorizes campaign eligibility only. It never gives the
+backend access to the user's wallet or private keys.
+
+## Trade, Garage, and public data
+
+- **Mint** prepares live `$FARE` pricing and creates a paid taxi.
+- **Garage** shows finalized ownership, durability, and claimable assets and
+  supports atomic batch claim and repair transactions.
+- **Trade** obtains Jupiter quotes and builds wallet-approved `$FARE` buy/sell
+  transactions. User keys never reach the server.
+- **Leaderboard and public pages** read a recoverable MongoDB projection built
+  from finalized Solana and DAS state.
+- **Market** links to the official external marketplace rather than implementing
+  a custodial marketplace.
+
+## Trust model and safety boundaries
+
+- Users sign transactions in their own Solana wallet through Wallet Standard.
+- Fare Share never requests or stores a user's seed phrase or private key.
+- Solana PDA state is authoritative; MongoDB stores campaigns, operational
+  settings, audit records, and rebuildable public read models.
+- Mint quotes, trainee vouchers, and swap plans are domain-separated, expiring,
+  and bound to exact transaction data.
+- External transactions are simulated where applicable and accepted only after
+  finalized confirmation.
+- Jupiter routes are constrained by input amount, minimum output, deadline,
+  nonce, approved program, and route-account hash.
+- Admin routes use server-side sessions, CSRF protection, origin checks, request
+  limits, and secrets stored outside the repository.
+- A global pause blocks mint, claim, repair, reward, and swap operations.
+- The current design has an upgrade authority and a trusted emergency admin.
+  During a pause, that admin can rescue protocol-controlled vault assets. This
+  is an explicit trust assumption, not a trustless guarantee.
+- The Solana program has not yet completed an independent production audit.
+
+See [SECURITY.md](SECURITY.md) for responsible disclosure.
+
+## Current public rehearsal
+
+The current environment is a disposable **Solana mainnet rehearsal**, not the
+production launch:
+
+| Item | Address |
+|---|---|
+| Program | `3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z` |
+| Collection | `DnRzC8Mgpa3EHeTgXLxWXnLCt7dRbSLegjviAq5knH6c` |
+| Test token (`FARETEST`) | `HGLuaP3kL2AXvU8gRZmQzLCqFvKcotm1Gsw5nZSzQdCA` |
+
+Production will use a separately frozen and verified program deployment,
+collection, token, keyset, configuration manifest, and release artifact.
+Rehearsal identifiers must not be treated as future production addresses.
+
+## Architecture
+
+Fare Share is a modular application rather than a set of microservices:
+
+```text
+programs/taxi_park/   Rust/Anchor Solana program
+src/                  React/Vite frontend and Solana client
+src/city/             Three.js procedural city background
+server/               Node.js/TypeScript API, indexer, admin, and worker logic
+scripts/              Setup, verification, rehearsal, and recovery tools
+tests/                Focused frontend, backend, protocol, and simulation tests
+docs/                 Architecture, operations, scenarios, and release gates
+```
+
+Core technologies:
+
+- Solana, Rust, Anchor, PDA accounts, SPL Token and Token-2022
+- Metaplex Core NFTs and DAS ownership discovery
+- React 19, Vite, Three.js, Wallet Standard, and `@solana/kit`
+- Node.js, TypeScript, MongoDB, Helius, Jupiter, and pump.fun integrations
+
+For implementation detail, see [ARCHITECTURE.md](ARCHITECTURE.md). Historical
+procedural-city and development notes remain available in
+[docs/CITY-SIMULATION.md](docs/CITY-SIMULATION.md).
+
+## Local development
+
+Requirements:
+
+- Node.js `20.19+` or `22.12+`
+- npm
+- Rust/Anchor tooling only when building or testing the Solana program
+- MongoDB only for backend features; the frontend can run independently
 
 ```sh
 npm install
@@ -14,92 +207,51 @@ copy .env.example .env
 npm run dev
 ```
 
-Frontend работает в демонстрационном режиме и без backend. Для реальных стажёрских ваучеров отдельно запустите `npm run dev:server`; для permissionless-служебных операций — `npm run worker`. Все серверные команды автоматически читают `.env`.
-
-## Новый frontend Fare Share
-
-Новый интерфейс доступен отдельно по адресу `/fare-share/`. Его React-точка входа — `src/fare-share-main.jsx`, основной компонент — `src/FareShareLanding.jsx`, изолированные стили — `src/fare-share.css`. Старое приложение по адресу `/` остаётся отдельной сущностью до переноса готовой функциональности.
-
-Весь дальнейший новый frontend проекта разрабатывается на React: страницы, секции и интерактивные сценарии создаются как React-компоненты. Статические HTML-файлы используются только как минимальные точки входа Vite, а не как место реализации интерфейса.
-
-Перед первой on-chain инициализацией заполните реальные значения в `.env` и выполните:
+The frontend starts without a live backend. To run backend-dependent features:
 
 ```sh
-npm run protocol:addresses
-npm run protocol:preflight
-npm run protocol:check-xstocks
-npm run protocol:initialize
+npm run dev:server
 ```
 
-`protocol:preflight` ничего не отправляет в Solana и не печатает секреты. Публикация программы, создание pump.fun `$FARE`, вызов `start_sale` и mainnet-действия выполняются отдельно и только вручную. Backend описан в [docs/BACKEND.md](docs/BACKEND.md), порядок публикации — в [DEPLOY.md](DEPLOY.md).
+Never place real keys in `.env.example`, frontend `VITE_*` variables, logs, or
+the repository.
 
-GitHub Actions выполняет Node-проверки, frontend build и Rust unit tests без секретов. Workflow не создаёт токены, не публикует Solana-программу и не выполняет deploy.
-
-## Процедурный фон Taxi City
-
-На каждом втором горизонтальном проспекте (линии, кратные 12) и каждом третьем вертикальном (линии `9 + 18n`) проложены рельсы по внутренней полосе в обе стороны. Двухсекционные трамваи заменяют небольшую часть обычного потока, соблюдают светофоры и дистанцию с учётом длины, не поворачивают и не перестраиваются. Маршруты сквозные, включая мосты; на рельсовых маршрутах вместо круговых перекрёстков используются обычные со светофорами. Рельсы используют существующую пакетную отрисовку. Проверка: `node --test tests/trams.test.js tests/vehicle-types.test.js`.
-
-Эталон реакции машинок на курсор — commit `67167ed`, одобренный пользователем: все машины, входящие в область курсора (в том числе неподвижного), запускают свою анимацию один раз за вход; активная анимация не перезапускается. Область привязана к дороге с учётом мостов, а не к высоте прыжка. Новый прыжок не должен пропадать из-за времени кадра. Проверки: `tests/vehicle-bounce.test.js`, `tests/foliage-animation.test.js`. Дома реагируют вдоль всей длинной оси, включая края, без промежутков между точками активации.
-
-Протяжённые диагональные улицы проходят через три последовательных квартала и приходят пятым подходом к кругу. Участки между улицами сужаются и расширяются; перспектива и формы зданий прежние. Легковые машины, такси и мотоциклы ездят в обе стороны с локальным пропуском через два промежуточных пересечения и круг. Автобусы и грузовики пока остаются на основных дорогах. Сохраняются каналы, парки и парковки. Модули — `src/city/diagonalLayout.js`, `diagonalGeometry.js`, `diagonalTraffic.js`; проверка — `node --test tests/diagonal-streets.test.js`.
-
-Озеленённые проспекты имеют по три обычные полосы в каждом направлении; обычные улицы — по две. Ширина проезжей части, мосты, бордюры, парковочные въезды и линии ожидания согласованы с полосами. Общая плотность не увеличивается: прежний поток распределяется между тремя полосами. На круг машины въезжают с каждой полосы и выходят в две основные; такси на проспектах используют третью полосу вместо прежнего обгона по обочине. `src/city/roadProfile.js` задаёт профиль; `tests/boulevard-lanes.test.js` проверяет проезд и переходы.
-
-Одобренный эталон производительности: Git-тег **`city-perf-good-v1`**. [Состав и быстрый возврат](docs/CITY-BASELINE.md) · [Кандидаты на следующие дополнения](docs/CITY-CANDIDATES.md).
-
-Такси умеют делать короткий ложный выпад за осевую и плавно возвращаться при приближении встречного потока. Два соседних такси могут устроить гонку: ведомый сначала повторяет перестроение лидера, затем пытается его обойти. Оба поведения работают и при 0% дополнительного лихачества; встречный поток и свободные промежутки по-прежнему проверяются.
-
-Кузов такси приподнимает нос при резком разгоне, наклоняется вперёд при торможении и кренится при перестроении. Подвеска плавно успокаивается на прямой. При заезде на бордюр колёса одной стороны поднимаются на тротуар, кузов наклоняется и ненадолго подпрыгивает; высота каждого колеса учитывает поверхность под ним.
-
-Полноэкранный процедурный лоу-поли город на React и Three.js. Светлые дома, парки, деревья, пешеходные переходы, обычные машины и жёлтые такси. Без управления и без backend.
-
-Каждая шестая улица — бульвар с узкой посадочной полосой и тремя деревьями между перекрёстками. Такси не пересекают разделитель, но продолжают перестраиваться и обгонять по обочине; встречные обгоны остаются на обычных улицах. Проезды через перекрёстки и Т-образные окончания свободны.
-
-Каждая двенадцатая колонка кварталов заменена непрерывной рекой: серая вода ниже улиц, набережные и редкие деревья. Река тянется вдоль одной оси города и продолжается за видимой областью. При размере квартала 40 ширина воды — 24,8 единицы. Мосты расположены через одну поперечную улицу; остальные улицы заканчиваются Т-перекрёстками на берегах. Вода и набережные между мостами непрерывны. Мост поднимается к середине на 2,4 единицы и опускается к другому берегу; кузов, колёса и эффекты машин следуют подъёму. Общий профиль высот — `src/city/bridgeProfile.js`, поправка к позе применяется после интерполяции только к видимым машинам. Исходный ракурс камеры и система Worker/буфера сохранены. Ограждения оставляют место обгону по обочине. Реки не пересекают парки на два квартала.
-
-Дорожные работы закрывают полосу коротким участком с шестью серо-белыми конусами: укладка асфальта с небольшим катком, ремонт люка или траншея с ограждениями. На группу 4 × 4 квартала приходится до двух участков; мосты, набережные, перекрёстки и отсутствующие дороги исключены. Машины заранее перестраиваются во внутренний ряд или плавно ждут перед конусами. Такси при занятом внутреннем ряде могут объехать по свободной обочине и вернуться после ремонта. Повороты выводят машину сразу в открытый ряд; генерация и перенос мира не помещают машины внутрь ограждения. Проверки — `node --test tests/roadworks.test.js`.
-
-Редкие кольца заменяют четырёхсторонние и Т-образные перекрёстки вдали от воды. Основные места заданы сеткой 6 × 6, дополнительные Т-кольца — сеткой 8 × 8 с исключением соседних колец. Отсутствующий съезд закрыт закруглённым тротуаром. Диаметр траектории — 14 единиц, островка — 8,2. Углы прилегающих кварталов освобождены, въезды и места ожидания отодвинуты; общие размеры заданы в `src/city/roundaboutDimensions.js`. Одна полоса вокруг низкого серого островка; машины уступают при въезде и выбирают прямой, левый или правый съезд. Такси чаще меняют улицу и быстрее проходят круг. Совместимые проезды выполняются одновременно: зазор проверяется по ориентированным кузовам и будущим положениям с тем же профилем ускорения, который затем ведёт машину. Свободный въезд планируется заранее, без обязательного торможения у линии ожидания; выбираются только существующие съезды. Светофор на кольце не действует, обгон по встречной полосе на подходе не начинается. Геометрия и траектории — `src/city/roundabouts.js`; проверки — `node --test tests/roundabouts.test.js`.
-
-Парковочные кварталы имеют два проезда и 2–10 мест, детерминированно располагаются примерно втрое чаще и ориентированы на разные стороны квартала вне воды, кругов и диагональных подходов. Легковые машины из существующего потока занимают свободное место, стоят 10–22 секунды и выезжают задним ходом в проезд. При выезде учитываются размеры кузовов и тормозной путь; после короткого ожидания поток уступает место и сохраняет его до завершения манёвра. На проспектах используется третий нормальный ряд (track 3). По ходу потока сначала расположен выезд, затем въезд ближе к светофору; направления отмечены стрелками. В одной парковке одновременно маневрирует одна машина. Планировка — `src/city/parkingLayout.js`, движение — `src/city/parkingTraffic.js`; проверка — `node --test tests/parking.test.js`.
-
-Статические кварталы переиспользуют подготовленные матрицы; кэш ограничен активной областью и одной входящей строкой/колонкой. Будущие кварталы готовятся по одному в свободных кадрах. Материалы сигналов и обе текстуры надписей прогреваются перед запуском анимации.
+## Focused verification
 
 ```sh
-npm install
-npm run dev
+npm run build
+npm run server:typecheck
+npm run test:backend
+node --test tests/protocol-client.test.js
+cargo test --manifest-path programs/taxi_park/Cargo.toml
 ```
 
-Dev-сервер доступен и с других устройств в той же Wi-Fi сети: откройте `http://<IPv4 компьютера>:5173`. IPv4 можно посмотреть командой `ipconfig`. Компьютер и dev-сервер должны оставаться включёнными. Если Windows блокирует соединение, разрешите входящий TCP-порт 5173 только для локальной подсети.
+CI runs Node checks, the frontend build, backend tests, protocol-client tests,
+and Rust unit tests without deployment credentials. Deployment and mainnet
+transactions are never part of normal CI.
 
-`npm run build` — production-сборка в `dist`, `npm run preview` — её локальный просмотр. `npm test -- tests/world.test.js` — быстрые проверки генератора и движения.
+## Documentation
 
-Для фонового города логика трафика обновляется 30 раз в секунду в Web Worker. Он рассчитывает запас состояний примерно на 1000 мс вперёд и начинает движение после накопления 300 мс; до этого показан неподвижный начальный кадр. Запас пополняется порциями до четырёх шагов с передачей управления между шагами. Экран плавно интерполирует положения, повороты, подвеску и камеру. При нехватке запаса воспроизведение замедляется, затем догоняет время с ускорением не более 8%. Пауза останавливает воспроизведение сразу; изменения скоростей доходят через буфер. При недоступности Worker включается прежний расчёт в основном потоке. Область генерации зависит от проекции камеры; видимая плотность сохраняется. Итоги измерений и ограничения: [журнал оптимизации](docs/OPTIMIZATION-RESULTS.md).
+- [Architecture](ARCHITECTURE.md)
+- [Backend and worker](docs/BACKEND.md)
+- [Scenario tests](docs/SCENARIO-TESTS.md)
+- [Application readiness](docs/APP-READINESS-CHECKLIST.md)
+- [Deployment and recovery](DEPLOY.md)
+- [Final launch plan](docs/FINAL-LAUNCH-PLAN.md)
+- [Procedural city implementation notes](docs/CITY-SIMULATION.md)
 
-В стенде вариант «Без Worker (30 Гц)» (`&case=9`) позволяет сравнить тот же город с прежним исполнением. `workerSimulationMs` и `workerPackMs` измеряются в Worker, `workerReceiveMs` — обработка сообщений в основном потоке между кадрами; последний показатель не включён в `cpuMs` рендер-цикла. `bufferMs` показывает запас, `bufferUnderruns` — число его исчерпаний, `playbackRate` — скорость воспроизведения, `workerStatus` — реальный режим (включая fallback). Контрольная сумма Worker описывает данные отображения (`checksumScope: presentation`) и не сравнивается с полной суммой старой симуляции. Проверки протокола, буфера и передачи анимации: `node --test tests/traffic-worker.test.js`.
+Some internal engineering and operations documents are currently written in
+Russian. The public product interface and new public-facing documentation are
+English-only.
 
-Тест производительности: откройте `/?benchmark=1` на нужном устройстве. Выберите фиксированный сценарий, вариант и длительность (20/60/300 секунд); прогрев — 5 секунд. По умолчанию измеряется основной сценарий за 60 секунд, «Все варианты» запускаются только по выбору. «Скачать JSON» сохраняет версию исходников, настройки, seed, условия, сырые кадры и контрольные суммы состояния. Страница показывает FPS, p95/p99, CPU по этапам, ресурсы и GPU при поддержке таймера. Настройки пользователя не перезаписываются. Скрытие вкладки отменяет прогон, слишком редкие кадры помечаются недостоверными. `&size=phone` задаёт холст 393 × 852 с DPR 1.6 на ПК, но не эмулирует процессор телефона. `&scenario=main&duration=60&case=0` выбирает основной одиночный прогон.
+## Project contact
 
-CPU без браузера: `node scripts/benchmark-traffic.mjs 5 --runs 3 --out .qa/performance/main.json`. Сценарии `--scenario main|defaults|stress`, seed `--seed 0`; 120 шагов прогрева и 1200 измеряемых шагов. Повторы используют отдельные процессы и проверяют совпадение контрольных сумм. Один отдельный профиль: `node scripts/benchmark-traffic.mjs 5 --profile --out .qa/performance/profile.json`; сравнение меньшего мира — радиус `3` вместо `5`. Для короткого стресс-теста можно явно указать `--frames 300`; длительность сохраняется в отчёте. Не запускайте CPU-тест одновременно с браузерным замером. Результаты и приоритеты оптимизации: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+- **Ivan Dalechenko — CTO**
+- **Email:** [ivandalechenko@gmail.com](mailto:ivandalechenko@gmail.com)
+- **Official X:** [@taxiempire](https://x.com/taxiempire)
 
-Компонент `src/CityBackground.jsx` можно поместить в любой контейнер с заданной высотой. Размер квартала по умолчанию — 40 единиц; камера плавно перемещается вниз вправо. Кварталы генерируются детерминированно по координатам, невидимые удаляются. Локальный центр координат смещается вместе с камерой для сохранения точности. Геометрия повторяющихся объектов отрисовывается через InstancedMesh.
+## License
 
-В сетке встречаются парки на два соседних квартала, вытянутые в обоих направлениях: аллеи, пруд или небольшая площадь со скульптурой. Внутренняя дорога убрана, на концах получаются Т-перекрёстки. Машины не генерируются на закрытых участках; обычные машины поворачивают на зелёный, такси могут повернуть при свободном перекрёстке. Повороты и объезды учитывают отсутствующие улицы. Планировка — `src/city/roadLayout.js`, геометрия парков — `src/city/parkGeometry.js`. Это одноуровневые перекрёстки. Камера ускорена на 50% при любом сохранённом ненулевом значении ползунка (коэффициент `CAMERA_DRIFT`); положение ползунка менять не требуется. Worker и буфер сохранены. Проверка дорожной связности, поворотов и 30 секунд движения через обновляемый мир: `node --test tests/road-layout.test.js`.
-
-Размер квартала, полосы, интервал машин и доля такси — `src/city/world.js`. Палитра, плотность застройки, скорость и масштаб камеры — `src/city/createCity.js`.
-
-Районы занимают группы 2 × 2 квартала: небольшие дома с садами, более высокий центр со ступенчатыми корпусами, низкие склады с парковочной разметкой. Тип определяется абсолютными координатами и сохраняется при смещении камеры. Используются существующие геометрии и материалы; припаркованные машины и новая логика трафика не добавляются. Генератор — `src/city/districts.js`, проверка границ зданий и допустимой высоты — `node --test tests/districts.test.js`.
-
-В настройках есть переключатель «Цветовая гамма»: «Исходная — удачная» (по умолчанию) сохраняет контрастный вариант, «Мягкая серая» приглушает город, обычные машины, разметку и тени на 84% к светло-серому. Такси и их детали сохраняют исходный вид. Выбор запоминается; переключение не перезапускает движение. Параметры вариантов — `src/city/colorSchemes.js`.
-
-В правом верхнем углу — изначально свёрнутая панель настроек: количество машин, доля и скорость такси, скорость потока, дополнительное лихачество, размер кварталов, приближение и движение камеры. Есть пауза и сброс. Значения сохраняются в localStorage отдельно в каждом браузере и для каждого адреса сайта. Значения по умолчанию и диапазоны — `src/city/settings.js`. Чтобы встроить только фон, используйте `<CityBackground showSettings={false} />`. Настройки количества машин и размера кварталов заново создают поток; остальные применяются без перезапуска сцены.
-
-Кнопка под выбором гаммы тестирует плавный переход между исходным видом и приглушением 84% за 1,2 секунды. Повторное нажатие разворачивает переход от текущего оттенка. При `prefers-reduced-motion` гамма меняется сразу. Для закрепления фона на весь экран используйте `<CityBackground fixed showSettings={false} />`, а контент сайта располагайте выше отдельным слоем. Привязка к прокрутке hero-секции в этой демонстрации пока не включена.
-
-Весь город, деревья и обычные машины — в нейтральных серых оттенках; только такси ярко-жёлтые. Трафик движется по двум полосам в каждом направлении; вдоль дороги есть узкая обочина шириной 0,55 единицы: при объезде очереди такси едет наполовину по тротуару, подпрыгивает на бордюре и мягко приземляется при съезде, по умолчанию количество машин — 70%, доля такси — 7%. На красном машины собираются с промежутками около 0,65 единицы между бамперами. После зелёного каждый водитель разгоняется с индивидуальным ускорением до своей скорости (базовые скорости — 3,4–7,6 единицы/с, множитель по умолчанию — 130%). Такси быстрее (базовые скорости — 13–15 единиц/с, множитель по умолчанию — 120%): выбирают свободные промежутки и более быстрый ряд, выбирают промежутки для въезда на текущей скорости и сохраняют её во время перестроения; кузов плавно поворачивается вокруг задней оси максимум на 12°. При приближении к обычной машине такси чередует три варианта: вспышки дальнего, визуальный гудок и оба вместе. Гудок без звука: вокруг машины расходятся волны, она слегка подпрыгивает, а над ней разлетаются HONK! и BEEP!. Машина впереди реагирует на любой вариант, временно ускоряется и уступает соседний ряд, когда там свободно. Такси мигает и в очереди на красный; обычная машина может уступить свободный соседний ряд, продолжая соблюдать сигнал. Если встречная полоса свободна на время манёвра и впереди есть место для возвращения, такси плавно выезжает на встречку, обгоняет и возвращается в свой ряд. Такси может объехать по встречке несколько машин из плотной очереди, в том числе на красный. Манёвр учитывает разгон встречных машин и место возврата; пересекаемый перекрёсток резервируется заранее. После обгона такси возвращается к центральному ряду. После перестроения или ожидания промежутка включается короткий рывок: до +25% к скорости и +80% к ускорению. Ползунок «Дополнительное лихачество» усиливает базовый характер: такси обгоняют и перестраиваются даже при 0%. Обычный трафик подчиняется светофорам. Такси может пролетать на красный без сброса скорости, если успевает пересечь дорогу до поперечного потока и выезд свободен; иначе ждёт промежутка и разгоняется. Начатый проезд резервирует перекрёсток до полного освобождения, в том числе при смене сигнала. Модели намеренно простые: домики без окон и декора, машины из нескольких блоков. Такси также поворачивают на перпендикулярные улицы: из внутреннего ряда налево, из внешнего направо. Они проходят дугу с небольшим заносом кузова и продолжают движение в новом потоке. Перед поворотом проверяются перекрёсток и место на выезде; на время манёвра остальные машины ждут у стоп-линий. Трафик декоративный, без заданных пунктов назначения. При скрытой вкладке рендер останавливается; при `prefers-reduced-motion` город статичен. Нужен WebGL 2.
-
-Проверка такси в потоке с перекрёстками: `node scripts/check-traffic.mjs` (настройки по умолчанию) или `node scripts/check-traffic.mjs 0` / `node scripts/check-traffic.mjs 2` (0% / 200% дополнительного лихачества). За 60 секунд симуляции проверяются проезды на красный, завершённые обгоны по встречке и обочине, выпады с возвратом, гонки и повороты с заносом. Проверяются дистанции при обгонах, пересечения кузовов при поворотах и сохранение машин при переходах между улицами. Геометрия поворотов, направления, занос, пауза и перенос камеры — `node --test tests/turns.test.js`.
-
-В стоящей очереди на красный такси с вероятностью 30–40% пробует отдельный стартовый манёвр: из внутреннего ряда занимает свободную встречку, из внешнего — обочину с заездом на тротуар. Подбирается к стоп-линии, ждёт зелёного, резко разгоняется и возвращается впереди очереди. Вероятность проверяется один раз на остановку, ползунок лихачества усиливает её. Встречный поток проверяется на всё время ожидания и старта. Проверка — `node --test tests/queue-launch.test.js`.
-
-Торможение учитывает скорость машины впереди и расстояние до запрещённого перекрёстка. Предварительная проверка перекрёстка не резервирует его; запас для возвращения обгоняющего такси создаётся плавно. Машины, ещё поворачивающие с другой улицы, заранее учитываются встречным потоком. Жёсткое ограничение движения остаётся для опасно маленького физического зазора. Проверка плавного торможения — `node --test tests/braking.test.js`; общий прогон также считает резкие падения скорости.
+No open-source license has been selected yet. Source availability does not grant
+permission to copy, modify, distribute, or deploy the project. A license will be
+added before the repository is intentionally published as open source.
