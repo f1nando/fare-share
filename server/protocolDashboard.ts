@@ -31,7 +31,12 @@ export async function loadProtocolDashboard(
   ]);
   const configuration = decodeWorkerConfiguration(configAccount);
   const assetMints = [configuration.fareMint, ...configuration.stockMints];
-  const mintDetails = await getMintDetails(rpcUrl, assetMints);
+  const [mintDetails, teamBalanceResult, teamMinimumLamports] = await Promise.all([
+    getMintDetails(rpcUrl, assetMints),
+    solanaRpcCall<{ value: number }>(rpcUrl, 'getBalance', [configuration.teamAccount, { commitment: 'finalized' }]),
+    solanaRpcCall<number>(rpcUrl, 'getMinimumBalanceForRentExemption', [0, { commitment: 'finalized' }]),
+  ]);
+  const teamWallet = teamWalletHealth(BigInt(teamBalanceResult.value), BigInt(teamMinimumLamports));
   const vaultAddresses = await Promise.all(assetMints.map((mint, index) => findAssociatedTokenPda({ owner: addresses.config, mint, tokenProgram: mintDetails[index].tokenProgram }).then(([vault]) => vault)));
   const vaultBalances = await getTokenBalances(rpcUrl, vaultAddresses);
   const feeVaultRent = await solanaRpcCall<number>(rpcUrl, 'getMinimumBalanceForRentExemption', [feeVaultAccount.data.length, { commitment: 'finalized' }]);
@@ -50,6 +55,9 @@ export async function loadProtocolDashboard(
       paused: configuration.pausedAt !== 0n,
       saleStarted: configuration.saleStarted,
       teamAccount: String(configuration.teamAccount),
+      teamWalletLamports: teamWallet.balanceLamports.toString(),
+      teamWalletMinimumLamports: teamWallet.minimumLamports.toString(),
+      teamWalletReady: teamWallet.ready,
       fareMint: String(configuration.fareMint),
       mintPrices: configuration.mintPrices.map(String),
       mintedByClass: configuration.mintedByClass,
@@ -153,6 +161,14 @@ function machineSummary(machine: string, bytes: Uint8Array, pool: DashboardPool)
     claimable: state.claimable.map(String),
     pending: state.pending.map(String),
     fareBase: state.fareBase.toString(),
+  };
+}
+
+export function teamWalletHealth(balanceLamports: bigint, minimumLamports: bigint) {
+  return {
+    balanceLamports,
+    minimumLamports,
+    ready: balanceLamports >= minimumLamports,
   };
 }
 

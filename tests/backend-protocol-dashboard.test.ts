@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getAddressEncoder, address } from '@solana/kit';
-import { decodeDashboardMachine, decodeDashboardPool } from '../server/protocolDashboard.js';
+import { decodeDashboardMachine, decodeDashboardPool, teamWalletHealth } from '../server/protocolDashboard.js';
 
 const asset = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
 
@@ -34,6 +34,15 @@ test('admin dashboard projects finalized machine rewards from pool accumulators'
   assert.equal(decodedMachine.pending[0], 6n);
   assert.equal(decodedMachine.claimable[0], 11n);
   assert.equal(decodedMachine.fareBase, 123n);
+});
+
+test('admin dashboard flags a team wallet below rent exemption', () => {
+  assert.deepEqual(teamWalletHealth(0n, 890_880n), {
+    balanceLamports: 0n,
+    minimumLamports: 890_880n,
+    ready: false,
+  });
+  assert.equal(teamWalletHealth(890_880n, 890_880n).ready, true);
 });
 
 class Writer {
