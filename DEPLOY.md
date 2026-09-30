@@ -33,6 +33,23 @@ deploy или SOL; они не являются частью release и не д�
 
 После изменения адреса заново собрать SBF. `npm run protocol:preflight` отклонит рассинхронизацию этих четырёх значений.
 
+### Disposable rehearsal keyset preparation
+
+До финальной команды script работает только как dry-run и ничего не создаёт.
+После `начинай репетицию` одноразовый keyset создаётся вне repository, сразу
+архивируется в указанный Desktop ZIP и проверяется повторным derivation из архива:
+
+```powershell
+powershell -File scripts/prepare-disposable-keyset.ps1 `
+  -OutputDirectory C:\Users\ivand\Desktop\FareShare-Rehearsal-Keyset `
+  -BackupZip C:\Users\ivand\Desktop\FareShare-Rehearsal-Keyset.zip `
+  -UpgradeAuthorityAddress 2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF
+```
+
+Execute требует дополнительно `-Execute` и точную строку из dry-run. Script никогда
+не выводит secret bytes и не использует созданные keys для транзакций. Полученный
+`backup-marker.json` обязателен для disposable deploy preflight.
+
 ## 2. Devnet
 
 1. Собрать актуальный `taxi_park.so` через `cargo build-sbf`.
