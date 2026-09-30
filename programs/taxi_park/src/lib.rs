@@ -20,7 +20,7 @@ pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
 pub use voucher::{ActivateTraineeArgs, MintAssignmentArgs, MintQuoteArgs};
 
-declare_id!("GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4");
+declare_id!("3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z");
 
 const MINT_PRICE_USD_CENTS: u64 = 2_500;
 
