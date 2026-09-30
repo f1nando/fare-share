@@ -99,6 +99,7 @@
 | D-47 | Paid NFT можно передавать и выставлять на marketplace сразу после mint | Lockup или отдельный listing delay не используется. Standard Metaplex Core transfer доступен текущему owner; Magic Eden и другие совместимые marketplace могут показывать и продавать asset сразу после индексации. Trainee transfer всегда отклоняется permanent freeze delegate. |
 | D-48 | Paid NFT name содержит model и общий mint number | Формат: `TAXI {Model} #{NNNN}`, например `TAXI Toyota Camry #0042`. Номер общий для всей shuffled paid supply и равен assignment index + 1, диапазон `#0001–#1222`; class остаётся metadata attribute. |
 | D-49 | Обязательный project-funded rehearsal smoke выполняет 4 последовательных paid mint | Проверяются assignment progression, global serials, Merkle proofs, четыре `$25` quotes/payments, Core creation и DAS/MongoDB indexing. Все 16 machine metadata и images проверяются напрямую без обязательной оплаты 16 mint; дополнительные публичные mint не входят в project-funded минимум. |
+| D-50 | Для transfer smoke создаётся отдельный disposable user wallet | На него передаётся один paid NFT и проверяется успешная смена owner через DAS/Garage. На этом же wallet активируется Trainee, после чего его transfer обязан завершиться ожидаемым on-chain отказом. Keypair хранится в том же Desktop ZIP и не используется в production. |
 
 ## L-01. Worker/Jupiter reserve routes
 
