@@ -15,6 +15,27 @@ export function createTraineeCampaignAdmin(
   config: { solanaRpcUrl: string; programId: string; wordPepper: string },
   database: TaxiDatabase,
 ) {
+  async function ensurePrimary(wordValue: string) {
+    const word = wordValue.normalize('NFKC').trim().replace(/^\$+/, '').toUpperCase();
+    if (!word) throw new TraineeCampaignAdminError('Primary token ticker is required.');
+    const now = new Date();
+    await database.campaigns.updateOne(
+      { campaignId: '1' },
+      {
+        $set: {
+          label: word,
+          displayWord: word,
+          keywordHash: keywordHash(word, config.wordPepper),
+          durationMinutes: DEFAULT_DURATION_MINUTES,
+          enabled: true,
+          updatedAt: now,
+        },
+        $setOnInsert: { campaignId: '1', createdAt: now },
+      },
+      { upsert: true },
+    );
+  }
+
   async function list() {
     const [campaigns, activations] = await Promise.all([
       database.campaigns.find({}).sort({ createdAt: -1 }).toArray(),
@@ -62,7 +83,7 @@ export function createTraineeCampaignAdmin(
     throw new Error(`Could not create ${normalized}`);
   }
 
-  return { list, create };
+  return { list, create, ensurePrimary };
 }
 
 export async function loadActivationCounts(rpcUrl: string, programId: string, fetchImplementation?: typeof fetch) {

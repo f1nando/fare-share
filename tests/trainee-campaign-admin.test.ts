@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadActivationCounts } from '../server/traineeCampaignAdmin.js';
+import { createTraineeCampaignAdmin, loadActivationCounts } from '../server/traineeCampaignAdmin.js';
+import { keywordHash } from '../server/signing.js';
 
 test('trainee campaign activation counts come from finalized on-chain accounts', async () => {
   const campaignData = (value: bigint) => {
@@ -23,4 +24,25 @@ test('trainee campaign activation counts come from finalized on-chain accounts',
   const counts = await loadActivationCounts('https://rpc.invalid', '11111111111111111111111111111111', fetchImplementation);
   assert.equal(counts.get('1'), 2);
   assert.equal(counts.get('2'), 1);
+});
+
+test('primary trainee word follows the configured token ticker', async () => {
+  let update: any;
+  const database = {
+    campaigns: {
+      async updateOne(filter: unknown, value: unknown, options: unknown) { update = { filter, value, options }; },
+    },
+  } as any;
+  const service = createTraineeCampaignAdmin({
+    solanaRpcUrl: 'https://rpc.invalid',
+    programId: '11111111111111111111111111111111',
+    wordPepper: 'test-pepper',
+  }, database);
+
+  await service.ensurePrimary('$taxi');
+
+  assert.deepEqual(update.filter, { campaignId: '1' });
+  assert.equal(update.value.$set.displayWord, 'TAXI');
+  assert.equal(update.value.$set.keywordHash, keywordHash('TAXI', 'test-pepper'));
+  assert.deepEqual(update.options, { upsert: true });
 });

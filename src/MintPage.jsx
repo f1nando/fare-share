@@ -11,6 +11,7 @@ import {
   mintMachine,
 } from './protocol/solana.js';
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
+import { useTokenConfig } from './tokenConfig.jsx';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 1000, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -48,6 +49,7 @@ function ArrowIcon() {
 }
 
 export function MintPage({ wallet, connectWallet }) {
+  const ticker = useTokenConfig().ticker || '';
   const previewRef = useRef(null);
   const [quantity, setQuantity] = useState(1);
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
@@ -57,7 +59,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [trainees, setTrainees] = useState([]);
-  const [keyword, setKeyword] = useState('Fare');
+  const [keyword, setKeyword] = useState('');
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
   const [traineeSignature, setTraineeSignature] = useState('');
@@ -94,14 +96,19 @@ export function MintPage({ wallet, connectWallet }) {
   useEffect(() => {
     if (!wallet || !status?.deployed) {
       setTrainees([]);
+      setKeyword(ticker);
       return undefined;
     }
     let active = true;
     loadOwnedTrainees(wallet.account.address, status)
-      .then(value => active && setTrainees(value))
+      .then(value => {
+        if (!active) return;
+        setTrainees(value);
+        setKeyword(value.some(trainee => trainee.campaignId === 1n) ? '' : ticker);
+      })
       .catch(error => active && setTraineeNotice(error.message));
     return () => { active = false; };
-  }, [wallet, status]);
+  }, [wallet, status, ticker]);
 
   async function handleMint() {
     if (!status?.deployed) return setNotice('The mint program is not available.');

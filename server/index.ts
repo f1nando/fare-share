@@ -43,6 +43,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
 const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl);
 const traineeCampaigns = createTraineeCampaignAdmin(config, database);
+if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -145,6 +146,7 @@ const server = createServer(async (request, response) => {
       const body = asRecord(await readJson(request));
       const result = await services.fees.bindMint(body.ca, body.ticker);
       publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
+      await traineeCampaigns.ensurePrimary(result.ticker);
       trade?.stop();
       trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
       json(response, 200, result);
