@@ -41,7 +41,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
-const proxySolana = createSolanaProxy(config.solanaRpcUrl);
+const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
 const traineeCampaigns = createTraineeCampaignAdmin(config, database);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
 
