@@ -16,6 +16,7 @@
   "addresses": {
     "programId": "<DISPOSABLE_PROGRAM_ID>",
     "programData": "<DISPOSABLE_PROGRAM_DATA>",
+    "buffer": "<PERSISTENT_UPLOAD_BUFFER>",
     "collection": "<DISPOSABLE_COLLECTION>",
     "fareMint": "4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump",
     "replacementFareMint": "<DISPOSABLE_REPLACEMENT_FARE_MINT>",

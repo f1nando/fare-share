@@ -202,6 +202,34 @@ tombstone и считается заранее известной невозвр
 8. Сверить изменение баланса с ожидаемым ProgramData rent за вычетом комиссий и
    сохранить signature закрытия в release notes.
 
+Исполняемый fail-closed wrapper (по умолчанию только dry-run):
+
+```sh
+npm run protocol:close-mainnet-programdata -- \
+  --manifest /absolute/frozen-rehearsal-manifest.json \
+  --manifest-sha256 <FROZEN_FILE_SHA256> \
+  --rpc-url <EXPLICIT_MAINNET_RPC> \
+  --program-id <PROGRAM_ID> --programdata <PROGRAMDATA> \
+  --authority <AUTHORITY> --fee-payer <FEE_PAYER> --buffer <BUFFER> \
+  --recipient <RECOVERY_RECIPIENT> --worker <WORKER> --backend <BACKEND> \
+  --authority-keypair <PATH> --fee-payer-keypair <PATH> --buffer-keypair <PATH> \
+  --worker-keypair <PATH> --backend-keypair <PATH> \
+  --services-stopped "I CONFIRM ALL TRANSACTION-SENDING SERVICES ARE STOPPED" \
+  --protocol-paused "I CONFIRM THE PROTOCOL IS PAUSED ON CHAIN" \
+  --max-fee-lamports <BOUND>
+```
+
+Manifest обязан быть frozen в режиме `complete`, содержать постоянный upload
+buffer и точный `recoverableRentLamports`; SHA-256 файла также передаётся явно.
+Все адреса и существующие keypair paths обязательны и сверяются без default signer.
+Dry-run выполняет усиленный аудит с `--require-paused --require-empty-vaults`, но
+никогда не вызывает close. Для необратимого запуска после отдельного разрешения
+добавляются `--execute` и точная строка `--confirm`, напечатанная успешным dry-run.
+Wrapper повторяет аудит непосредственно перед close, запрещает `--final`, ждёт
+`finalized` и проверяет исчезновение ProgramData, сохранение Program tombstone и
+дельту recipient в пределах `recoverable rent - bounded fees`.
+Пользовательский fee bound дополнительно ограничен жёстким максимумом `0.001 SOL`.
+
 Запрещено закрывать программу ради rollback, при работающих сервисах, при ненулевых
 vault, при несовпадении хотя бы одного адреса или без доступной резервной копии
 authority keypair. После close тот же Program ID использовать повторно нельзя.

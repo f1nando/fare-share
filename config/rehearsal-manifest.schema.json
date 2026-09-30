@@ -37,10 +37,11 @@
     "addresses": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["programId", "programData", "collection", "fareMint", "replacementFareMint", "jupiterProgramId", "stockMints", "sharedRole", "feePayer", "upgradeAuthority", "admin", "backendSigner", "worker", "team", "pumpCreatorFeeRecipient", "recoveryRecipient"],
+      "required": ["programId", "programData", "buffer", "collection", "fareMint", "replacementFareMint", "jupiterProgramId", "stockMints", "sharedRole", "feePayer", "upgradeAuthority", "admin", "backendSigner", "worker", "team", "pumpCreatorFeeRecipient", "recoveryRecipient"],
       "properties": {
         "programId": { "type": "string" },
         "programData": { "type": "string" },
+        "buffer": { "type": "string" },
         "collection": { "type": "string" },
         "fareMint": { "type": "string" },
         "replacementFareMint": { "type": "string" },

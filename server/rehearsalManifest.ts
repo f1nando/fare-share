@@ -47,7 +47,7 @@ export function validateRehearsalManifest(
   }
 
   const addresses = record(root.addresses, 'addresses', errors);
-  const disposableAddressNames = ['programId', 'programData', 'collection', 'fareMint', 'replacementFareMint'] as const;
+  const disposableAddressNames = ['programId', 'programData', 'buffer', 'collection', 'fareMint', 'replacementFareMint'] as const;
   for (const name of disposableAddressNames) {
     validateAddress(addresses[name], `addresses.${name}`, errors, allowIncomplete);
   }

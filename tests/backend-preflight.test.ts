@@ -186,6 +186,7 @@ function completeRehearsalManifest() {
     addresses: {
       programId: 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
       programData: 'F3B4QLnRRBumZ27TARxSKQdZ75sb7pU3crbnU5A3LHLo',
+      buffer: '4Z2mUq8Y3BYqg6f1a2WMbLsGGBYbXmRYXKf7q5R1ft2m',
       collection: '5DwDcfC4jsY8tq7VQqLGCmsWmVepVjDfMoWpZWAL5nro',
       fareMint: '4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump',
       replacementFareMint: 'So11111111111111111111111111111111111111112',
@@ -218,6 +219,7 @@ test('preparation manifest can be incomplete but never authorizes deployment', (
   manifest.sbf = { sha256: '<64_CHAR_SBF_SHA256>', sizeBytes: 0 };
   manifest.addresses.programId = '<DISPOSABLE_PROGRAM_ID>';
   manifest.addresses.programData = '<DISPOSABLE_PROGRAM_DATA>';
+  manifest.addresses.buffer = '<PERSISTENT_UPLOAD_BUFFER>';
   manifest.addresses.collection = '<DISPOSABLE_COLLECTION>';
   manifest.addresses.replacementFareMint = '<DISPOSABLE_REPLACEMENT_FARE_MINT>';
   manifest.assignmentRootHex = '<24_CHAR_ASSIGNMENT_ROOT>';
