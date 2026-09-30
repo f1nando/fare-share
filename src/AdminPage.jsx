@@ -24,6 +24,7 @@ export function AdminPage() {
   const [migrationConfirmation, setMigrationConfirmation] = useState('');
   const [campaigns, setCampaigns] = useState([]);
   const [codeWord, setCodeWord] = useState('');
+  const [automation, setAutomation] = useState({ enabled: true, intervalSeconds: 60, minimumSol: '0.001' });
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const pricesInitialized = useRef(false);
   const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
@@ -32,9 +33,10 @@ export function AdminPage() {
   const refresh = useCallback(async () => {
     if (!csrf) return;
     try {
-      const [next, trainee] = await Promise.all([
+      const [next, trainee, workerSettings] = await Promise.all([
         request('/api/admin/status'),
         request('/api/admin/trainee-campaigns'),
+        request('/api/admin/worker/settings'),
       ]);
       setStatus(next);
       const cents = next.dashboard?.protocol?.mintPricesUsdCents;
@@ -43,6 +45,11 @@ export function AdminPage() {
         pricesInitialized.current = true;
       }
       setCampaigns(trainee.campaigns);
+      setAutomation({
+        enabled: workerSettings.enabled,
+        intervalSeconds: workerSettings.intervalSeconds,
+        minimumSol: formatSolInput(BigInt(workerSettings.minimumLamports)),
+      });
       setError('');
     } catch (reason) {
       if (reason.status === 401) { setCsrf(''); setStatus(null); }
@@ -81,7 +88,7 @@ export function AdminPage() {
   }
 
   async function bind() {
-    if (!window.confirm(`Use ${verifiedCa} as $${verifiedTicker}? It can be replaced until start-sale, then becomes locked to protect existing rewards.`)) return;
+    if (!window.confirm(`Use ${verifiedCa} as $${verifiedTicker}? New payments, rewards, Trade and quotes will switch after finalization.`)) return;
     await action('bind', async () => {
       const result = await request('/api/admin/mint/bind', { method: 'POST', body: { ca: verifiedCa, ticker: verifiedTicker }, csrf });
       setNotice(`CA and ticker $${result.ticker} are now bound.${result.signature ? ` ${result.signature}` : ''}`);
@@ -167,6 +174,31 @@ export function AdminPage() {
     });
   }
 
+  async function saveAutomation() {
+    await action('automation-settings', async () => {
+      const result = await request('/api/admin/worker/settings', {
+        method: 'POST',
+        body: {
+          enabled: automation.enabled,
+          intervalSeconds: Number(automation.intervalSeconds),
+          minimumLamports: parseSol(automation.minimumSol).toString(),
+        },
+        csrf,
+      });
+      setNotice(`Automation ${result.enabled ? 'enabled' : 'disabled'}. Settings saved.`);
+      await refresh();
+    });
+  }
+
+  async function runAutomation(actionName) {
+    if (!window.confirm(`Run “${automationActionLabels[actionName]}” now? On-chain transactions may be sent.`)) return;
+    await action(`automation-${actionName}`, async () => {
+      const result = await request('/api/admin/worker/run', { method: 'POST', body: { action: actionName }, csrf });
+      setNotice(`${automationActionLabels[actionName]} completed at ${time(result.completedAt)}.`);
+      await refresh();
+    });
+  }
+
   async function logout() {
     await action('logout', async () => {
       await request('/api/admin/logout', { method: 'POST', body: {}, csrf });
@@ -198,6 +230,7 @@ export function AdminPage() {
         <Metric label="2NUN balance" value={formatSol(status.walletLamports)} />
       </section>
       <LiveOverview dashboard={status.dashboard} />
+      <AutomationControls settings={automation} setSettings={setAutomation} worker={status.dashboard?.worker} busy={busy} save={saveAutomation} run={runAutomation} />
       <EmergencyControls dashboard={status.dashboard} migrationPending={status.rescuePendingMigration} migrationConfirmation={migrationConfirmation} setMigrationConfirmation={setMigrationConfirmation} recipient={rescueRecipient} setRecipient={setRescueRecipient} confirmation={rescueConfirmation} setConfirmation={setRescueConfirmation} busy={busy} setPaused={setProtocolPaused} rescue={rescueAssets} />
       <section className="admin-grid">
         <div className="admin-card"><p className="eyebrow">PROTOCOL SETTINGS</p>{status.mint && status.ticker ? <><h2>${status.ticker} token</h2><p className="mono break">{status.mint}</p><p className="status-ok">● Reward, burn and mint-payment CA is configured</p><p className="muted">The current CA can be replaced at any time. New mint quotes, payments, rewards, Trade and public data switch after finalization. Existing balances in the previous token are not converted automatically.</p></> : <>
@@ -235,6 +268,22 @@ function TeamWalletWarning({ protocol }) {
   if (!protocol || protocol.teamWalletReady !== false) return null;
   const missing = BigInt(protocol.teamWalletMinimumLamports) - BigInt(protocol.teamWalletLamports);
   return <p className="team-wallet-warning"><strong>Team wallet is not funded.</strong> Add at least {formatSol(missing)} before collecting SOL fees. NFT mint payments use the wallet&apos;s FARE token account instead.</p>;
+}
+const automationActionLabels = {
+  'creator-fees': 'Claim and deposit creator fees',
+  'contract-fees': 'Split contract fees',
+  swaps: 'Buy reward tokens',
+  rewards: 'Calculate rewards',
+  full: 'Run full cycle',
+};
+function AutomationControls({ settings, setSettings, worker, busy, save, run }) {
+  return <section className="admin-card automation-card"><div className="section-title"><div><p className="eyebrow">AUTOMATION</p><h2>Worker controls</h2></div><label className="automation-switch"><input type="checkbox" checked={settings.enabled} onChange={event => setSettings(current => ({ ...current, enabled: event.target.checked }))} /><span>{settings.enabled ? 'Enabled' : 'Disabled'}</span></label></div>
+    <p className="muted">The worker claims creator fees, sends them to the contract, buys reward tokens and calculates rewards. Disabling automation does not block the manual buttons below.</p>
+    <div className="automation-settings"><label>Frequency, seconds<input type="number" min="10" max="86400" step="1" value={settings.intervalSeconds} onChange={event => setSettings(current => ({ ...current, intervalSeconds: event.target.value }))} /></label><label>Minimum amount, SOL<input inputMode="decimal" value={settings.minimumSol} onChange={event => setSettings(current => ({ ...current, minimumSol: event.target.value }))} placeholder="0.001" /></label><button onClick={save} disabled={busy === 'automation-settings'}>{busy === 'automation-settings' ? 'Saving…' : 'Save automation'}</button></div>
+    <div className="automation-status"><span>Current state: <b>{worker?.state || 'unknown'}</b></span>{worker?.currentAction && <span>Running: <b>{automationActionLabels[worker.currentAction] || worker.currentAction}</b></span>}<span>Last success: <b>{worker?.lastSuccessAt ? time(worker.lastSuccessAt) : 'Never'}</b></span></div>
+    <div className="automation-actions">{Object.entries(automationActionLabels).map(([actionName, label]) => <button className={actionName === 'full' ? '' : 'secondary'} key={actionName} onClick={() => run(actionName)} disabled={busy.startsWith('automation-')}>{busy === `automation-${actionName}` ? 'Running…' : label}</button>)}</div>
+    <p className="muted">Manual actions run immediately even when automation is disabled. The minimum amount applies only to automatic cycles.</p>
+  </section>;
 }
 function TraineeCampaigns({ campaigns, word, setWord, busy, create }) {
   return <section className="admin-card trainee-campaign-card"><div className="section-title"><div><p className="eyebrow">TRAINEE ACCESS</p><h2>Code words</h2></div><span>{campaigns.reduce((total, campaign) => total + campaign.activationCount, 0)} activations</span></div>

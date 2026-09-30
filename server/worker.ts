@@ -63,10 +63,18 @@ let lastBurnScanAt = 0;
 
 type QueueKind = 'main' | 'trainee';
 
-export async function runWorkerCycle() {
+export type WorkerCycleStep = 'contract-fees' | 'swaps' | 'rewards';
+
+export async function runWorkerCycle(options: {
+  steps?: readonly WorkerCycleStep[];
+  minimumLamports?: bigint;
+} = {}) {
   const config = loadServerConfig();
-  if (!config.workerSecret) throw new Error('Missing required environment variable WORKER_KEYPAIR_SECRET_KEY');
-  const signer = await createWorkerSigner(parseSecretBytes(config.workerSecret, 'WORKER_KEYPAIR_SECRET_KEY'));
+  const steps = new Set(options.steps || ['contract-fees', 'swaps', 'rewards']);
+  const minimumLamports = options.minimumLamports ?? config.swapMinimumLamports;
+  const workerSecret = config.workerSecret || config.protocolAdminSecret;
+  if (!workerSecret) throw new Error('Configure WORKER_KEYPAIR_SECRET_KEY or ADMIN_KEYPAIR_SECRET_KEY for the worker');
+  const signer = await createWorkerSigner(parseSecretBytes(workerSecret, config.workerSecret ? 'WORKER_KEYPAIR_SECRET_KEY' : 'ADMIN_KEYPAIR_SECRET_KEY'));
   const backendSigner = parseBackendSigner(config.signerSecret);
   const addresses = await deriveAddresses(config.programId);
   const clock = await loadProtocolClock(config.solanaRpcUrl, config.programId);
@@ -79,7 +87,7 @@ export async function runWorkerCycle() {
   }
   const configurationAccount = await getAccount(config.solanaRpcUrl, addresses.config);
   const configuration = decodeWorkerConfiguration(configurationAccount.data);
-  if (await hasCollectableFees(config.solanaRpcUrl, addresses.feeVault)) {
+  if (steps.has('contract-fees') && await hasCollectableFees(config.solanaRpcUrl, addresses.feeVault, minimumLamports)) {
     const signature = await sendInstructions(config.solanaRpcUrl, signer, [collectFeesInstruction(
       config.programId,
       signer.address,
@@ -89,14 +97,17 @@ export async function runWorkerCycle() {
     console.log(`collect_fees finalized: ${signature}`);
   }
 
-  if (String(configuration.fareMint) === '11111111111111111111111111111111') {
+  if (!steps.has('swaps')) {
+    // Manual partial cycle: keep pending reserves untouched.
+  } else if (String(configuration.fareMint) === '11111111111111111111111111111111') {
     console.log('FARE mint is not configured; swap jobs were skipped.');
   } else if (config.jupiterApiKey) {
-    await processPendingSwaps(config, signer, backendSigner, addresses, clock.chainTime);
+    await processPendingSwaps(config, signer, backendSigner, addresses, clock.chainTime, minimumLamports);
   } else {
     console.log('JUPITER_API_KEY is not configured; accumulated swap reserves were left untouched.');
   }
 
+  if (!steps.has('rewards')) return;
   if (Date.now() - lastBurnScanAt >= config.burnScanIntervalMs) {
     await cleanupBurnedMachines(
       config.solanaRpcUrl,
@@ -189,6 +200,7 @@ async function processPendingSwaps(
   backendSigner: BackendSigner,
   addresses: Awaited<ReturnType<typeof deriveAddresses>>,
   chainTime: bigint,
+  minimumLamports: bigint,
 ) {
   const protocolLookupTables = await loadProtocolLookupTable(config.solanaRpcUrl, config.protocolLookupTable);
   const [configurationAccount, feeAccount] = await getAccounts(config.solanaRpcUrl, [
@@ -223,7 +235,7 @@ async function processPendingSwaps(
     })),
   ];
   for (const pending of swaps) {
-    if (pending.amountIn < config.swapMinimumLamports) continue;
+    if (pending.amountIn < minimumLamports) continue;
     const swapKey = pending.kind === 0 ? 'FARE' : `stock ${pending.assetIndex}`;
     let completed = false;
     for (let attempt = 1; attempt <= SWAP_ROUTE_ATTEMPTS; attempt += 1) {
@@ -593,13 +605,13 @@ async function pruneStaleMainEvents(
   }
 }
 
-async function hasCollectableFees(rpcUrl: string, feeVault: Address) {
+async function hasCollectableFees(rpcUrl: string, feeVault: Address, minimumLamports: bigint) {
   const account = await getAccount(rpcUrl, feeVault);
   const rent = BigInt(await rpcCall(rpcUrl, 'getMinimumBalanceForRentExemption', [account.data.length, { commitment: 'finalized' }]) as number);
   const view = new DataView(account.data.buffer, account.data.byteOffset, account.data.byteLength);
   let reserved = 0n;
   for (let index = 0; index < 5; index += 1) reserved += view.getBigUint64(8 + index * 8, true);
-  return account.lamports > rent + reserved;
+  return account.lamports >= rent + reserved + minimumLamports;
 }
 
 function collectFeesInstruction(

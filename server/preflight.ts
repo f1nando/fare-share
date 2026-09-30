@@ -147,7 +147,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     errors.push('DEPLOYMENT_ID_HEX: must contain 32 random non-zero bytes in hex');
   }
 
-  const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY', 'WORKER_KEYPAIR_SECRET_KEY'] as const;
+  const secretNames = ['ADMIN_KEYPAIR_SECRET_KEY', 'BACKEND_SIGNER_SECRET_KEY'] as const;
   const secrets: string[] = [];
   for (const name of secretNames) {
     const raw = required(name);
@@ -164,7 +164,20 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     }
   }
   if (secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
-    errors.push('ADMIN, BACKEND_SIGNER, and WORKER must use different keypairs');
+    errors.push('ADMIN and BACKEND_SIGNER must use different keypairs');
+  }
+  const workerSecret = value('WORKER_KEYPAIR_SECRET_KEY');
+  if (workerSecret) {
+    try {
+      await createKeyPairSignerFromBytes(parseSecretBytes(workerSecret, 'WORKER_KEYPAIR_SECRET_KEY'));
+    } catch (error) {
+      const message = (error as Error).message;
+      errors.push(message.startsWith('WORKER_KEYPAIR_SECRET_KEY ')
+        ? message
+        : 'WORKER_KEYPAIR_SECRET_KEY: private and public keypair parts do not match');
+    }
+  } else {
+    warnings.push('WORKER_KEYPAIR_SECRET_KEY: not set; worker will use ADMIN_KEYPAIR_SECRET_KEY');
   }
   const feeRecipientSecret = required('PUMP_FEE_RECIPIENT_SECRET_KEY');
   if (feeRecipientSecret) {

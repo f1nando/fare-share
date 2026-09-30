@@ -12,6 +12,8 @@ import { createPublicDataService, PublicDataError } from './publicData.js';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
 import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
 import { createMintQuoteService, loadMintMarketPreview, loadMintMetadata, MintQuoteError } from './mintQuoteService.js';
+import { performWorkerAction } from './workerAutomation.js';
+import { parseWorkerAction, publicWorkerSettings, loadWorkerSettings, runWorkerAction, updateWorkerSettings, WorkerControlError } from './workerControl.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -43,6 +45,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: () => publicToken.ticker || 'FARE' }, database);
+const workerDefaults = { enabled: true, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
 const proxySolana = createSolanaProxy(config.solanaRpcUrl, { programId: String(config.programId) });
 const traineeCampaigns = createTraineeCampaignAdmin(config, database);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
@@ -204,6 +207,27 @@ const server = createServer(async (request, response) => {
       json(response, 200, await issueVoucher(body, remote));
       return;
     }
+    if (request.method === 'GET' && url.pathname === '/api/admin/worker/settings') {
+      const services = requireAdminServices();
+      services.auth.require(request);
+      json(response, 200, publicWorkerSettings(await loadWorkerSettings(database.workerStatus, workerDefaults)));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/worker/settings') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 200, await updateWorkerSettings(database.workerStatus, asRecord(await readJson(request)), workerDefaults));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/worker/run') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const action = parseWorkerAction(asRecord(await readJson(request)).action);
+      json(response, 200, await runWorkerAction(database.workerStatus, workerDefaults, action, 'manual', (settings, runId) => (
+        performWorkerAction(action, 'manual', settings, runId, services.fees)
+      )));
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/prices') {
       const services = requireAdminServices();
       services.auth.require(request, true);
@@ -328,7 +352,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof MintQuoteError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof WorkerControlError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }

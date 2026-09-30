@@ -50,7 +50,9 @@ export async function loadProtocolDashboard(
   const machines = machineAccounts.map(item => machineSummary(item.pubkey, item.data, pool));
   const trainees = traineeAccounts.map(item => traineeSummary(item.pubkey, item.data));
   const updatedAt = worker?.updatedAt?.getTime() || 0;
-  const online = updatedAt > 0 && Date.now() - updatedAt <= workerIntervalMs * 2 + 15_000;
+  const effectiveIntervalMs = worker?.intervalMs || workerIntervalMs;
+  const enabled = worker?.enabled ?? true;
+  const online = updatedAt > 0 && Date.now() - updatedAt <= effectiveIntervalMs * 2 + 15_000;
 
   return {
     protocol: {
@@ -69,13 +71,17 @@ export async function loadProtocolDashboard(
       traineeCount: trainees.length,
     },
     worker: {
-      state: online ? worker?.state || 'idle' : 'offline',
+      state: !enabled ? 'disabled' : online ? worker?.state || 'idle' : 'offline',
+      enabled,
       online,
       lastSuccessAt: worker?.lastSuccessAt || null,
       lastErrorAt: worker?.lastErrorAt || null,
       error: worker?.error || null,
       nextRunAt: online ? worker?.nextRunAt || null : null,
-      intervalMs: workerIntervalMs,
+      intervalMs: effectiveIntervalMs,
+      minimumLamports: worker?.minimumLamports || null,
+      currentAction: worker?.currentAction || null,
+      runSource: worker?.runSource || null,
     },
     queues: {
       main: queueSummary(queue, pool, nowSeconds),

@@ -69,7 +69,12 @@ export interface AdminFeeOperationDocument {
 
 export interface WorkerStatusDocument {
   key: 'protocol-worker';
-  state: 'running' | 'idle' | 'error';
+  state: 'running' | 'idle' | 'disabled' | 'error';
+  enabled?: boolean;
+  intervalMs?: number;
+  minimumLamports?: string;
+  currentAction?: string;
+  runSource?: 'automatic' | 'manual';
   cycleStartedAt?: Date;
   lastSuccessAt?: Date;
   lastErrorAt?: Date;

@@ -112,10 +112,6 @@ export async function createFeeAdminService(
     if (curve.creatorFeeBps !== 0n || curve.canEditCreatorFee) throw new FeeAdminError('Custom editable creator fees cannot be used as FARE.');
     if (String(curve.quoteMint) !== ZERO_ADDRESS) throw new FeeAdminError('FARE must use the SOL quote.');
     if (curve.complete) throw new FeeAdminError('CA must be fixed before pump.fun graduation.');
-    const current = await configuredState();
-    if (current.saleStarted && String(current.fareMint) !== String(mint)) {
-      throw new FeeAdminError(`The sale has started and $FARE is locked as ${current.fareMint}. Use a paused migration instead of direct replacement.`, 409);
-    }
     return { mint, bondingCurve, tokenProgram: address(mintAccount.owner), decimals: mintAccount.data[44], creator: curve.creator, complete: curve.complete, feeMode };
   }
 
@@ -306,6 +302,10 @@ export async function createFeeAdminService(
 
   return {
     inspectMint,
+    async creatorFeeSnapshot() {
+      const current = await configuredMint();
+      return feeSnapshot(String(current) === ZERO_ADDRESS ? undefined : current);
+    },
     async status() {
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();

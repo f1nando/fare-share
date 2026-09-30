@@ -16,6 +16,8 @@ import {
   hasAssignableRewards,
   isBurnedCoreAssetAccount,
 } from '../server/worker.js';
+import { performWorkerAction } from '../server/workerAutomation.js';
+import { parseWorkerAction } from '../server/workerControl.js';
 import {
   assertWireTransactionSize,
   sendInstructions,
@@ -160,6 +162,44 @@ test('burn cleanup instruction has the exact Anchor account order', () => {
   ]);
   assert.equal(instruction.data?.length, 9);
   assert.equal(instruction.data?.[8], 7);
+});
+
+test('automatic creator fee collection waits for the configured minimum', async () => {
+  let claims = 0;
+  const result = await performWorkerAction('creator-fees', 'automatic', {
+    enabled: true, intervalMs: 60_000, minimumLamports: 100n,
+  }, 'run-1', {
+    creatorFeeSnapshot: async () => ({ availableLamports: '99' }),
+    claim: async () => { claims += 1; return { amountLamports: '99', signature: 'claim' }; },
+    deposit: async () => ({ amountLamports: '99', signature: 'deposit' }),
+  });
+  assert.equal(claims, 0);
+  assert.deepEqual(result.creatorFees, { skipped: true, amountLamports: '99' });
+});
+
+test('manual creator fee collection ignores the automatic minimum and deposits the exact claim', async () => {
+  const operations: string[] = [];
+  const result = await performWorkerAction('creator-fees', 'manual', {
+    enabled: false, intervalMs: 60_000, minimumLamports: 1_000_000n,
+  }, 'run-2', {
+    creatorFeeSnapshot: async () => ({ availableLamports: '99' }),
+    claim: async operationId => {
+      operations.push(operationId);
+      return { amountLamports: '99', signature: 'claim-signature' };
+    },
+    deposit: async (amount, operationId) => {
+      operations.push(`${operationId}:${amount}`);
+      return { amountLamports: amount, signature: 'deposit-signature' };
+    },
+  });
+  assert.deepEqual(operations, ['worker_run-2_claim', 'worker_run-2_deposit:99']);
+  assert.equal(result.creatorFees?.depositSignature, 'deposit-signature');
+});
+
+test('admin worker actions accept only the five supported operations', () => {
+  assert.equal(parseWorkerAction('full'), 'full');
+  assert.equal(parseWorkerAction('swaps'), 'swaps');
+  assert.throws(() => parseWorkerAction('rescue'), /Unknown worker action/);
 });
 
 test('wire transaction size is rejected before RPC submission', () => {
