@@ -10,6 +10,7 @@ import { createFeeAdminService, FeeAdminError } from './feeAdmin.js';
 import { loadPublicTokenConfig, normalizeTicker, type PublicTokenConfig } from './tokenConfig.js';
 import { createPublicDataService, PublicDataError } from './publicData.js';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
+import { createTraineeCampaignAdmin, TraineeCampaignAdminError } from './traineeCampaignAdmin.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -41,6 +42,7 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: publicToken.ticker || 'FARE' }, database);
 const proxySolana = createSolanaProxy(config.solanaRpcUrl);
+const traineeCampaigns = createTraineeCampaignAdmin(config, database);
 
 const server = createServer(async (request, response) => {
   setCors(request, response);
@@ -114,6 +116,18 @@ const server = createServer(async (request, response) => {
       const services = requireAdminServices();
       services.auth.require(request);
       json(response, 200, await services.fees.status());
+      return;
+    }
+    if (request.method === 'GET' && url.pathname === '/api/admin/trainee-campaigns') {
+      const services = requireAdminServices();
+      services.auth.require(request);
+      json(response, 200, { campaigns: await traineeCampaigns.list() });
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/trainee-campaigns') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      json(response, 201, await traineeCampaigns.create(await readJson(request)));
       return;
     }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/inspect') {
@@ -291,7 +305,7 @@ const server = createServer(async (request, response) => {
     }
     json(response, 404, { error: 'Not found' });
   } catch (error) {
-    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError ? error.status : 500;
+    const status = error instanceof VoucherError || error instanceof DrivingSceneError || error instanceof TradeError || error instanceof AdminAuthError || error instanceof FeeAdminError || error instanceof PublicDataError || error instanceof SolanaProxyError || error instanceof TraineeCampaignAdminError ? error.status : 500;
     if (status === 500) console.error(error);
     json(response, status, { error: status === 500 ? 'Internal server error.' : String((error as Error).message) });
   }

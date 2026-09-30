@@ -20,6 +20,8 @@ export function AdminPage() {
   const [rescueRecipient, setRescueRecipient] = useState('');
   const [rescueConfirmation, setRescueConfirmation] = useState('');
   const [migrationConfirmation, setMigrationConfirmation] = useState('');
+  const [campaigns, setCampaigns] = useState([]);
+  const [codeWord, setCodeWord] = useState('');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
   const selectedCa = fareLocked ? status?.mint || '' : ca || status?.mint || '';
@@ -27,8 +29,12 @@ export function AdminPage() {
   const refresh = useCallback(async () => {
     if (!csrf) return;
     try {
-      const next = await request('/api/admin/status');
+      const [next, trainee] = await Promise.all([
+        request('/api/admin/status'),
+        request('/api/admin/trainee-campaigns'),
+      ]);
       setStatus(next);
+      setCampaigns(trainee.campaigns);
       setError('');
     } catch (reason) {
       if (reason.status === 401) { setCsrf(''); setStatus(null); }
@@ -133,6 +139,16 @@ export function AdminPage() {
     });
   }
 
+  async function createCampaign(event) {
+    event.preventDefault();
+    await action('trainee-word', async () => {
+      const created = await request('/api/admin/trainee-campaigns', { method: 'POST', body: { word: codeWord }, csrf });
+      setCodeWord('');
+      setNotice(`Code word “${created.word}” is active.`);
+      await refresh();
+    });
+  }
+
   async function logout() {
     await action('logout', async () => {
       await request('/api/admin/logout', { method: 'POST', body: {}, csrf });
@@ -178,6 +194,7 @@ export function AdminPage() {
           <p className="muted">Transfer and distribution are completed in one atomic transaction.</p>
         </div>
       </section>
+      <TraineeCampaigns campaigns={campaigns} word={codeWord} setWord={setCodeWord} busy={busy} create={createCampaign} />
       <Distribution dashboard={status.dashboard} />
       <MachineBalances dashboard={status.dashboard} query={machineQuery} setQuery={setMachineQuery} />
       <section className="admin-card"><div className="section-title"><div><p className="eyebrow">HISTORY</p><h2>Recent operations</h2></div><span>Refreshes every 15 sec.</span></div>
@@ -192,6 +209,13 @@ function TeamWalletWarning({ protocol }) {
   if (!protocol || protocol.teamWalletReady !== false) return null;
   const missing = BigInt(protocol.teamWalletMinimumLamports) - BigInt(protocol.teamWalletLamports);
   return <p className="team-wallet-warning"><strong>Team wallet is not funded.</strong> Add at least {formatSol(missing)} before minting or collecting fees. Solana will reject transfers to an unfunded wallet below its rent-exempt minimum.</p>;
+}
+function TraineeCampaigns({ campaigns, word, setWord, busy, create }) {
+  return <section className="admin-card trainee-campaign-card"><div className="section-title"><div><p className="eyebrow">TRAINEE ACCESS</p><h2>Code words</h2></div><span>{campaigns.reduce((total, campaign) => total + campaign.activationCount, 0)} activations</span></div>
+    <form className="trainee-campaign-form" onSubmit={create}><label>New code word<input value={word} onChange={event => setWord(event.target.value)} maxLength="128" placeholder="Enter a new code word" /></label><button disabled={!word.trim() || busy === 'trainee-word'}>{busy === 'trainee-word' ? 'Adding…' : 'Add code word'}</button></form>
+    <p className="muted">New words create an internal campaign automatically. Every trainee taxi remains active for six hours.</p>
+    <div className="trainee-campaign-list">{campaigns.length ? campaigns.map(campaign => <div key={`${campaign.word}-${campaign.createdAt}`}><span><strong>{campaign.word}</strong><small>Added {time(campaign.createdAt)} · {campaign.enabled ? 'Active' : 'Disabled'}</small></span><b>{campaign.activationCount}<small>activations</small></b></div>) : <p className="muted">No code words yet.</p>}</div>
+  </section>;
 }
 function LiveOverview({ dashboard }) {
   if (!dashboard) return null;

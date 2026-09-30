@@ -203,14 +203,14 @@ export async function loadOwnedTrainees(owner, knownStatus) {
   });
 }
 
-export async function activateTrainee(connection, campaignId, keyword, knownStatus) {
+export async function activateTrainee(connection, keyword, knownStatus) {
   const status = await refreshTraineeStatus(knownStatus);
   const pageIndex = chooseEventPage(status.traineeQueue, 2);
   const owner = address(connection.account.address);
   const response = await fetch(`${BACKEND_URL}/api/trainee/voucher`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ wallet: owner, campaignId, keyword, pageIndex }),
+    body: JSON.stringify({ wallet: owner, keyword, pageIndex }),
   });
   const voucher = await response.json();
   if (!response.ok) throw new Error(voucher.error || 'The backend did not issue a voucher.');

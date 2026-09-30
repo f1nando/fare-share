@@ -18,6 +18,7 @@ await database.campaigns.updateOne(
   {
     $set: {
       label: labelParts.join(' ') || `Campaign ${campaignId}`,
+      displayWord: keyword.normalize('NFKC').trim(),
       keywordHash: keywordHash(keyword, pepper),
       durationMinutes,
       enabled: true,

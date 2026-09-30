@@ -7,6 +7,7 @@ import type { TokenConfigDocument } from './tokenConfig.js';
 export interface CampaignDocument {
   campaignId: string;
   label: string;
+  displayWord?: string;
   keywordHash: string;
   durationMinutes: number;
   enabled: boolean;
@@ -170,6 +171,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
+    campaigns.createIndex({ keywordHash: 1 }, { unique: true }),
     voucherIssues.createIndex({ wallet: 1, campaignId: 1, issuedAt: -1 }),
     rateLimits.createIndex({ key: 1 }, { unique: true }),
     rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),

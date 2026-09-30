@@ -57,7 +57,6 @@ export function MintPage({ wallet, connectWallet }) {
   const [busy, setBusy] = useState(false);
   const [signature, setSignature] = useState('');
   const [trainees, setTrainees] = useState([]);
-  const campaignId = '1';
   const [keyword, setKeyword] = useState('Fare');
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
@@ -152,7 +151,7 @@ export function MintPage({ wallet, connectWallet }) {
     setTraineeSignature('');
     try {
       const connection = wallet || await connectWallet();
-      const nextSignature = await activateTrainee(connection, campaignId, keyword.trim(), status);
+      const nextSignature = await activateTrainee(connection, keyword.trim(), status);
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
       setTrainees(await loadOwnedTrainees(connection.account.address, nextStatus));

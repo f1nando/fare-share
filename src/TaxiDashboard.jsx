@@ -36,7 +36,6 @@ export function TaxiDashboard({ simple = false, background = null }) {
   const [status, setStatus] = useState({ loading: true, deployed: false, network: networkName() });
   const [cars, setCars] = useState([]);
   const [trainees, setTrainees] = useState([]);
-  const [campaignId, setCampaignId] = useState('');
   const [keyword, setKeyword] = useState('');
   const [transferRecipient, setTransferRecipient] = useState('');
   const [busy, setBusy] = useState('');
@@ -220,19 +219,18 @@ export function TaxiDashboard({ simple = false, background = null }) {
           <div className="section-title">
             <div><p className="eyebrow">Free trial</p><h2 id="trainee-title">Trainee car</h2></div>
           </div>
-          <p className="trainee-copy">Find the campaign number and code word in our posts. Each campaign can be activated once per wallet.</p>
+          <p className="trainee-copy">Enter the code word from our post. Each code word can be activated once per wallet.</p>
           <div className="trainee-form">
-            <label>Campaign<input inputMode="numeric" value={campaignId} onChange={event => setCampaignId(event.target.value.replace(/\D/g, ''))} placeholder="For example, 1" /></label>
             <label>Code word<input value={keyword} onChange={event => setKeyword(event.target.value)} placeholder="Word from the post" /></label>
-            <button disabled={Boolean(busy) || protocolPaused || !campaignId || !keyword.trim()} onClick={() => runAction(
+            <button disabled={Boolean(busy) || protocolPaused || !keyword.trim()} onClick={() => runAction(
               'activate-trainee',
-              () => activateTrainee(wallet, campaignId, keyword, status),
+              () => activateTrainee(wallet, keyword, status),
               'Trainee car activated.',
             )}>Activate</button>
           </div>
           {trainees.length > 0 && <div className="trainee-list">
             {trainees.map(trainee => <article key={String(trainee.campaignId)}>
-              <span><strong>Campaign #{String(trainee.campaignId)} · {trainee.rewardDisplay} {ticker}</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
+              <span><strong>Trainee taxi · {trainee.rewardDisplay} {ticker}</strong><small>Active until {new Date(Number(trainee.activeUntil) * 1000).toLocaleString('en-US')}</small></span>
               <button disabled={Boolean(busy) || protocolPaused || trainee.reward === 0n} onClick={() => runAction(
                 `claim-trainee-${trainee.campaignId}`,
                 () => claimTrainee(wallet, trainee, status),
