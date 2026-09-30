@@ -1,4 +1,4 @@
-import { address, type Address } from '@solana/kit';
+import { address, getAddressEncoder, type Address } from '@solana/kit';
 import type { ServerConfig } from './config.js';
 import { jupiterRequest } from './jupiterHttp.js';
 import { buildMintQuoteMessage, parseBackendSigner } from './signing.js';
@@ -13,6 +13,12 @@ const ZERO_ADDRESS = '11111111111111111111111111111111';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const MINT_PRICE_USD_CENTS = 2_500n;
+const MINT_BASE_LENGTH = 82;
+const TOKEN_2022_ACCOUNT_TYPE_OFFSET = 165;
+const TOKEN_2022_TLV_OFFSET = 166;
+const METADATA_POINTER_EXTENSION = 18;
+const TOKEN_METADATA_EXTENSION = 19;
+const addressEncoder = getAddressEncoder();
 
 interface MarketQuote {
   inputMint?: string;
@@ -66,7 +72,7 @@ export function createMintQuoteService(
     const assignmentIndex = state.configuration.mintedByClass.reduce((total, value) => total + value, 0);
     if (assignmentIndex >= TOTAL_PAID_SUPPLY) throw new MintQuoteError('The taxi collection is sold out.', 409);
     if (![TOKEN_PROGRAM, TOKEN_2022_PROGRAM].includes(state.tokenProgram)) throw new MintQuoteError('FARE uses an unsupported Token Program.', 503);
-    if (state.tokenProgram === TOKEN_2022_PROGRAM && state.mintDataLength !== 82) {
+    if (!mintDataIsExactTransferCompatible(state.tokenProgram, state.configuration.fareMint, state.mintData)) {
       throw new MintQuoteError('This Token-2022 mint has extensions that cannot guarantee an exact payment.', 503);
     }
     const priceUsdCents = state.configuration.mintPrices[0];
@@ -202,7 +208,42 @@ async function loadMintState(config: ServerConfig) {
   if (mintData.length < 82 || mintData[45] !== 1) throw new MintQuoteError('FARE mint account is invalid.', 503);
   const blockTime = await solanaRpcCall<number | null>(config.solanaRpcUrl, 'getBlockTime', [slot]);
   if (blockTime === null) throw new MintQuoteError('Finalized Solana time is unavailable.', 503);
-  return { configuration, decimals: mintData[44], tokenProgram: mintAccount.value.owner, mintDataLength: mintData.length, chainTime: BigInt(blockTime) };
+  return { configuration, decimals: mintData[44], tokenProgram: mintAccount.value.owner, mintData, chainTime: BigInt(blockTime) };
+}
+
+export function mintDataIsExactTransferCompatible(tokenProgram: string, mint: Address, data: Uint8Array) {
+  if (tokenProgram === TOKEN_PROGRAM) return data.length >= MINT_BASE_LENGTH;
+  if (tokenProgram !== TOKEN_2022_PROGRAM || data.length < MINT_BASE_LENGTH) return false;
+  if (data.length === MINT_BASE_LENGTH) return true;
+  if (data.length < TOKEN_2022_TLV_OFFSET
+    || data.subarray(MINT_BASE_LENGTH, TOKEN_2022_ACCOUNT_TYPE_OFFSET).some(byte => byte !== 0)
+    || data[TOKEN_2022_ACCOUNT_TYPE_OFFSET] !== 1) return false;
+
+  const mintBytes = Uint8Array.from(addressEncoder.encode(mint));
+  let offset = TOKEN_2022_TLV_OFFSET;
+  let metadataPointer = false;
+  let tokenMetadata = false;
+  while (offset < data.length) {
+    if (offset + 4 > data.length) return false;
+    const extensionType = data[offset] | (data[offset + 1] << 8);
+    const extensionLength = data[offset + 2] | (data[offset + 3] << 8);
+    offset += 4;
+    if (offset + extensionLength > data.length) return false;
+    const extension = data.subarray(offset, offset + extensionLength);
+    if (extensionType === METADATA_POINTER_EXTENSION && !metadataPointer && extensionLength === 64) {
+      if (extension.subarray(0, 32).some(byte => byte !== 0)
+        || !extension.subarray(32, 64).every((byte, index) => byte === mintBytes[index])) return false;
+      metadataPointer = true;
+    } else if (extensionType === TOKEN_METADATA_EXTENSION && !tokenMetadata && extensionLength >= 64) {
+      if (extension.subarray(0, 32).some(byte => byte !== 0)
+        || !extension.subarray(32, 64).every((byte, index) => byte === mintBytes[index])) return false;
+      tokenMetadata = true;
+    } else {
+      return false;
+    }
+    offset += extensionLength;
+  }
+  return metadataPointer && tokenMetadata;
 }
 
 function jupiterMarket(config: ServerConfig): MintMarketProvider {

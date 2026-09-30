@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { address } from '@solana/kit';
-import { ceilDiv, createMintQuoteService, MintQuoteError, type MintMarketProvider } from '../server/mintQuoteService.js';
+import { address, getAddressEncoder } from '@solana/kit';
+import { ceilDiv, createMintQuoteService, mintDataIsExactTransferCompatible, MintQuoteError, type MintMarketProvider } from '../server/mintQuoteService.js';
 import { buildMintQuoteMessage, parseBackendSigner } from '../server/signing.js';
 
 const PROGRAM = address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
@@ -29,7 +29,7 @@ function state(overrides: Record<string, unknown> = {}) {
     },
     decimals: 6,
     tokenProgram: TOKEN_PROGRAM,
-    mintDataLength: 82,
+    mintData: new Uint8Array(82),
     chainTime: 1_000n,
   } as any;
 }
@@ -90,6 +90,22 @@ test('missing liquidity and excessive price impact are rejected', async () => {
 test('a route for another CA is rejected', async () => {
   const mismatch = market({ sellToUsdc: async (_mint, amount) => ({ inputMint: String(OWNER), inAmount: amount.toString(), outAmount: (amount / 200n).toString(), routePlan: [{}] }) });
   await assert.rejects(createMintQuoteService(config, { market: mismatch, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment })({ owner: OWNER, asset: ASSET }), /liquid/);
+});
+
+test('only inert Pump metadata extensions are accepted for Token-2022 quotes', () => {
+  const token2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+  const mintBytes = Uint8Array.from(getAddressEncoder().encode(FARE));
+  const data = new Uint8Array(166 + 4 + 64 + 4 + 64);
+  data[165] = 1;
+  let offset = 166;
+  data.set([18, 0, 64, 0], offset);
+  data.set(mintBytes, offset + 36);
+  offset += 68;
+  data.set([19, 0, 64, 0], offset);
+  data.set(mintBytes, offset + 36);
+  assert.equal(mintDataIsExactTransferCompatible(token2022, FARE, data), true);
+  data[166] = 1;
+  assert.equal(mintDataIsExactTransferCompatible(token2022, FARE, data), false);
 });
 
 test('paused, sold-out, and wrong Economy price states are rejected', async () => {
