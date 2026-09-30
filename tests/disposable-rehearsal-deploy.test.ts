@@ -31,7 +31,7 @@ async function fixture(): Promise<{ options: DeployOptions; calls: string[][] }>
     database: 'fare_share_disposable_rehearsal', workerInitiallyEnabled: false,
     mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId: PROGRAM, programData: PROGRAM_DATA, collection: PROGRAM, fareMint: PROGRAM, replacementFareMint: PROGRAM,
+      programId: PROGRAM, programData: PROGRAM_DATA, buffer: BUFFER, collection: PROGRAM, fareMint: PROGRAM, replacementFareMint: PROGRAM,
       jupiterProgramId: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4',
       stockMints: ['XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB', 'XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB', 'XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN', 'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'],
       sharedRole: SHARED, feePayer: SHARED, upgradeAuthority: SHARED, admin: SHARED, backendSigner: SHARED,

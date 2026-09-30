@@ -27,7 +27,7 @@ async function fixture(overrides: Partial<{
     cluster: { chain: 'solana:mainnet', genesisHash: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d' },
     database: 'fare_share_disposable_rehearsal', workerInitiallyEnabled: false, mintPricesUsdCents: [2500, 2500, 2500, 2500],
     addresses: {
-      programId: MINT, programData: MINT, collection: MINT, fareMint: MINT, replacementFareMint: MINT,
+      programId: MINT, programData: MINT, buffer: MINT, collection: MINT, fareMint: MINT, replacementFareMint: MINT,
       jupiterProgramId: JUPITER,
       stockMints: ['XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB', 'XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB', 'XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN', 'Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'],
       sharedRole: SHARED, feePayer: SHARED, upgradeAuthority: SHARED, admin: SHARED, backendSigner: SHARED,

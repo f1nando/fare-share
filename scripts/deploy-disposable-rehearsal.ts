@@ -34,6 +34,7 @@ interface CompleteManifest {
   addresses: {
     programId: string;
     programData: string;
+    buffer: string;
     feePayer: string;
     upgradeAuthority: string;
     recoveryRecipient: string;
@@ -70,13 +71,16 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   const validation = validateRehearsalManifest(parsed, 'complete');
   if (!validation.deploymentAuthorized) throw new Error(`Complete rehearsal manifest rejected:\n${validation.errors.join('\n')}`);
   const manifest = parsed as CompleteManifest;
+  if (options.bufferAddress !== manifest.addresses.buffer) {
+    throw new Error(`Buffer mismatch: manifest ${manifest.addresses.buffer}, option ${options.bufferAddress}`);
+  }
 
   const expectedKeys: Array<[string, string, string]> = [
     ['program', options.programKeypair, manifest.addresses.programId],
     ['upgrade authority', options.upgradeAuthorityKeypair, manifest.addresses.upgradeAuthority],
     ['fee payer', options.feePayerKeypair, manifest.addresses.feePayer],
     ['recipient', options.recipientKeypair, manifest.addresses.recoveryRecipient],
-    ['persistent buffer', options.bufferKeypair, options.bufferAddress],
+    ['persistent buffer', options.bufferKeypair, manifest.addresses.buffer],
   ];
   for (const [name, path, expected] of expectedKeys) {
     const actual = checked(run, 'solana-keygen', ['pubkey', path], `${name} public key`).trim();
@@ -87,7 +91,7 @@ export async function runDisposablePreflight(options: DeployOptions, run: Comman
   const markerExpected = {
     programId: manifest.addresses.programId,
     upgradeAuthority: manifest.addresses.upgradeAuthority,
-    buffer: options.bufferAddress,
+    buffer: manifest.addresses.buffer,
   };
   for (const [name, expected] of Object.entries(markerExpected)) {
     if (marker[name] !== expected) throw new Error(`Backup marker ${name} mismatch`);
