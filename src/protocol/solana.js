@@ -1,4 +1,5 @@
 import {
+  AccountRole,
   address,
   getProgramDerivedAddress,
   getUtf8Encoder,
@@ -412,11 +413,9 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
     commitment: 'finalized',
     encoding: 'base64',
   }).send();
-  if (!paymentAccounts.value[0]) throw new Error('Your wallet does not have a FARE token account for this mint.');
-  const ownerFareBalance = new DataView(accountBytes(paymentAccounts.value[0]).buffer).getBigUint64(64, true);
-  if (ownerFareBalance < BigInt(quote.amountFareRaw)) {
-    throw new Error(`Your FARE balance is too low. This mint requires ${formatTokenAmount(BigInt(quote.amountFareRaw), Number(quote.fareDecimals))} $FARE.`);
-  }
+  const ownerFareBalance = paymentAccounts.value[0]
+    ? new DataView(accountBytes(paymentAccounts.value[0]).buffer).getBigUint64(64, true)
+    : 0n;
   const built = await buildMintMachine({
     programAddress: PROGRAM_ID,
     owner,
@@ -429,15 +428,37 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
     assetSigner,
     quote,
   });
+  let purchase;
+  let purchaseInstructions = [];
+  let purchaseLookupTables = {};
+  const missingFareRaw = BigInt(quote.amountFareRaw) - ownerFareBalance;
+  if (missingFareRaw > 0n) {
+    try {
+      purchase = await backendRequest('/api/mint/buy-quote', { outputAmountRaw: missingFareRaw.toString() });
+      const swap = await backendRequest('/api/mint/buy-build', { quoteId: purchase.quoteId, wallet: String(owner) });
+      purchaseInstructions = [
+        ...(swap.computeBudgetInstructions || []),
+        ...(swap.otherInstructions || []),
+        ...(swap.setupInstructions || []),
+        swap.swapInstruction,
+        swap.cleanupInstruction,
+      ].filter(Boolean).map(decodeApiInstruction);
+      purchaseLookupTables = await loadLookupTables(swap.addressLookupTableAddresses || []);
+    } catch (error) {
+      throw new Error(`Atomic FARE purchase is unavailable: ${error.message || 'unknown error'}. Buy FARE on the Trade page and try again.`);
+    }
+  }
+  const protocolLookupTables = await loadProtocolLookupTable();
   const signature = await sendWalletInstructions({
     rpc,
     wallet: connection.wallet,
     account: connection.account,
     chain: SOLANA_CHAIN,
-    instructions: built.instructions,
+    instructions: [...purchaseInstructions, ...built.instructions],
     additionalSigners: [built.assetSigner],
+    lookupTables: { ...purchaseLookupTables, ...protocolLookupTables },
   });
-  return { signature, asset: built.assetSigner.address, quote, ownerFareBalance };
+  return { signature, asset: built.assetSigner.address, quote, ownerFareBalance, purchase };
 }
 
 export async function claimMachine(connection, machine, knownStatus) {
@@ -601,6 +622,46 @@ async function loadProtocolLookupTable() {
     return { [LOOKUP_TABLE_ADDRESS]: decodeAddressLookupTable(accountBytes(response.value)) };
   });
   return lookupTablePromise;
+}
+
+async function loadLookupTables(addresses) {
+  const unique = [...new Set(addresses.map(String))].map(address);
+  if (!unique.length) return {};
+  const response = await rpc.getMultipleAccounts(unique, { commitment: 'finalized', encoding: 'base64' }).send();
+  const result = {};
+  unique.forEach((lookupAddress, index) => {
+    const account = response.value[index];
+    if (!account) throw new Error(`Jupiter lookup table ${lookupAddress} is unavailable.`);
+    result[lookupAddress] = decodeAddressLookupTable(accountBytes(account));
+  });
+  return result;
+}
+
+function decodeApiInstruction(value) {
+  if (!value || typeof value !== 'object' || !value.programId || !Array.isArray(value.accounts) || typeof value.data !== 'string') {
+    throw new Error('Jupiter returned an invalid instruction.');
+  }
+  return {
+    programAddress: address(value.programId),
+    accounts: value.accounts.map(accountMeta => ({
+      address: address(accountMeta.pubkey),
+      role: accountMeta.isSigner
+        ? (accountMeta.isWritable ? AccountRole.WRITABLE_SIGNER : AccountRole.READONLY_SIGNER)
+        : (accountMeta.isWritable ? AccountRole.WRITABLE : AccountRole.READONLY),
+    })),
+    data: base64Bytes(value.data),
+  };
+}
+
+async function backendRequest(path, body) {
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || `Backend request failed with HTTP ${response.status}`);
+  return payload;
 }
 
 export async function connectWallet() {

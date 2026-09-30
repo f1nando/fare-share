@@ -72,7 +72,7 @@ interface JsonRecord { [key: string]: unknown }
 interface CachedQuote {
   expiresAt: number;
   response: JsonRecord;
-  side: 'buy' | 'sell';
+  side: 'buy' | 'sell' | 'mint-buy';
 }
 
 interface CandleResponse {
@@ -402,6 +402,81 @@ export class TradeService {
       transaction: result.swapTransaction,
       lastValidBlockHeight: result.lastValidBlockHeight,
       prioritizationFeeLamports: result.prioritizationFeeLamports,
+    };
+  }
+
+  async createMintBuyQuote(input: unknown) {
+    const body = asRecord(input);
+    const outputAmountRaw = String(body.outputAmountRaw || '');
+    if (!/^\d{1,20}$/.test(outputAmountRaw) || BigInt(outputAmountRaw) <= 0n) {
+      throw new TradeError('A positive FARE amount is required.');
+    }
+    const target = BigInt(outputAmountRaw);
+    if (target > 100_000_000n * 10n ** BigInt(this.state.decimals)) {
+      throw new TradeError('The requested FARE amount is too large.');
+    }
+    const snapshot = await this.tokenSnapshot();
+    const priceSol = Number(snapshot.priceSol || this.state.routePriceSol || 0);
+    const estimatedSol = Number(target) / 10 ** this.state.decimals * priceSol;
+    let inputLamports = BigInt(Math.max(1_000_000, Math.ceil((Number.isFinite(estimatedSol) ? estimatedSol : 0) * 1.08 * LAMPORTS_PER_SOL)));
+    let quote: JsonRecord | undefined;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      if (inputLamports > 5n * BigInt(LAMPORTS_PER_SOL)) throw new TradeError('The atomic FARE purchase requires more than 5 SOL.', 503);
+      quote = await this.jupiterQuote(String(WSOL_MINT), String(this.mint), inputLamports.toString(), 500);
+      const output = BigInt(String(quote.outAmount || '0'));
+      const minimum = BigInt(String(quote.otherAmountThreshold || '0'));
+      if (!Array.isArray(quote.routePlan) || !quote.routePlan.length || output <= 0n) throw new TradeError('No FARE purchase route is available.', 503);
+      if (minimum >= target) break;
+      const denominator = minimum > 0n ? minimum : output;
+      inputLamports = (inputLamports * target + denominator - 1n) / denominator + inputLamports / 1_000n + 1n;
+    }
+    const minimumReceived = BigInt(String(quote?.otherAmountThreshold || '0'));
+    if (!quote || minimumReceived < target) throw new TradeError('FARE liquidity is insufficient for an atomic mint.', 503);
+    const quoteId = randomUUID();
+    this.quotes.set(quoteId, { expiresAt: Date.now() + 30_000, response: quote, side: 'mint-buy' });
+    this.pruneQuotes();
+    return {
+      quoteId,
+      inputLamports: String(quote.inAmount),
+      inputSol: Number(quote.inAmount) / LAMPORTS_PER_SOL,
+      outputAmountRaw: String(quote.outAmount),
+      minimumReceivedRaw: String(quote.otherAmountThreshold),
+      priceImpactPct: Number(quote.priceImpactPct || 0),
+      expiresAt: new Date(Date.now() + 30_000).toISOString(),
+      route: routeLabels(quote),
+    };
+  }
+
+  async buildMintBuyInstructions(input: unknown) {
+    const body = asRecord(input);
+    const quoteId = String(body.quoteId || '');
+    const wallet = String(body.wallet || '');
+    try { address(wallet); } catch { throw new TradeError('Invalid wallet address.'); }
+    const cached = this.quotes.get(quoteId);
+    if (!cached || cached.side !== 'mint-buy' || cached.expiresAt < Date.now()) throw new TradeError('Quote expired. Request a new quote.', 409);
+    const response = await jupiterRequest(`${JUPITER_SWAP_URL}/swap-instructions`, {
+      method: 'POST',
+      headers: this.jupiterHeaders(true),
+      body: JSON.stringify({
+        userPublicKey: wallet,
+        quoteResponse: cached.response,
+        dynamicComputeUnitLimit: false,
+        prioritizationFeeLamports: 'auto',
+        wrapAndUnwrapSol: true,
+      }),
+    }, { operation: 'atomic mint purchase build' }).catch(error => {
+      throw new TradeError(error instanceof Error ? error.message : 'Jupiter could not build the atomic FARE purchase.', 502);
+    });
+    const result = asRecord(await response.json());
+    if (!result.swapInstruction) throw new TradeError(String(result.error || 'Jupiter returned no swap instructions.'), 502);
+    this.quotes.delete(quoteId);
+    return {
+      computeBudgetInstructions: Array.isArray(result.computeBudgetInstructions) ? result.computeBudgetInstructions : [],
+      otherInstructions: Array.isArray(result.otherInstructions) ? result.otherInstructions : [],
+      setupInstructions: Array.isArray(result.setupInstructions) ? result.setupInstructions : [],
+      swapInstruction: result.swapInstruction,
+      cleanupInstruction: result.cleanupInstruction || null,
+      addressLookupTableAddresses: Array.isArray(result.addressLookupTableAddresses) ? result.addressLookupTableAddresses : [],
     };
   }
 

@@ -89,6 +89,31 @@ test('trade reads are bounded and concurrent identical requests share cached wor
   assert.equal(candleResults[0].sourceTradesTruncated, true);
 });
 
+test('atomic mint buy quote covers the missing FARE after slippage', async () => {
+  const service = new TradeService({
+    solanaRpcUrl: 'https://rpc.invalid',
+    jupiterApiKey: 'test',
+  } as ServerConfig, {} as TaxiDatabase, { mint: MINT, ticker: 'FARE' });
+  (service as any).state.decimals = 6;
+  (service as any).tokenSnapshot = async () => ({ priceSol: 0.00000003 });
+  let calls = 0;
+  (service as any).jupiterQuote = async (_input: string, _output: string, amount: string) => {
+    calls += 1;
+    const output = BigInt(amount) * 30_000n;
+    return {
+      inAmount: amount,
+      outAmount: output.toString(),
+      otherAmountThreshold: (output * 95n / 100n).toString(),
+      priceImpactPct: '0.2',
+      routePlan: [{}],
+    };
+  };
+  const quote = await service.createMintBuyQuote({ outputAmountRaw: '7640000000000' });
+  assert.ok(calls >= 1);
+  assert.ok(BigInt(String(quote.minimumReceivedRaw)) >= 7_640_000_000_000n);
+  assert.ok(Number(quote.inputSol) > 0);
+});
+
 test('trade SSE clients share one heartbeat and are released on close and shutdown', () => {
   const service = new TradeService({
     solanaRpcUrl: 'https://rpc.invalid',

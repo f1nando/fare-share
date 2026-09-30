@@ -287,6 +287,18 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
+    if (request.method === 'POST' && url.pathname === '/api/mint/buy-quote') {
+      requirePublicOrigin(request);
+      requireTrade(trade);
+      json(response, 200, await trade.createMintBuyQuote(await readJson(request)));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/mint/buy-build') {
+      requirePublicOrigin(request);
+      requireTrade(trade);
+      json(response, 200, await trade.buildMintBuyInstructions(await readJson(request)));
+      return;
+    }
     if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
       json(response, 200, { scenes: await listScenes(database.drivingScenes) });
       return;
