@@ -45,8 +45,12 @@ export async function runRecovery(options: RecoveryOptions, run: CommandRunner =
   const digest = createHash('sha256').update(bytes).digest('hex');
   if (digest !== options.manifestSha256.toLowerCase()) throw new Error(`Frozen manifest SHA-256 mismatch: got ${digest}`);
   const manifest = JSON.parse(bytes.toString('utf8')) as Record<string, any>;
-  const validation = validateRehearsalManifest(manifest, 'complete');
-  if (!validation.deploymentAuthorized) throw new Error(`Complete rehearsal manifest is invalid: ${validation.errors.join('; ')}`);
+  const dedicatedRecovery = manifest.kind === 'mainnet-programdata-recovery-v1';
+  if (dedicatedRecovery) validateDedicatedRecoveryManifest(manifest);
+  else {
+    const validation = validateRehearsalManifest(manifest, 'complete');
+    if (!validation.deploymentAuthorized) throw new Error(`Complete rehearsal manifest is invalid: ${validation.errors.join('; ')}`);
+  }
   const expected = manifest.addresses as Record<string, string>;
   exact('mainnet genesis', manifest.cluster.genesisHash, MAINNET_GENESIS);
   exact('Program ID', options.programId, expected.programId);
@@ -132,6 +136,28 @@ export async function runRecovery(options: RecoveryOptions, run: CommandRunner =
   console.log(`CLOSE_OUTPUT=${close.stdout.trim()}`);
   console.log(`RECIPIENT_DELTA_LAMPORTS=${delta}`);
   console.log('MAINNET_PROGRAMDATA_CLOSE=FINALIZED_VERIFIED');
+}
+
+function validateDedicatedRecoveryManifest(manifest: Record<string, any>) {
+  exact('recovery manifest kind', manifest.kind, 'mainnet-programdata-recovery-v1');
+  exact('recovery manifest mainnet chain', manifest.cluster?.chain, 'solana:mainnet');
+  exact('recovery manifest mainnet genesis', manifest.cluster?.genesisHash, MAINNET_GENESIS);
+  const requiredAddresses = ['programId', 'programData', 'upgradeAuthority', 'feePayer', 'buffer', 'recoveryRecipient', 'worker', 'backendSigner'];
+  for (const name of requiredAddresses) {
+    if (typeof manifest.addresses?.[name] !== 'string' || !manifest.addresses[name]) {
+      throw new Error(`Recovery manifest addresses.${name} is required`);
+    }
+    address(manifest.addresses[name]);
+  }
+  if (!/^\d+$/.test(String(manifest.limits?.recoverableRentLamports || ''))
+    || BigInt(manifest.limits.recoverableRentLamports) <= 0n) {
+    throw new Error('Recovery manifest recoverable rent must be a positive lamport string');
+  }
+  exact('recovery manifest claims gate', manifest.gates?.outstandingClaimCount, 0);
+  exact('recovery manifest obligations gate', manifest.gates?.allRewardObligationsZero, true);
+  exact('recovery manifest vault gate', manifest.gates?.allVaultBalancesZero, true);
+  exact('recovery manifest pause gate', manifest.gates?.protocolPaused, true);
+  exact('recovery manifest services gate', manifest.gates?.transactionSendingServicesStopped, true);
 }
 
 function exactAudit(stdout: string, options: RecoveryOptions, expectedRent: bigint) {
