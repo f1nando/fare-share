@@ -21,7 +21,7 @@ import {
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { appAssetPath } from './appPath.js';
-import { notifyError, notifySuccess } from './siteToasts.jsx';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 const CLASSES = [
   { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: appAssetPath('/nft/economy.webp'), variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },

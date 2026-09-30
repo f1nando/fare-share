@@ -1,5 +1,5 @@
 import { BACKEND_URL } from './backendUrl.js';
-import './siteToasts.jsx';
+import './siteToasts.js';
 
 const MAX_REPORTS_PER_PAGE = 20;
 let reportCount = 0;

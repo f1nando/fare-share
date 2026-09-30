@@ -9,10 +9,10 @@ if (typeof document !== 'undefined' && !document.getElementById(hostId)) {
   host.id = hostId;
   document.body.appendChild(host);
   createRoot(host).render(
-    <Toaster
-      position="top-right"
-      gutter={10}
-      toastOptions={{
+    React.createElement(Toaster, {
+      position: 'top-right',
+      gutter: 10,
+      toastOptions: {
         duration: 5_000,
         style: {
           maxWidth: '520px',
@@ -41,8 +41,8 @@ if (typeof document !== 'undefined' && !document.getElementById(hostId)) {
           iconTheme: { primary: '#ffe52c', secondary: '#12192b' },
           style: { borderColor: '#ffe52c' },
         },
-      }}
-    />,
+      },
+    }),
   );
 }
 

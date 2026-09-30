@@ -12,7 +12,7 @@ import {
   RECOVERY_PROGRAM_ID,
   loadRecoveryClaimState,
 } from './recoveryClaim.js';
-import { notifyError, notifySuccess } from './siteToasts.jsx';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 const SYMBOLS = ['$TAXI', 'UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 

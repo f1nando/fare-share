@@ -16,7 +16,7 @@ import {
 } from './protocol/solana.js';
 import { loadDatabaseEarningHistory, loadDatabaseFleet } from './publicData.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
-import { notifyError, notifySuccess } from './siteToasts.jsx';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 const CLASS_BY_WEIGHT = {
   1: { name: 'Economy', tone: 'economy' },

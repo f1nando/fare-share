@@ -10,7 +10,7 @@ import {
   quoteTrade,
   subscribeTradeEvents,
 } from './tradeApi.js';
-import { notifyError, notifySuccess } from './siteToasts.jsx';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 function LiveTradeChart({ candles, symbol }) {
   const widgetRef = useRef(null);

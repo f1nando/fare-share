@@ -16,7 +16,7 @@ import {
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
-import { notifyError, notifySuccess } from './siteToasts.jsx';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },

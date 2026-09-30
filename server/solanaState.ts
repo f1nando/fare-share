@@ -47,9 +47,12 @@ export async function loadProtocolClock(rpcUrl: string, programId: Address): Pro
   }]);
   if (!accountResult.value) throw new Error('Taxi configuration account is not deployed');
   const state = decodeClockFields(Buffer.from(accountResult.value.data[0], 'base64'));
-  const slotResult = await solanaRpcCall<number>(rpcUrl, 'getSlot', [{ commitment: 'finalized' }]);
+  // Trainee vouchers must match the exact minute seen by transaction simulation.
+  // A finalized slot can lag the current Clock across a minute boundary and make a
+  // freshly issued voucher fail immediately with InvalidTraineeTimes.
+  const slotResult = await solanaRpcCall<number>(rpcUrl, 'getSlot', [{ commitment: 'confirmed' }]);
   const blockTime = await solanaRpcCall<number | null>(rpcUrl, 'getBlockTime', [slotResult]);
-  if (blockTime === null) throw new Error('Finalized Solana block time is unavailable');
+  if (blockTime === null) throw new Error('Confirmed Solana block time is unavailable');
   const chainNow = BigInt(blockTime);
   const frozenNow = state.pausedAt === 0n ? chainNow : state.pausedAt;
   return {

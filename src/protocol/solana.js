@@ -220,29 +220,42 @@ export async function activateTrainee(connection, keyword, knownStatus) {
   const status = await refreshTraineeStatus(knownStatus);
   const pageIndex = chooseEventPage(status.traineeQueue, 2);
   const owner = address(connection.account.address);
-  const response = await fetch(`${BACKEND_URL}/api/trainee/voucher`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ wallet: owner, keyword, pageIndex }),
-  });
-  const voucher = await response.json();
-  if (!response.ok) throw new Error(apiErrorMessage(voucher, 'The backend did not issue a voucher.'));
-  const built = await buildActivateTraineeInstructions({
-    programAddress: PROGRAM_ID,
-    owner,
-    configAddress: status.addresses.config,
-    traineeQueue: status.addresses.traineeQueue,
-    collection: status.config.collection,
-    voucher,
-  });
-  return sendWalletInstructions({
-    rpc,
-    wallet: connection.wallet,
-    account: connection.account,
-    chain: SOLANA_CHAIN,
-    instructions: built.instructions,
-    additionalSigners: [built.assetSigner],
-  });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch(`${BACKEND_URL}/api/trainee/voucher`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ wallet: owner, keyword, pageIndex }),
+    });
+    const voucher = await response.json();
+    if (!response.ok) throw new Error(apiErrorMessage(voucher, 'The backend did not issue a voucher.'));
+    const built = await buildActivateTraineeInstructions({
+      programAddress: PROGRAM_ID,
+      owner,
+      configAddress: status.addresses.config,
+      traineeQueue: status.addresses.traineeQueue,
+      collection: status.config.collection,
+      voucher,
+    });
+    try {
+      return await sendWalletInstructions({
+        rpc,
+        wallet: connection.wallet,
+        account: connection.account,
+        chain: SOLANA_CHAIN,
+        instructions: built.instructions,
+        additionalSigners: [built.assetSigner],
+      });
+    } catch (error) {
+      if (attempt === 0 && isInvalidTraineeTimeError(error)) continue;
+      throw error;
+    }
+  }
+  throw new Error('The trainee voucher could not be synchronized with Solana time. Try again.');
+}
+
+function isInvalidTraineeTimeError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /InvalidTraineeTimes|\b6053\b/.test(message);
 }
 
 export async function claimTrainee(connection, trainee, knownStatus) {

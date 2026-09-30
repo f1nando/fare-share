@@ -4,7 +4,7 @@ import { FareFooter, FareHeader, MAGIC_EDEN_URL } from './FareShareChrome.jsx';
 import { FareShareCityBackground, FareShareLanding } from './FareShareLanding.jsx';
 import { FaqPage } from './FaqPage.jsx';
 import { GaragePage } from './GaragePage.jsx';
-import { notifyError } from './siteToasts.jsx';
+import { notifyError } from './siteToasts.js';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { DisclaimerPage, PrivacyPage, TermsPage } from './LegalPage.jsx';
 import { MintPage } from './MintPage.jsx';

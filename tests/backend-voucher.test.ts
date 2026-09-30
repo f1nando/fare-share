@@ -87,7 +87,7 @@ test('server decodes protocol pause clock after variable metadata strings', () =
   assert.equal(decoded.totalPausedSeconds, 40n);
 });
 
-test('voucher expiry follows finalized Solana time instead of the server clock', () => {
+test('voucher expiry follows Solana chain time instead of the server clock', () => {
   assert.equal(voucherExpiresAt(1_000n, 180), 1_180n);
 });
 
