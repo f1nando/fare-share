@@ -23,6 +23,7 @@ import {
   calculateRepairQuote,
   calculateProtocolTime,
   calculateTraineeReward,
+  disconnectWallet,
   formatTokenAmount,
   formatSolAmount,
   loadDASAssets,
@@ -103,6 +104,19 @@ test('every wallet instruction uses the current Anchor discriminator', () => {
 test('wallet addresses are shortened for the primitive UI', () => {
   assert.equal(shortAddress('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4'), 'GHGq…i3i4');
   assert.equal(shortAddress('short'), 'short');
+});
+
+test('wallet disconnect uses the Wallet Standard feature', async () => {
+  let calls = 0;
+  await disconnectWallet({
+    wallet: {
+      features: {
+        'standard:disconnect': { disconnect: async () => { calls += 1; } },
+      },
+    },
+  });
+  assert.equal(calls, 1);
+  await assert.rejects(() => disconnectWallet({ wallet: { features: {} } }), /does not support/);
 });
 
 test('wallet chain is explicit for private RPC URLs', () => {

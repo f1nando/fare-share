@@ -10,7 +10,7 @@ import { MarketPage } from './MarketPage.jsx';
 import { MintPage } from './MintPage.jsx';
 import { TradePage } from './TradePage.jsx';
 import { connectTradeWallet } from './tradeApi.js';
-import { shortAddress } from './protocol/solana.js';
+import { disconnectWallet, shortAddress } from './protocol/solana.js';
 import { TokenConfigProvider } from './tokenConfig.jsx';
 import './trade.css';
 
@@ -141,10 +141,17 @@ export function FareShareApp() {
     return connected;
   }
 
+  async function handleWalletButton() {
+    if (!wallet) return handleConnectWallet();
+    await disconnectWallet(wallet);
+    setWallet(null);
+    return null;
+  }
+
   return (
     <TokenConfigProvider><div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix="/fare-share/" activeItem={route.activeItem} onConnectWallet={() => handleConnectWallet().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <FareHeader linkPrefix="/fare-share/" activeItem={route.activeItem} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
       <Page wallet={wallet} connectWallet={handleConnectWallet} />
       <FareFooter linkPrefix="/fare-share/" />
     </div></TokenConfigProvider>

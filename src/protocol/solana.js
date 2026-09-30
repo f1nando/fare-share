@@ -559,6 +559,12 @@ export async function connectWallet() {
   return { wallet: phantom, account };
 }
 
+export async function disconnectWallet(connection) {
+  const disconnect = connection?.wallet?.features?.['standard:disconnect'];
+  if (!disconnect) throw new Error('This wallet does not support Wallet Standard disconnect.');
+  await disconnect.disconnect();
+}
+
 export function shortAddress(value) {
   const text = String(value || '');
   return text.length > 10 ? `${text.slice(0, 4)}…${text.slice(-4)}` : text;
