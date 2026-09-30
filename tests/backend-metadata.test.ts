@@ -35,6 +35,7 @@ test('metadata generator creates collection, 16 ordered machine variants and tra
   }
   assert.equal(files[17].file, 'trainee.json');
   assert.equal(files[17].data.image, imageUris[17]);
+  assert.ok('name' in files[17].data);
   assert.equal(files[17].data.name, 'TAXI Trainee — Dacia Logan');
   assert.equal(files[17].data.attributes?.find(item => item.trait_type === 'Type')?.value, 'Trainee');
   assert.equal(files[17].data.attributes?.find(item => item.trait_type === 'Model')?.value, 'Dacia Logan');

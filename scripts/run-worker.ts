@@ -19,8 +19,11 @@ const feeAdmin = await createFeeAdminService({
   workerIntervalMs: config.workerIntervalMs,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus);
 const defaults = { enabled: false, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
+const REWARD_INTERVAL_MS = 60_000;
 
 let stopping = false;
+let lastFullCycleAt = 0;
+let lastRewardCycleAt = 0;
 process.once('SIGINT', () => { stopping = true; });
 process.once('SIGTERM', () => { stopping = true; });
 
@@ -34,16 +37,33 @@ while (!stopping) {
     continue;
   }
   const started = Date.now();
+  const fullDue = process.argv.includes('--once') || started - lastFullCycleAt >= settings.intervalMs;
+  const rewardsDue = started - lastRewardCycleAt >= REWARD_INTERVAL_MS;
+  if (!fullDue && !rewardsDue) {
+    const nextFullAt = lastFullCycleAt + settings.intervalMs;
+    const nextRewardsAt = lastRewardCycleAt + REWARD_INTERVAL_MS;
+    await database.workerStatus.updateOne({ key: 'protocol-worker', state: { $ne: 'running' } }, {
+      $set: { nextRunAt: new Date(Math.min(nextFullAt, nextRewardsAt)), updatedAt: new Date() },
+    });
+    await wait(Math.max(1_000, Math.min(nextFullAt, nextRewardsAt) - started));
+    continue;
+  }
+  const action = fullDue ? 'full' : 'rewards';
   try {
-    await runWorkerAction(database.workerStatus, defaults, 'full', 'automatic', (active, runId) => (
-      performWorkerAction('full', 'automatic', active, runId, feeAdmin)
+    await runWorkerAction(database.workerStatus, defaults, action, 'automatic', (active, runId) => (
+      performWorkerAction(action, 'automatic', active, runId, feeAdmin)
     ));
+    const finishedAt = Date.now();
+    lastRewardCycleAt = finishedAt;
+    if (action === 'full') lastFullCycleAt = finishedAt;
   } catch (error) {
     console.error('Worker cycle failed:', error);
+    const failedAt = Date.now();
+    lastRewardCycleAt = failedAt;
+    if (action === 'full') lastFullCycleAt = failedAt;
   }
   if (process.argv.includes('--once')) break;
-  const current = await loadWorkerSettings(database.workerStatus, defaults);
-  await wait(Math.max(0, current.intervalMs - (Date.now() - started)));
+  await wait(1_000);
 }
 
 await database.client.close();

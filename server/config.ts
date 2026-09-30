@@ -53,7 +53,7 @@ export function loadServerConfig() {
     programId,
     signerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
     workerSecret: optional('WORKER_KEYPAIR_SECRET_KEY'),
-    workerIntervalMs: integer('WORKER_INTERVAL_MS', 60_000, 10_000),
+    workerIntervalMs: integer('WORKER_INTERVAL_MS', 300_000, 10_000),
     wordPepper: required('TRAINEE_WORD_PEPPER'),
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
     mintQuoteTtlSeconds: boundedInteger('MINT_QUOTE_TTL_SECONDS', 45, 10, 120),

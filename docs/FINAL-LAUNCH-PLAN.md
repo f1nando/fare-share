@@ -86,6 +86,7 @@
 | D-34 | Rehearsal повторно использует существующую admin-auth конфигурацию | Сохраняются текущие admin username, password hash и session secret из server secret/env storage. Новые credentials входа не создаются; admin routes и worker controls остаются недоступны без действующей сессии. Значения secrets не выводятся в manifest, Git или чат. |
 | D-35 | Публичное кодовое слово rehearsal Trainee campaign — `TAXI` | В отдельной rehearsal database создаётся одна активная campaign. Каждый wallet может один раз активировать Dacia Logan Trainee по правилу уникальности `owner + campaign_id`; campaign и её activations не переносятся в production database. |
 | D-36 | Новая Trainee campaign по умолчанию активна 24 часа | Backend создаёт новые admin campaigns с `durationMinutes = 1440`. Изменение применяется только к новым активациям; NFT после завершения периода остаётся wallet-visible, permanently frozen и non-transferable, но больше не получает rewards. |
+| D-37 | Full worker cycle запускается каждые 5 минут, reward queues проверяются каждую минуту | Full cycle выполняет creator fees, contract split, swaps и rewards. Между full cycles отдельный reward action раз в 60 секунд догоняет main и trainee queues. Один on-chain batch содержит максимум 20 событий; если готовы 40 событий, worker после finalization первого batch сразу отправляет второй, не ожидая следующей минуты. MongoDB lock не допускает параллельные actions. |
 
 ## L-01. Worker/Jupiter reserve routes
 
