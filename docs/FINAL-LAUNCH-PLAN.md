@@ -66,6 +66,7 @@
 | D-14 | Artwork `FARETEST` выполняется без усложнений | Отдельное простое чёрно-жёлтое изображение содержит крупный текст `FARETEST` и заметную подпись `REHEARSAL`, без production-логотипа и дополнительных вариантов. Оно используется только для disposable token metadata. |
 | D-15 | Разрешена публичная загрузка disposable `FARETEST` artwork и metadata | При подготовке rehearsal разрешено загрузить только утверждённые временные artwork/metadata в постоянное публичное хранилище, необходимое для создания Pump.fun token. Разрешение не распространяется на production Collection, 16 машин, trainee или production `$FARE` assets. URI фиксируется в rehearsal manifest до token transaction. |
 | D-16 | Первоначальная покупка disposable `FARETEST` ограничена `0.25 SOL` | Покупка выполняется при создании token только после предварительной оценки transaction fee, Pump fees и ожидаемого slippage. Она не отменяет общий лимит невозвратных потерь `0.5 SOL`; если совокупная оценка может его превысить, token transaction блокируется. Полученные tokens используются только в rehearsal-сценариях и учитываются в финальном balance snapshot. |
+| D-17 | Rehearsal использует существующий MongoDB cluster с отдельной database | Database name: `fare_share_disposable_rehearsal`. Все backend, worker, indexer и cleanup операции обязаны явно использовать этот name; production database и её collections не очищаются, не импортируются и не изменяются. Перед запуском сохраняется target URI без secret и выполняется проверка database name. |
 
 ## L-01. Worker/Jupiter reserve routes
 
