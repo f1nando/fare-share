@@ -4,6 +4,8 @@ import type { TradeHolderDocument, TradeStateDocument, TradeTransactionDocument 
 import type { AdminLoginLimitDocument } from './adminAuth.js';
 import type { TokenConfigDocument } from './tokenConfig.js';
 
+export const FLEET_EARNING_RETENTION_SECONDS = 45 * 24 * 60 * 60;
+
 export interface CampaignDocument {
   campaignId: string;
   label: string;
@@ -201,6 +203,16 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetMintReceipts.createIndex({ asset: 1, status: 1 }),
     fleetEarningSnapshots.createIndex({ owner: 1, bucketAt: 1 }, { unique: true }),
     fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
+    ensureFleetEarningRetention(fleetEarningSnapshots),
   ]);
   return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
+}
+
+export function ensureFleetEarningRetention(
+  collection: Pick<Collection<FleetEarningSnapshotDocument>, 'createIndex'>,
+) {
+  return collection.createIndex(
+    { observedAt: 1 },
+    { name: 'earning_history_ttl', expireAfterSeconds: FLEET_EARNING_RETENTION_SECONDS },
+  );
 }

@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { address } from '@solana/kit';
 import { buildPublicOverview, createPublicDataService } from '../server/publicData.js';
-import type { FleetMachineDocument, TaxiDatabase } from '../server/database.js';
+import {
+  ensureFleetEarningRetention,
+  FLEET_EARNING_RETENTION_SECONDS,
+  type FleetMachineDocument,
+  type TaxiDatabase,
+} from '../server/database.js';
 
 const OWNER = '11111111111111111111111111111111';
 
@@ -58,6 +63,22 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
   assert.equal((await service.earningHistory(OWNER, '24h')).points.length, 1);
   assert.equal(workerReads, 0);
   assert.equal(overviewReads, 3);
+});
+
+test('earning history expires after a 45-day safety window', async () => {
+  const calls: Array<{ keys: unknown; options: unknown }> = [];
+  const collection = {
+    async createIndex(keys: unknown, options: unknown) {
+      calls.push({ keys, options });
+      return 'earning_history_ttl';
+    },
+  } as unknown as Parameters<typeof ensureFleetEarningRetention>[0];
+  await ensureFleetEarningRetention(collection);
+  assert.equal(FLEET_EARNING_RETENTION_SECONDS, 45 * 24 * 60 * 60);
+  assert.deepEqual(calls, [{
+    keys: { observedAt: 1 },
+    options: { name: 'earning_history_ttl', expireAfterSeconds: 45 * 24 * 60 * 60 },
+  }]);
 });
 
 function snapshot() {
