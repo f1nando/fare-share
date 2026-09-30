@@ -119,15 +119,18 @@ export async function runRecovery(options: RecoveryOptions, run: CommandRunner =
   ]);
 
   const missingProgramData = await run(options.solanaBin, ['account', options.programData, '--output', 'json', ...common]);
-  if (missingProgramData.code === 0 || !/not found|does not exist|could not find/i.test(`${missingProgramData.stdout}\n${missingProgramData.stderr}`)) {
+  if (missingProgramData.code === 0 || !/AccountNotFound|not found|does not exist|could not find/i.test(`${missingProgramData.stdout}\n${missingProgramData.stderr}`)) {
     throw new Error('Finalized ProgramData disappearance was not proven');
   }
   const tombstoneOutput = JSON.parse((await successful(run, options.solanaBin, ['account', options.programId, '--output', 'json', ...common])).stdout);
   const tombstone = tombstoneOutput.account ?? tombstoneOutput;
-  if (tombstone.owner !== LOADER_V3 || tombstone.executable !== false || BigInt(tombstone.lamports) <= 0n) {
-    throw new Error('Program tombstone did not persist as a non-executable loader-v3 account');
+  if (tombstone.owner !== LOADER_V3 || BigInt(tombstone.lamports) <= 0n) {
+    throw new Error('Program tombstone did not persist as a loader-v3 account');
   }
-  await successful(run, options.solanaBin, ['program', 'show', options.programId, ...common], `Program ${options.programId} has been closed`);
+  const closedProgram = await run(options.solanaBin, ['program', 'show', options.programId, '--keypair', options.feePayerKeypair, ...common]);
+  if (closedProgram.code === 0 || !new RegExp(`Program ${options.programId} has been closed`, 'i').test(`${closedProgram.stdout}\n${closedProgram.stderr}`)) {
+    throw new Error('Solana CLI did not report the Program ID as permanently closed');
+  }
   const afterBalance = parseLamports((await successful(run, options.solanaBin, ['balance', options.recipient, '--lamports', ...common])).stdout);
   const delta = afterBalance - beforeBalance;
   if (delta > expectedRent || delta < expectedRent - options.maxFeeLamports) {

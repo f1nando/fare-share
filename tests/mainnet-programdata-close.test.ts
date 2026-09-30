@@ -71,7 +71,7 @@ async function recoveryFixture(execute: boolean, delta = rent - 5_000n) {
     if (args[0] === 'account' && args[1] === programId) return result(JSON.stringify({
       owner: 'BPFLoaderUpgradeab1e11111111111111111111111', executable: false, lamports: 833120,
     }));
-    if (args[0] === 'program' && args[1] === 'show') return result(`Program ${programId} has been closed\n`);
+    if (args[0] === 'program' && args[1] === 'show') return result('', 1, `Error: Program ${programId} has been closed\n`);
     return result('', 1, `Unexpected fake Solana command: ${args.join(' ')}`);
   };
   const options = {
