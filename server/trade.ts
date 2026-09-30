@@ -14,6 +14,9 @@ const JUPITER_PRICE_URL = 'https://api.jup.ag/price/v3';
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const TRADE_INDEX_VERSION = 5;
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+const TRADE_READ_CACHE_TTL_MS = 10_000;
+const MAX_TRADE_METRIC_ROWS = 20_000;
+const MAX_CANDLE_SOURCE_ROWS = 20_000;
 
 export type TradeStage = 'bonding_curve' | 'migrating' | 'pumpswap' | 'external' | 'unknown';
 
@@ -73,6 +76,13 @@ interface CachedQuote {
   side: 'buy' | 'sell';
 }
 
+interface CandleResponse {
+  interval: string;
+  unit: string;
+  candles: TradeCandle[];
+  sourceTradesTruncated: boolean;
+}
+
 export interface TradeCandle {
   time: number;
   open: number;
@@ -129,6 +139,11 @@ export class TradeService {
   private socketHeartbeat?: NodeJS.Timeout;
   private socketReconnect?: NodeJS.Timeout;
   private timers: NodeJS.Timeout[] = [];
+  private tokenSnapshotCache?: { expiresAt: number; value: JsonRecord };
+  private tokenSnapshotRead?: Promise<JsonRecord>;
+  private readonly candleCache = new Map<string, { expiresAt: number; value: CandleResponse }>();
+  private readonly candleReads = new Map<string, Promise<CandleResponse>>();
+  private readCacheVersion = 0;
 
   constructor(
     private readonly config: ServerConfig,
@@ -193,6 +208,20 @@ export class TradeService {
   }
 
   async tokenSnapshot() {
+    if (this.tokenSnapshotCache && this.tokenSnapshotCache.expiresAt > Date.now()) return this.tokenSnapshotCache.value;
+    if (this.tokenSnapshotRead) return this.tokenSnapshotRead;
+    const version = this.readCacheVersion;
+    const read = this.computeTokenSnapshot().then(value => {
+      if (version === this.readCacheVersion) this.tokenSnapshotCache = { value, expiresAt: Date.now() + TRADE_READ_CACHE_TTL_MS };
+      return value;
+    }).finally(() => {
+      if (this.tokenSnapshotRead === read) this.tokenSnapshotRead = undefined;
+    });
+    this.tokenSnapshotRead = read;
+    return read;
+  }
+
+  private async computeTokenSnapshot(): Promise<JsonRecord> {
     const latest = await this.database.tradeTransactions.findOne(
       { mint: String(this.mint) },
       { sort: { blockTime: -1 } },
@@ -201,11 +230,13 @@ export class TradeService {
     const recent = await this.database.tradeTransactions.find(
       { mint: String(this.mint), blockTime: { $gte: since } },
       { projection: { solAmount: 1, priceSol: 1, blockTime: 1 } },
-    ).sort({ blockTime: 1 }).toArray();
-    const firstPrice = recent[0]?.priceSol;
+    ).sort({ blockTime: -1 }).limit(MAX_TRADE_METRIC_ROWS + 1).toArray();
+    const sourceTradesTruncated = recent.length > MAX_TRADE_METRIC_ROWS;
+    const boundedRecent = sourceTradesTruncated ? recent.slice(0, MAX_TRADE_METRIC_ROWS) : recent;
+    const firstPrice = boundedRecent.at(-1)?.priceSol;
     const lastPrice = latest?.priceSol;
     const change24h = firstPrice && lastPrice ? ((lastPrice / firstPrice) - 1) * 100 : 0;
-    const volume24h = recent.reduce((total, row) => total + row.solAmount, 0);
+    const volume24h = boundedRecent.reduce((total, row) => total + row.solAmount, 0);
     const supply = Number(this.state.supplyRaw) / 10 ** this.state.decimals;
     return {
       ...this.publicState(),
@@ -216,6 +247,7 @@ export class TradeService {
       volume24hUsd: this.state.solUsd ? volume24h * this.state.solUsd : 0,
       marketCapUsd: lastPrice && this.state.solUsd ? supply * lastPrice * this.state.solUsd : 0,
       holders: await this.database.tradeHolders.countDocuments({ mint: String(this.mint), balance: { $gt: 0 } }),
+      sourceTradesTruncated,
     };
   }
 
@@ -262,11 +294,30 @@ export class TradeService {
     const seconds = ({ '1m': 60, '5m': 300, '15m': 900, '1h': 3_600, '4h': 14_400, '1d': 86_400 } as Record<string, number>)[interval];
     if (!seconds) throw new TradeError('Unsupported candle interval.');
     const limit = Math.min(Math.max(requestedLimit, 1), 1_000);
+    const cacheKey = `${interval}:${limit}`;
+    const cached = this.candleCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const activeRead = this.candleReads.get(cacheKey);
+    if (activeRead) return activeRead;
+    const version = this.readCacheVersion;
+    const read = this.computeCandles(interval, seconds, limit).then(value => {
+      if (version === this.readCacheVersion) this.candleCache.set(cacheKey, { value, expiresAt: Date.now() + TRADE_READ_CACHE_TTL_MS });
+      return value;
+    }).finally(() => {
+      if (this.candleReads.get(cacheKey) === read) this.candleReads.delete(cacheKey);
+    });
+    this.candleReads.set(cacheKey, read);
+    return read;
+  }
+
+  private async computeCandles(interval: string, seconds: number, limit: number): Promise<CandleResponse> {
     const from = new Date(Date.now() - seconds * limit * 1_000);
-    const trades = await this.database.tradeTransactions.find(
+    const sourceRows = await this.database.tradeTransactions.find(
       { mint: String(this.mint), blockTime: { $gte: from } },
       { projection: { blockTime: 1, priceSol: 1, tokenAmount: 1, solAmount: 1 } },
-    ).sort({ blockTime: 1 }).toArray();
+    ).sort({ blockTime: -1 }).limit(MAX_CANDLE_SOURCE_ROWS + 1).toArray();
+    const sourceTradesTruncated = sourceRows.length > MAX_CANDLE_SOURCE_ROWS;
+    const trades = (sourceTradesTruncated ? sourceRows.slice(0, MAX_CANDLE_SOURCE_ROWS) : sourceRows).reverse();
     const sortedPrices = trades.map(trade => trade.priceSol).sort((left, right) => left - right);
     const lowerPrice = sortedPrices.length >= 20 ? sortedPrices[Math.floor(sortedPrices.length * .02)] : 0;
     const upperPrice = sortedPrices.length >= 20 ? sortedPrices[Math.floor(sortedPrices.length * .98)] : Number.POSITIVE_INFINITY;
@@ -290,7 +341,7 @@ export class TradeService {
     }
     const end = Math.floor(Date.now() / 1_000 / seconds) * seconds;
     const candles = fillTradeCandles(buckets, seconds, end);
-    return { interval, unit: marketCapMultiplier === 1 ? 'priceSol' : 'marketCapUsd', candles: candles.slice(-limit) };
+    return { interval, unit: marketCapMultiplier === 1 ? 'priceSol' : 'marketCapUsd', candles: candles.slice(-limit), sourceTradesTruncated };
   }
 
   async createQuote(input: unknown) {
@@ -466,6 +517,7 @@ export class TradeService {
         updatedAt: new Date(),
       };
       this.state = next;
+      this.invalidateReadCache();
       await this.database.tradeState.updateOne({ mint: next.mint }, { $set: next }, { upsert: true });
       this.emit('token', this.publicState());
     } catch (error) {
@@ -531,6 +583,7 @@ export class TradeService {
         })), { ordered: false });
       }
       await this.database.tradeHolders.deleteMany({ mint: String(this.mint), snapshotId: { $ne: snapshotId } });
+      this.invalidateReadCache();
       this.state.lastHolderSlot = indexedSlot;
       await this.database.tradeState.updateOne({ mint: String(this.mint) }, { $set: { lastHolderSlot: indexedSlot } }, { upsert: true });
       this.emit('holders', { slot: indexedSlot, count: balances.size });
@@ -669,6 +722,15 @@ export class TradeService {
         upsert: true,
       },
     })), { ordered: false });
+    this.invalidateReadCache();
+  }
+
+  private invalidateReadCache() {
+    this.readCacheVersion += 1;
+    this.tokenSnapshotCache = undefined;
+    this.tokenSnapshotRead = undefined;
+    this.candleCache.clear();
+    this.candleReads.clear();
   }
 
   private async setLastTradeSlot(slot: number) {

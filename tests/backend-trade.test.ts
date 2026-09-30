@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fillTradeCandles, parseTradeTransaction } from '../server/trade.js';
+import { fillTradeCandles, parseTradeTransaction, TradeService } from '../server/trade.js';
+import type { ServerConfig } from '../server/config.js';
+import type { TaxiDatabase } from '../server/database.js';
 
 const MINT = 'HcRLc9VDgjLeK154xDawfb1dmVJ98DoSqcwTHGqiDeJR';
 const WALLET = '11111111111111111111111111111111';
@@ -50,6 +52,40 @@ test('a single trade opens its candle at the previous close', () => {
     [300, { time: 300, open: 110, high: 110, low: 110, close: 110, volume: 2 }],
   ]), 300, 300);
   assert.deepEqual(candles[1], { time: 300, open: 100, high: 110, low: 100, close: 110, volume: 2 });
+});
+
+test('trade reads are bounded and concurrent identical requests share cached work', async () => {
+  const now = new Date();
+  const row = { blockTime: new Date(now.getTime() - 60_000), priceSol: 2, tokenAmount: 1, solAmount: 2 };
+  const rows = Array.from({ length: 20_001 }, () => row);
+  let findCalls = 0;
+  const limits: number[] = [];
+  const database = {
+    tradeTransactions: {
+      findOne: async () => rows[0],
+      find: () => {
+        findCalls += 1;
+        return {
+          sort() { return this; },
+          limit(value: number) { limits.push(value); return this; },
+          async toArray() { return rows; },
+        };
+      },
+    },
+    tradeHolders: { countDocuments: async () => 2 },
+  } as unknown as TaxiDatabase;
+  const service = new TradeService({ solanaRpcUrl: 'https://rpc.invalid' } as ServerConfig, database, { mint: MINT, ticker: 'FARE' });
+
+  const tokenResults = await Promise.all(Array.from({ length: 20 }, () => service.tokenSnapshot()));
+  assert.ok(tokenResults.every(result => result === tokenResults[0]));
+  const candleResults = await Promise.all(Array.from({ length: 20 }, () => service.candles('5m', 300)));
+  assert.ok(candleResults.every(result => result === candleResults[0]));
+  assert.equal(findCalls, 2);
+  assert.equal(Math.max(...limits), 20_001);
+  assert.equal(tokenResults[0].volume24hSol, 40_000);
+  assert.equal(tokenResults[0].sourceTradesTruncated, true);
+  assert.equal(candleResults[0].candles.length, 1);
+  assert.equal(candleResults[0].sourceTradesTruncated, true);
 });
 
 function transaction(input: { preLamports: number; postLamports: number; preTokens: string; postTokens: string }) {
