@@ -9,7 +9,11 @@ checkout этого SHA в новый release-каталог. Полная пе�
 `node_modules` через SCP/SSH запрещена.
 
 `npm ci` выполняется только при изменении `package-lock.json`; при неизменном
-lockfile переиспользуется соответствующий server-side dependency set. `.env`,
+lockfile переиспользуется соответствующий server-side dependency set. Первый
+Git-based release может один раз создать проверенный cache через `npm ci`, если
+готового cache ещё нет. Следующие release с тем же нормализованным lockfile
+получают локальный hardlink clone cache; общий symlink на весь `node_modules` не
+используется из-за некорректного TypeScript `NodeNext` realpath resolution. `.env`,
 keypair и другие secrets находятся вне Git и release-каталогов и никогда не
 перезаписываются deployment-процессом. `current` переключается атомарно только
 после focused-проверок нового release; при ошибке предыдущий release остаётся

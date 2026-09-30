@@ -56,7 +56,12 @@ its `current` symlink untouched until the new checkout has passed its checks.
 
 Compare `package-lock.json` with the dependency set already installed on the
 server. Run `npm ci` only when the lockfile changed; otherwise reuse the matching
-server-side dependencies without reinstalling them. Build the frontend on the
+server-side dependencies without reinstalling them. The first Git-based release
+may create one validated dependency cache with `npm ci` when no valid cache
+exists. Later releases with the same normalized lockfile must use a server-local
+hardlink clone of that cache. Do not symlink the complete `node_modules`
+directory: TypeScript `NodeNext` may resolve package exports incorrectly through
+the external real path. Build the frontend on the
 server, or transfer only the small ready `dist` artifact when a server build is
 not possible. After backend health, frontend, and `nginx -t` checks pass,
 atomically switch both `current` symlinks and restart the backend. A failed
