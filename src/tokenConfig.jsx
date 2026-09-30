@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { PUBLIC_HOLDING } from './buildMode.js';
 
 const API = String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
-const EMPTY_TOKEN = Object.freeze({ configured: false, mint: null, ticker: null });
+const EMPTY_TOKEN = Object.freeze({ configured: false, mint: null, ticker: PUBLIC_HOLDING ? 'FARE' : null });
 const TokenConfigContext = createContext(EMPTY_TOKEN);
 
 export function TokenConfigProvider({ children }) {
   const [token, setToken] = useState(EMPTY_TOKEN);
 
   useEffect(() => {
+    if (PUBLIC_HOLDING) return undefined;
     let active = true;
     let timer;
     let reading = false;

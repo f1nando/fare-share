@@ -7,7 +7,7 @@ import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import drivingScenes from './drivingScenes.json';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { loadPublicOverview } from './publicData.js';
-import { appPath } from './appPath.js';
+import { appAssetPath, appPath } from './appPath.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -149,7 +149,7 @@ function FleetSceneCard({ scene, fleetClass }) {
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
-  const imageUrl = scene.imageUrl;
+  const imageUrl = appAssetPath(scene.imageUrl);
 
   return (
     <div
@@ -183,7 +183,7 @@ function FleetSceneCard({ scene, fleetClass }) {
       ].map(([name, x, y]) => (
         <img
           className={`fare-fleet-headlight fare-fleet-headlight-${name}`}
-          src="/driving-demo/blink.webp"
+          src={appAssetPath('/driving-demo/blink.webp')}
           alt=""
           key={name}
           style={{
@@ -208,7 +208,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
   const pathX = Math.cos(radians);
   const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
-  const imageUrl = scene.imageUrl;
+  const imageUrl = appAssetPath(scene.imageUrl);
 
   const animateRoadRate = (now) => {
     rateFrameRef.current = 0;
@@ -278,7 +278,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
       ].map(([name, x, y]) => (
         <img
           className={`fare-fleet-headlight fare-fleet-headlight-${name}`}
-          src="/driving-demo/blink.webp"
+          src={appAssetPath('/driving-demo/blink.webp')}
           alt=""
           key={name}
           style={{ left: `${x}%`, top: `${y}%`, width: `${settings.blinkSize}%` }}
@@ -289,7 +289,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
 }
 
 function FareStepCollectScene() {
-  const assetPath = '/fare-share/how-it-works/collect-wallet';
+  const assetPath = appAssetPath('/fare-share/how-it-works/collect-wallet');
 
   return (
     <div className="fare-step-media fare-step-collect" aria-hidden="true">
@@ -538,10 +538,10 @@ async function copyToClipboard(value) {
 
 const HERO_TOKEN_MINT = '5BVBo9erzm3hzutnmc5nuitRVNVNb3GEiCfB8CmWpump';
 
-export function FareShareLanding() {
+export function FareShareLanding({ publicHolding = false }) {
   const token = useTokenConfig();
-  const ticker = displayTicker(token);
-  const caDisplay = `${HERO_TOKEN_MINT.slice(0, 6)}...${HERO_TOKEN_MINT.slice(-6)}`;
+  const ticker = publicHolding ? 'FARE' : displayTicker(token);
+  const caDisplay = publicHolding ? 'COMING SOON' : `${HERO_TOKEN_MINT.slice(0, 6)}...${HERO_TOKEN_MINT.slice(-6)}`;
   const [caCopyState, setCaCopyState] = useState('idle');
   const [copyAnimationKey, setCopyAnimationKey] = useState(0);
   const copyResetTimerRef = useRef(null);
@@ -560,6 +560,7 @@ export function FareShareLanding() {
   }, []);
 
   const handleCopyCa = async () => {
+    if (publicHolding) return;
     try {
       await copyToClipboard(HERO_TOKEN_MINT);
       setCaCopyState('copied');
@@ -580,7 +581,7 @@ export function FareShareLanding() {
       number: '1',
       title: 'GET A CAR',
       text: 'Start with a free trainee car, then build your real fleet.',
-      sprite: '/fare-share/how-it-works/get-a-car-sprite.webp',
+      sprite: appAssetPath('/fare-share/how-it-works/get-a-car-sprite.webp'),
     },
     {
       number: '2',
@@ -621,17 +622,17 @@ export function FareShareLanding() {
               <button
                 className={`fare-button fare-button-dark${caCopyState === 'copied' ? ' is-copied' : ''}${caCopyState === 'returning' ? ' is-returning' : ''}`}
                 type="button"
-                onClick={handleCopyCa}
-                aria-label={caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
+                onClick={publicHolding ? undefined : handleCopyCa}
+                aria-label={publicHolding ? 'Contract address coming soon' : caCopyState === 'copied' ? 'CA copied' : 'Copy CA'}
               >
                 <span className="fare-token-symbol">${ticker}</span>
                 <span>{caDisplay}</span>
-                <span className="fare-copy-icon" key={copyAnimationKey} aria-hidden="true">
+                {!publicHolding && <span className="fare-copy-icon" key={copyAnimationKey} aria-hidden="true">
                   <span className="fare-copy-glyph" />
                   <svg className="fare-copy-check" viewBox="0 0 24 24" fill="none">
                     <path d="M4 12.5L9.2 17.5L20 6.5" />
                   </svg>
-                </span>
+                </span>}
               </button>
             </div>
           </div>
@@ -679,7 +680,7 @@ export function FareShareLanding() {
             <p className="fare-hero-intro">Better classes receive a larger earning share. No twelve-stat RPG spreadsheet.</p>
           </div>
 
-          <a className="fare-button fare-button-primary fare-fleet-button" href={appPath('/garage/')}>
+          <a className="fare-button fare-button-primary fare-fleet-button" href={publicHolding ? '#taxis' : appPath('/garage/')}>
             Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
           </div>
@@ -702,10 +703,10 @@ export function FareShareLanding() {
 
           <div className="fare-leaderboard-heading">
             <h3>LEADERBOARD</h3>
-            <a className="fare-leaderboard-button" href={appPath('/leaderboard/')}>
+            {!publicHolding && <a className="fare-leaderboard-button" href={appPath('/leaderboard/')}>
               View Full Leaderboard
               <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow color="#FFFFFF" /></span>
-            </a>
+            </a>}
           </div>
 
           <div className="fare-leaderboard" id="leaderboard">

@@ -13,6 +13,7 @@ import { connectTradeWallet } from './tradeApi.js';
 import { disconnectWallet, shortAddress } from './protocol/solana.js';
 import { TokenConfigProvider } from './tokenConfig.jsx';
 import { appPath, isRehearsalPath, stripAppPrefix } from './appPath.js';
+import { PUBLIC_HOLDING } from './buildMode.js';
 import './trade.css';
 
 const routes = {
@@ -94,7 +95,7 @@ export function FareShareApp() {
   const [location, setLocation] = useState(readLocation);
   const [wallet, setWallet] = useState(null);
   const pathname = location.split('#')[0];
-  const route = routes[pathname] || routes['/fare-share/'];
+  const route = PUBLIC_HOLDING ? routes['/fare-share/'] : routes[pathname] || routes['/fare-share/'];
   const Page = route.component;
   const isLanding = pathname === '/fare-share/';
 
@@ -153,9 +154,9 @@ export function FareShareApp() {
   return (
     <TokenConfigProvider><div className={shellClassName}>
       <FareShareCityBackground colorScheme={isLanding ? 'classic' : 'pale'} followHero={isLanding} />
-      <FareHeader linkPrefix={appPath('/fare-share/')} activeItem={route.activeItem} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
-      <Page wallet={wallet} connectWallet={handleConnectWallet} />
-      <FareFooter linkPrefix={appPath('/fare-share/')} />
+      <FareHeader linkPrefix={appPath('/fare-share/')} activeItem={route.activeItem} landingOnly={PUBLIC_HOLDING} onConnectWallet={() => handleWalletButton().catch(error => window.alert(error.message))} walletLabel={wallet ? shortAddress(wallet.account.address) : undefined} />
+      <Page wallet={wallet} connectWallet={handleConnectWallet} publicHolding={PUBLIC_HOLDING} />
+      <FareFooter linkPrefix={appPath('/fare-share/')} landingOnly={PUBLIC_HOLDING} />
     </div></TokenConfigProvider>
   );
 }

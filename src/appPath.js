@@ -1,3 +1,4 @@
+const APP_BASE = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
 const REHEARSAL_PREFIX = '/rehearsal';
 
 export function isRehearsalPath(pathname = window.location.pathname) {
@@ -10,5 +11,10 @@ export function stripAppPrefix(pathname) {
 }
 
 export function appPath(path) {
-  return isRehearsalPath() ? `${REHEARSAL_PREFIX}${path}` : path;
+  return APP_BASE ? `${APP_BASE}${path}` : path;
+}
+
+export function appAssetPath(path) {
+  if (!path.startsWith('/') || !APP_BASE || path === APP_BASE || path.startsWith(`${APP_BASE}/`)) return path;
+  return `${APP_BASE}${path}`;
 }

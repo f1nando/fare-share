@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-city/
+dist-holding/
+dist-rehearsal/
 .anchor/
 target/
 test-ledger/

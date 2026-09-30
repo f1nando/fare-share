@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
-import { appPath } from './appPath.js';
+import { appAssetPath, appPath } from './appPath.js';
 
 const CONFIGURED_MARKET_URL = String(import.meta.env.VITE_MAGIC_EDEN_MARKET_URL || '/market/');
 
@@ -29,7 +29,7 @@ function MobileWalletIcon() {
   );
 }
 
-export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home', onConnectWallet, walletLabel }) {
+export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : 'home', landingOnly = false, onConnectWallet, walletLabel }) {
   const ticker = displayTicker(useTokenConfig());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
@@ -42,7 +42,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'trade', label: 'TRADE', href: appPath('/trade/') },
     { id: 'faq', label: 'FAQ', href: appPath('/faq/') },
     { id: 'docs', label: 'DOCS', href: appPath('/docs/') },
-  ];
+  ].filter(item => !landingOnly || item.id === 'home');
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -71,7 +71,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     <>
       <header className="fare-header container">
         <a className="fare-brand" href={`${linkPrefix}#top`} aria-label="Fare Share home">
-          <img src="/brand/fare-driver.png" alt="" decoding="async" />
+          <img src={appAssetPath('/brand/fare-driver.png')} alt="" decoding="async" />
           <strong>FARE SHARE</strong>
           <span className="fare-brand-ticker">${ticker}</span>
         </a>
@@ -84,14 +84,14 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
 
         <div className="fare-header-actions">
           <a className="fare-social" href="https://x.com/taxiempire" target="_blank" rel="noreferrer" aria-label="Fare Share on X"><XIcon /></a>
-          <button className="fare-connect" type="button" onClick={onConnectWallet} aria-label={walletLabel ? 'Disconnect wallet' : 'Connect wallet'} title={walletLabel ? 'Disconnect wallet' : undefined}>
+          {!landingOnly && <button className="fare-connect" type="button" onClick={onConnectWallet} aria-label={walletLabel ? 'Disconnect wallet' : 'Connect wallet'} title={walletLabel ? 'Disconnect wallet' : undefined}>
             <span>{walletLabel || 'Connect Wallet'}</span>
             <svg className="fare-wallet-icon" width="107" height="93" viewBox="0 0 107 93" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M0 78.1789C0 90.2265 6.2065 93 12.6613 93C26.3155 93 36.577 80.6058 42.7007 70.8118C41.9559 72.9786 41.5422 75.1454 41.5422 77.2255C41.5422 82.946 44.6868 87.0196 50.8933 87.0196C59.4169 87.0196 68.5197 79.219 73.2367 70.8118C72.9056 72.0252 72.7401 73.1519 72.7401 74.192C72.7401 78.1789 74.8917 80.6924 79.2777 80.6924C93.0975 80.6924 107 55.124 107 32.7623C107 15.3411 98.5592 0 77.3743 0C40.1354 0 0 47.4967 0 78.1789ZM64.5476 30.8555C64.5476 26.5219 66.8647 23.4884 70.2575 23.4884C73.5677 23.4884 75.8848 26.5219 75.8848 30.8555C75.8848 35.1892 73.5677 38.3094 70.2575 38.3094C66.8647 38.3094 64.5476 35.1892 64.5476 30.8555ZM82.2568 30.8555C82.2568 26.5219 84.5739 23.4884 87.9668 23.4884C91.2769 23.4884 93.594 26.5219 93.594 30.8555C93.594 35.1892 91.2769 38.3094 87.9668 38.3094C84.5739 38.3094 82.2568 35.1892 82.2568 30.8555Z" fill="black" />
             </svg>
             <MobileWalletIcon />
-          </button>
-          <button
+          </button>}
+          {!landingOnly && <button
             className="fare-mobile-menu"
             type="button"
             aria-label="Open navigation"
@@ -100,7 +100,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
             onClick={() => setIsMenuOpen(true)}
           >
             <MobileMenuIcon />
-          </button>
+          </button>}
         </div>
       </header>
 
@@ -122,7 +122,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
   );
 }
 
-export function FareFooter({ linkPrefix = '' }) {
+export function FareFooter({ linkPrefix = '', landingOnly = false }) {
   const marketUrl = CONFIGURED_MARKET_URL.startsWith('/') ? appPath(CONFIGURED_MARKET_URL) : CONFIGURED_MARKET_URL;
   return (
     <footer className="fare-footer">
@@ -130,7 +130,7 @@ export function FareFooter({ linkPrefix = '' }) {
       <div className="fare-footer-inner container">
         <div className="fare-footer-about">
           <div className="fare-footer-brand">
-            <img src="/brand/fare-driver.png" alt="" loading="lazy" decoding="async" />
+            <img src={appAssetPath('/brand/fare-driver.png')} alt="" loading="lazy" decoding="async" />
             <strong>FARE SHARE</strong>
           </div>
           <p className="fare-footer-tagline">Own taxis. Stay active. Claim token rewards.</p>
@@ -139,27 +139,27 @@ export function FareFooter({ linkPrefix = '' }) {
           <p className="fare-footer-copyright">© 2026 Fare Share. All rights reserved.</p>
         </div>
 
-        <nav className="fare-footer-column" aria-label="Footer navigation">
+        {!landingOnly && <nav className="fare-footer-column" aria-label="Footer navigation">
           <h2>NAVIGATION</h2>
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href={appPath('/mint/')}>Mint</a>
           <a href={appPath('/garage/')}>Garage</a>
           <a href={marketUrl}>Market</a>
           <a href={appPath('/leaderboard/')}>Leaderboard</a>
-        </nav>
-        <nav className="fare-footer-column" aria-label="Resources">
+        </nav>}
+        {!landingOnly && <nav className="fare-footer-column" aria-label="Resources">
           <h2>RESOURCES</h2>
           <a href={`${linkPrefix}#how-it-works`}>How it Works</a>
           <a href={`${linkPrefix}#dashboard`}>Treasury</a>
           <a href={appPath('/docs/')}>Docs</a>
           <a href={appPath('/faq/')}>FAQ</a>
-        </nav>
-        <nav className="fare-footer-column" aria-label="Legal">
+        </nav>}
+        {!landingOnly && <nav className="fare-footer-column" aria-label="Legal">
           <h2>LEGAL</h2>
           <a href={appPath('/terms/')}>Terms</a>
           <a href={appPath('/privacy/')}>Privacy</a>
           <a href={appPath('/disclaimer/')}>Disclaimer</a>
-        </nav>
+        </nav>}
       </div>
     </footer>
   );

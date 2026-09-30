@@ -20,12 +20,13 @@ import {
   shortAddress,
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
+import { appAssetPath } from './appPath.js';
 
 const CLASSES = [
-  { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: '/nft/economy.webp', variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
-  { name: 'Comfort', count: 278, weight: 3, odds: '22.75%', tone: 'comfort', image: '/nft/comfort.webp', variants: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
-  { name: 'Business', count: 83, weight: 10, odds: '6.79%', tone: 'business', image: '/nft/business.webp', variants: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
-  { name: 'Legend', count: 28, weight: 30, odds: '2.29%', tone: 'legend', image: '/nft/legend.webp', variants: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
+  { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: appAssetPath('/nft/economy.webp'), variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
+  { name: 'Comfort', count: 278, weight: 3, odds: '22.75%', tone: 'comfort', image: appAssetPath('/nft/comfort.webp'), variants: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'] },
+  { name: 'Business', count: 83, weight: 10, odds: '6.79%', tone: 'business', image: appAssetPath('/nft/business.webp'), variants: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'] },
+  { name: 'Legend', count: 28, weight: 30, odds: '2.29%', tone: 'legend', image: appAssetPath('/nft/legend.webp'), variants: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'] },
 ];
 
 const CLASS_IMAGE_BY_WEIGHT = Object.fromEntries(CLASSES.map(item => [item.weight, item.image]));

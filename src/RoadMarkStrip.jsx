@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { fleetRoadStrip } from './fleetWall.js';
+import { appAssetPath } from './appPath.js';
 
 export function RoadMarkStrip({ settings, className = '', sizeUnit = '%' }) {
   const patternId = `road-pattern-${useId().replaceAll(':', '')}`;
@@ -18,7 +19,7 @@ export function RoadMarkStrip({ settings, className = '', sizeUnit = '%' }) {
     }} aria-hidden="true">
       <defs>
         <pattern id={patternId} width={settings.markSpacing} height={strip.height} patternUnits="userSpaceOnUse">
-          <image href="/driving-demo/mark.webp" width={settings.markWidth} height={strip.height}
+          <image href={appAssetPath('/driving-demo/mark.webp')} width={settings.markWidth} height={strip.height}
             preserveAspectRatio="none" transform={`rotate(${angleOffset} ${settings.markWidth / 2} ${strip.height / 2})`} />
         </pattern>
       </defs>

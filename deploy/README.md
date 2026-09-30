@@ -53,6 +53,23 @@ product routes also work below this prefix, for example
 prefixed route for owner testing of current rehearsal work. Publishing a web
 release there does not authorize worker activation or any Mainnet transaction.
 
+Production and rehearsal are separate frontend channels:
+
+- `/var/www/ownataxi/production-current` serves the normal domain;
+- `/var/www/ownataxi/rehearsal-current` serves `/rehearsal/`;
+- `npm run build:holding` creates the landing-only production build with the CA
+  displayed as `COMING SOON`;
+- `npm run build:rehearsal` creates the full prefixed testing build;
+- the normal `npm run build` output is the full root-path promotion candidate.
+
+Ordinary work updates only `rehearsal-current`. Never switch
+`production-current` unless the owner explicitly asks to update or promote the
+normal domain. Use `deploy/switch-ownataxi-frontend.sh` for either atomic switch.
+To promote a tested release, point `production-current` to that release's full
+root-path build; rollback uses the previous symlink target. The holding build
+contains only `index.html`, and nginx returns `404` for product pages outside
+`/rehearsal/` while it is active.
+
 All source delivery to `feeserv` must go through GitHub. After the approved
 release commit is pushed to `origin/main`, run `git fetch` on the server and
 create a new release directory by checking out that exact commit SHA in detached

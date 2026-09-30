@@ -20,6 +20,14 @@ keypair и другие secrets находятся вне Git и release-кат�
 активным. Полный rehearsal запускается один раз для замороженного release
 candidate, а не после каждой небольшой правки.
 
+Frontend имеет два независимых канала. Обычный домен обслуживается symlink
+`/var/www/ownataxi/production-current`, а полный тестовый интерфейс под
+`/rehearsal/` — symlink `/var/www/ownataxi/rehearsal-current`. Без отдельной
+команды владельца все новые frontend-релизы переключают только rehearsal-канал.
+Production обновляется отдельно или атомарно продвигается с проверенного release
+через `deploy/switch-ownataxi-frontend.sh`. Holding-сборка показывает только
+главную страницу и `COMING SOON` вместо CA.
+
 > **Текущий статус:** по решению владельца deployment `GHGq…i3i4` и Collection
 > `5DwD…5nroP` являются mainnet-тестом, а не production-релизом. Sale была открыта
 > только для smoke и после тестов снова поставлена на pause. Для настоящего запуска

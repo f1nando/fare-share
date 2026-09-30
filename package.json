@@ -40,6 +40,8 @@
     "mint-assignments:generate": "node --import tsx scripts/generate-mint-assignments.ts",
     "build": "vite build",
     "build:city": "vite build --mode city",
+    "build:holding": "vite build --mode holding",
+    "build:rehearsal": "vite build --mode rehearsal",
     "models:build": "node scripts/build-collection.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --import tsx --test \"tests/*.test.js\" \"tests/*.test.ts\""
