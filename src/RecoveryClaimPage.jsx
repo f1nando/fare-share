@@ -48,8 +48,7 @@ export function RecoveryClaimPage() {
   const correctWallet = walletAddress === RECOVERY_OWNER;
   const rewards = claimState?.machine?.rewards || [];
   const hasRewards = rewards.some(amount => BigInt(amount) > 0n);
-  const paused = claimState?.status?.config?.pausedAt !== 0n;
-  const canClaim = correctWallet && hasRewards && !paused && !busy;
+  const canClaim = correctWallet && hasRewards && !busy;
   const rewardRows = useMemo(() => SYMBOLS.map((symbol, index) => ({
     symbol,
     amount: rewards[index]?.toString() || '0',
@@ -111,7 +110,7 @@ export function RecoveryClaimPage() {
 
         <div className="recovery-state-grid">
           <div><span>Wallet</span><strong>{wallet ? shortAddress(walletAddress) : 'Not connected'}</strong><small>{wallet ? (correctWallet ? 'Verified owner' : 'Wrong wallet') : 'Connect the required wallet'}</small></div>
-          <div><span>Protocol</span><strong>{claimState ? (paused ? 'Paused' : 'Claim window open') : 'Checking'}</strong><small>{paused ? 'Wait for the operator to open the claim window' : 'Backend and worker remain stopped'}</small></div>
+          <div><span>Protocol</span><strong>{claimState ? 'Claim window open' : 'Checking'}</strong><small>Verified by the admin instruction preflight</small></div>
           <div><span>Claim state</span><strong>{claimState ? (hasRewards ? 'Rewards available' : 'Complete') : 'Checking'}</strong><small>Read from finalized Solana accounts</small></div>
         </div>
 
@@ -120,7 +119,7 @@ export function RecoveryClaimPage() {
           {rewardRows.map(row => <div key={row.symbol}><span>{row.symbol}</span><strong>{row.amount}</strong></div>)}
         </div>
 
-        <p className={`recovery-notice${correctWallet && !paused ? ' is-ready' : ''}`} role="status">{notice}</p>
+        <p className={`recovery-notice${correctWallet ? ' is-ready' : ''}`} role="status">{notice}</p>
         {signature && <a className="recovery-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View finalized transaction on Solscan</a>}
 
         <div className="recovery-actions">
