@@ -46,6 +46,13 @@
 | L-10 | Production launch | ⬜ 🛑 🔐 | Разрешённый deploy, initialize, smoke и только затем `start_sale` |
 | L-11 | Legal, UX и marketplace | ⬜ 🛑 | Legal copy, desktop/mobile, Phantom и Magic Eden проверены |
 
+## Принятые решения
+
+| ID | Решение | Статус и обязательные меры |
+|---|---|---|
+| D-01 | Production admin wallet также используется как worker payer/signer | Владелец явно принял повышенный риск 30 сентября 2026. Upgrade authority остаётся отдельной и offline. Admin/worker secret хранится только в secret storage; сервер имеет минимальный доступ, SOL balance ограничен, low-balance и admin-operation alerts обязательны. |
+| D-02 | Rent временных Jupiter ATA возвращается admin/worker payer | Закрывается только canonical пустой ATA, созданный для подтверждённого route. Возврат идёт исходному payer после swap; закрытие чужого или непустого аккаунта запрещено. |
+
 ## L-01. Worker/Jupiter reserve routes
 
 Исторический disposable mainnet-контур уже подтверждал реальные reward swaps, в
@@ -60,8 +67,8 @@ focused review и повторный smoke на release candidate.
 - [ ] Подтвердить атомарную связь reserve funding → Ed25519 plan → swap без
       `sync_native`/lamport checkpoint mismatch.
 - [ ] Разрешать только canonical idempotent ATA setup для route accounts.
-- [ ] Пустые temporary ATA закрывать retryable-операцией; rent возвращать
-      определённому безопасному получателю без потери reward reserves.
+- [ ] Пустые temporary ATA закрывать retryable-операцией; согласно D-02 rent
+      возвращать admin/worker payer без потери reward reserves.
 - [ ] Проверить Token и Token-2022 output routes, закрытый WSOL source и stale route.
 - [ ] Проверить fallback/quarantine неработающего DEX без списания reserve.
 - [ ] Focused checks: Rust swap tests, Jupiter tests, worker tests, server typecheck,
@@ -139,9 +146,10 @@ Collection и всех 17 типов assets.
 
 - [ ] Новый production Program ID keypair.
 - [ ] Новый collection signer.
-- [ ] Новый admin keypair.
+- [ ] Новый admin keypair, который по решению D-01 также используется worker.
 - [ ] Новый backend Ed25519 signer.
-- [ ] Новый worker keypair.
+- [x] Отдельный worker keypair не создаётся: worker использует production admin
+      keypair согласно D-01.
 - [ ] Случайный production `DEPLOYMENT_ID_HEX`.
 - [ ] Upgrade authority сохранена минимум в двух проверенных offline backup.
 - [ ] Явно записаны public addresses authority, deploy fee payer и recovery
@@ -184,7 +192,8 @@ Collection и всех 17 типов assets.
 - [ ] Collection name/URI и 16 machine metadata URI.
 - [ ] Trainee metadata URI.
 - [ ] USD prices: Economy `5000`; Comfort, Business и Legend — утверждённые cents.
-- [ ] Backend signer public key и worker public key/budget.
+- [ ] Backend signer public key и общий admin/worker public key с минимальным
+      рабочим SOL budget.
 - [ ] MongoDB database name, RPC/DAS endpoints и allowed origin.
 - [ ] Quote TTL, market max age, price impact/divergence, slippage и minimum swap.
 - [ ] Caps `[1000, 300, 100, 25]`, weights `[1, 3, 10, 30]` и trainee semantics.
