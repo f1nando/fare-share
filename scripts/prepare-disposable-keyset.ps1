@@ -13,7 +13,8 @@ $output = [IO.Path]::GetFullPath($OutputDirectory)
 $zip = [IO.Path]::GetFullPath($BackupZip)
 
 function Convert-ToWslPath([string]$Path) {
-  $converted = (& wsl.exe wslpath -a -u $Path).Trim()
+  $portablePath = $Path.Replace('\', '/')
+  $converted = (& wsl.exe -e wslpath -a -u $portablePath).Trim()
   if ($LASTEXITCODE -ne 0 -or -not $converted) { throw "Could not convert path for WSL: $Path" }
   return $converted
 }
