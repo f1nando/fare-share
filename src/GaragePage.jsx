@@ -7,6 +7,7 @@ import {
   claimMachine,
   claimTrainee,
   explorerTransaction,
+  loadOwnedMachines,
   loadProtocolStatus,
   loadOwnedTrainees,
   MAX_CLAIM_MACHINES_PER_TRANSACTION,
@@ -110,7 +111,7 @@ export function GaragePage({ wallet }) {
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
       const [nextMachines, nextHistory, nextTrainees] = await Promise.all([
-        loadDatabaseFleet(wallet.account.address),
+        loadOwnedMachines(wallet.account.address, nextStatus),
         loadDatabaseEarningHistory(wallet.account.address, historyPeriod),
         loadOwnedTrainees(wallet.account.address, nextStatus),
       ]);
