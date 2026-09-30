@@ -58,7 +58,7 @@ export function loadServerConfig() {
     voucherTtlSeconds: integer('VOUCHER_TTL_SECONDS', 180, 30),
     mintQuoteTtlSeconds: boundedInteger('MINT_QUOTE_TTL_SECONDS', 45, 10, 120),
     mintQuoteMarketMaxAgeMs: boundedInteger('MINT_QUOTE_MARKET_MAX_AGE_MS', 15_000, 1_000, 60_000),
-    mintQuoteMaxPriceImpactPct: boundedNumber('MINT_QUOTE_MAX_PRICE_IMPACT_PCT', 3, 0, 25),
+    mintQuoteMaxPriceImpactPct: boundedNumber('MINT_QUOTE_MAX_PRICE_IMPACT_PCT', 5, 0, 25),
     mintQuoteMaxPriceDivergencePct: boundedNumber('MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT', 10, 0, 50),
     mintAssignmentsPath: process.env.MINT_ASSIGNMENTS_PATH?.trim() || 'config/mint-assignments.json',
     allowedOrigin: process.env.ALLOWED_ORIGIN?.trim() || 'http://localhost:5173',
