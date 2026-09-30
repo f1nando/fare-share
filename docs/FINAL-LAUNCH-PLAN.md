@@ -94,6 +94,7 @@
 | D-42 | Mint quote действует 45 секунд | `MINT_QUOTE_TTL_SECONDS=45`. Frontend обновляет quote заранее; on-chain программа отклоняет истёкшую подпись. Quote привязан к owner, asset, assignment index/class/variant, текущему `$FARE` CA, raw amount и USD price. |
 | D-43 | Максимальный возраст reference market price равен 15 секунд | `MINT_QUOTE_MARKET_MAX_AGE_MS=15000`. Более старые данные считаются stale, backend не подписывает mint quote до получения свежей цены. |
 | D-44 | Полный shuffled manifest из 1222 assignments не публикуется до окончания sale | До sold out публичны только on-chain Merkle root и текущая следующая assignment через краткоживущий quote. Полный manifest остаётся server-side и после завершения продажи публикуется для независимой проверки root, class totals и variant balance. |
+| D-45 | Private mint assignment manifest имеет две резервные копии | Рабочая копия хранится на rehearsal server вне public web root; backup помещается в обычный Desktop ZIP рядом с disposable key backup. Обе копии сверяются по SHA-256 и Merkle root, не попадают в Git/логи/чат и не публикуются до sold out. |
 
 ## L-01. Worker/Jupiter reserve routes
 
