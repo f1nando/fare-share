@@ -21,6 +21,12 @@ const TOKEN_2022_ACCOUNT_TYPE_OFFSET: usize = 165;
 const TOKEN_2022_TLV_OFFSET: usize = 166;
 const METADATA_POINTER_EXTENSION: u16 = 18;
 const TOKEN_METADATA_EXTENSION: u16 = 19;
+const CONFIDENTIAL_TRANSFER_MINT_EXTENSION: u16 = 4;
+const DEFAULT_ACCOUNT_STATE_EXTENSION: u16 = 6;
+const PERMANENT_DELEGATE_EXTENSION: u16 = 12;
+const TRANSFER_HOOK_EXTENSION: u16 = 14;
+const SCALED_UI_AMOUNT_EXTENSION: u16 = 25;
+const PAUSABLE_EXTENSION: u16 = 26;
 
 const CLOSE_ACCOUNT: u8 = 9;
 const TRANSFER_CHECKED: u8 = 12;
@@ -87,8 +93,7 @@ fn mint_data_is_transfer_compatible(token_program: &Pubkey, mint: &Pubkey, data:
         return false;
     }
     let mut offset = TOKEN_2022_TLV_OFFSET;
-    let mut metadata_pointer = false;
-    let mut token_metadata = false;
+    let mut seen = 0_u16;
     while offset < data.len() {
         if offset + 4 > data.len() {
             return false;
@@ -100,24 +105,28 @@ fn mint_data_is_transfer_compatible(token_program: &Pubkey, mint: &Pubkey, data:
             return false;
         }
         let extension = &data[offset..offset + extension_len];
-        match extension_type {
-            METADATA_POINTER_EXTENSION if !metadata_pointer && extension_len == 64 => {
-                if extension[..32].iter().any(|byte| *byte != 0) || extension[32..64] != mint.to_bytes() {
-                    return false;
-                }
-                metadata_pointer = true;
-            }
-            TOKEN_METADATA_EXTENSION if !token_metadata && extension_len >= 64 => {
-                if extension[..32].iter().any(|byte| *byte != 0) || extension[32..64] != mint.to_bytes() {
-                    return false;
-                }
-                token_metadata = true;
-            }
+        let bit = match extension_type {
+            CONFIDENTIAL_TRANSFER_MINT_EXTENSION if extension_len == 65
+                && extension[32..].iter().all(|byte| *byte == 0) => 1 << 0,
+            DEFAULT_ACCOUNT_STATE_EXTENSION if extension == [1] => 1 << 1,
+            PERMANENT_DELEGATE_EXTENSION if extension_len == 32 => 1 << 2,
+            TRANSFER_HOOK_EXTENSION if extension_len == 64
+                && extension[32..].iter().all(|byte| *byte == 0) => 1 << 3,
+            METADATA_POINTER_EXTENSION if extension_len == 64
+                && extension[32..64] == mint.to_bytes() => 1 << 4,
+            TOKEN_METADATA_EXTENSION if extension_len >= 64
+                && extension[32..64] == mint.to_bytes() => 1 << 5,
+            SCALED_UI_AMOUNT_EXTENSION if extension_len == 56 => 1 << 6,
+            PAUSABLE_EXTENSION if extension_len == 33 && extension[32] == 0 => 1 << 7,
             _ => return false,
+        };
+        if seen & bit != 0 {
+            return false;
         }
+        seen |= bit;
         offset += extension_len;
     }
-    metadata_pointer && token_metadata
+    seen & (1 << 4) != 0 && seen & (1 << 5) != 0
 }
 
 fn parse_mint_data(data: &[u8]) -> Result<MintView> {
@@ -408,5 +417,30 @@ mod tests {
         assert!(mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &pump_mint));
         pump_mint[TOKEN_2022_TLV_OFFSET] = 1;
         assert!(!mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &pump_mint));
+
+        let mut xstock = vec![0_u8; TOKEN_2022_TLV_OFFSET];
+        xstock[..mint_data.len()].copy_from_slice(&mint_data);
+        xstock[TOKEN_2022_ACCOUNT_TYPE_OFFSET] = 1;
+        for (extension_type, mut extension) in [
+            (METADATA_POINTER_EXTENSION, vec![0_u8; 64]),
+            (PERMANENT_DELEGATE_EXTENSION, vec![7_u8; 32]),
+            (DEFAULT_ACCOUNT_STATE_EXTENSION, vec![1_u8]),
+            (SCALED_UI_AMOUNT_EXTENSION, vec![0_u8; 56]),
+            (PAUSABLE_EXTENSION, vec![0_u8; 33]),
+            (CONFIDENTIAL_TRANSFER_MINT_EXTENSION, vec![0_u8; 65]),
+            (TRANSFER_HOOK_EXTENSION, vec![0_u8; 64]),
+            (TOKEN_METADATA_EXTENSION, vec![0_u8; 64]),
+        ] {
+            if extension_type == METADATA_POINTER_EXTENSION || extension_type == TOKEN_METADATA_EXTENSION {
+                extension[32..64].copy_from_slice(mint.as_ref());
+            }
+            xstock.extend_from_slice(&extension_type.to_le_bytes());
+            xstock.extend_from_slice(&(extension.len() as u16).to_le_bytes());
+            xstock.extend_from_slice(&extension);
+        }
+        assert!(mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &xstock));
+        let hook_program_offset = TOKEN_2022_TLV_OFFSET + 4 + 64 + 4 + 32 + 4 + 1 + 4 + 56 + 4 + 33 + 4 + 65 + 4 + 32;
+        xstock[hook_program_offset] = 1;
+        assert!(!mint_data_is_transfer_compatible(&TOKEN_2022_PROGRAM_ID, &mint, &xstock));
     }
 }
