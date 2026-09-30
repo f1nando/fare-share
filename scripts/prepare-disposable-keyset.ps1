@@ -11,6 +11,8 @@ $requiredConfirmation = 'GENERATE-DISPOSABLE-REHEARSAL-KEYSET'
 $repo = [IO.Path]::GetFullPath((git rev-parse --show-toplevel).Trim())
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $zip = [IO.Path]::GetFullPath($BackupZip)
+$solanaKeygen = (& wsl.exe -e bash -lc 'command -v solana-keygen').Trim()
+if ($LASTEXITCODE -ne 0 -or -not $solanaKeygen) { throw 'solana-keygen is unavailable in the WSL login shell.' }
 
 function Convert-ToWslPath([string]$Path) {
   $portablePath = $Path.Replace('\', '/')
@@ -20,7 +22,7 @@ function Convert-ToWslPath([string]$Path) {
 }
 
 function Invoke-SolanaKeygen([string[]]$KeygenArguments) {
-  $output = & wsl.exe solana-keygen @KeygenArguments
+  $output = & wsl.exe -e $solanaKeygen @KeygenArguments
   if ($LASTEXITCODE -ne 0) { throw "WSL solana-keygen failed: $($KeygenArguments -join ' ')" }
   return $output
 }
