@@ -13,6 +13,7 @@ const CREATE_COLLECTION_V2_DISCRIMINATOR: u8 = 21;
 const ACCOUNT_STATE: u8 = 0;
 const UPDATE_DELEGATE_PLUGIN: u8 = 4;
 const IMMUTABLE_METADATA_PLUGIN: u8 = 12;
+const PERMANENT_FREEZE_DELEGATE_PLUGIN: u8 = 5;
 
 pub fn create_collection_v2(
     collection: Pubkey,
@@ -53,6 +54,7 @@ pub fn create_collection_v2(
     })
 }
 
+#[derive(Clone, Copy)]
 pub struct CreateAsset<'a> {
     pub asset: Pubkey,
     pub collection: Pubkey,
@@ -62,6 +64,7 @@ pub struct CreateAsset<'a> {
     pub system_program: Pubkey,
     pub name: &'a str,
     pub uri: &'a str,
+    pub permanently_frozen: bool,
 }
 
 pub fn create_asset_v1(args: CreateAsset<'_>) -> Result<Instruction> {
@@ -70,8 +73,18 @@ pub fn create_asset_v1(args: CreateAsset<'_>) -> Result<Instruction> {
     data.push(ACCOUNT_STATE);
     push_string(&mut data, args.name)?;
     push_string(&mut data, args.uri)?;
-    // plugins: None
-    data.push(0);
+    if args.permanently_frozen {
+        // Some([PermanentFreezeDelegate { frozen: true }]) with the
+        // collection update authority as the plugin authority.
+        data.push(1);
+        data.extend_from_slice(&1_u32.to_le_bytes());
+        data.push(PERMANENT_FREEZE_DELEGATE_PLUGIN);
+        data.push(1);
+        data.push(0);
+    } else {
+        // plugins: None
+        data.push(0);
+    }
 
     Ok(Instruction {
         program_id: MPL_CORE_ID,
@@ -160,6 +173,7 @@ mod tests {
             system_program: anchor_lang::system_program::ID,
             name,
             uri,
+            permanently_frozen: false,
         })
         .unwrap();
 
@@ -180,6 +194,44 @@ mod tests {
             plugins: None,
         });
 
+        assert_eq!(instruction, expected);
+    }
+
+    #[test]
+    fn trainee_asset_is_created_permanently_frozen() {
+        let args = CreateAsset {
+            asset: Pubkey::new_unique(),
+            collection: Pubkey::new_unique(),
+            authority: Pubkey::new_unique(),
+            payer: Pubkey::new_unique(),
+            owner: Pubkey::new_unique(),
+            system_program: anchor_lang::system_program::ID,
+            name: "TAXI Trainee",
+            uri: "https://example.test/trainee.json",
+            permanently_frozen: true,
+        };
+        let instruction = create_asset_v1(args).unwrap();
+        let expected = mpl_core::instructions::CreateV1 {
+            asset: args.asset,
+            collection: Some(args.collection),
+            authority: Some(args.authority),
+            payer: args.payer,
+            owner: Some(args.owner),
+            update_authority: None,
+            system_program: args.system_program,
+            log_wrapper: None,
+        }
+        .instruction(mpl_core::instructions::CreateV1InstructionArgs {
+            data_state: mpl_core::types::DataState::AccountState,
+            name: args.name.to_owned(),
+            uri: args.uri.to_owned(),
+            plugins: Some(vec![mpl_core::types::PluginAuthorityPair {
+                plugin: mpl_core::types::Plugin::PermanentFreezeDelegate(
+                    mpl_core::types::PermanentFreezeDelegate { frozen: true },
+                ),
+                authority: None,
+            }]),
+        });
         assert_eq!(instruction, expected);
     }
 

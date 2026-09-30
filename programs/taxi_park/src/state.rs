@@ -36,6 +36,8 @@ pub struct Configuration {
     pub stock_mints: [Pubkey; STOCK_COUNT],
     #[max_len(MAX_METADATA_URI_LEN)]
     pub metadata_uris: [String; METADATA_URI_COUNT],
+    #[max_len(MAX_METADATA_URI_LEN)]
+    pub trainee_metadata_uri: String,
     pub mint_prices: [u64; CLASS_COUNT],
     pub minted_by_class: [u16; CLASS_COUNT],
     pub sale_started: bool,
@@ -263,6 +265,7 @@ pub struct Machine {
 #[derive(InitSpace, Default)]
 pub struct Trainee {
     pub owner: Pubkey,
+    pub asset: Pubkey,
     pub campaign_id: u64,
     pub nonce: u64,
     pub active_from: i64,

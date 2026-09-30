@@ -135,10 +135,14 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   }
 
   const prices = tuple('MINT_PRICES_LAMPORTS');
+  const expectedPrices = ['350000000', '1000000000', '3000000000', '8000000000'];
   for (const [index, price] of prices.entries()) {
     if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
       errors.push(`MINT_PRICES_LAMPORTS[${index}]: must be a positive integer amount of lamports`);
     }
+  }
+  if (prices.length === expectedPrices.length && prices.some((price, index) => price !== expectedPrices[index])) {
+    errors.push('MINT_PRICES_LAMPORTS: expected fixed Economy/Comfort/Business/Legend prices 350000000,1000000000,3000000000,8000000000');
   }
 
   const deploymentId = required('DEPLOYMENT_ID_HEX');
@@ -204,6 +208,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
   if (metadataUris.length === 16 && new Set(metadataUris).size !== 16) {
     errors.push('MACHINE_METADATA_URIS: every class/variant entry must use a distinct URI');
   }
+  validateMetadataUri('TRAINEE_METADATA_URI', required('TRAINEE_METADATA_URI'), errors);
 
   if (value('SOLANA_RPC_URL') !== value('VITE_SOLANA_RPC_URL')) {
     warnings.push('SOLANA_RPC_URL and VITE_SOLANA_RPC_URL differ; make sure they use the same network');

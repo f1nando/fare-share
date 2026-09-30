@@ -24,7 +24,7 @@ test('Solana proxy only permits the exact trainee program scan', () => {
   const safeScan = {
     jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PROGRAM_ID, {
       commitment: 'finalized', encoding: 'base64',
-      filters: [{ dataSize: 90 }, { memcmp: { offset: 8, bytes: OWNER } }],
+      filters: [{ dataSize: 122 }, { memcmp: { offset: 8, bytes: OWNER } }],
     }],
   };
   assert.equal(validatePayload(safeScan, { programId: PROGRAM_ID }).method, 'getProgramAccounts');

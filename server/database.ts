@@ -99,6 +99,19 @@ export interface FleetMachineDocument {
   updatedAt: Date;
 }
 
+export interface FleetTraineeDocument {
+  asset: string;
+  trainee: string;
+  owner: string;
+  name: string;
+  image: string;
+  campaignId: string;
+  activeFrom: string;
+  activeUntil: string;
+  lastSeenAt: Date;
+  updatedAt: Date;
+}
+
 export interface PublicSnapshotDocument {
   key: 'overview';
   protocol: Record<string, unknown>;
@@ -147,6 +160,7 @@ export interface TaxiDatabase {
   tokenConfig: Collection<TokenConfigDocument>;
   workerStatus: Collection<WorkerStatusDocument>;
   fleetMachines: Collection<FleetMachineDocument>;
+  fleetTrainees: Collection<FleetTraineeDocument>;
   publicSnapshots: Collection<PublicSnapshotDocument>;
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
   fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
@@ -169,6 +183,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const tokenConfig = db.collection<TokenConfigDocument>('token_config');
   const workerStatus = db.collection<WorkerStatusDocument>('worker_status');
   const fleetMachines = db.collection<FleetMachineDocument>('fleet_machines');
+  const fleetTrainees = db.collection<FleetTraineeDocument>('fleet_trainees');
   const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
@@ -198,6 +213,8 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetMachines.createIndex({ owner: 1, closed: 1 }),
     fleetMachines.createIndex({ classIndex: 1, closed: 1 }),
     fleetMachines.createIndex({ mintSignature: 1 }, { unique: true, sparse: true }),
+    fleetTrainees.createIndex({ asset: 1 }, { unique: true }),
+    fleetTrainees.createIndex({ owner: 1, activeUntil: -1 }),
     publicSnapshots.createIndex({ key: 1 }, { unique: true }),
     fleetMintReceipts.createIndex({ signature: 1 }, { unique: true }),
     fleetMintReceipts.createIndex({ asset: 1, status: 1 }),
@@ -205,7 +222,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
     ensureFleetEarningRetention(fleetEarningSnapshots),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots };
 }
 
 export function ensureFleetEarningRetention(

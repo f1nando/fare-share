@@ -98,7 +98,7 @@ function validateGetProgramAccounts(value: unknown, programId?: string) {
   }
   const dataSize = config.filters.map(filter => record(filter, 'program account filter')).find(filter => 'dataSize' in filter);
   const memcmp = config.filters.map(filter => record(filter, 'program account filter')).find(filter => 'memcmp' in filter);
-  if (!dataSize || Object.keys(dataSize).length !== 1 || dataSize.dataSize !== 90) invalid('Program account dataSize filter is required.');
+  if (!dataSize || Object.keys(dataSize).length !== 1 || dataSize.dataSize !== 122) invalid('Program account dataSize filter is required.');
   if (!memcmp || Object.keys(memcmp).length !== 1) invalid('Program account owner filter is required.');
   const comparison = record(memcmp.memcmp, 'memcmp filter');
   exactKeys(comparison, ['offset', 'bytes']);

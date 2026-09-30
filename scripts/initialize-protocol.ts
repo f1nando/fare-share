@@ -34,11 +34,12 @@ const result = await initializeProtocol({
   teamAccount: address(required('TEAM_ACCOUNT')),
   jupiterProgram: address(process.env.JUPITER_PROGRAM_ID || 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'),
   deploymentId: Uint8Array.from(Buffer.from(deploymentHex, 'hex')),
-  collectionName: process.env.COLLECTION_NAME || 'FARE Taxi Park',
+  collectionName: process.env.COLLECTION_NAME || 'TAXI Taxi Park',
   collectionUri: required('COLLECTION_URI'),
   stockMints: tuple(required('STOCK_MINTS').split(',').map(value => address(value.trim())), 'STOCK_MINTS'),
   mintPrices: tuple((process.env.MINT_PRICES_LAMPORTS || '0,0,0,0').split(',').map(value => BigInt(value.trim())), 'MINT_PRICES_LAMPORTS'),
   metadataUris: metadataUris(required('MACHINE_METADATA_URIS').split(',').map(value => value.trim()), 'MACHINE_METADATA_URIS'),
+  traineeMetadataUri: required('TRAINEE_METADATA_URI'),
   lookupTables,
 });
 

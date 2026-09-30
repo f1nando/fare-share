@@ -47,6 +47,7 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
     fleetMachines: {
       find: (filter: Record<string, unknown>) => cursor('owner' in filter ? fleetRows : []),
     },
+    fleetTrainees: { find: () => cursor([]) },
     fleetEarningSnapshots: { find: () => cursor(historyRows) },
   } as unknown as TaxiDatabase;
   const service = createPublicDataService({

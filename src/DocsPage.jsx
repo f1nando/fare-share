@@ -144,7 +144,7 @@ export function DocsPage() {
 
               <section className="fare-docs-copy-section" id="trainee">
                 <SectionTitle number="07">TRAINEE CAMPAIGNS</SectionTitle>
-                <p>A trainee campaign gives an eligible wallet a temporary virtual taxi through a backend-signed voucher. It does not mint a transferable NFT. The voucher defines a campaign, an activation window and a duration between one hour and seven days.</p>
+                <p>A trainee campaign mints an eligible wallet a temporary Metaplex Core NFT through a backend-signed voucher. The NFT appears in the wallet and Garage, but it is permanently non-transferable and cannot be repaired. The voucher defines a campaign, an activation window and a duration between one hour and seven days.</p>
                 <p>{tokenText('Trainees share a separate 5% $FARE pool. Participation starts at the next full minute, ends automatically, and does not affect the main NFT park. Each campaign can be activated once per wallet and claimed separately.', ticker)}</p>
                 <p>The backend checks campaign rules and signs the voucher, while the Solana program verifies that signature and prevents reuse. A voucher never gives the backend access to the user’s wallet.</p>
               </section>

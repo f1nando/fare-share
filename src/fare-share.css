@@ -444,6 +444,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-trainee-list article div { display: grid; gap: 3px; }
 .fare-trainee-list article strong { font-size: 16px; }
 .fare-trainee-list article span, .fare-trainee-list article small { color: #555; font-size: 12px; line-height: 16px; }
+.fare-trainee-garage-card > img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-bottom: 2px solid #111; background: #fff; }
+.fare-trainee-garage-card .is-trainee { background: #ffe72f; }
 
 .fare-docs-page { background: #f4f4f4; }
 .fare-docs-page .fare-city-background { opacity: .16; filter: grayscale(1); }

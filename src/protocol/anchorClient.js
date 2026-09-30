@@ -118,6 +118,7 @@ export function decodeConfiguration(bytes) {
     fareMint: reader.pubkey(),
     stockMints: Array.from({ length: 4 }, () => reader.pubkey()),
     metadataUris: Array.from({ length: 16 }, () => reader.string()),
+    traineeMetadataUri: reader.string(),
     mintPrices: Array.from({ length: 4 }, () => reader.u64()),
     mintedByClass: Array.from({ length: 4 }, () => reader.u16()),
     saleStarted: reader.bool(),
@@ -170,6 +171,7 @@ export function decodeTrainee(bytes) {
   const reader = new Reader(bytes);
   return {
     owner: reader.pubkey(),
+    asset: reader.pubkey(),
     campaignId: reader.u64(),
     nonce: reader.u64(),
     activeFrom: reader.i64(),
@@ -514,8 +516,10 @@ export async function buildActivateTraineeInstructions({
   owner,
   configAddress,
   traineeQueue,
+  collection,
   voucher,
 }) {
+  const assetSigner = await generateKeyPairSigner();
   const args = {
     campaignId: BigInt(voucher.args.campaignId),
     nonce: BigInt(voucher.args.nonce),
@@ -561,7 +565,7 @@ export async function buildActivateTraineeInstructions({
     i64Bytes(args.activeUntil),
     Uint8Array.of(args.pageIndex),
   );
-  return [
+  return { assetSigner, instructions: [
     { programAddress: ED25519_PROGRAM, accounts: [], data: ed25519Data },
     {
       programAddress,
@@ -571,6 +575,9 @@ export async function buildActivateTraineeInstructions({
         meta(traineeQueue, AccountRole.WRITABLE),
         meta(addresses.eventPage, AccountRole.WRITABLE),
         meta(addresses.trainee, AccountRole.WRITABLE),
+        meta(assetSigner.address, AccountRole.WRITABLE_SIGNER),
+        meta(collection, AccountRole.WRITABLE),
+        meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
         meta(addresses.startBucket, AccountRole.WRITABLE),
         meta(addresses.endBucket, AccountRole.WRITABLE),
         meta(INSTRUCTIONS_SYSVAR, AccountRole.READONLY),
@@ -578,7 +585,7 @@ export async function buildActivateTraineeInstructions({
       ],
       data: activateData,
     },
-  ];
+  ] };
 }
 
 export async function buildClaimTraineeInstructions({
@@ -610,6 +617,7 @@ export async function buildClaimTraineeInstructions({
         meta(configAddress, AccountRole.READONLY),
         meta(traineePool, AccountRole.WRITABLE),
         meta(addresses.trainee, AccountRole.WRITABLE),
+        meta(trainee.asset, AccountRole.READONLY),
         meta(addresses.startBucket, AccountRole.READONLY),
         meta(addresses.endBucket, AccountRole.READONLY),
         meta(fareMint, AccountRole.READONLY),
