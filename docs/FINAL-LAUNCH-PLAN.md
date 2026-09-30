@@ -55,6 +55,7 @@
 | D-03 | Worker управляется из admin runtime-настройками и ручными actions | MongoDB хранит ON/OFF, частоту и minimum SOL threshold. Отдельные admin-кнопки запускают creator-fee claim+deposit, contract split, swaps, reward calculation и полный цикл; MongoDB lock запрещает параллельные запуски. |
 | D-04 | Первый production-запуск worker начинается в состоянии OFF | После deploy оператор вручную запускает полный цикл, сверяет creator fees, reserves, покупки и rewards, и только после успешной проверки включает automation в admin. |
 | D-05 | Paid mint — случайная машина из точного тиража 1222 по единой цене $25 | Классы: `833 / 278 / 83 / 28`; веса наград `1 / 3 / 10 / 30`. Четыре варианта внутри каждого класса распределяются максимально поровну, лишние варианты выбираются случайно. Весь порядок заранее перемешивается и фиксируется 96-bit Merkle root. Следующая машина показывается до wallet confirmation; владелец принимает риск конкуренции за заранее видимую редкую позицию. |
+| D-06 | Финальная репетиция проводится в отдельном disposable mainnet-контуре | Используются только временные Program ID, Collection, совместимый test token и отдельный MongoDB namespace. Production Program, Collection, token supply и database не затрагиваются. Любые key generation, расходы SOL и mainnet-транзакции всё равно требуют отдельного прямого разрешения владельца. |
 
 ## L-01. Worker/Jupiter reserve routes
 
