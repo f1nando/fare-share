@@ -88,6 +88,7 @@
 | D-36 | Новая Trainee campaign по умолчанию активна 24 часа | Backend создаёт новые admin campaigns с `durationMinutes = 1440`. Изменение применяется только к новым активациям; NFT после завершения периода остаётся wallet-visible, permanently frozen и non-transferable, но больше не получает rewards. |
 | D-37 | Full worker cycle запускается каждые 5 минут, reward queues проверяются каждую минуту | Full cycle выполняет creator fees, contract split, swaps и rewards. Между full cycles отдельный reward action раз в 60 секунд догоняет main и trainee queues. Один on-chain batch содержит максимум 20 событий; если готовы 40 событий, worker после finalization первого batch сразу отправляет второй, не ожидая следующей минуты. MongoDB lock не допускает параллельные actions. |
 | D-38 | Автоматический monetary threshold worker равен `0.1 SOL` | Creator-fee claim/deposit, contract split и reserve swaps в automatic mode ожидают минимум `100,000,000` lamports. Это уменьшает число мелких fee-paying транзакций. Manual admin actions сохраняют порог в 1 lamport и могут обрабатывать меньшую сумму по явному действию оператора. |
+| D-39 | Максимальное slippage worker swaps равно 5% | `SWAP_SLIPPAGE_BPS=500`. Если безопасный Jupiter route не укладывается в предел, swap не выполняется и соответствующий reserve остаётся нетронутым для следующей попытки или ручного решения. |
 
 ## L-01. Worker/Jupiter reserve routes
 
