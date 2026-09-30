@@ -671,6 +671,7 @@ test('multi-signer mint lets the wallet sign before adding the asset signature',
   let signAndSendCalled = false;
   const rpc = {
     getLatestBlockhash: () => ({ send: async () => ({ value: { blockhash: String(blockhash.address), lastValidBlockHeight: 999n } }) }),
+    simulateTransaction: () => ({ send: async () => ({ value: { err: null, logs: [] } }) }),
     sendTransaction: wire => ({
       send: async () => {
         sentTransaction = getTransactionDecoder().decode(Buffer.from(wire, 'base64'));
