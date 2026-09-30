@@ -31,6 +31,7 @@ import {
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   MAX_REPAIR_MACHINES_PER_TRANSACTION as MAX_REPAIR_MACHINES_ONCHAIN,
   sendWalletInstructions,
+  waitForFinalizedSignature,
 } from './anchorClient.js';
 import { createRateLimitedSolanaRpc, rateLimitedDasFetch, rateLimitedRpcFetch } from './requestLimits.js';
 
@@ -395,32 +396,8 @@ export async function prepareMintQuote(connection, knownStatus) {
   return { assetSigner, quote, status, ownerFareBalance };
 }
 
-export async function buyMissingFare(connection, knownStatus, preparedQuote) {
-  const prepared = preparedQuote && BigInt(preparedQuote.quote.expiresAt) > BigInt(Math.floor(Date.now() / 1000) + 5)
-    ? preparedQuote
-    : await prepareMintQuote(connection, knownStatus);
-  const owner = address(connection.account.address);
-  const missingFareRaw = BigInt(prepared.quote.amountFareRaw) - prepared.ownerFareBalance;
-  if (missingFareRaw <= 0n) return { signature: '', missingFareRaw: 0n };
-  const purchase = await backendRequest('/api/mint/buy-quote', { outputAmountRaw: missingFareRaw.toString() });
-  const swap = await backendRequest('/api/mint/buy-build', { quoteId: purchase.quoteId, wallet: String(owner) });
-  const instructions = [
-    ...(swap.computeBudgetInstructions || []),
-    ...(swap.otherInstructions || []),
-    ...(swap.setupInstructions || []),
-    swap.swapInstruction,
-    swap.cleanupInstruction,
-  ].filter(Boolean).map(decodeApiInstruction);
-  const lookupTables = await loadLookupTables(swap.addressLookupTableAddresses || []);
-  const signature = await sendWalletInstructions({
-    rpc,
-    wallet: connection.wallet,
-    account: connection.account,
-    chain: SOLANA_CHAIN,
-    instructions,
-    lookupTables,
-  });
-  return { signature, missingFareRaw, purchase };
+export function waitForTransaction(signature) {
+  return waitForFinalizedSignature(rpc, signature);
 }
 
 export async function mintMachine(connection, knownStatus, preparedQuote) {

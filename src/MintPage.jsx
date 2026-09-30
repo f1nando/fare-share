@@ -3,7 +3,6 @@ import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 import {
   activateTrainee,
-  buyMissingFare,
   claimTrainee,
   explorerTransaction,
   formatTokenAmount,
@@ -11,10 +10,11 @@ import {
   loadProtocolStatus,
   mintMachine,
   prepareMintQuote,
+  waitForTransaction,
 } from './protocol/solana.js';
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
-import { appPath } from './appPath.js';
+import { executeTrade, quoteMintFarePurchase } from './tradeApi.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, odds: '68.17%', sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -189,9 +189,11 @@ export function MintPage({ wallet, connectWallet }) {
     setNotice(`Approve the ${fareTicker} purchase in Phantom…`);
     try {
       const connection = wallet || await connectWallet();
-      const result = await buyMissingFare(connection, status, preparedMint);
-      if (result.signature) setSignature(result.signature);
-      setNotice(`${fareTicker} purchase confirmed. Refreshing your balance…`);
+      const purchase = await quoteMintFarePurchase(missingFareRaw);
+      const purchaseSignature = await executeTrade(connection, purchase.quoteId);
+      setSignature(purchaseSignature);
+      setNotice(`${fareTicker} purchase submitted. Waiting for confirmation…`);
+      await waitForTransaction(purchaseSignature);
       const refreshed = await prepareMintQuote(connection, status);
       setPreparedMint(refreshed);
       setQuoteError('');
@@ -379,7 +381,7 @@ export function MintPage({ wallet, connectWallet }) {
                   <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
                 </button>
               )}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">You can also <a href={appPath('/trade/')}>buy ${fareTicker} on Trade</a>.</p>}
+              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">The missing amount is purchased in a separate Jupiter-built transaction. After confirmation, this button changes to mint.</p>}
               <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
           </div>
