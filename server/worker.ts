@@ -366,11 +366,15 @@ async function cleanupRouteAtas(
   swapKey: string,
 ) {
   for (const instruction of instructions) {
-    try {
-      const signature = await sendInstructions(rpcUrl, caller, [instruction], [], lookupTables);
-      console.log(`${swapKey} route ATA cleanup finalized: ${signature}`);
-    } catch {
-      // The route may already have closed this ATA; any remaining account is still recoverable by its owner.
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const signature = await sendInstructions(rpcUrl, caller, [instruction], [], lookupTables);
+        console.log(`${swapKey} route ATA cleanup finalized: ${signature}`);
+        break;
+      } catch {
+        // The route may already have closed this ATA. Otherwise retry transient cleanup failures.
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+      }
     }
   }
 }

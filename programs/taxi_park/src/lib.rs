@@ -458,7 +458,7 @@ pub mod taxi_park {
             return token::close_account(
                 &ctx.accounts.token_program,
                 &ctx.accounts.pump_wsol_vault,
-                &ctx.accounts.fee_vault.to_account_info(),
+                &ctx.accounts.caller.to_account_info(),
                 &authority,
                 signer_seeds,
             );

@@ -124,23 +124,24 @@
 финальным доказательством для текущего кода: после последних изменений нужен новый
 focused review и повторный smoke на release candidate.
 
-- [ ] Сверить текущую реализацию с подтверждёнными fix-forward commits и удалить
+- [x] Сверить текущую реализацию с подтверждёнными fix-forward commits и удалить
       устаревшие противоречия в документации.
-- [ ] Подтвердить, что Jupiter CPI сохраняет signer worker как payer/taker и не
+- [x] Подтвердить, что Jupiter CPI сохраняет signer worker как payer/taker и не
       допускает посторонних signer.
-- [ ] Подтвердить атомарную связь reserve funding → Ed25519 plan → swap без
+- [x] Подтвердить атомарную связь reserve funding → Ed25519 plan → swap без
       `sync_native`/lamport checkpoint mismatch.
-- [ ] Разрешать только canonical idempotent ATA setup для route accounts.
-- [ ] Пустые temporary ATA закрывать retryable-операцией; согласно D-02 rent
+- [x] Разрешать только canonical idempotent ATA setup для route accounts.
+- [x] Пустые temporary ATA закрывать retryable-операцией; согласно D-02 rent
       возвращать admin/worker payer без потери reward reserves.
-- [ ] Проверить Token и Token-2022 output routes, закрытый WSOL source и stale route.
-- [ ] Проверить fallback/quarantine неработающего DEX без списания reserve.
-- [ ] Focused checks: Rust swap tests, Jupiter tests, worker tests, server typecheck,
+- [x] Проверить Token и Token-2022 output routes, закрытый WSOL source и stale route.
+- [x] Проверить fallback/quarantine неработающего DEX без списания reserve.
+- [x] Focused checks: Rust swap tests, Jupiter tests, worker tests, server typecheck,
       worker transaction wire-size.
 - [ ] Disposable smoke: `$FARE` и каждый из четырёх xStocks; при отсутствии
       безопасного route соответствующий reserve обязан остаться неизменным.
-- [ ] После smoke worker остаётся остановленным до production launch и получает
-      только отдельно согласованный минимальный SOL balance.
+- [ ] После обязательного ручного smoke disposable worker включается только при
+      успешной сверке и затем работает по D-22/D-23; production worker остаётся OFF
+      до отдельного production launch.
 
 **Gate L-01 PASS:** зафиксированы signatures либо доказанный safe no-route result
 для всех пяти направлений; reserve accounting, reward vault delta и rent refund
