@@ -364,19 +364,21 @@ export function MintPage({ wallet, connectWallet }) {
               </div>
 
               {preparedMint && <p className="fare-mint-note">≈ {formatTokenAmount(BigInt(preparedMint.quote.amountFareRaw), fareDecimals)} ${fareTicker} per taxi · quote expires in {Math.max(0, Number(BigInt(preparedMint.quote.expiresAt) - BigInt(Math.floor(Date.now() / 1000))))}s<br />Balance: {formatTokenAmount(preparedMint.ownerFareBalance, fareDecimals)} ${fareTicker}</p>}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note" role="status">Buy the missing {formatTokenAmount(missingFareRaw, fareDecimals)} ${fareTicker} before minting.</p>}
               {quoteError && <p className="fare-garage-notice" role="status">{quoteError}</p>}
 
               {notice && <p className="fare-garage-notice" role="status">{notice}</p>}
               {signature && <a className="fare-garage-signature" href={explorerTransaction(signature)} target="_blank" rel="noreferrer">View transaction</a>}
-              {preparedMint && !hasQuotedBalance && <button className="fare-mint-submit" type="button" disabled={busy || buyBusy} onClick={handleBuyMissingFare}>
-                <span>{buyBusy ? `Buying ${fareTicker}…` : `Buy missing ${fareTicker}`}</span>
-                <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
-              </button>}
-              <button className="fare-mint-submit" type="button" disabled={busy || buyBusy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && (!preparedMint || !hasQuotedBalance))} onClick={handleMint}>
-                <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
-                <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
-              </button>
+              {preparedMint && !hasQuotedBalance ? (
+                <button className="fare-mint-submit" type="button" disabled={busy || buyBusy} onClick={handleBuyMissingFare}>
+                  <span>{buyBusy ? `Buying ${fareTicker}…` : `Buy ${formatTokenAmount(missingFareRaw, fareDecimals)} ${fareTicker}`}</span>
+                  <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
+                </button>
+              ) : (
+                <button className="fare-mint-submit" type="button" disabled={busy || buyBusy || !status?.deployed || !databaseMint?.saleStarted || paused || remaining === 0 || (wallet && !preparedMint)} onClick={handleMint}>
+                  <span>{busy ? 'Minting…' : paused ? 'Mint paused' : remaining === 0 ? 'Sold out' : 'Mint taxi NFT'}</span>
+                  <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
+                </button>
+              )}
               {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">You can also <a href={appPath('/trade/')}>buy ${fareTicker} on Trade</a>.</p>}
               <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
