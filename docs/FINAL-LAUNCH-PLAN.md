@@ -90,6 +90,7 @@
 | D-38 | Автоматический monetary threshold worker равен `0.1 SOL` | Creator-fee claim/deposit, contract split и reserve swaps в automatic mode ожидают минимум `100,000,000` lamports. Это уменьшает число мелких fee-paying транзакций. Manual admin actions сохраняют порог в 1 lamport и могут обрабатывать меньшую сумму по явному действию оператора. |
 | D-39 | Максимальное slippage worker swaps равно 5% | `SWAP_SLIPPAGE_BPS=500`. Если безопасный Jupiter route не укладывается в предел, swap не выполняется и соответствующий reserve остаётся нетронутым для следующей попытки или ручного решения. |
 | D-40 | Максимальный price impact paid mint quote равен 5% | `MINT_QUOTE_MAX_PRICE_IMPACT_PCT=5`. При большем impact backend не подписывает quote, пользователь не отправляет payment transaction, а supply position остаётся неизменной. |
+| D-41 | Максимальное расхождение reference и executable `$FARE` price равно 10% | `MINT_QUOTE_MAX_PRICE_DIVERGENCE_PCT=10`. Если Jupiter executable route расходится со свежей reference price сильнее, backend не подписывает mint quote до нормализации рынка. |
 
 ## L-01. Worker/Jupiter reserve routes
 
