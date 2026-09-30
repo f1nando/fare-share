@@ -1,10 +1,12 @@
 import { address, type Address } from '@solana/kit';
-import type { TaxiDatabase } from './database.js';
+import type { FleetMachineDocument, PublicSnapshotDocument, TaxiDatabase } from './database.js';
 import { loadProtocolDashboard } from './protocolDashboard.js';
 import { solanaRpcCall } from './solanaRpc.js';
 
 const CLASS_INDEX = new Map([[1, 0], [3, 1], [10, 2], [30, 3]]);
 const SYNC_TTL_MS = 15_000;
+const OVERVIEW_CACHE_TTL_MS = 30_000;
+const DAS_BATCH_SIZE = 1_000;
 const SNAPSHOT_BUCKET_MS = 5 * 60 * 1_000;
 const HISTORY_PERIODS = {
   '24h': { durationMs: 24 * 60 * 60 * 1_000, groupMs: 60 * 60 * 1_000 },
@@ -37,6 +39,8 @@ export function createPublicDataService(config: {
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
+  let activeOverviewRead: Promise<PublicOverview> | null = null;
+  let cachedOverview: { value: PublicOverview; expiresAt: number } | null = null;
 
   async function sync(force = false) {
     if (!force && Date.now() - lastSyncAt < SYNC_TTL_MS) return;
@@ -95,69 +99,45 @@ export function createPublicDataService(config: {
             database.fleetMintReceipts.updateOne({ signature: receipt.signature }, { $set: { status: 'indexed', updatedAt: now } }),
           ]);
         }
-        await saveEarningSnapshots(database, now);
       }
-      await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
+      const snapshot = {
         key: 'overview',
         protocol: dashboard.protocol,
         distribution: dashboard.distribution,
         vaults: dashboard.vaults,
         observedAt: new Date(dashboard.observedAt),
         updatedAt: now,
+      } satisfies Omit<PublicSnapshotDocument, 'overview'>;
+      const machines = await database.fleetMachines.find({ closed: false }).toArray();
+      if (dashboard.machines.length) await saveEarningSnapshots(database, now, machines);
+      const preparedOverview = buildPublicOverview(snapshot, machines);
+      await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
+        ...snapshot,
+        overview: preparedOverview,
       } }, { upsert: true });
+      cachedOverview = { value: preparedOverview, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS };
       lastSyncAt = Date.now();
     })().finally(() => { activeSync = null; });
     return activeSync;
   }
 
   async function overview() {
-    await sync();
-    const [snapshot, machines] = await Promise.all([
-      database.publicSnapshots.findOne({ key: 'overview' }),
-      database.fleetMachines.find({ closed: false }).toArray(),
-    ]);
-    if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
-    const ownerRows = new Map<string, { owner: string; cars: number; activeWeight: number; claimableFareRaw: bigint }>();
-    for (const machine of machines) {
-      const row = ownerRows.get(machine.owner) || { owner: machine.owner, cars: 0, activeWeight: 0, claimableFareRaw: 0n };
-      row.cars += 1;
-      if (machine.rewardActive) row.activeWeight += machine.weight;
-      row.claimableFareRaw += BigInt(machine.claimable[0] || '0');
-      ownerRows.set(machine.owner, row);
-    }
-    const leaders = [...ownerRows.values()]
-      .sort((left, right) => right.activeWeight - left.activeWeight || right.cars - left.cars || left.owner.localeCompare(right.owner))
-      .slice(0, 100)
-      .map(row => ({ ...row, claimableFareRaw: row.claimableFareRaw.toString() }));
-    const classCounts = [0, 0, 0, 0];
-    for (const machine of machines) classCounts[machine.classIndex] += 1;
-    return {
-      mint: {
-        pricesLamports: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
-        mintedByClass: Array.isArray(snapshot.protocol.mintedByClass) ? snapshot.protocol.mintedByClass.map(Number) : [],
-        paused: Boolean(snapshot.protocol.paused),
-        saleStarted: Boolean(snapshot.protocol.saleStarted),
-      },
-      stats: {
-        mintedCars: machines.length,
-        activeCars: machines.filter(machine => machine.rewardActive).length,
-        uniqueOwners: ownerRows.size,
-        activeWeight: String(snapshot.distribution.activeWeight || '0'),
-        treasurySolLamports: String(snapshot.vaults.solLamports || '0'),
-        fundedRewardAssets: Array.isArray(snapshot.vaults.tokens)
-          ? snapshot.vaults.tokens.filter(token => BigInt(String((token as { amount?: unknown }).amount || '0')) > 0n).length
-          : 0,
-      },
-      classCounts,
-      leaders,
-      observedAt: snapshot.observedAt,
-    };
+    if (cachedOverview && cachedOverview.expiresAt > Date.now()) return cachedOverview.value;
+    if (activeOverviewRead) return activeOverviewRead;
+    activeOverviewRead = (async () => {
+      const snapshot = await database.publicSnapshots.findOne({ key: 'overview' });
+      if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
+      const value = snapshot.overview as PublicOverview | undefined
+        || buildPublicOverview(snapshot, await database.fleetMachines.find({ closed: false }).toArray());
+      cachedOverview = { value, expiresAt: Date.now() + OVERVIEW_CACHE_TTL_MS };
+      return value;
+    })().finally(() => { activeOverviewRead = null; });
+    return activeOverviewRead;
   }
 
   async function walletFleet(rawOwner: string) {
     let owner: Address;
     try { owner = address(rawOwner); } catch { throw new PublicDataError('Invalid wallet address.'); }
-    await sync(true);
     const [snapshot, machines] = await Promise.all([
       database.publicSnapshots.findOne({ key: 'overview' }),
       database.fleetMachines.find({ owner: String(owner), closed: false }).sort({ activeUntil: -1 }).toArray(),
@@ -203,7 +183,6 @@ export function createPublicDataService(config: {
       $set: { asset, owner, slot: status.slot, blockTime, updatedAt: now },
       $setOnInsert: { signature, status: 'pending', createdAt: now },
     }, { upsert: true });
-    await sync(true);
     const machine = await database.fleetMachines.findOne({ asset, owner });
     if (!machine) return { saved: true, indexed: false, asset, owner, signature };
     await database.fleetMachines.updateOne({ asset }, { $set: {
@@ -220,7 +199,6 @@ export function createPublicDataService(config: {
     try { owner = address(rawOwner); } catch { throw new PublicDataError('Invalid wallet address.'); }
     if (!(rawPeriod in HISTORY_PERIODS)) throw new PublicDataError('History period must be 24h, 7d, or 30d.');
     const period = HISTORY_PERIODS[rawPeriod as keyof typeof HISTORY_PERIODS];
-    await sync(true);
     const [snapshot, rows] = await Promise.all([
       database.publicSnapshots.findOne({ key: 'overview' }),
       database.fleetEarningSnapshots.find({
@@ -244,15 +222,56 @@ export function createPublicDataService(config: {
   }
 
   async function market() {
-    await sync();
     return { listings: [], floorLamports: null, totalVolumeLamports: '0' };
   }
 
   return { overview, walletFleet, recordMint, earningHistory, market, sync };
 }
 
-async function saveEarningSnapshots(database: TaxiDatabase, observedAt: Date) {
-  const machines = await database.fleetMachines.find({ closed: false }).toArray();
+export function buildPublicOverview(
+  snapshot: Pick<PublicSnapshotDocument, 'protocol' | 'distribution' | 'vaults' | 'observedAt'>,
+  machines: FleetMachineDocument[],
+) {
+  const ownerRows = new Map<string, { owner: string; cars: number; activeWeight: number; claimableFareRaw: bigint }>();
+  for (const machine of machines) {
+    const row = ownerRows.get(machine.owner) || { owner: machine.owner, cars: 0, activeWeight: 0, claimableFareRaw: 0n };
+    row.cars += 1;
+    if (machine.rewardActive) row.activeWeight += machine.weight;
+    row.claimableFareRaw += BigInt(machine.claimable[0] || '0');
+    ownerRows.set(machine.owner, row);
+  }
+  const leaders = [...ownerRows.values()]
+    .sort((left, right) => right.activeWeight - left.activeWeight || right.cars - left.cars || left.owner.localeCompare(right.owner))
+    .slice(0, 100)
+    .map(row => ({ ...row, claimableFareRaw: row.claimableFareRaw.toString() }));
+  const classCounts = [0, 0, 0, 0];
+  for (const machine of machines) classCounts[machine.classIndex] += 1;
+  return {
+    mint: {
+      pricesLamports: Array.isArray(snapshot.protocol.mintPrices) ? snapshot.protocol.mintPrices.map(String) : [],
+      mintedByClass: Array.isArray(snapshot.protocol.mintedByClass) ? snapshot.protocol.mintedByClass.map(Number) : [],
+      paused: Boolean(snapshot.protocol.paused),
+      saleStarted: Boolean(snapshot.protocol.saleStarted),
+    },
+    stats: {
+      mintedCars: machines.length,
+      activeCars: machines.filter(machine => machine.rewardActive).length,
+      uniqueOwners: ownerRows.size,
+      activeWeight: String(snapshot.distribution.activeWeight || '0'),
+      treasurySolLamports: String(snapshot.vaults.solLamports || '0'),
+      fundedRewardAssets: Array.isArray(snapshot.vaults.tokens)
+        ? snapshot.vaults.tokens.filter(token => BigInt(String((token as { amount?: unknown }).amount || '0')) > 0n).length
+        : 0,
+    },
+    classCounts,
+    leaders,
+    observedAt: snapshot.observedAt,
+  };
+}
+
+type PublicOverview = ReturnType<typeof buildPublicOverview>;
+
+async function saveEarningSnapshots(database: TaxiDatabase, observedAt: Date, machines: FleetMachineDocument[]) {
   const owners = new Map<string, { claimable: bigint[]; cars: number; activeWeight: number }>();
   for (const machine of machines) {
     const aggregate = owners.get(machine.owner) || { claimable: [0n, 0n, 0n, 0n, 0n], cars: 0, activeWeight: 0 };
@@ -283,6 +302,10 @@ async function saveEarningSnapshots(database: TaxiDatabase, observedAt: Date) {
 
 async function loadAssets(rpcUrl: string, ids: string[]): Promise<DasAsset[]> {
   if (!ids.length) return [];
-  const result = await solanaRpcCall<Array<DasAsset | null>>(rpcUrl, 'getAssetBatch', [ids]);
-  return result.filter((asset): asset is DasAsset => Boolean(asset));
+  const assets: DasAsset[] = [];
+  for (let offset = 0; offset < ids.length; offset += DAS_BATCH_SIZE) {
+    const result = await solanaRpcCall<Array<DasAsset | null>>(rpcUrl, 'getAssetBatch', [ids.slice(offset, offset + DAS_BATCH_SIZE)]);
+    assets.push(...result.filter((asset): asset is DasAsset => Boolean(asset)));
+  }
+  return assets;
 }

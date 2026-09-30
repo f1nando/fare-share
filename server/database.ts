@@ -102,6 +102,7 @@ export interface PublicSnapshotDocument {
   protocol: Record<string, unknown>;
   distribution: Record<string, unknown>;
   vaults: Record<string, unknown>;
+  overview?: Record<string, unknown>;
   observedAt: Date;
   updatedAt: Date;
 }

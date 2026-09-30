@@ -64,7 +64,7 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/public/overview') {
-      json(response, 200, await publicData.overview());
+      json(response, 200, await publicData.overview(), { 'cache-control': 'public, max-age=15, stale-while-revalidate=60' });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/public/market') {
@@ -352,8 +352,8 @@ function requireLocalSceneAccess(request: IncomingMessage) {
   }
 }
 
-function json(response: ServerResponse, status: number, value: unknown) {
-  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+function json(response: ServerResponse, status: number, value: unknown, headers: Record<string, string> = {}) {
+  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
   response.end(JSON.stringify(value));
 }
 
