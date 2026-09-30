@@ -44,5 +44,6 @@ test('primary trainee word follows the configured token ticker', async () => {
   assert.deepEqual(update.filter, { campaignId: '1' });
   assert.equal(update.value.$set.displayWord, 'TAXI');
   assert.equal(update.value.$set.keywordHash, keywordHash('TAXI', 'test-pepper'));
+  assert.equal(update.value.$set.durationMinutes, 1_440);
   assert.deepEqual(update.options, { upsert: true });
 });

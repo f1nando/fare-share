@@ -115,7 +115,7 @@ npm run protocol:admin -- propose-admin <new-admin-pubkey>
 ## Кампания стажёра
 
 ```sh
-npm run campaign:create -- 1 360 кодовое-слово "Первая кампания"
+npm run campaign:create -- 1 1440 кодовое-слово "Первая кампания"
 ```
 
 Продолжительность указывается в минутах от 60 до 10080 (7 дней). Слово сохраняется только в виде HMAC-SHA256 с серверным pepper. Оно не попадает в Solana, frontend bundle или ответ API.

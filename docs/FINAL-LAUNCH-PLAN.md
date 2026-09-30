@@ -85,6 +85,7 @@
 | D-33 | Rehearsal повторно использует существующие server credentials внешних сервисов | Используются уже настроенные MongoDB cluster credentials, Solana RPC/DAS, Helius и Jupiter API credentials. Secrets читаются только из server secret/env storage и не переносятся в Git, manifest или чат. MongoDB изолируется database name `fare_share_disposable_rehearsal`; отсутствие или несоответствие любого credential блокирует запуск соответствующего сервиса. |
 | D-34 | Rehearsal повторно использует существующую admin-auth конфигурацию | Сохраняются текущие admin username, password hash и session secret из server secret/env storage. Новые credentials входа не создаются; admin routes и worker controls остаются недоступны без действующей сессии. Значения secrets не выводятся в manifest, Git или чат. |
 | D-35 | Публичное кодовое слово rehearsal Trainee campaign — `TAXI` | В отдельной rehearsal database создаётся одна активная campaign. Каждый wallet может один раз активировать Dacia Logan Trainee по правилу уникальности `owner + campaign_id`; campaign и её activations не переносятся в production database. |
+| D-36 | Новая Trainee campaign по умолчанию активна 24 часа | Backend создаёт новые admin campaigns с `durationMinutes = 1440`. Изменение применяется только к новым активациям; NFT после завершения периода остаётся wallet-visible, permanently frozen и non-transferable, но больше не получает rewards. |
 
 ## L-01. Worker/Jupiter reserve routes
 

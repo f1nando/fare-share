@@ -288,7 +288,7 @@ function AutomationControls({ settings, setSettings, worker, busy, save, run }) 
 function TraineeCampaigns({ campaigns, word, setWord, busy, create }) {
   return <section className="admin-card trainee-campaign-card"><div className="section-title"><div><p className="eyebrow">TRAINEE ACCESS</p><h2>Code words</h2></div><span>{campaigns.reduce((total, campaign) => total + campaign.activationCount, 0)} activations</span></div>
     <form className="trainee-campaign-form" onSubmit={create}><label>New code word<input value={word} onChange={event => setWord(event.target.value)} maxLength="128" placeholder="Enter a new code word" /></label><button disabled={!word.trim() || busy === 'trainee-word'}>{busy === 'trainee-word' ? 'Adding…' : 'Add code word'}</button></form>
-    <p className="muted">New words create an internal campaign automatically. Every trainee taxi remains active for six hours.</p>
+    <p className="muted">New words create an internal campaign automatically. Every trainee taxi remains active for 24 hours.</p>
     <div className="trainee-campaign-list">{campaigns.length ? campaigns.map(campaign => <div key={`${campaign.word}-${campaign.createdAt}`}><span><strong>{campaign.word}</strong><small>Added {time(campaign.createdAt)} · {campaign.enabled ? 'Active' : 'Disabled'}</small></span><b>{campaign.activationCount}<small>activations</small></b></div>) : <p className="muted">No code words yet.</p>}</div>
   </section>;
 }

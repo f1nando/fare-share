@@ -4,7 +4,7 @@ import { solanaRpcCall } from './solanaRpc.js';
 
 const TRAINEE_ACCOUNT_SIZE = 122;
 const CAMPAIGN_ID_OFFSET = 72;
-const DEFAULT_DURATION_MINUTES = 360;
+const DEFAULT_DURATION_MINUTES = 1_440;
 const MAX_U64 = (1n << 64n) - 1n;
 
 export class TraineeCampaignAdminError extends Error {
