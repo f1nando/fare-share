@@ -1,4 +1,5 @@
-import { address, type Address } from '@solana/kit';
+import { createPublicKey, randomUUID, verify } from 'node:crypto';
+import { address, getBase58Encoder, type Address } from '@solana/kit';
 import type { FleetMachineDocument, PublicSnapshotDocument, TaxiDatabase } from './database.js';
 import { loadProtocolDashboard } from './protocolDashboard.js';
 import { solanaRpcCall } from './solanaRpc.js';
@@ -8,6 +9,9 @@ const SYNC_TTL_MS = 15_000;
 const OVERVIEW_CACHE_TTL_MS = 30_000;
 const DAS_BATCH_SIZE = 1_000;
 const SNAPSHOT_BUCKET_MS = 5 * 60 * 1_000;
+const MARKET_CHALLENGE_TTL_MS = 5 * 60 * 1_000;
+const MAX_MARKET_PRICE_LAMPORTS = 1_000_000n * 1_000_000_000n;
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const HISTORY_PERIODS = {
   '24h': { durationMs: 24 * 60 * 60 * 1_000, groupMs: 60 * 60 * 1_000 },
   '7d': { durationMs: 7 * 24 * 60 * 60 * 1_000, groupMs: 6 * 60 * 60 * 1_000 },
@@ -37,6 +41,7 @@ export function createPublicDataService(config: {
   programId: Address;
   workerIntervalMs: number;
   fareSymbol: string | (() => string);
+  loadMarketAsset?: (asset: string) => Promise<DasAsset | null>;
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -252,10 +257,130 @@ export function createPublicDataService(config: {
   }
 
   async function market() {
-    return { listings: [], floorLamports: null, totalVolumeLamports: '0' };
+    const rows = await database.marketListings.find({ status: 'active' }).sort({ listedAt: -1 }).limit(250).toArray();
+    const machines = rows.length
+      ? await database.fleetMachines.find({ asset: { $in: rows.map(row => row.asset) }, closed: false }).toArray()
+      : [];
+    const machinesByAsset = new Map(machines.map(machine => [machine.asset, machine]));
+    const listings = rows.flatMap(row => {
+      const machine = machinesByAsset.get(row.asset);
+      if (!machine || machine.owner !== row.seller) return [];
+      return [{
+        id: row.asset,
+        asset: row.asset,
+        seller: row.seller,
+        priceLamports: row.priceLamports,
+        listedAt: row.listedAt.getTime(),
+        name: machine.name,
+        imageUrl: machine.image,
+        className: machine.className,
+        nftNumber: Number(machine.name.match(/#(\d+)$/)?.[1] || 0),
+      }];
+    });
+    const floorLamports = listings.reduce<bigint | null>((floor, listing) => {
+      const price = BigInt(listing.priceLamports);
+      return floor === null || price < floor ? price : floor;
+    }, null);
+    return { listings, floorLamports: floorLamports?.toString() ?? null, totalVolumeLamports: '0' };
   }
 
-  return { overview, walletFleet, recordMint, earningHistory, market, sync };
+  async function marketChallenge(input: unknown) {
+    const body = marketBody(input);
+    const action = body.action === 'cancel' ? 'cancel' : body.action === 'list' ? 'list' : null;
+    if (!action) throw new PublicDataError('Market action must be list or cancel.');
+    let owner: Address;
+    let asset: Address;
+    try { owner = address(body.owner); asset = address(body.asset); } catch { throw new PublicDataError('Invalid owner or asset address.'); }
+    const machine = await database.fleetMachines.findOne({ asset: String(asset), closed: false });
+    if (!machine) throw new PublicDataError('This asset is not a transferable Fare Share taxi.', 404);
+    let priceLamports: string | undefined;
+    if (action === 'list') {
+      priceLamports = validMarketPrice(body.priceLamports);
+      const loadAsset = config.loadMarketAsset || (id => solanaRpcCall<DasAsset | null>(config.solanaRpcUrl, 'getAsset', [{ id }]));
+      const liveAsset = await loadAsset(String(asset));
+      if (!liveAsset || liveAsset.ownership?.owner !== String(owner)) {
+        throw new PublicDataError('The connected wallet is not the current on-chain owner of this taxi.', 409);
+      }
+    } else {
+      const listing = await database.marketListings.findOne({ asset: String(asset), seller: String(owner), status: 'active' });
+      if (!listing) throw new PublicDataError('Active listing not found.', 404);
+    }
+    const nonce = randomUUID();
+    const expiresAt = new Date(Date.now() + MARKET_CHALLENGE_TTL_MS);
+    const message = marketMessage({ action, owner: String(owner), asset: String(asset), priceLamports, nonce, expiresAt });
+    await database.marketNonces.insertOne({ nonce, action, owner: String(owner), asset: String(asset), priceLamports, message, expiresAt, createdAt: new Date() });
+    return { nonce, message, expiresAt: expiresAt.toISOString() };
+  }
+
+  async function submitMarketAction(input: unknown) {
+    const body = marketBody(input);
+    let owner: Address;
+    try { owner = address(body.owner); } catch { throw new PublicDataError('Invalid owner address.'); }
+    if (!/^[0-9a-f-]{36}$/i.test(body.nonce)) throw new PublicDataError('Invalid market challenge.');
+    if (!/^[A-Za-z0-9+/]{86}==$/.test(body.signature)) throw new PublicDataError('Invalid wallet signature.');
+    const challenge = await database.marketNonces.findOne({ nonce: body.nonce, owner: String(owner) });
+    if (!challenge || challenge.expiresAt.getTime() <= Date.now()) throw new PublicDataError('Market challenge expired. Request a new one.', 409);
+    if (!verifyMarketSignature(String(owner), challenge.message, body.signature)) throw new PublicDataError('Wallet signature is invalid.', 401);
+    const consumed = await database.marketNonces.findOneAndDelete({ nonce: challenge.nonce, owner: String(owner) });
+    if (!consumed) throw new PublicDataError('Market challenge was already used.', 409);
+    const now = new Date();
+    if (challenge.action === 'cancel') {
+      const result = await database.marketListings.updateOne(
+        { asset: challenge.asset, seller: challenge.owner, status: 'active' },
+        { $set: { status: 'cancelled', updatedAt: now } },
+      );
+      if (!result.matchedCount) throw new PublicDataError('Active listing not found.', 404);
+      return { listed: false, asset: challenge.asset };
+    }
+    const loadAsset = config.loadMarketAsset || (id => solanaRpcCall<DasAsset | null>(config.solanaRpcUrl, 'getAsset', [{ id }]));
+    const liveAsset = await loadAsset(challenge.asset);
+    if (!liveAsset || liveAsset.ownership?.owner !== challenge.owner) {
+      throw new PublicDataError('Taxi ownership changed before the listing was saved.', 409);
+    }
+    await database.marketListings.updateOne({ asset: challenge.asset }, {
+      $set: { asset: challenge.asset, seller: challenge.owner, priceLamports: challenge.priceLamports!, status: 'active', listedAt: now, updatedAt: now },
+    }, { upsert: true });
+    return { listed: true, asset: challenge.asset, priceLamports: challenge.priceLamports };
+  }
+
+  return { overview, walletFleet, recordMint, earningHistory, market, marketChallenge, submitMarketAction, sync };
+}
+
+function marketBody(input: unknown) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new PublicDataError('JSON object is required.');
+  const body = input as Record<string, unknown>;
+  return Object.fromEntries(['action', 'owner', 'asset', 'priceLamports', 'nonce', 'signature'].map(key => [key, String(body[key] || '').trim()])) as Record<'action' | 'owner' | 'asset' | 'priceLamports' | 'nonce' | 'signature', string>;
+}
+
+function validMarketPrice(raw: string) {
+  if (!/^[1-9]\d*$/.test(raw)) throw new PublicDataError('Price must be greater than zero.');
+  const value = BigInt(raw);
+  if (value > MAX_MARKET_PRICE_LAMPORTS) throw new PublicDataError('Price is above the marketplace limit.');
+  return value.toString();
+}
+
+function marketMessage(input: { action: 'list' | 'cancel'; owner: string; asset: string; priceLamports?: string; nonce: string; expiresAt: Date }) {
+  return [
+    'Fare Share Market',
+    `Action: ${input.action}`,
+    `Owner: ${input.owner}`,
+    `Asset: ${input.asset}`,
+    ...(input.action === 'list' ? [`Price lamports: ${input.priceLamports}`] : []),
+    `Nonce: ${input.nonce}`,
+    `Expires at: ${input.expiresAt.toISOString()}`,
+  ].join('\n');
+}
+
+export function verifyMarketSignature(owner: string, message: string, signatureBase64: string) {
+  try {
+    const publicKeyBytes = Buffer.from(getBase58Encoder().encode(owner));
+    const signature = Buffer.from(signatureBase64, 'base64');
+    if (publicKeyBytes.length !== 32 || signature.length !== 64) return false;
+    const publicKey = createPublicKey({ key: Buffer.concat([ED25519_SPKI_PREFIX, publicKeyBytes]), format: 'der', type: 'spki' });
+    return verify(null, Buffer.from(message, 'utf8'), publicKey, signature);
+  } catch {
+    return false;
+  }
 }
 
 export function validateTraineeAsset(asset: DasAsset | undefined, expectedOwner: string, expectedCollection: string) {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
-import { loadPublicMarket } from './publicData.js';
-import { appPath } from './appPath.js';
+import { loadDatabaseFleet, loadPublicMarket, signMarketAction } from './publicData.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -38,6 +37,11 @@ export function MarketPage({ wallet, connectWallet }) {
   const [sort, setSort] = useState('featured');
   const [notice, setNotice] = useState('');
   const [market, setMarket] = useState({ listings: [], floorLamports: null, totalVolumeLamports: '0' });
+  const [showListing, setShowListing] = useState(false);
+  const [ownedCars, setOwnedCars] = useState([]);
+  const [selectedAsset, setSelectedAsset] = useState('');
+  const [price, setPrice] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -60,17 +64,57 @@ export function MarketPage({ wallet, connectWallet }) {
   }, [listings, query, sort, vehicleClass]);
   const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
 
-  async function handleBuy(listing) {
-    if (!wallet) {
-      try {
-        await connectWallet();
-        setNotice(`Wallet connected. ${listing.name} #${listing.nftNumber} is ready for checkout.`);
-      } catch (error) {
-        setNotice(error.message);
-      }
-      return;
+  async function refreshMarket() {
+    setMarket(await loadPublicMarket());
+  }
+
+  async function openListing() {
+    setBusy(true);
+    setNotice('');
+    try {
+      const connection = wallet || await connectWallet();
+      const cars = await loadDatabaseFleet(connection.account.address);
+      setOwnedCars(cars);
+      setSelectedAsset(cars[0]?.asset || '');
+      setShowListing(true);
+      if (!cars.length) setNotice('This wallet has no transferable Fare Share taxis to list.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
     }
-    setNotice(`${listing.name} #${listing.nftNumber} is ready for checkout.`);
+  }
+
+  async function handleList(event) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice('Approve the listing signature in your wallet…');
+    try {
+      const priceLamports = solToLamports(price);
+      await signMarketAction(wallet, { action: 'list', asset: selectedAsset, priceLamports });
+      await refreshMarket();
+      setShowListing(false);
+      setPrice('');
+      setNotice('Your taxi is now listed for sale. No NFT or SOL moved from your wallet.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancel(listing) {
+    setBusy(true);
+    setNotice('Approve the cancellation signature in your wallet…');
+    try {
+      await signMarketAction(wallet, { action: 'cancel', asset: listing.asset });
+      await refreshMarket();
+      setNotice('Listing cancelled.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -78,15 +122,42 @@ export function MarketPage({ wallet, connectWallet }) {
       <section className="container fare-market-section" aria-labelledby="market-page-title">
         <header className="fare-market-heading fare-page-heading">
           <div>
-            <span className="fare-market-kicker">UI PROTOTYPE · NOT A LIVE MARKET</span>
+            <span className="fare-market-kicker">NON-CUSTODIAL LISTINGS</span>
             <h1 className="fare-page-title is-short" id="market-page-title">MARKET</h1>
           </div>
-          <p>This page is a non-functional preview. Verified secondary trading will link to the official collection on Magic Eden.</p>
+          <div className="fare-market-heading-action">
+            <p>List your Fare Share taxi for sale with a wallet signature. Buying will be added in the next marketplace step.</p>
+            <button type="button" disabled={busy} onClick={openListing}>LIST YOUR NFT</button>
+          </div>
         </header>
+
+        {showListing && (
+          <form className="fare-market-listing-form" onSubmit={handleList}>
+            <div>
+              <span>CREATE LISTING</span>
+              <strong>Choose a taxi and set its price</strong>
+              <small>This is an off-chain, non-custodial listing. Your NFT stays in your wallet.</small>
+            </div>
+            <label>
+              <span>TAXI</span>
+              <select value={selectedAsset} onChange={event => setSelectedAsset(event.target.value)} disabled={!ownedCars.length || busy}>
+                {ownedCars.map(car => <option value={car.asset} key={car.asset}>{car.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>PRICE IN SOL</span>
+              <input type="text" inputMode="decimal" placeholder="1.25" value={price} onChange={event => setPrice(event.target.value)} disabled={busy} />
+            </label>
+            <div className="fare-market-listing-actions">
+              <button className="is-secondary" type="button" onClick={() => setShowListing(false)} disabled={busy}>CANCEL</button>
+              <button type="submit" disabled={busy || !selectedAsset || !price.trim()}>{busy ? 'SIGNING…' : 'LIST FOR SALE'}</button>
+            </div>
+          </form>
+        )}
 
         <div className="fare-market-console">
           <div className="fare-market-console-top">
-            <div className="fare-market-live"><i aria-hidden="true" /><span>MARKET PREVIEW</span></div>
+            <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE LISTINGS</span></div>
             <div className="fare-market-summary" aria-label="Marketplace summary">
               <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
               <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
@@ -147,8 +218,10 @@ export function MarketPage({ wallet, connectWallet }) {
                     </a>
                   </div>
                   <div className="fare-market-price-row">
-                    <div><span>PRICE</span><strong>{listing.price.toFixed(2)} SOL</strong></div>
-                    <button type="button" onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>
+                    <div><span>PRICE</span><strong>{formatSolPrice(listing.price)} SOL</strong></div>
+                    {wallet?.account.address === listing.seller
+                      ? <button type="button" disabled={busy} onClick={() => handleCancel(listing)}>CANCEL LISTING</button>
+                      : <button type="button" disabled>BUYING SOON</button>}
                   </div>
                 </div>
               </article>
@@ -157,13 +230,26 @@ export function MarketPage({ wallet, connectWallet }) {
         ) : (
           <div className="fare-market-empty">
             <strong>NO CARS FOUND</strong>
-            <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'Live listings and checkout are not implemented here. Use only the verified Magic Eden collection link once it is published.'}</p>
-            {hasActiveFilters
-              ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
-              : <a href={appPath('/mint/')}>GO TO MINT</a>}
+              <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed yet. Be the first owner to create a listing.'}</p>
+              {hasActiveFilters
+                ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
+                : <button type="button" onClick={openListing}>LIST YOUR NFT</button>}
           </div>
         )}
       </section>
     </main>
   );
+}
+
+function solToLamports(value) {
+  const normalized = String(value).trim();
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,9})?$/.test(normalized)) throw new Error('Enter a valid SOL price with up to 9 decimal places.');
+  const [whole, fraction = ''] = normalized.split('.');
+  const lamports = BigInt(whole) * 1_000_000_000n + BigInt(fraction.padEnd(9, '0') || '0');
+  if (lamports <= 0n) throw new Error('Price must be greater than zero.');
+  return lamports.toString();
+}
+
+function formatSolPrice(value) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 9 }).format(value);
 }

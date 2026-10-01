@@ -127,8 +127,8 @@ backend access to the user's wallet or private keys.
   transactions. User keys never reach the server.
 - **Leaderboard and public pages** read a recoverable MongoDB projection built
   from finalized Solana and DAS state.
-- **Market** links to the official external marketplace rather than implementing
-  a custodial marketplace.
+- **Market** supports non-custodial, wallet-signed sale listings stored in
+  MongoDB. The NFT remains in the seller's wallet; checkout is not implemented yet.
 
 ## Trust model and safety boundaries
 

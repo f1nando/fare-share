@@ -101,6 +101,16 @@ const server = createServer(async (request, response) => {
       json(response, 200, await publicData.market());
       return;
     }
+    if (request.method === 'POST' && url.pathname === '/api/market/challenge') {
+      requirePublicOrigin(request);
+      json(response, 201, await publicData.marketChallenge(await readJson(request)));
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/market/listings') {
+      requirePublicOrigin(request);
+      json(response, 200, await publicData.submitMarketAction(await readJson(request)));
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/solana-rpc') {
       requirePublicOrigin(request);
       json(response, 200, await proxySolana(await readJson(request, 65_536), clientAddress(request)));

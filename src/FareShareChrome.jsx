@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { appAssetPath, appPath } from './appPath.js';
 
-export const MAGIC_EDEN_URL = 'https://magiceden.io/';
-
 function XIcon() {
   return (
     <svg width="24" height="22" viewBox="0 0 24 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -37,7 +35,7 @@ export function FareHeader({ linkPrefix = '', activeItem = linkPrefix ? null : '
     { id: 'mint', label: 'MINT', href: appPath('/mint/') },
     { id: 'garage', label: 'GARAGE', href: appPath('/garage/') },
     { id: 'leaderboard', label: 'LEADERBOARD', href: appPath('/leaderboard/') },
-    { id: 'market', label: 'MARKET', href: MAGIC_EDEN_URL },
+    { id: 'market', label: 'MARKET', href: appPath('/market/') },
     { id: 'trade', label: 'TRADE', href: appPath('/trade/') },
     { id: 'faq', label: 'FAQ', href: appPath('/faq/') },
     { id: 'docs', label: 'DOCS', href: appPath('/docs/') },
@@ -142,7 +140,7 @@ export function FareFooter({ linkPrefix = '', landingOnly = false }) {
           <a href={`${linkPrefix}#top`}>Home</a>
           <a href={appPath('/mint/')}>Mint</a>
           <a href={appPath('/garage/')}>Garage</a>
-          <a href={MAGIC_EDEN_URL}>Market</a>
+          <a href={appPath('/market/')}>Market</a>
           <a href={appPath('/leaderboard/')}>Leaderboard</a>
         </nav>}
         {!landingOnly && <nav className="fare-footer-column" aria-label="Resources">
