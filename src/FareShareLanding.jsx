@@ -615,7 +615,7 @@ export function FareShareLanding({ publicHolding = false }) {
             <h1 id="fare-hero-title"><span>OWN TAXIS.</span><span>EARN STOCK</span><span>TOKENS.</span></h1>
             <p className="fare-hero-intro">Mint onchain taxis that automatically share calculated protocol rewards while active.</p>
             <div className="fare-hero-actions">
-              <a className="fare-button fare-button-primary" href="#taxis">Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
+              <a className="fare-button fare-button-primary" href={appPath('/mint/')}>Go Mint <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span></a>
               <a className="fare-button fare-button-light" href="#how-it-works">How It Works</a>
               <button
                 className={`fare-button fare-button-dark${caCopyState === 'copied' ? ' is-copied' : ''}${caCopyState === 'returning' ? ' is-returning' : ''}`}
@@ -665,8 +665,8 @@ export function FareShareLanding({ publicHolding = false }) {
             </article>)}
           </div>
 
-          <a className="fare-button fare-button-primary fare-how-button" href="#taxis">
-            Get Started <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
+          <a className="fare-button fare-button-primary fare-how-button" href={appPath('/mint/')}>
+            Go Mint <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
           </div>
         </section>
@@ -679,8 +679,8 @@ export function FareShareLanding({ publicHolding = false }) {
             <p className="fare-hero-intro">Better classes receive a larger earning share. No twelve-stat RPG spreadsheet.</p>
           </div>
 
-          <a className="fare-button fare-button-primary fare-fleet-button" href={publicHolding ? '#taxis' : appPath('/garage/')}>
-            Explore The Fleet <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
+          <a className="fare-button fare-button-primary fare-fleet-button" href={appPath('/mint/')}>
+            Go Mint <span className="fare-round-arrow fare-round-arrow-dark" aria-hidden="true"><GetStartedArrow /></span>
           </a>
           </div>
         </section>
