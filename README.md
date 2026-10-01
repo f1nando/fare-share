@@ -127,8 +127,9 @@ backend access to the user's wallet or private keys.
   transactions. User keys never reach the server.
 - **Leaderboard and public pages** read a recoverable MongoDB projection built
   from finalized Solana and DAS state.
-- **Market** supports non-custodial, wallet-signed sale listings stored in
-  MongoDB. The NFT remains in the seller's wallet; checkout is not implemented yet.
+- **Market** uses an on-chain listing PDA and a Metaplex Core transfer delegate.
+  The NFT stays in the seller's wallet until one atomic purchase transfers the
+  exact SOL price to the seller and the NFT to the buyer.
 
 ## Trust model and safety boundaries
 

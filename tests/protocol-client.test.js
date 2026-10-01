@@ -46,11 +46,16 @@ import {
   buildRepairAllInstructions,
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
+  buildBuyMachineInstruction,
+  buildCancelMachineListingInstruction,
+  buildListMachineInstruction,
+  buildUpdateMachineListingInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
   deriveTraineeAddresses,
+  deriveTaxiAddresses,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
   sendWalletInstructions,
@@ -645,6 +650,27 @@ test('wallet transaction surfaces an on-chain failure before showing success', a
   ).catch(value => value);
   assert.match(error.message, /Solana transaction failed/);
   assert.equal(error.signature, 'signature');
+});
+
+test('marketplace instructions bind one listing PDA, exact price, and atomic buyer payment', async () => {
+  const seller = address('11111111111111111111111111111111');
+  const buyer = address('So11111111111111111111111111111111111111112');
+  const asset = address('Vote111111111111111111111111111111111111111');
+  const collection = address('Stake11111111111111111111111111111111111111');
+  const derived = await deriveTaxiAddresses(PROGRAM_ID, asset);
+  const price = 1_250_000_000n;
+  const list = buildListMachineInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, machine: derived.machine, asset, listing: derived.listing, collection, priceLamports: price });
+  const update = buildUpdateMachineListingInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, asset, listing: derived.listing, priceLamports: price });
+  const cancel = buildCancelMachineListingInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, asset, listing: derived.listing, collection });
+  const buy = buildBuyMachineInstruction({ programAddress: PROGRAM_ID, buyer, seller, config: derived.config, machine: derived.machine, asset, listing: derived.listing, collection, priceLamports: price });
+
+  assert.deepEqual([...list.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.listMachine]);
+  assert.deepEqual([...update.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.updateMachineListing]);
+  assert.deepEqual([...cancel.data], [...TAXI_DISCRIMINATORS.cancelMachineListing]);
+  assert.deepEqual([...buy.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.buyMachine]);
+  assert.equal(new DataView(buy.data.buffer, buy.data.byteOffset + 8, 8).getBigUint64(0, true), price);
+  assert.equal(String(buy.accounts[1].address), String(seller));
+  assert.equal(String(buy.accounts[5].address), String(derived.listing));
 });
 
 test('wallet transaction preserves bigint Solana error codes', async () => {

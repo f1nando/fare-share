@@ -265,6 +265,15 @@ pub struct Machine {
 
 #[account]
 #[derive(InitSpace, Default)]
+pub struct MarketListing {
+    pub seller: Pubkey,
+    pub asset: Pubkey,
+    pub price_lamports: u64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace, Default)]
 pub struct Trainee {
     pub owner: Pubkey,
     pub asset: Pubkey,

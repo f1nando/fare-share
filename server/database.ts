@@ -220,17 +220,7 @@ export interface MarketListingDocument {
   status: 'active' | 'cancelled';
   listedAt: Date;
   updatedAt: Date;
-}
-
-export interface MarketNonceDocument {
-  nonce: string;
-  action: 'list' | 'cancel';
-  owner: string;
-  asset: string;
-  priceLamports?: string;
-  message: string;
-  expiresAt: Date;
-  createdAt: Date;
+  transactionSignature?: string;
 }
 
 export interface TaxiDatabase {
@@ -258,7 +248,6 @@ export interface TaxiDatabase {
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
   fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
   marketListings: Collection<MarketListingDocument>;
-  marketNonces: Collection<MarketNonceDocument>;
   errorLogs: Collection<ErrorLogDocument>;
 }
 
@@ -288,7 +277,6 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
   const marketListings = db.collection<MarketListingDocument>('market_listings');
-  const marketNonces = db.collection<MarketNonceDocument>('market_nonces');
   const errorLogs = db.collection<ErrorLogDocument>('error_logs');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
@@ -330,14 +318,12 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     ensureFleetEarningRetention(fleetEarningSnapshots),
     marketListings.createIndex({ asset: 1 }, { unique: true }),
     marketListings.createIndex({ status: 1, listedAt: -1 }),
-    marketNonces.createIndex({ nonce: 1 }, { unique: true }),
-    marketNonces.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     errorLogs.createIndex({ errorId: 1 }, { unique: true }),
     errorLogs.createIndex({ createdAt: -1 }),
     errorLogs.createIndex({ source: 1, status: 1, createdAt: -1 }),
     errorLogs.createIndex({ expiresAt: 1 }, { name: 'error_logs_ttl', expireAfterSeconds: 0 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, marketListings, marketNonces, errorLogs };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, marketListings, errorLogs };
 }
 
 export function ensureFleetEarningRetention(

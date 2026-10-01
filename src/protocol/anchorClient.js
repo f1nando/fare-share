@@ -39,6 +39,10 @@ export const TAXI_DISCRIMINATORS = Object.freeze({
   repair: Uint8Array.from([97, 230, 48, 23, 128, 133, 201, 192]),
   activateTrainee: Uint8Array.from([192, 95, 221, 239, 185, 89, 60, 75]),
   claimTrainee: Uint8Array.from([65, 255, 2, 105, 62, 175, 216, 215]),
+  listMachine: Uint8Array.from([165, 106, 245, 101, 57, 59, 241, 53]),
+  updateMachineListing: Uint8Array.from([241, 42, 147, 78, 66, 136, 129, 251]),
+  cancelMachineListing: Uint8Array.from([191, 165, 54, 0, 24, 96, 163, 119]),
+  buyMachine: Uint8Array.from([212, 139, 114, 158, 222, 60, 154, 127]),
 });
 
 const utf8 = getUtf8Encoder();
@@ -216,6 +220,9 @@ export async function deriveTaxiAddresses(programAddress, assetAddress) {
     assetAddress
       ? getProgramDerivedAddress({ programAddress, seeds: [utf8.encode('machine'), addressBytes(assetAddress)] })
       : Promise.resolve([null, 0]),
+    assetAddress
+      ? getProgramDerivedAddress({ programAddress, seeds: [utf8.encode('listing'), addressBytes(assetAddress)] })
+      : Promise.resolve([null, 0]),
   ]);
   return {
     config: entries[0][0],
@@ -223,6 +230,7 @@ export async function deriveTaxiAddresses(programAddress, assetAddress) {
     queue: entries[2][0],
     feeVault: entries[3][0],
     machine: entries[4][0],
+    listing: entries[5][0],
   };
 }
 
@@ -807,6 +815,70 @@ function transactionError(message, signature) {
   const error = new Error(message);
   error.signature = signature;
   return error;
+}
+
+export function buildListMachineInstruction({ programAddress, seller, config, machine, asset, listing, collection, priceLamports }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(seller, AccountRole.WRITABLE_SIGNER),
+      meta(config, AccountRole.READONLY),
+      meta(machine, AccountRole.READONLY),
+      meta(asset, AccountRole.WRITABLE),
+      meta(listing, AccountRole.WRITABLE),
+      meta(collection, AccountRole.WRITABLE),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: concatBytes(TAXI_DISCRIMINATORS.listMachine, u64Bytes(priceLamports)),
+  };
+}
+
+export function buildUpdateMachineListingInstruction({ programAddress, seller, config, asset, listing, priceLamports }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(seller, AccountRole.READONLY_SIGNER),
+      meta(config, AccountRole.READONLY),
+      meta(asset, AccountRole.READONLY),
+      meta(listing, AccountRole.WRITABLE),
+    ],
+    data: concatBytes(TAXI_DISCRIMINATORS.updateMachineListing, u64Bytes(priceLamports)),
+  };
+}
+
+export function buildCancelMachineListingInstruction({ programAddress, seller, config, asset, listing, collection }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(seller, AccountRole.WRITABLE_SIGNER),
+      meta(config, AccountRole.READONLY),
+      meta(asset, AccountRole.WRITABLE),
+      meta(listing, AccountRole.WRITABLE),
+      meta(collection, AccountRole.WRITABLE),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: TAXI_DISCRIMINATORS.cancelMachineListing,
+  };
+}
+
+export function buildBuyMachineInstruction({ programAddress, buyer, seller, config, machine, asset, listing, collection, priceLamports }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(buyer, AccountRole.WRITABLE_SIGNER),
+      meta(seller, AccountRole.WRITABLE),
+      meta(config, AccountRole.READONLY),
+      meta(machine, AccountRole.READONLY),
+      meta(asset, AccountRole.WRITABLE),
+      meta(listing, AccountRole.WRITABLE),
+      meta(collection, AccountRole.READONLY),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: concatBytes(TAXI_DISCRIMINATORS.buyMachine, u64Bytes(priceLamports)),
+  };
 }
 
 function stringifyRpcError(value) {

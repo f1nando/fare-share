@@ -15,10 +15,14 @@ import {
   buildActivateTraineeInstructions,
   buildClaimInstructions,
   buildClaimTraineeInstructions,
+  buildBuyMachineInstruction,
+  buildCancelMachineListingInstruction,
+  buildListMachineInstruction,
   buildMintMachine,
   buildRepairAllInstructions,
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
+  buildUpdateMachineListingInstruction,
   createMintAssetSigner,
   chooseEventPage,
   decodeConfiguration,
@@ -650,6 +654,76 @@ async function loadProtocolLookupTable() {
     return { [LOOKUP_TABLE_ADDRESS]: decodeAddressLookupTable(accountBytes(response.value)) };
   });
   return lookupTablePromise;
+}
+
+export async function listMachineForSale(connection, machine, priceLamports, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const seller = address(connection.account.address);
+  const addresses = await deriveTaxiAddresses(PROGRAM_ID, address(machine.asset));
+  const listingAccount = await rpc.getAccountInfo(addresses.listing, { commitment: 'finalized', encoding: 'base64' }).send();
+  const instruction = listingAccount.value
+    ? buildUpdateMachineListingInstruction({
+      programAddress: PROGRAM_ID,
+      seller,
+      config: status.addresses.config,
+      asset: machine.asset,
+      listing: addresses.listing,
+      priceLamports,
+    })
+    : buildListMachineInstruction({
+      programAddress: PROGRAM_ID,
+      seller,
+      config: status.addresses.config,
+      machine: addresses.machine,
+      asset: machine.asset,
+      listing: addresses.listing,
+      collection: status.config.collection,
+      priceLamports,
+    });
+  return sendWalletInstructions({ rpc, wallet: connection.wallet, account: connection.account, chain: SOLANA_CHAIN, instructions: [instruction] });
+}
+
+export async function cancelMachineSale(connection, asset, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const seller = address(connection.account.address);
+  const addresses = await deriveTaxiAddresses(PROGRAM_ID, address(asset));
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildCancelMachineListingInstruction({
+      programAddress: PROGRAM_ID,
+      seller,
+      config: status.addresses.config,
+      asset,
+      listing: addresses.listing,
+      collection: status.config.collection,
+    })],
+  });
+}
+
+export async function buyListedMachine(connection, listing, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const buyer = address(connection.account.address);
+  const addresses = await deriveTaxiAddresses(PROGRAM_ID, address(listing.asset));
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildBuyMachineInstruction({
+      programAddress: PROGRAM_ID,
+      buyer,
+      seller: address(listing.seller),
+      config: status.addresses.config,
+      machine: addresses.machine,
+      asset: listing.asset,
+      listing: addresses.listing,
+      collection: status.config.collection,
+      priceLamports: listing.priceLamports,
+    })],
+  });
 }
 
 async function loadLookupTables(addresses) {

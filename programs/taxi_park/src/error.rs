@@ -26,6 +26,10 @@ pub enum TaxiError {
     PumpTokenAlreadyGraduated,
     #[msg("Mint price must be greater than zero")]
     InvalidPrice,
+    #[msg("Marketplace listing price must be greater than zero")]
+    InvalidListingPrice,
+    #[msg("Marketplace listing does not match the seller or asset")]
+    InvalidListing,
     #[msg("Admin address cannot be the zero address")]
     InvalidAdmin,
     #[msg("Unknown machine class")]

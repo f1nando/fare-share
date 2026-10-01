@@ -15,6 +15,11 @@ const ACCOUNT_STATE: u8 = 0;
 const UPDATE_DELEGATE_PLUGIN: u8 = 4;
 const IMMUTABLE_METADATA_PLUGIN: u8 = 12;
 const PERMANENT_FREEZE_DELEGATE_PLUGIN: u8 = 5;
+const ADD_PLUGIN_V1_DISCRIMINATOR: u8 = 2;
+const REMOVE_PLUGIN_V1_DISCRIMINATOR: u8 = 4;
+const TRANSFER_V1_DISCRIMINATOR: u8 = 14;
+const TRANSFER_DELEGATE_PLUGIN: u8 = 3;
+const ADDRESS_PLUGIN_AUTHORITY: u8 = 3;
 
 pub fn create_collection_v2(
     collection: Pubkey,
@@ -105,6 +110,73 @@ pub fn create_asset_v1(args: CreateAsset<'_>) -> Result<Instruction> {
     })
 }
 
+pub fn add_transfer_delegate(
+    asset: Pubkey,
+    collection: Pubkey,
+    payer: Pubkey,
+    owner: Pubkey,
+    delegate: Pubkey,
+    system_program: Pubkey,
+) -> Instruction {
+    let mut data = vec![ADD_PLUGIN_V1_DISCRIMINATOR, TRANSFER_DELEGATE_PLUGIN, 1, ADDRESS_PLUGIN_AUTHORITY];
+    data.extend_from_slice(delegate.as_ref());
+    Instruction {
+        program_id: MPL_CORE_ID,
+        accounts: vec![
+            AccountMeta::new(asset, false),
+            AccountMeta::new(collection, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(owner, true),
+            AccountMeta::new_readonly(system_program, false),
+            AccountMeta::new_readonly(MPL_CORE_ID, false),
+        ],
+        data,
+    }
+}
+
+pub fn remove_transfer_delegate(
+    asset: Pubkey,
+    collection: Pubkey,
+    payer: Pubkey,
+    authority: Pubkey,
+    system_program: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: MPL_CORE_ID,
+        accounts: vec![
+            AccountMeta::new(asset, false),
+            AccountMeta::new(collection, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new_readonly(system_program, false),
+            AccountMeta::new_readonly(MPL_CORE_ID, false),
+        ],
+        data: vec![REMOVE_PLUGIN_V1_DISCRIMINATOR, TRANSFER_DELEGATE_PLUGIN],
+    }
+}
+
+pub fn transfer_asset(
+    asset: Pubkey,
+    collection: Pubkey,
+    payer: Pubkey,
+    authority: Pubkey,
+    new_owner: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: MPL_CORE_ID,
+        accounts: vec![
+            AccountMeta::new(asset, false),
+            AccountMeta::new_readonly(collection, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new_readonly(new_owner, false),
+            AccountMeta::new_readonly(MPL_CORE_ID, false),
+            AccountMeta::new_readonly(MPL_CORE_ID, false),
+        ],
+        data: vec![TRANSFER_V1_DISCRIMINATOR, 0],
+    }
+}
+
 pub fn assert_collection(account: &AccountInfo<'_>, update_authorities: &[Pubkey]) -> Result<()> {
     require_keys_eq!(*account.owner, MPL_CORE_ID, TaxiError::InvalidCollection);
     let data = account.try_borrow_data()?;
@@ -125,6 +197,12 @@ pub fn assert_asset(
     expected_owner: &Pubkey,
     collection: &Pubkey,
 ) -> Result<()> {
+    let stored_owner = asset_owner(account, collection)?;
+    require_keys_eq!(stored_owner, *expected_owner, TaxiError::InvalidAssetOwner);
+    Ok(())
+}
+
+pub fn asset_owner(account: &AccountInfo<'_>, collection: &Pubkey) -> Result<Pubkey> {
     require_keys_eq!(*account.owner, MPL_CORE_ID, TaxiError::InvalidCollection);
     let data = account.try_borrow_data()?;
     require!(
@@ -132,14 +210,13 @@ pub fn assert_asset(
         TaxiError::InvalidCollection
     );
     let stored_owner = pubkey_at(&data, 1).ok_or(TaxiError::InvalidAssetOwner)?;
-    require_keys_eq!(stored_owner, *expected_owner, TaxiError::InvalidAssetOwner);
     require!(
         data[33] == COLLECTION_UPDATE_AUTHORITY,
         TaxiError::InvalidCollection
     );
     let stored_collection = pubkey_at(&data, 34).ok_or(TaxiError::InvalidCollection)?;
     require_keys_eq!(stored_collection, *collection, TaxiError::InvalidCollection);
-    Ok(())
+    Ok(stored_owner)
 }
 
 fn push_string(data: &mut Vec<u8>, value: &str) -> Result<()> {
@@ -237,6 +314,55 @@ mod tests {
             }]),
         });
         assert_eq!(instruction, expected);
+    }
+
+    #[test]
+    fn marketplace_delegate_and_transfer_layouts_match_mpl_core() {
+        let asset = Pubkey::new_unique();
+        let collection = Pubkey::new_unique();
+        let seller = Pubkey::new_unique();
+        let listing = Pubkey::new_unique();
+        let buyer = Pubkey::new_unique();
+        let system_program = anchor_lang::system_program::ID;
+
+        let add = add_transfer_delegate(asset, collection, seller, seller, listing, system_program);
+        let expected_add = mpl_core::instructions::AddPluginV1 {
+            asset,
+            collection: Some(collection),
+            payer: seller,
+            authority: Some(seller),
+            system_program,
+            log_wrapper: None,
+        }.instruction(mpl_core::instructions::AddPluginV1InstructionArgs {
+            plugin: mpl_core::types::Plugin::TransferDelegate(mpl_core::types::TransferDelegate {}),
+            init_authority: Some(mpl_core::types::PluginAuthority::Address { address: listing }),
+        });
+        assert_eq!(add, expected_add);
+
+        let remove = remove_transfer_delegate(asset, collection, seller, listing, system_program);
+        let expected_remove = mpl_core::instructions::RemovePluginV1 {
+            asset,
+            collection: Some(collection),
+            payer: seller,
+            authority: Some(listing),
+            system_program,
+            log_wrapper: None,
+        }.instruction(mpl_core::instructions::RemovePluginV1InstructionArgs {
+            plugin_type: mpl_core::types::PluginType::TransferDelegate,
+        });
+        assert_eq!(remove, expected_remove);
+
+        let transfer = transfer_asset(asset, collection, buyer, listing, buyer);
+        let expected_transfer = mpl_core::instructions::TransferV1 {
+            asset,
+            collection: Some(collection),
+            payer: buyer,
+            authority: Some(listing),
+            new_owner: buyer,
+            system_program: None,
+            log_wrapper: None,
+        }.instruction(mpl_core::instructions::TransferV1InstructionArgs { compression_proof: None });
+        assert_eq!(transfer, expected_transfer);
     }
 
     #[test]

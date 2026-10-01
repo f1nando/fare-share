@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
-import { loadDatabaseFleet, loadPublicMarket, signMarketAction } from './publicData.js';
+import { loadDatabaseFleet, loadPublicMarket, saveMarketTransaction } from './publicData.js';
+import { buyListedMachine, cancelMachineSale, listMachineForSale, loadProtocolStatus } from './protocol/solana.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -37,6 +38,7 @@ export function MarketPage({ wallet, connectWallet }) {
   const [sort, setSort] = useState('featured');
   const [notice, setNotice] = useState('');
   const [market, setMarket] = useState({ listings: [], floorLamports: null, totalVolumeLamports: '0' });
+  const [protocolStatus, setProtocolStatus] = useState(null);
   const [showListing, setShowListing] = useState(false);
   const [ownedCars, setOwnedCars] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState('');
@@ -45,7 +47,9 @@ export function MarketPage({ wallet, connectWallet }) {
 
   useEffect(() => {
     let active = true;
-    loadPublicMarket().then(value => active && setMarket(value)).catch(error => active && setNotice(error.message));
+    Promise.all([loadPublicMarket(), loadProtocolStatus()])
+      .then(([value, status]) => { if (active) { setMarket(value); setProtocolStatus(status); } })
+      .catch(error => active && setNotice(error.message));
     return () => { active = false; };
   }, []);
 
@@ -88,14 +92,17 @@ export function MarketPage({ wallet, connectWallet }) {
   async function handleList(event) {
     event.preventDefault();
     setBusy(true);
-    setNotice('Approve the listing signature in your wallet…');
+    setNotice('Approve the on-chain listing transaction in your wallet…');
     try {
       const priceLamports = solToLamports(price);
-      await signMarketAction(wallet, { action: 'list', asset: selectedAsset, priceLamports });
+      const machine = ownedCars.find(car => car.asset === selectedAsset);
+      if (!machine) throw new Error('Choose a taxi to list.');
+      const signature = await listMachineForSale(wallet, machine, priceLamports, protocolStatus);
+      await saveMarketTransaction({ action: 'list', signature, asset: selectedAsset, actor: wallet.account.address });
       await refreshMarket();
       setShowListing(false);
       setPrice('');
-      setNotice('Your taxi is now listed for sale. No NFT or SOL moved from your wallet.');
+      setNotice('Your taxi is listed on-chain. The marketplace can transfer only this NFT at the listed price.');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -105,11 +112,28 @@ export function MarketPage({ wallet, connectWallet }) {
 
   async function handleCancel(listing) {
     setBusy(true);
-    setNotice('Approve the cancellation signature in your wallet…');
+    setNotice('Approve the on-chain cancellation transaction in your wallet…');
     try {
-      await signMarketAction(wallet, { action: 'cancel', asset: listing.asset });
+      const signature = await cancelMachineSale(wallet, listing.asset, protocolStatus);
+      await saveMarketTransaction({ action: 'cancel', signature, asset: listing.asset, actor: wallet.account.address });
       await refreshMarket();
       setNotice('Listing cancelled.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBuy(listing) {
+    setBusy(true);
+    setNotice('Approve the atomic SOL-for-NFT purchase in your wallet…');
+    try {
+      const connection = wallet || await connectWallet();
+      const signature = await buyListedMachine(connection, listing, protocolStatus);
+      await saveMarketTransaction({ action: 'buy', signature, asset: listing.asset, actor: connection.account.address });
+      await refreshMarket();
+      setNotice('Purchase complete. SOL was paid to the seller and the NFT is now in your wallet.');
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -122,11 +146,11 @@ export function MarketPage({ wallet, connectWallet }) {
       <section className="container fare-market-section" aria-labelledby="market-page-title">
         <header className="fare-market-heading fare-page-heading">
           <div>
-            <span className="fare-market-kicker">NON-CUSTODIAL LISTINGS</span>
+            <span className="fare-market-kicker">ATOMIC ON-CHAIN MARKET</span>
             <h1 className="fare-page-title is-short" id="market-page-title">MARKET</h1>
           </div>
           <div className="fare-market-heading-action">
-            <p>List your Fare Share taxi for sale with a wallet signature. Buying will be added in the next marketplace step.</p>
+            <p>List a taxi at your price or buy one atomically with SOL. Fare Share never holds your NFT or payment.</p>
             <button type="button" disabled={busy} onClick={openListing}>LIST YOUR NFT</button>
           </div>
         </header>
@@ -136,7 +160,7 @@ export function MarketPage({ wallet, connectWallet }) {
             <div>
               <span>CREATE LISTING</span>
               <strong>Choose a taxi and set its price</strong>
-              <small>This is an off-chain, non-custodial listing. Your NFT stays in your wallet.</small>
+              <small>Your NFT stays in your wallet. The on-chain delegate can transfer it only through the listed sale.</small>
             </div>
             <label>
               <span>TAXI</span>
@@ -221,7 +245,7 @@ export function MarketPage({ wallet, connectWallet }) {
                     <div><span>PRICE</span><strong>{formatSolPrice(listing.price)} SOL</strong></div>
                     {wallet?.account.address === listing.seller
                       ? <button type="button" disabled={busy} onClick={() => handleCancel(listing)}>CANCEL LISTING</button>
-                      : <button type="button" disabled>BUYING SOON</button>}
+                      : <button type="button" disabled={busy} onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>}
                   </div>
                 </div>
               </article>

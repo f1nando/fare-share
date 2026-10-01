@@ -11,19 +11,10 @@ const MAX_DURABILITY = 5 * 24 * 60 * 60;
 export const loadPublicOverview = () => request('/api/public/overview');
 export const loadPublicMarket = () => request('/api/public/market');
 
-export async function signMarketAction(connection, input) {
-  const challenge = await request('/api/market/challenge', {
+export async function saveMarketTransaction(input) {
+  return request('/api/market/transactions', {
     method: 'POST',
-    body: JSON.stringify({ ...input, owner: connection.account.address }),
-  });
-  const feature = connection.wallet.features['solana:signMessage'];
-  if (!feature) throw new Error('The connected wallet cannot sign marketplace messages.');
-  const message = new TextEncoder().encode(challenge.message);
-  const [result] = await feature.signMessage({ account: connection.account, message });
-  const signature = bytesToBase64(result.signature);
-  return request('/api/market/listings', {
-    method: 'POST',
-    body: JSON.stringify({ owner: connection.account.address, nonce: challenge.nonce, signature }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -92,10 +83,4 @@ async function request(path, options = {}) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(apiErrorMessage(body, `Public data API failed with HTTP ${response.status}`));
   return body;
-}
-
-function bytesToBase64(bytes) {
-  let binary = '';
-  for (const value of bytes) binary += String.fromCharCode(value);
-  return btoa(binary);
 }
