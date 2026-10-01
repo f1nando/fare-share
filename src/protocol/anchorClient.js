@@ -870,7 +870,7 @@ export function buildBuyMachineInstruction({ programAddress, buyer, seller, conf
       meta(machine, AccountRole.READONLY),
       meta(asset, AccountRole.WRITABLE),
       meta(listing, AccountRole.WRITABLE),
-      meta(collection, AccountRole.READONLY),
+      meta(collection, AccountRole.WRITABLE),
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],

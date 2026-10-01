@@ -1057,14 +1057,11 @@ pub mod taxi_park {
             if current_owner != ctx.accounts.seller.key() {
                 return Ok(());
             }
-            let asset_key = ctx.accounts.asset.key();
-            let listing_bump = [ctx.accounts.listing.bump];
-            let listing_seeds: &[&[u8]] = &[b"listing", asset_key.as_ref(), &listing_bump];
             let instruction = metaplex_core::remove_transfer_delegate(
                 ctx.accounts.asset.key(),
                 ctx.accounts.collection.key(),
                 ctx.accounts.actor.key(),
-                ctx.accounts.listing.key(),
+                ctx.accounts.actor.key(),
                 ctx.accounts.system_program.key(),
             );
             invoke_signed(
@@ -1074,10 +1071,10 @@ pub mod taxi_park {
                     ctx.accounts.asset.to_account_info(),
                     ctx.accounts.collection.to_account_info(),
                     ctx.accounts.actor.to_account_info(),
-                    ctx.accounts.listing.to_account_info(),
+                    ctx.accounts.actor.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
                 ],
-                &[listing_seeds],
+                &[],
             )?;
             return Ok(());
         }
@@ -1124,6 +1121,25 @@ pub mod taxi_park {
                 ctx.accounts.actor.to_account_info(),
             ],
             &[listing_seeds],
+        )?;
+        let cleanup_instruction = metaplex_core::remove_transfer_delegate(
+            ctx.accounts.asset.key(),
+            ctx.accounts.collection.key(),
+            ctx.accounts.actor.key(),
+            ctx.accounts.actor.key(),
+            ctx.accounts.system_program.key(),
+        );
+        invoke_signed(
+            &cleanup_instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.asset.to_account_info(),
+                ctx.accounts.collection.to_account_info(),
+                ctx.accounts.actor.to_account_info(),
+                ctx.accounts.actor.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            &[],
         )?;
         Ok(())
     }
@@ -1197,15 +1213,20 @@ pub mod taxi_park {
 
         let price_lamports = ctx.accounts.offer.price_lamports;
         let offer_info = ctx.accounts.offer.to_account_info();
-        let seller_info = ctx.accounts.seller.to_account_info();
-        let offer_balance = offer_info.lamports();
-        let seller_balance = seller_info.lamports();
-        **offer_info.try_borrow_mut_lamports()? = offer_balance
+        let rent_refund = offer_info
+            .lamports()
             .checked_sub(price_lamports)
             .ok_or(TaxiError::MathOverflow)?;
-        **seller_info.try_borrow_mut_lamports()? = seller_balance
-            .checked_add(price_lamports)
-            .ok_or(TaxiError::MathOverflow)?;
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.seller.to_account_info(),
+                    to: ctx.accounts.buyer.to_account_info(),
+                },
+            ),
+            rent_refund,
+        )?;
 
         let instruction = metaplex_core::transfer_asset(
             ctx.accounts.asset.key(),
@@ -2470,7 +2491,7 @@ pub struct AcceptOffer<'info> {
     pub asset: UncheckedAccount<'info>,
     #[account(
         mut,
-        close = buyer,
+        close = seller,
         seeds = [b"offer", offer.buyer.as_ref(), &[offer.kind], offer.target.as_ref()],
         bump = offer.bump
     )]

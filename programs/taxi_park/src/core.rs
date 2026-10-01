@@ -339,12 +339,12 @@ mod tests {
         });
         assert_eq!(add, expected_add);
 
-        let remove = remove_transfer_delegate(asset, collection, seller, listing, system_program);
+        let remove = remove_transfer_delegate(asset, collection, seller, seller, system_program);
         let expected_remove = mpl_core::instructions::RemovePluginV1 {
             asset,
             collection: Some(collection),
             payer: seller,
-            authority: Some(listing),
+            authority: Some(seller),
             system_program,
             log_wrapper: None,
         }.instruction(mpl_core::instructions::RemovePluginV1InstructionArgs {

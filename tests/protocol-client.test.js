@@ -673,6 +673,7 @@ test('marketplace instructions bind one listing PDA, exact price, and atomic buy
   assert.equal(new DataView(buy.data.buffer, buy.data.byteOffset + 8, 8).getBigUint64(0, true), price);
   assert.equal(String(buy.accounts[1].address), String(seller));
   assert.equal(String(buy.accounts[5].address), String(derived.listing));
+  assert.equal(buy.accounts[6].role, AccountRole.WRITABLE);
 });
 
 test('escrowed asset and class offers use target-bound PDAs and settlement accounts', async () => {
