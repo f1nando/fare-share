@@ -17,7 +17,8 @@ import {
 } from './protocol/solana.js';
 import { loadDatabaseEarningHistory, loadDatabaseFleet } from './publicData.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
+import { actionLoadingMessage } from './actionToastMessage.js';
 
 const CLASS_BY_WEIGHT = {
   1: { name: 'Economy', tone: 'economy' },
@@ -105,6 +106,7 @@ export function GaragePage({ wallet }) {
     setBusy(key);
     setNotice('Approve one transaction in Phantom and wait for finalization…');
     setSignature('');
+    const toastId = notifyLoading(actionLoadingMessage(key));
     try {
       const nextSignature = await action();
       setSignature(nextSignature);
@@ -119,12 +121,12 @@ export function GaragePage({ wallet }) {
       setHistory(nextHistory.points);
       setTrainees(nextTrainees);
       setNotice(success);
-      notifySuccess(success);
+      notifySuccess(success, { id: toastId });
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       const message = error.message || 'Transaction failed.';
       setNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBusy('');
     }

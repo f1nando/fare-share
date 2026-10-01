@@ -12,7 +12,7 @@ import {
   RECOVERY_PROGRAM_ID,
   loadRecoveryClaimState,
 } from './recoveryClaim.js';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 
 const SYMBOLS = ['$TAXI', 'UBERx', 'TSLAx', 'GOOGLx', 'AMZNx'];
 
@@ -75,6 +75,7 @@ export function RecoveryClaimPage() {
     setBusy(true);
     setSignature('');
     setNotice('Review one Claim transaction in your wallet. No NFT transfer or burn is included.');
+    const toastId = notifyLoading('Claiming your final rewards…');
     try {
       const result = await claimMachine(wallet, claimState.machine, claimState.status);
       setSignature(result);
@@ -84,12 +85,12 @@ export function RecoveryClaimPage() {
         ? 'Transaction finalized, but rewards remain. Do not close this page.'
         : 'Claim finalized. All recorded rewards for this taxi are now zero.';
       setNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       const message = error.message || 'Claim failed. Nothing should be retried until the transaction status is checked.';
       setNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBusy(false);
     }

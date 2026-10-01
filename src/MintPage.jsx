@@ -18,7 +18,7 @@ import {
 import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -169,12 +169,13 @@ export function MintPage({ wallet, connectWallet }) {
   }, [wallet, status]);
 
   async function handleMint() {
-    if (!status?.deployed) return setNotice('The mint program is not available.');
-    if (paused) return setNotice('The protocol is paused. Minting is temporarily disabled.');
-    if (remaining === 0) return setNotice('The taxi collection is sold out.');
+    if (!status?.deployed) return showMintError('The mint program is not available.');
+    if (paused) return showMintError('The protocol is paused. Minting is temporarily disabled.');
+    if (remaining === 0) return showMintError('The taxi collection is sold out.');
     setBusy(true);
     setSignature('');
     setNotice('Approve the transaction in Phantom…');
+    const toastId = notifyLoading('Minting your taxi NFT…');
     let lastSignature = '';
     let mintedCount = 0;
     try {
@@ -194,14 +195,14 @@ export function MintPage({ wallet, connectWallet }) {
       setSignature(lastSignature);
       const message = 'Taxi NFT minted from the precommitted random collection.';
       setNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       const message = mintedCount
         ? `${mintedCount} taxi${mintedCount === 1 ? '' : 's'} minted onchain, but database synchronization needs to retry: ${error.message || 'unknown error'}`
         : error.message || 'Mint failed.';
       setNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBusy(false);
     }
@@ -274,11 +275,12 @@ export function MintPage({ wallet, connectWallet }) {
   }
 
   async function handleClaimTrainee(trainee) {
-    if (!wallet) return setTraineeNotice('Connect Phantom first.');
-    if (paused) return setTraineeNotice('The protocol is paused. Claims are temporarily disabled.');
+    if (!wallet) return showTraineeError('Connect Phantom first.');
+    if (paused) return showTraineeError('The protocol is paused. Claims are temporarily disabled.');
     setTraineeBusy(`claim-${trainee.campaignId}`);
     setTraineeNotice('Approve one claim transaction in Phantom…');
     setTraineeSignature('');
+    const toastId = notifyLoading('Claiming trainee rewards…');
     try {
       const nextSignature = await claimTrainee(wallet, trainee, status);
       const nextStatus = await loadProtocolStatus();
@@ -287,15 +289,25 @@ export function MintPage({ wallet, connectWallet }) {
       setTraineeSignature(nextSignature);
       const message = 'Trainee rewards claimed.';
       setTraineeNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setTraineeSignature(error.signature);
       const message = error.message || 'Trainee claim failed.';
       setTraineeNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setTraineeBusy('');
     }
+  }
+
+  function showMintError(message) {
+    setNotice(message);
+    notifyError(message);
+  }
+
+  function showTraineeError(message) {
+    setTraineeNotice(message);
+    notifyError(message);
   }
 
   useEffect(() => {

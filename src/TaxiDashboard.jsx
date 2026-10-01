@@ -21,7 +21,8 @@ import {
 } from './protocol/solana.js';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { appAssetPath } from './appPath.js';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
+import { actionLoadingMessage } from './actionToastMessage.js';
 
 const CLASSES = [
   { name: 'Economy', count: 833, weight: 1, odds: '68.17%', tone: 'economy', image: appAssetPath('/nft/economy.webp'), variants: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -113,20 +114,27 @@ export function TaxiDashboard({ simple = false, background = null }) {
 
   async function runAction(key, action, success) {
     if (!status.deployed) {
-      setNotice('The program is not deployed on this network yet. Demo mode is active.');
+      const message = 'The program is not deployed on this network yet. Demo mode is active.';
+      setNotice(message);
+      notifyError(message);
       return;
     }
     if (!wallet) {
-      setNotice('Connect Phantom first.');
+      const message = 'Connect Phantom first.';
+      setNotice(message);
+      notifyError(message);
       return;
     }
     if (protocolPaused) {
-      setNotice('The protocol is paused. Transactions are temporarily disabled.');
+      const message = 'The protocol is paused. Transactions are temporarily disabled.';
+      setNotice(message);
+      notifyError(message);
       return;
     }
     setBusy(key);
     setNotice('Approve the transaction in Phantom and wait for Solana finalization…');
     setLastSignature('');
+    const toastId = notifyLoading(actionLoadingMessage(key));
     try {
       const result = await action();
       const signature = typeof result === 'string' ? result : result.signature;
@@ -140,12 +148,12 @@ export function TaxiDashboard({ simple = false, background = null }) {
       setCars(nextCars);
       setTrainees(nextTrainees);
       setNotice(success);
-      notifySuccess(success);
+      notifySuccess(success, { id: toastId });
     } catch (error) {
       if (error.signature) setLastSignature(error.signature);
       const message = error.message || 'Transaction failed.';
       setNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBusy('');
     }
