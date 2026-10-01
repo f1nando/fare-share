@@ -1,0 +1,4894 @@
+{
+  "version": 1,
+  "root": "cd4aa345bc6891f385df0f51",
+  "assignments": [
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 3,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 2,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 2
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 1
+    },
+    {
+      "classIndex": 1,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 3
+    },
+    {
+      "classIndex": 0,
+      "variantIndex": 0
+    }
+  ]
+}

@@ -40,9 +40,7 @@ export const TAXI_DISCRIMINATORS = Object.freeze({
   activateTrainee: Uint8Array.from([192, 95, 221, 239, 185, 89, 60, 75]),
   claimTrainee: Uint8Array.from([65, 255, 2, 105, 62, 175, 216, 215]),
   listMachine: Uint8Array.from([165, 106, 245, 101, 57, 59, 241, 53]),
-  updateMachineListing: Uint8Array.from([241, 42, 147, 78, 66, 136, 129, 251]),
-  cancelMachineListing: Uint8Array.from([191, 165, 54, 0, 24, 96, 163, 119]),
-  buyMachine: Uint8Array.from([212, 139, 114, 158, 222, 60, 154, 127]),
+  settleMachine: Uint8Array.from([84, 137, 169, 191, 122, 132, 100, 234]),
 });
 
 const utf8 = getUtf8Encoder();
@@ -834,32 +832,21 @@ export function buildListMachineInstruction({ programAddress, seller, config, ma
   };
 }
 
-export function buildUpdateMachineListingInstruction({ programAddress, seller, config, asset, listing, priceLamports }) {
-  return {
-    programAddress,
-    accounts: [
-      meta(seller, AccountRole.READONLY_SIGNER),
-      meta(config, AccountRole.READONLY),
-      meta(asset, AccountRole.READONLY),
-      meta(listing, AccountRole.WRITABLE),
-    ],
-    data: concatBytes(TAXI_DISCRIMINATORS.updateMachineListing, u64Bytes(priceLamports)),
-  };
-}
-
-export function buildCancelMachineListingInstruction({ programAddress, seller, config, asset, listing, collection }) {
+export function buildCancelMachineListingInstruction({ programAddress, seller, config, machine, asset, listing, collection }) {
   return {
     programAddress,
     accounts: [
       meta(seller, AccountRole.WRITABLE_SIGNER),
+      meta(seller, AccountRole.WRITABLE),
       meta(config, AccountRole.READONLY),
+      meta(machine, AccountRole.READONLY),
       meta(asset, AccountRole.WRITABLE),
       meta(listing, AccountRole.WRITABLE),
       meta(collection, AccountRole.WRITABLE),
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
-    data: TAXI_DISCRIMINATORS.cancelMachineListing,
+    data: concatBytes(TAXI_DISCRIMINATORS.settleMachine, u64Bytes(0n)),
   };
 }
 
@@ -877,7 +864,7 @@ export function buildBuyMachineInstruction({ programAddress, buyer, seller, conf
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
-    data: concatBytes(TAXI_DISCRIMINATORS.buyMachine, u64Bytes(priceLamports)),
+    data: concatBytes(TAXI_DISCRIMINATORS.settleMachine, u64Bytes(priceLamports)),
   };
 }
 

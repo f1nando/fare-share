@@ -20,7 +20,7 @@ pub use state::*;
 pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
 pub use voucher::{ActivateTraineeArgs, MintAssignmentArgs, MintQuoteArgs};
 
-declare_id!("3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z");
+declare_id!("FJgPHdMEFi8JQSeW7h9ogLCDvm2gixWkXG8g7tqn7aJr");
 
 const MINT_PRICE_USD_CENTS: u64 = 2_500;
 
@@ -1013,67 +1013,16 @@ pub mod taxi_park {
             &ctx.accounts.config.collection,
         )?;
 
-        let listing = &mut ctx.accounts.listing;
-        listing.seller = ctx.accounts.seller.key();
-        listing.asset = ctx.accounts.asset.key();
-        listing.price_lamports = price_lamports;
-        listing.bump = ctx.bumps.listing;
+        let is_new = ctx.accounts.listing.seller == Pubkey::default();
+        if is_new {
+            ctx.accounts.listing.seller = ctx.accounts.seller.key();
+            ctx.accounts.listing.asset = ctx.accounts.asset.key();
+            ctx.accounts.listing.bump = ctx.bumps.listing;
 
-        let instruction = metaplex_core::add_transfer_delegate(
-            ctx.accounts.asset.key(),
-            ctx.accounts.collection.key(),
-            ctx.accounts.seller.key(),
-            ctx.accounts.seller.key(),
-            listing.key(),
-            ctx.accounts.system_program.key(),
-        );
-        invoke_signed(
-            &instruction,
-            &[
-                ctx.accounts.mpl_core_program.to_account_info(),
-                ctx.accounts.asset.to_account_info(),
-                ctx.accounts.collection.to_account_info(),
-                ctx.accounts.seller.to_account_info(),
-                ctx.accounts.seller.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-            &[],
-        )?;
-        emit!(MachineListed { asset: listing.asset, seller: listing.seller, price_lamports });
-        Ok(())
-    }
-
-    pub fn update_machine_listing(
-        ctx: Context<UpdateMachineListing>,
-        price_lamports: u64,
-    ) -> Result<()> {
-        require!(price_lamports > 0, TaxiError::InvalidListingPrice);
-        metaplex_core::assert_asset(
-            &ctx.accounts.asset,
-            &ctx.accounts.seller.key(),
-            &ctx.accounts.config.collection,
-        )?;
-        ctx.accounts.listing.price_lamports = price_lamports;
-        emit!(MachineListed {
-            asset: ctx.accounts.listing.asset,
-            seller: ctx.accounts.listing.seller,
-            price_lamports,
-        });
-        Ok(())
-    }
-
-    pub fn cancel_machine_listing(ctx: Context<CancelMachineListing>) -> Result<()> {
-        let current_owner = metaplex_core::asset_owner(
-            &ctx.accounts.asset,
-            &ctx.accounts.config.collection,
-        )?;
-        if current_owner == ctx.accounts.seller.key() {
-            let asset_key = ctx.accounts.asset.key();
-            let listing_bump = [ctx.accounts.listing.bump];
-            let listing_seeds: &[&[u8]] = &[b"listing", asset_key.as_ref(), &listing_bump];
-            let instruction = metaplex_core::remove_transfer_delegate(
+            let instruction = metaplex_core::add_transfer_delegate(
                 ctx.accounts.asset.key(),
                 ctx.accounts.collection.key(),
+                ctx.accounts.seller.key(),
                 ctx.accounts.seller.key(),
                 ctx.accounts.listing.key(),
                 ctx.accounts.system_program.key(),
@@ -1085,20 +1034,53 @@ pub mod taxi_park {
                     ctx.accounts.asset.to_account_info(),
                     ctx.accounts.collection.to_account_info(),
                     ctx.accounts.seller.to_account_info(),
+                    ctx.accounts.seller.to_account_info(),
+                    ctx.accounts.system_program.to_account_info(),
+                ],
+                &[],
+            )?;
+        } else {
+            require_keys_eq!(ctx.accounts.listing.seller, ctx.accounts.seller.key(), TaxiError::InvalidListing);
+            require_keys_eq!(ctx.accounts.listing.asset, ctx.accounts.asset.key(), TaxiError::InvalidListing);
+        }
+        ctx.accounts.listing.price_lamports = price_lamports;
+        Ok(())
+    }
+
+    pub fn settle_machine(ctx: Context<SettleMachine>, expected_price_lamports: u64) -> Result<()> {
+        if ctx.accounts.actor.key() == ctx.accounts.seller.key() {
+            require!(expected_price_lamports == 0, TaxiError::InvalidListing);
+            let current_owner = metaplex_core::asset_owner(
+                &ctx.accounts.asset,
+                &ctx.accounts.config.collection,
+            )?;
+            if current_owner != ctx.accounts.seller.key() {
+                return Ok(());
+            }
+            let asset_key = ctx.accounts.asset.key();
+            let listing_bump = [ctx.accounts.listing.bump];
+            let listing_seeds: &[&[u8]] = &[b"listing", asset_key.as_ref(), &listing_bump];
+            let instruction = metaplex_core::remove_transfer_delegate(
+                ctx.accounts.asset.key(),
+                ctx.accounts.collection.key(),
+                ctx.accounts.actor.key(),
+                ctx.accounts.listing.key(),
+                ctx.accounts.system_program.key(),
+            );
+            invoke_signed(
+                &instruction,
+                &[
+                    ctx.accounts.mpl_core_program.to_account_info(),
+                    ctx.accounts.asset.to_account_info(),
+                    ctx.accounts.collection.to_account_info(),
+                    ctx.accounts.actor.to_account_info(),
                     ctx.accounts.listing.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
                 ],
                 &[listing_seeds],
             )?;
+            return Ok(());
         }
-        emit!(MachineListingCancelled {
-            asset: ctx.accounts.listing.asset,
-            seller: ctx.accounts.listing.seller,
-        });
-        Ok(())
-    }
-
-    pub fn buy_machine(ctx: Context<BuyMachine>, expected_price_lamports: u64) -> Result<()> {
         require!(
             expected_price_lamports == ctx.accounts.listing.price_lamports,
             TaxiError::InvalidListing
@@ -1114,7 +1096,7 @@ pub mod taxi_park {
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
+                    from: ctx.accounts.actor.to_account_info(),
                     to: ctx.accounts.seller.to_account_info(),
                 },
             ),
@@ -1127,9 +1109,9 @@ pub mod taxi_park {
         let instruction = metaplex_core::transfer_asset(
             ctx.accounts.asset.key(),
             ctx.accounts.collection.key(),
-            ctx.accounts.buyer.key(),
+            ctx.accounts.actor.key(),
             ctx.accounts.listing.key(),
-            ctx.accounts.buyer.key(),
+            ctx.accounts.actor.key(),
         );
         invoke_signed(
             &instruction,
@@ -1137,18 +1119,12 @@ pub mod taxi_park {
                 ctx.accounts.mpl_core_program.to_account_info(),
                 ctx.accounts.asset.to_account_info(),
                 ctx.accounts.collection.to_account_info(),
-                ctx.accounts.buyer.to_account_info(),
+                ctx.accounts.actor.to_account_info(),
                 ctx.accounts.listing.to_account_info(),
-                ctx.accounts.buyer.to_account_info(),
+                ctx.accounts.actor.to_account_info(),
             ],
             &[listing_seeds],
         )?;
-        emit!(MachineSold {
-            asset: ctx.accounts.listing.asset,
-            seller: ctx.accounts.listing.seller,
-            buyer: ctx.accounts.buyer.key(),
-            price_lamports: expected_price_lamports,
-        });
         Ok(())
     }
 
@@ -2269,7 +2245,7 @@ pub struct ListMachine<'info> {
     #[account(mut, address = machine.asset)]
     pub asset: UncheckedAccount<'info>,
     #[account(
-        init,
+        init_if_needed,
         payer = seller,
         space = 8 + MarketListing::INIT_SPACE,
         seeds = [b"listing", asset.key().as_ref()],
@@ -2286,53 +2262,9 @@ pub struct ListMachine<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateMachineListing<'info> {
-    pub seller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump)]
-    pub config: Box<Account<'info, Configuration>>,
-    /// CHECK: Core owner and collection are validated in the handler.
-    pub asset: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        seeds = [b"listing", asset.key().as_ref()],
-        bump = listing.bump,
-        has_one = seller @ TaxiError::InvalidListing,
-        has_one = asset @ TaxiError::InvalidListing
-    )]
-    pub listing: Account<'info, MarketListing>,
-}
-
-#[derive(Accounts)]
-pub struct CancelMachineListing<'info> {
+pub struct SettleMachine<'info> {
     #[account(mut)]
-    pub seller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump, has_one = collection @ TaxiError::InvalidCollection)]
-    pub config: Box<Account<'info, Configuration>>,
-    /// CHECK: Core owner and collection are validated in the handler.
-    #[account(mut)]
-    pub asset: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        close = seller,
-        seeds = [b"listing", asset.key().as_ref()],
-        bump = listing.bump,
-        has_one = seller @ TaxiError::InvalidListing,
-        has_one = asset @ TaxiError::InvalidListing
-    )]
-    pub listing: Account<'info, MarketListing>,
-    /// CHECK: Fixed configured Metaplex Core collection.
-    #[account(mut, address = config.collection)]
-    pub collection: UncheckedAccount<'info>,
-    /// CHECK: Fixed official Metaplex Core program.
-    #[account(address = metaplex_core::MPL_CORE_ID)]
-    pub mpl_core_program: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct BuyMachine<'info> {
-    #[account(mut)]
-    pub buyer: Signer<'info>,
+    pub actor: Signer<'info>,
     /// CHECK: Must be the seller stored in the listing and only receives SOL/rent.
     #[account(mut, address = listing.seller @ TaxiError::InvalidListing)]
     pub seller: UncheckedAccount<'info>,
@@ -2352,7 +2284,7 @@ pub struct BuyMachine<'info> {
     )]
     pub listing: Account<'info, MarketListing>,
     /// CHECK: Fixed configured Metaplex Core collection.
-    #[account(address = config.collection)]
+    #[account(mut, address = config.collection)]
     pub collection: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
@@ -3416,27 +3348,6 @@ pub struct MachineMinted {
     pub fare_mint: Pubkey,
     pub paid_fare_raw: u64,
     pub price_usd_cents: u64,
-}
-
-#[event]
-pub struct MachineListed {
-    pub asset: Pubkey,
-    pub seller: Pubkey,
-    pub price_lamports: u64,
-}
-
-#[event]
-pub struct MachineListingCancelled {
-    pub asset: Pubkey,
-    pub seller: Pubkey,
-}
-
-#[event]
-pub struct MachineSold {
-    pub asset: Pubkey,
-    pub seller: Pubkey,
-    pub buyer: Pubkey,
-    pub price_lamports: u64,
 }
 
 #[event]

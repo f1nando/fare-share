@@ -49,7 +49,6 @@ import {
   buildBuyMachineInstruction,
   buildCancelMachineListingInstruction,
   buildListMachineInstruction,
-  buildUpdateMachineListingInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeConfiguration,
@@ -660,14 +659,12 @@ test('marketplace instructions bind one listing PDA, exact price, and atomic buy
   const derived = await deriveTaxiAddresses(PROGRAM_ID, asset);
   const price = 1_250_000_000n;
   const list = buildListMachineInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, machine: derived.machine, asset, listing: derived.listing, collection, priceLamports: price });
-  const update = buildUpdateMachineListingInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, asset, listing: derived.listing, priceLamports: price });
-  const cancel = buildCancelMachineListingInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, asset, listing: derived.listing, collection });
+  const cancel = buildCancelMachineListingInstruction({ programAddress: PROGRAM_ID, seller, config: derived.config, machine: derived.machine, asset, listing: derived.listing, collection });
   const buy = buildBuyMachineInstruction({ programAddress: PROGRAM_ID, buyer, seller, config: derived.config, machine: derived.machine, asset, listing: derived.listing, collection, priceLamports: price });
 
   assert.deepEqual([...list.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.listMachine]);
-  assert.deepEqual([...update.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.updateMachineListing]);
-  assert.deepEqual([...cancel.data], [...TAXI_DISCRIMINATORS.cancelMachineListing]);
-  assert.deepEqual([...buy.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.buyMachine]);
+  assert.deepEqual([...cancel.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.settleMachine]);
+  assert.deepEqual([...buy.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.settleMachine]);
   assert.equal(new DataView(buy.data.buffer, buy.data.byteOffset + 8, 8).getBigUint64(0, true), price);
   assert.equal(String(buy.accounts[1].address), String(seller));
   assert.equal(String(buy.accounts[5].address), String(derived.listing));
