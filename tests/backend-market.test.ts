@@ -11,11 +11,16 @@ test('market exposes only active listings whose seller still owns the taxi', asy
     { asset: 'asset-2', seller: 'old-owner', priceLamports: '500000000', status: 'active', listedAt, updatedAt: listedAt },
   ];
   const machines = [
-    { asset: 'asset-1', owner: 'seller-1', name: 'TAXI Toyota Camry #0042', image: '/taxi.webp', className: 'Comfort', closed: false },
-    { asset: 'asset-2', owner: 'new-owner', name: 'TAXI Porsche 911 #0043', image: '/taxi-2.webp', className: 'Legend', closed: false },
+    { asset: 'asset-1', owner: 'seller-1', name: 'TAXI Toyota Camry #0042', image: '/taxi.webp', className: 'Comfort', weight: 3, closed: false },
+    { asset: 'asset-2', owner: 'new-owner', name: 'TAXI Porsche 911 #0043', image: '/taxi-2.webp', className: 'Legend', weight: 30, closed: false },
+  ];
+  const offers = [
+    { offer: 'offer-1', buyer: 'buyer-1', kind: 'asset', asset: 'asset-1', priceLamports: '1000000000', status: 'active', createdAt: listedAt, updatedAt: listedAt },
+    { offer: 'offer-2', buyer: 'buyer-2', kind: 'class', weight: 30, priceLamports: '2000000000', status: 'active', createdAt: listedAt, updatedAt: listedAt },
   ];
   const database = {
     marketListings: { find: () => cursor(listings) },
+    marketOffers: { find: () => cursor(offers) },
     fleetMachines: { find: () => cursor(machines) },
   } as unknown as TaxiDatabase;
   const service = createPublicDataService({
@@ -30,6 +35,9 @@ test('market exposes only active listings whose seller still owns the taxi', asy
   assert.equal(market.listings[0].asset, 'asset-1');
   assert.equal(market.listings[0].nftNumber, 42);
   assert.equal(market.floorLamports, '1250000000');
+  assert.equal(market.offers.length, 2);
+  assert.equal(market.offers[0].name, 'TAXI Toyota Camry #0042');
+  assert.equal(market.offers[1].className, 'Legend');
 });
 
 function cursor<T>(rows: T[]) {

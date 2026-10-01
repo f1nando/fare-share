@@ -41,6 +41,9 @@ export const TAXI_DISCRIMINATORS = Object.freeze({
   claimTrainee: Uint8Array.from([65, 255, 2, 105, 62, 175, 216, 215]),
   listMachine: Uint8Array.from([165, 106, 245, 101, 57, 59, 241, 53]),
   settleMachine: Uint8Array.from([84, 137, 169, 191, 122, 132, 100, 234]),
+  makeOffer: Uint8Array.from([214, 98, 97, 35, 59, 12, 44, 178]),
+  cancelOffer: Uint8Array.from([92, 203, 223, 40, 92, 89, 53, 119]),
+  acceptOffer: Uint8Array.from([227, 82, 234, 131, 1, 18, 48, 2]),
 });
 
 const utf8 = getUtf8Encoder();
@@ -815,6 +818,13 @@ function transactionError(message, signature) {
   return error;
 }
 
+export async function deriveMarketOffer(programAddress, buyer, kind, target) {
+  return (await getProgramDerivedAddress({
+    programAddress,
+    seeds: [utf8.encode('offer'), addressBytes(buyer), Uint8Array.of(kind), target],
+  }))[0];
+}
+
 export function buildListMachineInstruction({ programAddress, seller, config, machine, asset, listing, collection, priceLamports }) {
   return {
     programAddress,
@@ -865,6 +875,47 @@ export function buildBuyMachineInstruction({ programAddress, buyer, seller, conf
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
     data: concatBytes(TAXI_DISCRIMINATORS.settleMachine, u64Bytes(priceLamports)),
+  };
+}
+
+export function buildMakeOfferInstruction({ programAddress, buyer, offer, kind, target, priceLamports }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(buyer, AccountRole.WRITABLE_SIGNER),
+      meta(offer, AccountRole.WRITABLE),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: concatBytes(TAXI_DISCRIMINATORS.makeOffer, Uint8Array.of(kind), target, u64Bytes(priceLamports)),
+  };
+}
+
+export function buildCancelOfferInstruction({ programAddress, buyer, offer }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(buyer, AccountRole.WRITABLE_SIGNER),
+      meta(offer, AccountRole.WRITABLE),
+    ],
+    data: TAXI_DISCRIMINATORS.cancelOffer,
+  };
+}
+
+export function buildAcceptOfferInstruction({ programAddress, seller, buyer, config, machine, asset, offer, collection }) {
+  return {
+    programAddress,
+    accounts: [
+      meta(seller, AccountRole.WRITABLE_SIGNER),
+      meta(buyer, AccountRole.WRITABLE),
+      meta(config, AccountRole.READONLY),
+      meta(machine, AccountRole.READONLY),
+      meta(asset, AccountRole.WRITABLE),
+      meta(offer, AccountRole.WRITABLE),
+      meta(collection, AccountRole.READONLY),
+      meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
+      meta(SYSTEM_PROGRAM, AccountRole.READONLY),
+    ],
+    data: TAXI_DISCRIMINATORS.acceptOffer,
   };
 }
 

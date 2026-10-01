@@ -129,7 +129,9 @@ backend access to the user's wallet or private keys.
   from finalized Solana and DAS state.
 - **Market** uses an on-chain listing PDA and a Metaplex Core transfer delegate.
   The NFT stays in the seller's wallet until one atomic purchase transfers the
-  exact SOL price to the seller and the NFT to the buyer.
+  exact SOL price to the seller and the NFT to the buyer. Buyers can also lock
+  SOL in offers for one specific NFT or any taxi in a selected class; owners
+  accept those offers through the same atomic SOL-for-NFT settlement.
 
 ## Trust model and safety boundaries
 

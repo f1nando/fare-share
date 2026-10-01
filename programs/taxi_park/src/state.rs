@@ -274,6 +274,16 @@ pub struct MarketListing {
 
 #[account]
 #[derive(InitSpace, Default)]
+pub struct MarketOffer {
+    pub buyer: Pubkey,
+    pub kind: u8,
+    pub target: [u8; 32],
+    pub price_lamports: u64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace, Default)]
 pub struct Trainee {
     pub owner: Pubkey,
     pub asset: Pubkey,

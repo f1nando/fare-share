@@ -47,14 +47,19 @@ import {
   buildRepairInstructions,
   buildTransferCoreAssetInstruction,
   buildBuyMachineInstruction,
+  buildAcceptOfferInstruction,
+  buildCancelOfferInstruction,
   buildCancelMachineListingInstruction,
   buildListMachineInstruction,
+  buildMakeOfferInstruction,
   buildClaimTraineeInstructions,
   chooseEventPage,
   decodeConfiguration,
   decodeEventQueue,
   deriveTraineeAddresses,
+  deriveMarketOffer,
   deriveTaxiAddresses,
+  addressBytes,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   TAXI_DISCRIMINATORS,
   sendWalletInstructions,
@@ -668,6 +673,33 @@ test('marketplace instructions bind one listing PDA, exact price, and atomic buy
   assert.equal(new DataView(buy.data.buffer, buy.data.byteOffset + 8, 8).getBigUint64(0, true), price);
   assert.equal(String(buy.accounts[1].address), String(seller));
   assert.equal(String(buy.accounts[5].address), String(derived.listing));
+});
+
+test('escrowed asset and class offers use target-bound PDAs and settlement accounts', async () => {
+  const seller = address('11111111111111111111111111111111');
+  const buyer = address('So11111111111111111111111111111111111111112');
+  const asset = address('Vote111111111111111111111111111111111111111');
+  const collection = address('Stake11111111111111111111111111111111111111');
+  const derived = await deriveTaxiAddresses(PROGRAM_ID, asset);
+  const assetTarget = addressBytes(asset);
+  const classTarget = new Uint8Array(32);
+  new DataView(classTarget.buffer).setUint16(0, 30, true);
+  const [assetOffer, classOffer] = await Promise.all([
+    deriveMarketOffer(PROGRAM_ID, buyer, 0, assetTarget),
+    deriveMarketOffer(PROGRAM_ID, buyer, 1, classTarget),
+  ]);
+  assert.notEqual(String(assetOffer), String(classOffer));
+
+  const make = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer, kind: 1, target: classTarget, priceLamports: 2_000_000_000n });
+  const cancel = buildCancelOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer });
+  const accept = buildAcceptOfferInstruction({ programAddress: PROGRAM_ID, seller, buyer, config: derived.config, machine: derived.machine, asset, offer: classOffer, collection });
+  assert.deepEqual([...make.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.makeOffer]);
+  assert.equal(make.data[8], 1);
+  assert.equal(new DataView(make.data.buffer, make.data.byteOffset + 41, 8).getBigUint64(0, true), 2_000_000_000n);
+  assert.deepEqual([...cancel.data], [...TAXI_DISCRIMINATORS.cancelOffer]);
+  assert.deepEqual([...accept.data], [...TAXI_DISCRIMINATORS.acceptOffer]);
+  assert.equal(String(accept.accounts[1].address), String(buyer));
+  assert.equal(String(accept.accounts[5].address), String(classOffer));
 });
 
 test('wallet transaction preserves bigint Solana error codes', async () => {

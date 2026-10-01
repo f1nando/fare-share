@@ -16,8 +16,11 @@ import {
   buildClaimInstructions,
   buildClaimTraineeInstructions,
   buildBuyMachineInstruction,
+  buildAcceptOfferInstruction,
+  buildCancelOfferInstruction,
   buildCancelMachineListingInstruction,
   buildListMachineInstruction,
+  buildMakeOfferInstruction,
   buildMintMachine,
   buildRepairAllInstructions,
   buildRepairInstructions,
@@ -32,7 +35,9 @@ import {
   decodeTrainee,
   decodeTraineeBucket,
   deriveTraineeAddresses,
+  deriveMarketOffer,
   deriveTaxiAddresses,
+  addressBytes,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
   MAX_REPAIR_MACHINES_PER_TRANSACTION as MAX_REPAIR_MACHINES_ONCHAIN,
   sendWalletInstructions,
@@ -712,6 +717,70 @@ export async function buyListedMachine(connection, listing, knownStatus) {
       listing: addresses.listing,
       collection: status.config.collection,
       priceLamports: listing.priceLamports,
+    })],
+  });
+}
+
+export async function makeMachineOffer(connection, asset, priceLamports) {
+  return makeMarketOffer(connection, 0, addressBytes(asset), priceLamports);
+}
+
+export async function makeClassOffer(connection, weight, priceLamports) {
+  const target = new Uint8Array(32);
+  new DataView(target.buffer).setUint16(0, Number(weight), true);
+  return makeMarketOffer(connection, 1, target, priceLamports);
+}
+
+async function makeMarketOffer(connection, kind, target, priceLamports) {
+  const buyer = address(connection.account.address);
+  const offer = await deriveMarketOffer(PROGRAM_ID, buyer, kind, target);
+  const signature = await sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildMakeOfferInstruction({
+      programAddress: PROGRAM_ID,
+      buyer,
+      offer,
+      kind,
+      target,
+      priceLamports,
+    })],
+  });
+  return { signature, offer: String(offer) };
+}
+
+export async function cancelMarketOffer(connection, offer) {
+  const buyer = address(connection.account.address);
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildCancelOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: address(offer.id) })],
+  });
+}
+
+export async function acceptMarketOffer(connection, offer, machine, knownStatus) {
+  const status = knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
+  const seller = address(connection.account.address);
+  const asset = address(machine.asset);
+  const addresses = await deriveTaxiAddresses(PROGRAM_ID, asset);
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
+    account: connection.account,
+    chain: SOLANA_CHAIN,
+    instructions: [buildAcceptOfferInstruction({
+      programAddress: PROGRAM_ID,
+      seller,
+      buyer: address(offer.buyer),
+      config: status.addresses.config,
+      machine: addresses.machine,
+      asset,
+      offer: address(offer.id),
+      collection: status.config.collection,
     })],
   });
 }

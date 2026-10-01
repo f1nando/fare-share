@@ -223,6 +223,19 @@ export interface MarketListingDocument {
   transactionSignature?: string;
 }
 
+export interface MarketOfferDocument {
+  offer: string;
+  buyer: string;
+  kind: 'asset' | 'class';
+  asset?: string;
+  weight?: number;
+  priceLamports: string;
+  status: 'active' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
+  transactionSignature?: string;
+}
+
 export interface TaxiDatabase {
   client: MongoClient;
   db: Db;
@@ -248,6 +261,7 @@ export interface TaxiDatabase {
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
   fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
   marketListings: Collection<MarketListingDocument>;
+  marketOffers: Collection<MarketOfferDocument>;
   errorLogs: Collection<ErrorLogDocument>;
 }
 
@@ -277,6 +291,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
   const marketListings = db.collection<MarketListingDocument>('market_listings');
+  const marketOffers = db.collection<MarketOfferDocument>('market_offers');
   const errorLogs = db.collection<ErrorLogDocument>('error_logs');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
@@ -318,12 +333,17 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     ensureFleetEarningRetention(fleetEarningSnapshots),
     marketListings.createIndex({ asset: 1 }, { unique: true }),
     marketListings.createIndex({ status: 1, listedAt: -1 }),
+    marketOffers.createIndex({ offer: 1 }, { unique: true }),
+    marketOffers.createIndex({ status: 1, updatedAt: -1 }),
+    marketOffers.createIndex({ buyer: 1, status: 1 }),
+    marketOffers.createIndex({ asset: 1, status: 1 }, { sparse: true }),
+    marketOffers.createIndex({ weight: 1, status: 1 }, { sparse: true }),
     errorLogs.createIndex({ errorId: 1 }, { unique: true }),
     errorLogs.createIndex({ createdAt: -1 }),
     errorLogs.createIndex({ source: 1, status: 1, createdAt: -1 }),
     errorLogs.createIndex({ expiresAt: 1 }, { name: 'error_logs_ttl', expireAfterSeconds: 0 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, marketListings, errorLogs };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, marketListings, marketOffers, errorLogs };
 }
 
 export function ensureFleetEarningRetention(

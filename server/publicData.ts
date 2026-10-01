@@ -10,6 +10,9 @@ const DAS_BATCH_SIZE = 1_000;
 const SNAPSHOT_BUCKET_MS = 5 * 60 * 1_000;
 const MARKET_LISTING_ACCOUNT_SIZE = 81;
 const MARKET_LISTING_DISCRIMINATOR_BASE58 = 'WMPLAdohQsZ';
+const MARKET_OFFER_ACCOUNT_SIZE = 82;
+const MARKET_OFFER_DISCRIMINATOR_BASE58 = 'ajwsU7aDXDU';
+const CLASS_NAME_BY_WEIGHT = new Map([[1, 'Economy'], [3, 'Comfort'], [10, 'Business'], [30, 'Legend']]);
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
@@ -130,6 +133,7 @@ export function createPublicDataService(config: {
         }));
       }
       await syncMarketListings(config.solanaRpcUrl, config.programId, database, now);
+      await syncMarketOffers(config.solanaRpcUrl, config.programId, database, now);
       const snapshot = {
         key: 'overview',
         protocol: dashboard.protocol,
@@ -258,7 +262,10 @@ export function createPublicDataService(config: {
   }
 
   async function market() {
-    const rows = await database.marketListings.find({ status: 'active' }).sort({ listedAt: -1 }).limit(250).toArray();
+    const [rows, offerRows] = await Promise.all([
+      database.marketListings.find({ status: 'active' }).sort({ listedAt: -1 }).limit(250).toArray(),
+      database.marketOffers.find({ status: 'active' }).sort({ updatedAt: -1 }).limit(500).toArray(),
+    ]);
     const machines = rows.length
       ? await database.fleetMachines.find({ asset: { $in: rows.map(row => row.asset) }, closed: false }).toArray()
       : [];
@@ -282,7 +289,29 @@ export function createPublicDataService(config: {
       const price = BigInt(listing.priceLamports);
       return floor === null || price < floor ? price : floor;
     }, null);
-    return { listings, floorLamports: floorLamports?.toString() ?? null, totalVolumeLamports: '0' };
+    const offerAssets = offerRows.flatMap(offer => offer.asset ? [offer.asset] : []);
+    const offerMachines = offerAssets.length
+      ? await database.fleetMachines.find({ asset: { $in: offerAssets }, closed: false }).toArray()
+      : [];
+    const offerMachinesByAsset = new Map(offerMachines.map(machine => [machine.asset, machine]));
+    const offers = offerRows.map(offer => {
+      const machine = offer.asset ? offerMachinesByAsset.get(offer.asset) : undefined;
+      return {
+        id: offer.offer,
+        kind: offer.kind,
+        buyer: offer.buyer,
+        asset: offer.asset,
+        weight: offer.weight,
+        className: offer.weight ? CLASS_NAME_BY_WEIGHT.get(offer.weight) : machine?.className,
+        priceLamports: offer.priceLamports,
+        createdAt: offer.createdAt.getTime(),
+        name: machine?.name,
+        imageUrl: machine?.image,
+        owner: machine?.owner,
+        nftNumber: Number(machine?.name.match(/#(\d+)$/)?.[1] || 0),
+      };
+    });
+    return { listings, offers, floorLamports: floorLamports?.toString() ?? null, totalVolumeLamports: '0' };
   }
 
   async function recordMarketTransaction(input: unknown) {
@@ -290,10 +319,14 @@ export function createPublicDataService(config: {
     const body = input as Record<string, unknown>;
     const action = String(body.action || '');
     const signature = String(body.signature || '').trim();
-    let asset: Address;
+    let asset: Address | undefined;
     let actor: Address;
-    try { asset = address(String(body.asset || '')); actor = address(String(body.actor || '')); } catch { throw new PublicDataError('Invalid asset or wallet address.'); }
-    if (!['list', 'cancel', 'buy'].includes(action)) throw new PublicDataError('Invalid marketplace action.');
+    try {
+      actor = address(String(body.actor || ''));
+      if (body.asset) asset = address(String(body.asset));
+    } catch { throw new PublicDataError('Invalid asset or wallet address.'); }
+    const offerActions = ['offer-asset', 'offer-class', 'cancel-offer', 'accept-offer'];
+    if (![...offerActions, 'list', 'cancel', 'buy'].includes(action)) throw new PublicDataError('Invalid marketplace action.');
     if (!/^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(signature)) throw new PublicDataError('Invalid transaction signature.');
     const statuses = await solanaRpcCall<{ value: Array<{ confirmationStatus?: string; err: unknown } | null> }>(config.solanaRpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
     const status = statuses.value[0];
@@ -306,9 +339,21 @@ export function createPublicDataService(config: {
     const keys = transaction?.transaction.message.accountKeys || [];
     const keyStrings = keys.map(key => typeof key === 'string' ? key : key.pubkey);
     const actorSigned = keys.some(key => typeof key !== 'string' && key.pubkey === String(actor) && key.signer);
-    if (!actorSigned || !keyStrings.includes(String(config.programId)) || !keyStrings.includes(String(asset))) {
+    if (!actorSigned || !keyStrings.includes(String(config.programId)) || (asset && !keyStrings.includes(String(asset)))) {
       throw new PublicDataError('Transaction does not match this marketplace action.', 409);
     }
+    if (offerActions.includes(action)) {
+      let offer: Address;
+      try { offer = address(String(body.offer || '')); } catch { throw new PublicDataError('Invalid offer address.'); }
+      if (!keyStrings.includes(String(offer))) throw new PublicDataError('Transaction does not contain this offer.', 409);
+      const now = new Date();
+      await Promise.all([
+        syncMarketOffers(config.solanaRpcUrl, config.programId, database, now),
+        action === 'accept-offer' ? syncMarketListings(config.solanaRpcUrl, config.programId, database, now) : Promise.resolve(),
+      ]);
+      return { offer: String(offer), active: action === 'offer-asset' || action === 'offer-class' };
+    }
+    if (!asset) throw new PublicDataError('Asset address is required.');
     const [listingAddress] = await getProgramDerivedAddress({ programAddress: config.programId, seeds: [utf8.encode('listing'), addressEncoder.encode(asset)] });
     const listingResponse = await solanaRpcCall<{ value: { owner: string; data: [string, string] } | null }>(
       config.solanaRpcUrl,
@@ -346,6 +391,23 @@ function decodeMarketListing(bytes: Uint8Array) {
     seller: addressDecoder.decode(bytes.subarray(8, 40)),
     asset: addressDecoder.decode(bytes.subarray(40, 72)),
     priceLamports: new DataView(bytes.buffer, bytes.byteOffset + 72, 8).getBigUint64(0, true).toString(),
+  };
+}
+
+function decodeMarketOffer(offer: string, bytes: Uint8Array) {
+  if (bytes.length < MARKET_OFFER_ACCOUNT_SIZE) throw new PublicDataError('On-chain offer data is invalid.', 409);
+  const kindValue = bytes[40];
+  const target = bytes.subarray(41, 73);
+  if (kindValue !== 0 && kindValue !== 1) throw new PublicDataError('On-chain offer kind is invalid.', 409);
+  const weight = kindValue === 1 ? new DataView(target.buffer, target.byteOffset, 2).getUint16(0, true) : undefined;
+  if (weight !== undefined && !CLASS_NAME_BY_WEIGHT.has(weight)) throw new PublicDataError('On-chain class offer is invalid.', 409);
+  return {
+    offer,
+    buyer: String(addressDecoder.decode(bytes.subarray(8, 40))),
+    kind: kindValue === 0 ? 'asset' as const : 'class' as const,
+    asset: kindValue === 0 ? String(addressDecoder.decode(target)) : undefined,
+    weight,
+    priceLamports: new DataView(bytes.buffer, bytes.byteOffset + 73, 8).getBigUint64(0, true).toString(),
   };
 }
 
@@ -477,6 +539,38 @@ async function syncMarketListings(rpcUrl: string, programId: Address, database: 
   }
   await database.marketListings.updateMany(
     { status: 'active', ...(listings.length ? { asset: { $nin: listings.map(listing => listing.asset) } } : {}) },
+    { $set: { status: 'cancelled', updatedAt: now } },
+  );
+}
+
+async function syncMarketOffers(rpcUrl: string, programId: Address, database: TaxiDatabase, now: Date) {
+  const accounts = await solanaRpcCall<Array<{ pubkey: string; account: { data: [string, string] } }>>(
+    rpcUrl,
+    'getProgramAccounts',
+    [String(programId), {
+      commitment: 'finalized',
+      encoding: 'base64',
+      filters: [
+        { dataSize: MARKET_OFFER_ACCOUNT_SIZE },
+        { memcmp: { offset: 0, bytes: MARKET_OFFER_DISCRIMINATOR_BASE58 } },
+      ],
+    }],
+  );
+  const offers = accounts.map(row => decodeMarketOffer(row.pubkey, Buffer.from(row.account.data[0], 'base64')));
+  if (offers.length) {
+    await database.marketOffers.bulkWrite(offers.map(offer => ({
+      updateOne: {
+        filter: { offer: offer.offer },
+        update: {
+          $set: { ...offer, status: 'active', updatedAt: now },
+          $setOnInsert: { createdAt: now },
+        },
+        upsert: true,
+      },
+    })));
+  }
+  await database.marketOffers.updateMany(
+    { status: 'active', ...(offers.length ? { offer: { $nin: offers.map(offer => offer.offer) } } : {}) },
     { $set: { status: 'cancelled', updatedAt: now } },
   );
 }

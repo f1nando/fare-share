@@ -1128,6 +1128,107 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn make_offer(
+        ctx: Context<MakeOffer>,
+        kind: u8,
+        target: [u8; 32],
+        price_lamports: u64,
+    ) -> Result<()> {
+        require!(price_lamports > 0, TaxiError::InvalidListingPrice);
+        validate_offer_target(kind, &target)?;
+
+        let is_new = ctx.accounts.offer.buyer == Pubkey::default();
+        if is_new {
+            ctx.accounts.offer.buyer = ctx.accounts.buyer.key();
+            ctx.accounts.offer.kind = kind;
+            ctx.accounts.offer.target = target;
+            ctx.accounts.offer.bump = ctx.bumps.offer;
+        } else {
+            require_keys_eq!(ctx.accounts.offer.buyer, ctx.accounts.buyer.key(), TaxiError::InvalidOffer);
+            require!(ctx.accounts.offer.kind == kind && ctx.accounts.offer.target == target, TaxiError::InvalidOffer);
+        }
+
+        let offer_info = ctx.accounts.offer.to_account_info();
+        let buyer_info = ctx.accounts.buyer.to_account_info();
+        let rent = Rent::get()?.minimum_balance(8 + MarketOffer::INIT_SPACE);
+        let escrowed = offer_info
+            .lamports()
+            .checked_sub(rent)
+            .ok_or(TaxiError::MathOverflow)?;
+        if escrowed < price_lamports {
+            anchor_lang::system_program::transfer(
+                CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: buyer_info.clone(),
+                        to: offer_info.clone(),
+                    },
+                ),
+                price_lamports - escrowed,
+            )?;
+        } else if escrowed > price_lamports {
+            let refund = escrowed - price_lamports;
+            let offer_balance = offer_info.lamports();
+            let buyer_balance = buyer_info.lamports();
+            **offer_info.try_borrow_mut_lamports()? = offer_balance
+                .checked_sub(refund)
+                .ok_or(TaxiError::MathOverflow)?;
+            **buyer_info.try_borrow_mut_lamports()? = buyer_balance
+                .checked_add(refund)
+                .ok_or(TaxiError::MathOverflow)?;
+        }
+        ctx.accounts.offer.price_lamports = price_lamports;
+        Ok(())
+    }
+
+    pub fn cancel_offer(_ctx: Context<CancelOffer>) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
+        require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
+        require_keys_neq!(ctx.accounts.seller.key(), ctx.accounts.buyer.key(), TaxiError::InvalidOffer);
+        validate_offer_for_machine(&ctx.accounts.offer, &ctx.accounts.asset.key(), ctx.accounts.machine.weight)?;
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.seller.key(),
+            &ctx.accounts.config.collection,
+        )?;
+
+        let price_lamports = ctx.accounts.offer.price_lamports;
+        let offer_info = ctx.accounts.offer.to_account_info();
+        let seller_info = ctx.accounts.seller.to_account_info();
+        let offer_balance = offer_info.lamports();
+        let seller_balance = seller_info.lamports();
+        **offer_info.try_borrow_mut_lamports()? = offer_balance
+            .checked_sub(price_lamports)
+            .ok_or(TaxiError::MathOverflow)?;
+        **seller_info.try_borrow_mut_lamports()? = seller_balance
+            .checked_add(price_lamports)
+            .ok_or(TaxiError::MathOverflow)?;
+
+        let instruction = metaplex_core::transfer_asset(
+            ctx.accounts.asset.key(),
+            ctx.accounts.collection.key(),
+            ctx.accounts.seller.key(),
+            ctx.accounts.seller.key(),
+            ctx.accounts.buyer.key(),
+        );
+        invoke_signed(
+            &instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.asset.to_account_info(),
+                ctx.accounts.collection.to_account_info(),
+                ctx.accounts.seller.to_account_info(),
+                ctx.accounts.seller.to_account_info(),
+                ctx.accounts.buyer.to_account_info(),
+            ],
+            &[],
+        )?;
+        Ok(())
+    }
+
     pub fn repair(ctx: Context<RepairMachine>, page_index: u8) -> Result<()> {
         require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
@@ -1991,6 +2092,37 @@ pub mod taxi_park {
     }
 }
 
+const ASSET_OFFER_KIND: u8 = 0;
+const CLASS_OFFER_KIND: u8 = 1;
+
+fn validate_offer_target(kind: u8, target: &[u8; 32]) -> Result<()> {
+    match kind {
+        ASSET_OFFER_KIND => {
+            require!(Pubkey::new_from_array(*target) != Pubkey::default(), TaxiError::InvalidOffer);
+        }
+        CLASS_OFFER_KIND => {
+            let weight = u16::from_le_bytes([target[0], target[1]]);
+            require!(CLASS_WEIGHTS.contains(&weight), TaxiError::InvalidOffer);
+            require!(target[2..].iter().all(|value| *value == 0), TaxiError::InvalidOffer);
+        }
+        _ => return err!(TaxiError::InvalidOffer),
+    }
+    Ok(())
+}
+
+fn validate_offer_for_machine(offer: &MarketOffer, asset: &Pubkey, weight: u16) -> Result<()> {
+    validate_offer_target(offer.kind, &offer.target)?;
+    match offer.kind {
+        ASSET_OFFER_KIND => require!(offer.target == asset.to_bytes(), TaxiError::InvalidOffer),
+        CLASS_OFFER_KIND => require!(
+            u16::from_le_bytes([offer.target[0], offer.target[1]]) == weight,
+            TaxiError::InvalidOffer
+        ),
+        _ => return err!(TaxiError::InvalidOffer),
+    }
+    Ok(())
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitializeArgs {
     pub backend_signer: Pubkey,
@@ -2285,6 +2417,66 @@ pub struct SettleMachine<'info> {
     pub listing: Account<'info, MarketListing>,
     /// CHECK: Fixed configured Metaplex Core collection.
     #[account(mut, address = config.collection)]
+    pub collection: UncheckedAccount<'info>,
+    /// CHECK: Fixed official Metaplex Core program.
+    #[account(address = metaplex_core::MPL_CORE_ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(kind: u8, target: [u8; 32])]
+pub struct MakeOffer<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        space = 8 + MarketOffer::INIT_SPACE,
+        seeds = [b"offer", buyer.key().as_ref(), &[kind], target.as_ref()],
+        bump
+    )]
+    pub offer: Account<'info, MarketOffer>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CancelOffer<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"offer", buyer.key().as_ref(), &[offer.kind], offer.target.as_ref()],
+        bump = offer.bump,
+        has_one = buyer @ TaxiError::InvalidOffer
+    )]
+    pub offer: Account<'info, MarketOffer>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptOffer<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+    /// CHECK: Bound to the offer buyer and receives the NFT plus returned offer rent.
+    #[account(mut, address = offer.buyer @ TaxiError::InvalidOffer)]
+    pub buyer: UncheckedAccount<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = collection @ TaxiError::InvalidCollection)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
+    pub machine: Box<Account<'info, Machine>>,
+    /// CHECK: Core owner and collection are validated in the handler.
+    #[account(mut)]
+    pub asset: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"offer", offer.buyer.as_ref(), &[offer.kind], offer.target.as_ref()],
+        bump = offer.bump
+    )]
+    pub offer: Account<'info, MarketOffer>,
+    /// CHECK: Fixed configured Metaplex Core collection.
+    #[account(address = config.collection)]
     pub collection: UncheckedAccount<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
@@ -2727,6 +2919,25 @@ fn decode_direct_pump_curve(data: &[u8]) -> Result<(Pubkey, bool)> {
 #[cfg(test)]
 mod accounting_tests {
     use super::*;
+
+    #[test]
+    fn market_offer_targets_bind_assets_and_supported_classes() {
+        let asset = Pubkey::new_unique();
+        assert!(validate_offer_target(ASSET_OFFER_KIND, &asset.to_bytes()).is_ok());
+        assert!(validate_offer_target(ASSET_OFFER_KIND, &[0; 32]).is_err());
+
+        for weight in CLASS_WEIGHTS {
+            let mut target = [0; 32];
+            target[..2].copy_from_slice(&weight.to_le_bytes());
+            assert!(validate_offer_target(CLASS_OFFER_KIND, &target).is_ok());
+            let offer = MarketOffer { kind: CLASS_OFFER_KIND, target, ..MarketOffer::default() };
+            assert!(validate_offer_for_machine(&offer, &asset, weight).is_ok());
+        }
+
+        let mut invalid_class = [0; 32];
+        invalid_class[..2].copy_from_slice(&2_u16.to_le_bytes());
+        assert!(validate_offer_target(CLASS_OFFER_KIND, &invalid_class).is_err());
+    }
 
     #[test]
     fn initialize_rejects_duplicate_reward_mints() {

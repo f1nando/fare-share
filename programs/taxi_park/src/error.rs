@@ -30,6 +30,8 @@ pub enum TaxiError {
     InvalidListingPrice,
     #[msg("Marketplace listing does not match the seller or asset")]
     InvalidListing,
+    #[msg("Marketplace offer kind or target is invalid")]
+    InvalidOffer,
     #[msg("Admin address cannot be the zero address")]
     InvalidAdmin,
     #[msg("Unknown machine class")]

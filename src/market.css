@@ -5,7 +5,9 @@
 .fare-market-heading h1 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 96px; font-weight: 400; line-height: .8; letter-spacing: -.025em; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 9px 10px 0 #111; }
 .fare-market-heading p { max-width: 460px; margin: 0 0 3px; padding: 13px 16px; border-left: 8px solid #111; background: #fff; font-size: 22px; font-weight: 700; line-height: 27px; }
 .fare-market-heading-action { display: flex; max-width: 460px; align-items: stretch; flex-direction: column; gap: 14px; }
+.fare-market-heading-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
 .fare-market-heading-action button, .fare-market-listing-actions button { height: 52px; padding: 0 24px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; }
+.fare-market-heading-action button.is-secondary { background: #fff; }
 .fare-market-heading-action button:disabled, .fare-market-listing-actions button:disabled { cursor: wait; opacity: .55; }
 .fare-market-listing-form { display: grid; grid-template-columns: minmax(260px, 1.3fr) minmax(220px, 1fr) minmax(180px, .7fr) auto; align-items: end; gap: 22px; margin-top: 48px; padding: 24px 26px; border: 2px solid #111; border-radius: 26px; background: #fff; box-shadow: 7px 8px 0 #111; }
 .fare-market-listing-form > div:first-child { display: flex; align-items: flex-start; flex-direction: column; }
@@ -64,10 +66,28 @@
 .fare-market-price-row button, .fare-market-empty button, .fare-market-empty a { display: inline-flex; min-width: 128px; height: 48px; align-items: center; justify-content: center; padding: 0 17px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
 .fare-market-price-row button:hover, .fare-market-empty button:hover, .fare-market-empty a:hover { transform: translate(4px, 5px); box-shadow: none; }
 .fare-market-price-row button:disabled { cursor: not-allowed; opacity: .55; transform: none; box-shadow: none; }
+.fare-market-card-actions { display: flex; align-items: flex-end; flex-direction: column; gap: 9px; }
+.fare-market-price-row .fare-market-card-actions button { min-width: 120px; height: 42px; }
+.fare-market-price-row .fare-market-card-actions button.is-secondary { background: #fff; box-shadow: none; }
 .fare-market-empty { display: grid; min-height: 360px; place-items: center; align-content: center; margin-top: 74px; padding: 30px; border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 6px 7px 0 #111; text-align: center; }
 .fare-market-empty strong { font-family: 'Intro Friday', Impact, sans-serif; font-size: 46px; font-weight: 400; }
 .fare-market-empty p { margin: 12px 0 24px; color: #666; font-size: 15px; }
 .fare-market-empty button, .fare-market-empty a { min-width: 180px; }
+.fare-market-offers { margin-top: 86px; }
+.fare-market-offers-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.fare-market-offers-heading > div { display: flex; align-items: flex-start; flex-direction: column; gap: 7px; }
+.fare-market-offers-heading span { font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+.fare-market-offers-heading h2 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 52px; font-weight: 400; line-height: .85; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 5px 5px 0 #111; }
+.fare-market-offers-heading button, .fare-market-offer-card button { min-height: 48px; padding: 0 20px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; }
+.fare-market-offer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.fare-market-offer-card { display: flex; align-items: flex-start; flex-direction: column; gap: 15px; padding: 22px; border: 2px solid #111; border-radius: 24px; background: #fff; box-shadow: 5px 6px 0 #111; }
+.fare-market-offer-card > .fare-fleet-class { position: static; }
+.fare-market-offer-card h3 { min-height: 50px; margin: 0; font-size: 21px; line-height: 25px; }
+.fare-market-offer-card > div { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid #ccc; }
+.fare-market-offer-card > div span { color: #777; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.fare-market-offer-card > div strong { font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 14px; }
+.fare-market-offer-card button { width: 100%; margin-top: auto; }
+.fare-market-offers-empty { padding: 42px; border: 2px dashed #111; border-radius: 24px; background: rgb(255 255 255 / 55%); font-size: 15px; font-weight: 900; text-align: center; }
 
 @media (max-width: 1000px) {
   .fare-market-console-top { grid-template-columns: 180px minmax(0, 1fr); }
@@ -76,6 +96,7 @@
   .fare-market-toolbar { grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.4fr); }
   .fare-market-select { grid-column: 1 / -1; }
   .fare-market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fare-market-offer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-market-listing-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fare-market-listing-form > div:first-child { grid-column: 1 / -1; }
 }
@@ -87,6 +108,7 @@
   .fare-market-heading h1 { font-size: 52px; -webkit-text-stroke-width: 2px; text-shadow: 4px 5px 0 #111; }
   .fare-market-heading p { width: min(360px, 100%); margin: 0; padding: 10px 14px; border-left-width: 6px; font-size: 14px; line-height: 18px; }
   .fare-market-heading-action { width: 100%; }
+  .fare-market-heading-buttons { grid-template-columns: 1fr; }
   .fare-market-listing-form { grid-template-columns: 1fr; gap: 18px; margin-top: 34px; padding: 20px 16px; border-radius: 22px; }
   .fare-market-listing-form > div:first-child { grid-column: auto; }
   .fare-market-listing-actions { display: grid; grid-template-columns: .7fr 1.3fr; }
@@ -110,6 +132,10 @@
   .fare-market-notice { margin-top: 62px; }
   .fare-market-notice + .fare-market-grid { margin-top: 0; }
   .fare-market-empty { margin-top: 62px; }
+  .fare-market-offers { margin-top: 68px; }
+  .fare-market-offers-heading { align-items: stretch; flex-direction: column; }
+  .fare-market-offers-heading h2 { font-size: 40px; }
+  .fare-market-offer-grid { grid-template-columns: 1fr; }
   .fare-market-card { border-radius: 24px; box-shadow: 5px 6px 0 #111; }
   .fare-market-media { margin: 12px 12px 0; }
   .fare-market-card-copy { padding: 20px 16px 20px; }

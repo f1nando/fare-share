@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import { loadDatabaseFleet, loadPublicMarket, saveMarketTransaction } from './publicData.js';
-import { buyListedMachine, cancelMachineSale, listMachineForSale, loadProtocolStatus } from './protocol/solana.js';
+import {
+  acceptMarketOffer,
+  buyListedMachine,
+  cancelMachineSale,
+  cancelMarketOffer,
+  listMachineForSale,
+  loadProtocolStatus,
+  makeClassOffer,
+  makeMachineOffer,
+} from './protocol/solana.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -10,6 +19,12 @@ const CLASS_BY_NAME = new Map([
   ...['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'].map(name => [name, { name: 'Business', tone: 'business' }]),
   ...['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'].map(name => [name, { name: 'Legend', tone: 'legend' }]),
 ]);
+const CLASS_OPTIONS = [
+  { name: 'Economy', tone: 'economy', weight: 1 },
+  { name: 'Comfort', tone: 'comfort', weight: 3 },
+  { name: 'Business', tone: 'business', weight: 10 },
+  { name: 'Legend', tone: 'legend', weight: 30 },
+];
 
 const SORTERS = {
   featured: (left, right) => left.listedAt - right.listedAt,
@@ -37,12 +52,20 @@ export function MarketPage({ wallet, connectWallet }) {
   const [vehicleClass, setVehicleClass] = useState('all');
   const [sort, setSort] = useState('featured');
   const [notice, setNotice] = useState('');
-  const [market, setMarket] = useState({ listings: [], floorLamports: null, totalVolumeLamports: '0' });
+  const [market, setMarket] = useState({ listings: [], offers: [], floorLamports: null, totalVolumeLamports: '0' });
   const [protocolStatus, setProtocolStatus] = useState(null);
   const [showListing, setShowListing] = useState(false);
   const [ownedCars, setOwnedCars] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState('');
   const [price, setPrice] = useState('');
+  const [showOffer, setShowOffer] = useState(false);
+  const [offerType, setOfferType] = useState('asset');
+  const [offerAsset, setOfferAsset] = useState('');
+  const [offerWeight, setOfferWeight] = useState('1');
+  const [offerPrice, setOfferPrice] = useState('');
+  const [acceptingOffer, setAcceptingOffer] = useState(null);
+  const [eligibleCars, setEligibleCars] = useState([]);
+  const [acceptAsset, setAcceptAsset] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -67,6 +90,7 @@ export function MarketPage({ wallet, connectWallet }) {
       .sort(SORTERS[sort]);
   }, [listings, query, sort, vehicleClass]);
   const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
+  const offers = market.offers || [];
 
   async function refreshMarket() {
     setMarket(await loadPublicMarket());
@@ -141,6 +165,111 @@ export function MarketPage({ wallet, connectWallet }) {
     }
   }
 
+  async function openOffer(asset = '') {
+    setBusy(true);
+    setNotice('');
+    try {
+      if (!wallet) await connectWallet();
+      setOfferType(asset ? 'asset' : 'class');
+      setOfferAsset(asset);
+      setShowOffer(true);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleOffer(event) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice('Approve the escrowed SOL offer in your wallet…');
+    try {
+      const connection = wallet || await connectWallet();
+      const priceLamports = solToLamports(offerPrice);
+      const result = offerType === 'asset'
+        ? await makeMachineOffer(connection, offerAsset.trim(), priceLamports)
+        : await makeClassOffer(connection, Number(offerWeight), priceLamports);
+      await saveMarketTransaction({
+        action: offerType === 'asset' ? 'offer-asset' : 'offer-class',
+        signature: result.signature,
+        offer: result.offer,
+        asset: offerType === 'asset' ? offerAsset.trim() : undefined,
+        actor: connection.account.address,
+      });
+      await refreshMarket();
+      setShowOffer(false);
+      setOfferPrice('');
+      setNotice('Offer created. Its SOL is locked on-chain until acceptance or cancellation.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCancelOffer(offer) {
+    setBusy(true);
+    setNotice('Approve cancellation to return the escrowed SOL…');
+    try {
+      const connection = wallet || await connectWallet();
+      const signature = await cancelMarketOffer(connection, offer);
+      await saveMarketTransaction({ action: 'cancel-offer', signature, offer: offer.id, actor: connection.account.address });
+      await refreshMarket();
+      setNotice('Offer cancelled. Escrowed SOL and account rent were returned.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function openAcceptOffer(offer) {
+    setBusy(true);
+    setNotice('');
+    try {
+      const connection = wallet || await connectWallet();
+      const cars = await loadDatabaseFleet(connection.account.address);
+      const matches = cars.filter(car => offer.kind === 'asset'
+        ? car.asset === offer.asset
+        : Number(car.weight) === Number(offer.weight));
+      if (!matches.length) throw new Error('This wallet has no eligible taxi for this offer.');
+      setEligibleCars(matches);
+      setAcceptAsset(matches[0].asset);
+      setAcceptingOffer(offer);
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAcceptOffer(event) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice('Approve the atomic offer settlement in your wallet…');
+    try {
+      const connection = wallet || await connectWallet();
+      const machine = eligibleCars.find(car => car.asset === acceptAsset);
+      if (!machine || !acceptingOffer) throw new Error('Choose an eligible taxi.');
+      const signature = await acceptMarketOffer(connection, acceptingOffer, machine, protocolStatus);
+      await saveMarketTransaction({
+        action: 'accept-offer',
+        signature,
+        offer: acceptingOffer.id,
+        asset: machine.asset,
+        actor: connection.account.address,
+      });
+      await refreshMarket();
+      setAcceptingOffer(null);
+      setNotice('Offer accepted. You received SOL and the buyer received the NFT atomically.');
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="fare-market-main" id="top">
       <section className="container fare-market-section" aria-labelledby="market-page-title">
@@ -151,7 +280,10 @@ export function MarketPage({ wallet, connectWallet }) {
           </div>
           <div className="fare-market-heading-action">
             <p>List a taxi at your price or buy one atomically with SOL. Fare Share never holds your NFT or payment.</p>
-            <button type="button" disabled={busy} onClick={openListing}>LIST YOUR NFT</button>
+            <div className="fare-market-heading-buttons">
+              <button type="button" disabled={busy} onClick={openListing}>LIST YOUR NFT</button>
+              <button className="is-secondary" type="button" disabled={busy} onClick={() => openOffer()}>CREATE BUY REQUEST</button>
+            </div>
           </div>
         </header>
 
@@ -175,6 +307,64 @@ export function MarketPage({ wallet, connectWallet }) {
             <div className="fare-market-listing-actions">
               <button className="is-secondary" type="button" onClick={() => setShowListing(false)} disabled={busy}>CANCEL</button>
               <button type="submit" disabled={busy || !selectedAsset || !price.trim()}>{busy ? 'SIGNING…' : 'LIST FOR SALE'}</button>
+            </div>
+          </form>
+        )}
+
+        {showOffer && (
+          <form className="fare-market-listing-form" onSubmit={handleOffer}>
+            <div>
+              <span>CREATE BUY REQUEST</span>
+              <strong>Offer SOL for one taxi or a whole class</strong>
+              <small>The offered SOL is locked on-chain and returned if you cancel.</small>
+            </div>
+            <label>
+              <span>REQUEST TYPE</span>
+              <select value={offerType} onChange={event => setOfferType(event.target.value)} disabled={busy}>
+                <option value="asset">Specific NFT</option>
+                <option value="class">Any taxi in class</option>
+              </select>
+            </label>
+            {offerType === 'asset' ? (
+              <label>
+                <span>NFT ADDRESS</span>
+                <input value={offerAsset} onChange={event => setOfferAsset(event.target.value)} placeholder="Core asset address" disabled={busy} />
+              </label>
+            ) : (
+              <label>
+                <span>TAXI CLASS</span>
+                <select value={offerWeight} onChange={event => setOfferWeight(event.target.value)} disabled={busy}>
+                  {CLASS_OPTIONS.map(item => <option value={item.weight} key={item.weight}>{item.name}</option>)}
+                </select>
+              </label>
+            )}
+            <label>
+              <span>OFFER IN SOL</span>
+              <input type="text" inputMode="decimal" placeholder="1.00" value={offerPrice} onChange={event => setOfferPrice(event.target.value)} disabled={busy} />
+            </label>
+            <div className="fare-market-listing-actions">
+              <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
+              <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && !offerAsset.trim())}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
+            </div>
+          </form>
+        )}
+
+        {acceptingOffer && (
+          <form className="fare-market-listing-form" onSubmit={handleAcceptOffer}>
+            <div>
+              <span>ACCEPT BUY REQUEST</span>
+              <strong>{formatLamports(acceptingOffer.priceLamports)} SOL</strong>
+              <small>The NFT and escrowed SOL exchange atomically.</small>
+            </div>
+            <label>
+              <span>YOUR ELIGIBLE TAXI</span>
+              <select value={acceptAsset} onChange={event => setAcceptAsset(event.target.value)} disabled={busy}>
+                {eligibleCars.map(car => <option value={car.asset} key={car.asset}>{car.name}</option>)}
+              </select>
+            </label>
+            <div className="fare-market-listing-actions">
+              <button className="is-secondary" type="button" onClick={() => setAcceptingOffer(null)} disabled={busy}>BACK</button>
+              <button type="submit" disabled={busy || !acceptAsset}>{busy ? 'SIGNING…' : 'ACCEPT OFFER'}</button>
             </div>
           </form>
         )}
@@ -245,7 +435,10 @@ export function MarketPage({ wallet, connectWallet }) {
                     <div><span>PRICE</span><strong>{formatSolPrice(listing.price)} SOL</strong></div>
                     {wallet?.account.address === listing.seller
                       ? <button type="button" disabled={busy} onClick={() => handleCancel(listing)}>CANCEL LISTING</button>
-                      : <button type="button" disabled={busy} onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>}
+                      : <div className="fare-market-card-actions">
+                        <button className="is-secondary" type="button" disabled={busy} onClick={() => openOffer(listing.asset)}>MAKE OFFER</button>
+                        <button type="button" disabled={busy} onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>
+                      </div>}
                   </div>
                 </div>
               </article>
@@ -260,6 +453,29 @@ export function MarketPage({ wallet, connectWallet }) {
                 : <button type="button" onClick={openListing}>LIST YOUR NFT</button>}
           </div>
         )}
+
+
+        <section className="fare-market-offers" aria-labelledby="market-offers-title">
+          <div className="fare-market-offers-heading">
+            <div><span>ESCROWED ON-CHAIN</span><h2 id="market-offers-title">BUY REQUESTS</h2></div>
+            <button type="button" disabled={busy} onClick={() => openOffer()}>CREATE REQUEST</button>
+          </div>
+          {offers.length ? (
+            <div className="fare-market-offer-grid">
+              {offers.map(offer => (
+                <article className="fare-market-offer-card" key={offer.id}>
+                  <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.kind === 'class' ? `${offer.className} CLASS` : 'SPECIFIC NFT'}</span>
+                  <h3>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h3>
+                  <div><span>BUYER</span><strong>{shortWallet(offer.buyer)}</strong></div>
+                  <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
+                  {wallet?.account.address === offer.buyer
+                    ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
+                    : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
+                </article>
+              ))}
+            </div>
+          ) : <div className="fare-market-offers-empty">NO ACTIVE BUY REQUESTS</div>}
+        </section>
       </section>
     </main>
   );
@@ -276,4 +492,8 @@ function solToLamports(value) {
 
 function formatSolPrice(value) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 9 }).format(value);
+}
+
+function formatLamports(value) {
+  return formatSolPrice(Number(value) / 1_000_000_000);
 }
