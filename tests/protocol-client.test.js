@@ -696,19 +696,24 @@ test('escrowed asset, class, and model offers use target-bound PDAs and settleme
   assert.notEqual(String(assetOffer), String(classOffer));
   assert.notEqual(String(classOffer), String(modelOffer));
 
-  const make = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer, kind: 1, target: classTarget, priceLamports: 2_000_000_000n });
-  const makeModel = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: modelOffer, kind: 2, target: modelTarget, priceLamports: 3_000_000_000n });
+  const make = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, config: derived.config, offer: classOffer, kind: 1, target: classTarget, priceLamports: 2_000_000_000n });
+  const makeModel = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, config: derived.config, offer: modelOffer, kind: 2, target: modelTarget, priceLamports: 3_000_000_000n });
   const cancel = buildCancelOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer });
-  const accept = buildAcceptOfferInstruction({ programAddress: PROGRAM_ID, seller, buyer, config: derived.config, machine: derived.machine, asset, offer: classOffer, collection });
+  const accept = buildAcceptOfferInstruction({ programAddress: PROGRAM_ID, seller, buyer, config: derived.config, machine: derived.machine, asset, offer: classOffer, listing: derived.listing, collection, priceLamports: 2_000_000_000n });
   assert.deepEqual([...make.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.makeOffer]);
   assert.equal(make.data[8], 1);
+  assert.equal(String(make.accounts[1].address), String(derived.config));
+  assert.equal(String(make.accounts[2].address), String(classOffer));
   assert.equal(makeModel.data[8], 2);
   assert.deepEqual([...makeModel.data.slice(9, 11)], [3, 0]);
   assert.equal(new DataView(make.data.buffer, make.data.byteOffset + 41, 8).getBigUint64(0, true), 2_000_000_000n);
   assert.deepEqual([...cancel.data], [...TAXI_DISCRIMINATORS.cancelOffer]);
-  assert.deepEqual([...accept.data], [...TAXI_DISCRIMINATORS.acceptOffer]);
+  assert.deepEqual([...accept.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.acceptOffer]);
+  assert.equal(new DataView(accept.data.buffer, accept.data.byteOffset + 8, 8).getBigUint64(0, true), 2_000_000_000n);
   assert.equal(String(accept.accounts[1].address), String(buyer));
   assert.equal(String(accept.accounts[5].address), String(classOffer));
+  assert.equal(String(accept.accounts[6].address), String(derived.listing));
+  assert.equal(String(accept.accounts[7].address), String(collection));
 });
 
 test('wallet transaction preserves bigint Solana error codes', async () => {

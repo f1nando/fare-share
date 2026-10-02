@@ -54,6 +54,7 @@ export function createPublicDataService(config: {
   workerIntervalMs: number;
   fareSymbol: string | (() => string);
   assetLoader?: (rpcUrl: string, ids: string[]) => Promise<DasAsset[]>;
+  taxiIndexRefresher?: () => Promise<void>;
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -219,17 +220,23 @@ export function createPublicDataService(config: {
     if (!identifier) throw new PublicDataError('Enter an NFT address or number.');
     const numberMatch = /^#?(\d{1,4})$/.exec(identifier);
     let machine: FleetMachineDocument | null;
+    let findMachine: () => Promise<FleetMachineDocument | null>;
     if (numberMatch) {
       const nftNumber = Number(numberMatch[1]);
       if (nftNumber < 1) return { minted: false, error: 'NFT number must be greater than zero.' };
-      machine = await database.fleetMachines.findOne({
+      findMachine = () => database.fleetMachines.findOne({
         name: { $regex: new RegExp(`#${String(nftNumber).padStart(4, '0')}$`) },
         closed: false,
       });
     } else {
       let asset: Address;
       try { asset = address(identifier); } catch { return { minted: false, error: 'Enter a valid NFT address or minted NFT number.' }; }
-      machine = await database.fleetMachines.findOne({ asset: String(asset), closed: false });
+      findMachine = () => database.fleetMachines.findOne({ asset: String(asset), closed: false });
+    }
+    machine = await findMachine();
+    if (!machine) {
+      await (config.taxiIndexRefresher ? config.taxiIndexRefresher() : sync());
+      machine = await findMachine();
     }
     if (!machine) return { minted: false, error: 'This NFT has not been minted yet or is unavailable.' };
     return {
@@ -316,8 +323,8 @@ export function createPublicDataService(config: {
 
   async function market() {
     const [rows, offerRows] = await Promise.all([
-      database.marketListings.find({ status: 'active' }).sort({ listedAt: -1 }).limit(250).toArray(),
-      database.marketOffers.find({ status: 'active' }).sort({ updatedAt: -1 }).limit(500).toArray(),
+      database.marketListings.find({ status: 'active' }).sort({ listedAt: -1 }).toArray(),
+      database.marketOffers.find({ status: 'active' }).sort({ updatedAt: -1 }).toArray(),
     ]);
     const machines = rows.length
       ? await database.fleetMachines.find({ asset: { $in: rows.map(row => row.asset) }, closed: false }).toArray()
@@ -419,7 +426,7 @@ export function createPublicDataService(config: {
         await refreshMachineOwner(asset, actor);
       }
       await syncMarket(true);
-      return { offer: String(offer), active: action === 'offer-asset' || action === 'offer-class' };
+      return { offer: String(offer), active: action === 'offer-asset' || action === 'offer-class' || action === 'offer-model' };
     }
     if (!asset) throw new PublicDataError('Asset address is required.');
     const [listingAddress] = await getProgramDerivedAddress({ programAddress: config.programId, seeds: [utf8.encode('listing'), addressEncoder.encode(asset)] });

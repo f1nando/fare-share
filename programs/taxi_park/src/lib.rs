@@ -1005,6 +1005,7 @@ pub mod taxi_park {
     }
 
     pub fn list_machine(ctx: Context<ListMachine>, price_lamports: u64) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(price_lamports > 0, TaxiError::InvalidListingPrice);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
         metaplex_core::assert_asset(
@@ -1014,7 +1015,8 @@ pub mod taxi_park {
         )?;
 
         let is_new = ctx.accounts.listing.seller == Pubkey::default();
-        if is_new {
+        let owner_changed = !is_new && ctx.accounts.listing.seller != ctx.accounts.seller.key();
+        if is_new || owner_changed {
             ctx.accounts.listing.seller = ctx.accounts.seller.key();
             ctx.accounts.listing.asset = ctx.accounts.asset.key();
             ctx.accounts.listing.bump = ctx.bumps.listing;
@@ -1078,6 +1080,7 @@ pub mod taxi_park {
             )?;
             return Ok(());
         }
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(
             expected_price_lamports == ctx.accounts.listing.price_lamports,
             TaxiError::InvalidListing
@@ -1150,6 +1153,7 @@ pub mod taxi_park {
         target: [u8; 32],
         price_lamports: u64,
     ) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(price_lamports > 0, TaxiError::InvalidListingPrice);
         validate_offer_target(kind, &target)?;
 
@@ -1201,9 +1205,11 @@ pub mod taxi_park {
         Ok(())
     }
 
-    pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
+    pub fn accept_offer(ctx: Context<AcceptOffer>, expected_price_lamports: u64) -> Result<()> {
+        require!(!ctx.accounts.config.is_paused(), TaxiError::Paused);
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
         require_keys_neq!(ctx.accounts.seller.key(), ctx.accounts.buyer.key(), TaxiError::InvalidOffer);
+        require!(ctx.accounts.listing.data_is_empty(), TaxiError::InvalidListing);
         metaplex_core::assert_asset(
             &ctx.accounts.asset,
             &ctx.accounts.seller.key(),
@@ -1217,21 +1223,17 @@ pub mod taxi_park {
         )?;
 
         let price_lamports = ctx.accounts.offer.price_lamports;
+        require!(price_lamports == expected_price_lamports, TaxiError::InvalidOffer);
         let offer_info = ctx.accounts.offer.to_account_info();
-        let rent_refund = offer_info
-            .lamports()
+        let seller_info = ctx.accounts.seller.to_account_info();
+        let offer_balance = offer_info.lamports();
+        let seller_balance = seller_info.lamports();
+        **offer_info.try_borrow_mut_lamports()? = offer_balance
             .checked_sub(price_lamports)
             .ok_or(TaxiError::MathOverflow)?;
-        anchor_lang::system_program::transfer(
-            CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                anchor_lang::system_program::Transfer {
-                    from: ctx.accounts.seller.to_account_info(),
-                    to: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
-            rent_refund,
-        )?;
+        **seller_info.try_borrow_mut_lamports()? = seller_balance
+            .checked_add(price_lamports)
+            .ok_or(TaxiError::MathOverflow)?;
 
         let instruction = metaplex_core::transfer_asset(
             ctx.accounts.asset.key(),
@@ -2473,6 +2475,8 @@ pub struct SettleMachine<'info> {
 pub struct MakeOffer<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Box<Account<'info, Configuration>>,
     #[account(
         init_if_needed,
         payer = buyer,
@@ -2514,11 +2518,14 @@ pub struct AcceptOffer<'info> {
     pub asset: UncheckedAccount<'info>,
     #[account(
         mut,
-        close = seller,
+        close = buyer,
         seeds = [b"offer", offer.buyer.as_ref(), &[offer.kind], offer.target.as_ref()],
         bump = offer.bump
     )]
     pub offer: Account<'info, MarketOffer>,
+    /// CHECK: The canonical listing PDA must be empty before an offer can be accepted.
+    #[account(seeds = [b"listing", asset.key().as_ref()], bump)]
+    pub listing: UncheckedAccount<'info>,
     /// CHECK: Fixed configured Metaplex Core collection.
     #[account(address = config.collection)]
     pub collection: UncheckedAccount<'info>,

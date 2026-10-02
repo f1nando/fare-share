@@ -740,6 +740,7 @@ export async function makeModelOffer(connection, classIndex, variantIndex, price
 
 async function makeMarketOffer(connection, kind, target, priceLamports) {
   const buyer = address(connection.account.address);
+  const status = await loadProtocolStatus();
   const offer = await deriveMarketOffer(PROGRAM_ID, buyer, kind, target);
   const signature = await sendWalletInstructions({
     rpc,
@@ -749,6 +750,7 @@ async function makeMarketOffer(connection, kind, target, priceLamports) {
     instructions: [buildMakeOfferInstruction({
       programAddress: PROGRAM_ID,
       buyer,
+      config: status.addresses.config,
       offer,
       kind,
       target,
@@ -787,7 +789,9 @@ export async function acceptMarketOffer(connection, offer, machine, knownStatus)
       machine: addresses.machine,
       asset,
       offer: address(offer.id),
+      listing: addresses.listing,
       collection: status.config.collection,
+      priceLamports: offer.priceLamports,
     })],
   });
 }

@@ -193,6 +193,7 @@
 .fare-market-offer-fields .fare-market-offer-lookup-status { min-height: 15px; color: #666; font-size: 10px; font-weight: 800; line-height: 15px; }
 .fare-market-offer-fields .fare-market-offer-lookup-status.is-found { color: #278019; }
 .fare-market-offer-fields .fare-market-offer-lookup-status.is-error { color: #a41414; }
+.fare-market-self-offer-warning { padding: 9px 11px; border: 2px solid #111; border-radius: 10px; color: #111; background: #ffe72f; font-size: 10px; font-weight: 900; line-height: 14px; }
 .fare-market-listing-fields { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(160px, .6fr); gap: 16px; margin-top: 24px; }
 .fare-market-listing-fields label { display: flex; align-items: flex-start; flex-direction: column; gap: 8px; }
 .fare-market-listing-fields label > span { font-size: 11px; font-weight: 900; letter-spacing: .08em; }

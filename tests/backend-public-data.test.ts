@@ -74,6 +74,7 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
 });
 
 test('public taxi lookup resolves only already minted NFTs by address or number', async () => {
+  let indexRefreshes = 0;
   const minted = machine({ asset: ASSET, name: 'TAXI Toyota Prius #0005', className: 'Comfort', classIndex: 1, weight: 3 });
   const database = {
     fleetMachines: {
@@ -89,6 +90,7 @@ test('public taxi lookup resolves only already minted NFTs by address or number'
     programId: address(ASSET),
     workerIntervalMs: 60_000,
     fareSymbol: 'FARE',
+    taxiIndexRefresher: async () => { indexRefreshes += 1; },
   }, database);
 
   assert.equal((await service.taxi('5')).asset, ASSET);
@@ -96,6 +98,7 @@ test('public taxi lookup resolves only already minted NFTs by address or number'
   assert.equal((await service.taxi(ASSET)).nftNumber, 5);
   assert.deepEqual(await service.taxi('6'), { minted: false, error: 'This NFT has not been minted yet or is unavailable.' });
   assert.deepEqual(await service.taxi('not-an-address'), { minted: false, error: 'Enter a valid NFT address or minted NFT number.' });
+  assert.equal(indexRefreshes, 1);
 });
 
 test('wallet fleet removes a taxi whose live NFT owner has changed', async () => {

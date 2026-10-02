@@ -757,9 +757,16 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
     if (insufficientSol) {
       throw new Error('Your wallet does not have enough SOL for the network fee and NFT account rent. Add SOL and try again. No transaction was sent.');
     }
-    if (errorDetails.includes('6040')) {
-      throw new Error('This wallet is no longer the current owner of this NFT. Refresh your taxis and try again. No transaction was sent.');
-    }
+    const marketError = [
+      ['6002', 'Marketplace actions are temporarily paused. Try again after the protocol is resumed.'],
+      ['6012', 'The marketplace price is invalid.'],
+      ['6013', 'This listing changed or is no longer active. Refresh the marketplace and try again.'],
+      ['6014', 'This buy request changed, was cancelled, or does not match the selected taxi. Refresh and try again.'],
+      ['6039', 'This NFT does not belong to the Fare Share collection.'],
+      ['6040', 'This wallet is no longer the current owner of this NFT. Refresh your taxis and try again.'],
+      ['6041', 'This taxi is permanently closed and cannot be traded.'],
+    ].find(([code]) => errorDetails.includes(`"${code}"`) || errorDetails.includes(`:${code}`));
+    if (marketError) throw new Error(`${marketError[1]} No transaction was sent.`);
     const logs = logEntries.slice(-4).join(' | ');
     throw new Error(`Transaction simulation failed: ${errorDetails}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
   }
@@ -881,11 +888,12 @@ export function buildBuyMachineInstruction({ programAddress, buyer, seller, conf
   };
 }
 
-export function buildMakeOfferInstruction({ programAddress, buyer, offer, kind, target, priceLamports }) {
+export function buildMakeOfferInstruction({ programAddress, buyer, config, offer, kind, target, priceLamports }) {
   return {
     programAddress,
     accounts: [
       meta(buyer, AccountRole.WRITABLE_SIGNER),
+      meta(config, AccountRole.READONLY),
       meta(offer, AccountRole.WRITABLE),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
@@ -904,7 +912,7 @@ export function buildCancelOfferInstruction({ programAddress, buyer, offer }) {
   };
 }
 
-export function buildAcceptOfferInstruction({ programAddress, seller, buyer, config, machine, asset, offer, collection }) {
+export function buildAcceptOfferInstruction({ programAddress, seller, buyer, config, machine, asset, offer, listing, collection, priceLamports }) {
   return {
     programAddress,
     accounts: [
@@ -914,11 +922,12 @@ export function buildAcceptOfferInstruction({ programAddress, seller, buyer, con
       meta(machine, AccountRole.READONLY),
       meta(asset, AccountRole.WRITABLE),
       meta(offer, AccountRole.WRITABLE),
+      meta(listing, AccountRole.READONLY),
       meta(collection, AccountRole.READONLY),
       meta(MPL_CORE_PROGRAM, AccountRole.READONLY),
       meta(SYSTEM_PROGRAM, AccountRole.READONLY),
     ],
-    data: TAXI_DISCRIMINATORS.acceptOffer,
+    data: concatBytes(TAXI_DISCRIMINATORS.acceptOffer, u64Bytes(priceLamports)),
   };
 }
 

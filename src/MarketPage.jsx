@@ -247,15 +247,34 @@ export function MarketPage({ wallet, connectWallet }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      loadPublicMarket().then(value => { if (active) setMarket(value); }).catch(() => {});
+    };
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
     if (mode !== 'sell' || !walletAddress) return undefined;
     let active = true;
     setFleetLoading(true);
     reportMarketStatus('Loading taxis from your wallet…', 'progress');
-    loadDatabaseFleet(walletAddress)
-      .then(cars => { if (active) { setOwnedCars(cars); reportMarketStatus(cars.length ? 'Your taxi fleet is ready.' : 'No transferable taxis were found in this wallet.', cars.length ? 'success' : 'warning'); } })
+    const refresh = (announce = false) => loadDatabaseFleet(walletAddress)
+      .then(cars => { if (active) { setOwnedCars(cars); if (announce) reportMarketStatus(cars.length ? 'Your taxi fleet is ready.' : 'No transferable taxis were found in this wallet.', cars.length ? 'success' : 'warning'); } })
       .catch(error => { if (active) reportMarketStatus(error.message, 'error'); })
       .finally(() => { if (active) setFleetLoading(false); });
-    return () => { active = false; };
+    refresh(true);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
   }, [mode, walletAddress]);
 
   const listings = market.listings.map(listing => {
@@ -303,6 +322,8 @@ export function MarketPage({ wallet, connectWallet }) {
     imageUrl: offerTargetRaw.imageUrl || offerTargetRaw.image || offerTargetScene?.imageUrl,
     vehicleClass: offerTargetRaw.vehicleClass || CLASS_BY_NAME.get(offerTargetModel) || { name: offerTargetRaw.className || 'Taxi', tone: String(offerTargetRaw.className || 'economy').toLowerCase() },
   } : null;
+  const offerTargetOwner = offerTargetTaxi?.owner || offerTargetTaxi?.seller || '';
+  const targetsOwnTaxi = offerType === 'asset' && Boolean(walletAddress) && String(offerTargetOwner) === walletAddress;
   const selectedOfferModel = MODEL_OPTIONS.find(model => model.value === offerModel);
   const selectedOfferModelScene = selectedOfferModel ? drivingScenes.find(scene => scene.name === selectedOfferModel.name) : null;
   const selectedOfferClass = CLASS_OPTIONS.find(item => String(item.weight) === String(offerWeight)) || CLASS_OPTIONS[0];
@@ -443,7 +464,8 @@ export function MarketPage({ wallet, connectWallet }) {
       const connection = wallet || await connectWallet();
       const signature = await buyListedMachine(connection, listing, protocolStatus);
       await indexAndRefreshMarket({ action: 'buy', signature, asset: listing.asset, actor: connection.account.address });
-      reportMarketStatus('Purchase complete. The NFT is now in your wallet.', 'success');
+      const redundantOffer = offers.some(offer => offer.kind === 'asset' && offer.asset === listing.asset && String(offer.buyer) === String(connection.account.address));
+      reportMarketStatus(redundantOffer ? 'Purchase complete. Your exact-NFT buy request is still escrowed; cancel it in My Activity to return its SOL.' : 'Purchase complete. The NFT is now in your wallet.', redundantOffer ? 'warning' : 'success');
     } catch (error) {
       reportMarketStatus(error.message, 'error');
     } finally {
@@ -477,6 +499,7 @@ export function MarketPage({ wallet, connectWallet }) {
     try {
       if (offerType === 'asset' && (offerAssetLookup.status !== 'found' || !offerAsset)) throw new Error('Choose a minted NFT before creating this request.');
       const connection = wallet || await connectWallet();
+      if (offerType === 'asset' && String(offerTargetOwner) === String(connection.account.address)) throw new Error('You already own this NFT. Cancel any existing request in My Activity instead.');
       const priceLamports = solToLamports(offerPrice);
       const [modelClass, modelVariant] = offerModel.split(':').map(Number);
       const result = offerType === 'asset'
@@ -523,16 +546,25 @@ export function MarketPage({ wallet, connectWallet }) {
     reportMarketStatus('Finding taxis eligible for this buy request…', 'progress');
     try {
       const connection = wallet || await connectWallet();
-      const cars = await loadDatabaseFleet(connection.account.address);
-      const matches = cars.filter(car => offer.kind === 'asset'
-        ? car.asset === offer.asset
-        : offer.kind === 'model'
-          ? car.name.startsWith(`TAXI ${offer.modelName} #`)
-          : Number(car.weight) === Number(offer.weight));
+      const [cars, currentMarket] = await Promise.all([
+        loadDatabaseFleet(connection.account.address),
+        loadPublicMarket(),
+      ]);
+      setMarket(currentMarket);
+      const liveOffer = currentMarket.offers.find(item => item.id === offer.id);
+      if (!liveOffer) throw new Error('This buy request is no longer active.');
+      const activeListings = new Set(currentMarket.listings.map(listing => listing.asset));
+      const matches = cars.filter(car => liveOffer.kind === 'asset'
+        ? car.asset === liveOffer.asset
+        : liveOffer.kind === 'model'
+          ? car.name.startsWith(`TAXI ${liveOffer.modelName} #`)
+          : Number(car.weight) === Number(liveOffer.weight));
       if (!matches.length) throw new Error('This wallet has no eligible taxi for this offer.');
-      setEligibleCars(matches);
-      setAcceptAsset(matches[0].asset);
-      setAcceptingOffer(offer);
+      const unlistedMatches = matches.filter(car => !activeListings.has(car.asset));
+      if (!unlistedMatches.length) throw new Error('Cancel the active listing before selling this taxi to a buy request.');
+      setEligibleCars(unlistedMatches);
+      setAcceptAsset(unlistedMatches[0].asset);
+      setAcceptingOffer(liveOffer);
       reportMarketStatus('Choose the taxi you want to sell.', 'success');
     } catch (error) {
       reportMarketStatus(error.message, 'error');
@@ -631,6 +663,7 @@ export function MarketPage({ wallet, connectWallet }) {
           )}
         <div className="fare-market-card-copy fare-market-offer-copy">
           <h2>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h2>
+          {offer.kind === 'asset' && String(offer.owner) === String(offer.buyer) && <div className="fare-market-self-offer-warning">THE BUYER NOW OWNS THIS NFT · CANCEL TO RETURN ESCROWED SOL</div>}
           <div className="fare-market-seller">
             <span>BUYER</span>
             <a href={`https://solscan.io/account/${offer.buyer}`} target="_blank" rel="noreferrer" aria-label={`View buyer ${offer.buyer} on Solscan`}>
@@ -839,7 +872,7 @@ export function MarketPage({ wallet, connectWallet }) {
                   <option value="class">Any taxi in class</option>
                 </select>
               </label>
-              {offerType === 'asset' ? <label><span>NFT ADDRESS OR NUMBER</span><input value={offerAssetQuery} onChange={event => { setOfferAssetQuery(event.target.value); setOfferAsset(''); setOfferAssetLookup({ status: event.target.value.trim() ? 'loading' : 'idle', taxi: null, message: event.target.value.trim() ? 'Checking the minted NFT…' : '' }); }} placeholder="Core asset address or #0005" disabled={busy} /><small className={`fare-market-offer-lookup-status is-${offerAssetLookup.status}`}>{offerAssetLookup.status === 'found' ? `MINTED NFT FOUND · ${offerTargetTaxi?.name}` : offerAssetLookup.message}</small></label>
+              {offerType === 'asset' ? <label><span>NFT ADDRESS OR NUMBER</span><input value={offerAssetQuery} onChange={event => { setOfferAssetQuery(event.target.value); setOfferAsset(''); setOfferAssetLookup({ status: event.target.value.trim() ? 'loading' : 'idle', taxi: null, message: event.target.value.trim() ? 'Checking the minted NFT…' : '' }); }} placeholder="Core asset address or #0005" disabled={busy} /><small className={`fare-market-offer-lookup-status is-${targetsOwnTaxi ? 'error' : offerAssetLookup.status}`}>{targetsOwnTaxi ? 'You already own this NFT.' : offerAssetLookup.status === 'found' ? `MINTED NFT FOUND · ${offerTargetTaxi?.name}` : offerAssetLookup.message}</small></label>
                 : offerType === 'model' ? <label><span>TAXI MODEL</span><select value={offerModel} onChange={event => setOfferModel(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(taxiClass => <optgroup label={taxiClass.name} key={taxiClass.name}>{MODEL_OPTIONS.filter(model => model.className === taxiClass.name).map(model => <option value={model.value} key={model.value}>{model.name}</option>)}</optgroup>)}</select></label>
                   : <label><span>TAXI CLASS</span><select value={offerWeight} onChange={event => setOfferWeight(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(item => <option value={item.weight} key={item.weight}>{item.name}</option>)}</select></label>}
               <label><span>OFFER IN SOL</span><input type="text" inputMode="decimal" placeholder="1.00" value={offerPrice} onChange={event => setOfferPrice(event.target.value)} disabled={busy} autoFocus /></label>
@@ -847,7 +880,7 @@ export function MarketPage({ wallet, connectWallet }) {
           </div>
           <div className="fare-market-listing-modal-actions">
             <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
-            <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && (offerAssetLookup.status !== 'found' || !offerAsset))}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
+            <button type="submit" disabled={busy || !offerPrice.trim() || targetsOwnTaxi || (offerType === 'asset' && (offerAssetLookup.status !== 'found' || !offerAsset))}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
           </div>
         </form>
       </div>,
