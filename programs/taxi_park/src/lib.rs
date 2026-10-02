@@ -1227,20 +1227,6 @@ pub mod taxi_park {
 
         let price_lamports = ctx.accounts.offer.price_lamports;
         require!(price_lamports == expected_price_lamports, TaxiError::InvalidOffer);
-        let offer_info = ctx.accounts.offer.to_account_info();
-        let buyer_info = ctx.accounts.buyer.to_account_info();
-        let offer_balance = offer_info.lamports();
-        let rent_refund = offer_balance
-            .checked_sub(price_lamports)
-            .ok_or(TaxiError::MathOverflow)?;
-        let buyer_balance = buyer_info.lamports();
-        **offer_info.try_borrow_mut_lamports()? = price_lamports;
-        **buyer_info.try_borrow_mut_lamports()? = buyer_balance
-            .checked_add(rent_refund)
-            .ok_or(TaxiError::MathOverflow)?;
-        ctx.accounts
-            .offer
-            .close(ctx.accounts.seller.to_account_info())?;
 
         let instruction = metaplex_core::transfer_asset(
             ctx.accounts.asset.key(),
@@ -1261,6 +1247,21 @@ pub mod taxi_park {
             ],
             &[],
         )?;
+
+        let offer_info = ctx.accounts.offer.to_account_info();
+        let buyer_info = ctx.accounts.buyer.to_account_info();
+        let offer_balance = offer_info.lamports();
+        let rent_refund = offer_balance
+            .checked_sub(price_lamports)
+            .ok_or(TaxiError::MathOverflow)?;
+        let buyer_balance = buyer_info.lamports();
+        **offer_info.try_borrow_mut_lamports()? = price_lamports;
+        **buyer_info.try_borrow_mut_lamports()? = buyer_balance
+            .checked_add(rent_refund)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts
+            .offer
+            .close(ctx.accounts.seller.to_account_info())?;
         Ok(())
     }
 
