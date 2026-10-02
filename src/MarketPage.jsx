@@ -96,6 +96,16 @@ export function MarketPage({ wallet, connectWallet }) {
     setMarket(await loadPublicMarket());
   }
 
+  async function indexAndRefreshMarket(input) {
+    try {
+      await saveMarketTransaction(input);
+    } catch {
+      // The finalized on-chain state remains authoritative. A GET refresh asks
+      // the backend to rebuild its projection if this optional callback is blocked.
+    }
+    await refreshMarket();
+  }
+
   async function openListing() {
     setBusy(true);
     setNotice('');
@@ -122,8 +132,7 @@ export function MarketPage({ wallet, connectWallet }) {
       const machine = ownedCars.find(car => car.asset === selectedAsset);
       if (!machine) throw new Error('Choose a taxi to list.');
       const signature = await listMachineForSale(wallet, machine, priceLamports, protocolStatus);
-      await saveMarketTransaction({ action: 'list', signature, asset: selectedAsset, actor: wallet.account.address });
-      await refreshMarket();
+      await indexAndRefreshMarket({ action: 'list', signature, asset: selectedAsset, actor: wallet.account.address });
       setShowListing(false);
       setPrice('');
       setNotice('Your taxi is listed on-chain. The marketplace can transfer only this NFT at the listed price.');
@@ -139,8 +148,7 @@ export function MarketPage({ wallet, connectWallet }) {
     setNotice('Approve the on-chain cancellation transaction in your wallet…');
     try {
       const signature = await cancelMachineSale(wallet, listing.asset, protocolStatus);
-      await saveMarketTransaction({ action: 'cancel', signature, asset: listing.asset, actor: wallet.account.address });
-      await refreshMarket();
+      await indexAndRefreshMarket({ action: 'cancel', signature, asset: listing.asset, actor: wallet.account.address });
       setNotice('Listing cancelled.');
     } catch (error) {
       setNotice(error.message);
@@ -155,8 +163,7 @@ export function MarketPage({ wallet, connectWallet }) {
     try {
       const connection = wallet || await connectWallet();
       const signature = await buyListedMachine(connection, listing, protocolStatus);
-      await saveMarketTransaction({ action: 'buy', signature, asset: listing.asset, actor: connection.account.address });
-      await refreshMarket();
+      await indexAndRefreshMarket({ action: 'buy', signature, asset: listing.asset, actor: connection.account.address });
       setNotice('Purchase complete. SOL was paid to the seller and the NFT is now in your wallet.');
     } catch (error) {
       setNotice(error.message);
@@ -190,14 +197,13 @@ export function MarketPage({ wallet, connectWallet }) {
       const result = offerType === 'asset'
         ? await makeMachineOffer(connection, offerAsset.trim(), priceLamports)
         : await makeClassOffer(connection, Number(offerWeight), priceLamports);
-      await saveMarketTransaction({
+      await indexAndRefreshMarket({
         action: offerType === 'asset' ? 'offer-asset' : 'offer-class',
         signature: result.signature,
         offer: result.offer,
         asset: offerType === 'asset' ? offerAsset.trim() : undefined,
         actor: connection.account.address,
       });
-      await refreshMarket();
       setShowOffer(false);
       setOfferPrice('');
       setNotice('Offer created. Its SOL is locked on-chain until acceptance or cancellation.');
@@ -214,8 +220,7 @@ export function MarketPage({ wallet, connectWallet }) {
     try {
       const connection = wallet || await connectWallet();
       const signature = await cancelMarketOffer(connection, offer);
-      await saveMarketTransaction({ action: 'cancel-offer', signature, offer: offer.id, actor: connection.account.address });
-      await refreshMarket();
+      await indexAndRefreshMarket({ action: 'cancel-offer', signature, offer: offer.id, actor: connection.account.address });
       setNotice('Offer cancelled. Escrowed SOL and account rent were returned.');
     } catch (error) {
       setNotice(error.message);
@@ -253,14 +258,13 @@ export function MarketPage({ wallet, connectWallet }) {
       const machine = eligibleCars.find(car => car.asset === acceptAsset);
       if (!machine || !acceptingOffer) throw new Error('Choose an eligible taxi.');
       const signature = await acceptMarketOffer(connection, acceptingOffer, machine, protocolStatus);
-      await saveMarketTransaction({
+      await indexAndRefreshMarket({
         action: 'accept-offer',
         signature,
         offer: acceptingOffer.id,
         asset: machine.asset,
         actor: connection.account.address,
       });
-      await refreshMarket();
       setAcceptingOffer(null);
       setNotice('Offer accepted. You received SOL and the buyer received the NFT atomically.');
     } catch (error) {

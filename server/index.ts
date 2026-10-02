@@ -98,6 +98,7 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/public/market') {
+      await publicData.syncMarket();
       json(response, 200, await publicData.market());
       return;
     }

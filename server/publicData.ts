@@ -5,6 +5,7 @@ import { solanaRpcCall } from './solanaRpc.js';
 
 const CLASS_INDEX = new Map([[1, 0], [3, 1], [10, 2], [30, 3]]);
 const SYNC_TTL_MS = 15_000;
+const MARKET_SYNC_TTL_MS = 5_000;
 const OVERVIEW_CACHE_TTL_MS = 30_000;
 const DAS_BATCH_SIZE = 1_000;
 const SNAPSHOT_BUCKET_MS = 5 * 60 * 1_000;
@@ -48,6 +49,8 @@ export function createPublicDataService(config: {
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
+  let lastMarketSyncAt = 0;
+  let activeMarketSync: Promise<void> | null = null;
   let activeOverviewRead: Promise<PublicOverview> | null = null;
   let cachedOverview: { value: PublicOverview; expiresAt: number } | null = null;
 
@@ -132,8 +135,7 @@ export function createPublicDataService(config: {
           };
         }));
       }
-      await syncMarketListings(config.solanaRpcUrl, config.programId, database, now);
-      await syncMarketOffers(config.solanaRpcUrl, config.programId, database, now);
+      await syncMarket(true);
       const snapshot = {
         key: 'overview',
         protocol: dashboard.protocol,
@@ -314,6 +316,20 @@ export function createPublicDataService(config: {
     return { listings, offers, floorLamports: floorLamports?.toString() ?? null, totalVolumeLamports: '0' };
   }
 
+  async function syncMarket(force = false) {
+    if (!force && Date.now() - lastMarketSyncAt < MARKET_SYNC_TTL_MS) return;
+    if (activeMarketSync) return activeMarketSync;
+    activeMarketSync = (async () => {
+      const now = new Date();
+      await Promise.all([
+        syncMarketListings(config.solanaRpcUrl, config.programId, database, now),
+        syncMarketOffers(config.solanaRpcUrl, config.programId, database, now),
+      ]);
+      lastMarketSyncAt = Date.now();
+    })().finally(() => { activeMarketSync = null; });
+    return activeMarketSync;
+  }
+
   async function recordMarketTransaction(input: unknown) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new PublicDataError('JSON object is required.');
     const body = input as Record<string, unknown>;
@@ -346,11 +362,7 @@ export function createPublicDataService(config: {
       let offer: Address;
       try { offer = address(String(body.offer || '')); } catch { throw new PublicDataError('Invalid offer address.'); }
       if (!keyStrings.includes(String(offer))) throw new PublicDataError('Transaction does not contain this offer.', 409);
-      const now = new Date();
-      await Promise.all([
-        syncMarketOffers(config.solanaRpcUrl, config.programId, database, now),
-        action === 'accept-offer' ? syncMarketListings(config.solanaRpcUrl, config.programId, database, now) : Promise.resolve(),
-      ]);
+      await syncMarket(true);
       return { offer: String(offer), active: action === 'offer-asset' || action === 'offer-class' };
     }
     if (!asset) throw new PublicDataError('Asset address is required.');
@@ -382,7 +394,7 @@ export function createPublicDataService(config: {
     return { listed: false, asset: String(asset) };
   }
 
-  return { overview, walletFleet, recordMint, earningHistory, market, recordMarketTransaction, sync };
+  return { overview, walletFleet, recordMint, earningHistory, market, recordMarketTransaction, sync, syncMarket };
 }
 
 function decodeMarketListing(bytes: Uint8Array) {
