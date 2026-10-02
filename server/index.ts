@@ -64,6 +64,10 @@ const feeAdmin = adminAuth ? await createFeeAdminService({
   cluster: config.solanaCluster,
   minimumWalletLamports: config.adminMinimumWalletLamports,
   workerIntervalMs: config.workerIntervalMs,
+  jupiterApiKey: config.jupiterApiKey,
+  swapSlippageBps: config.swapSlippageBps,
+  jupiterMaxAccounts: config.jupiterMaxAccounts,
+  jupiterExcludeDexes: config.jupiterExcludeDexes,
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus) : null;
 const publicData = createPublicDataService({ ...config, fareSymbol: () => publicToken.ticker || 'FARE' }, database);
 const workerDefaults = { enabled: config.workerInitiallyEnabled, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
@@ -189,11 +193,11 @@ const server = createServer(async (request, response) => {
       services.auth.require(request, true);
       const body = asRecord(await readJson(request));
       const inspected = await services.fees.inspectMint(body.ca);
-      const ticker = normalizeAdminTicker(body.ticker);
       const [market, metadata] = await Promise.all([
         loadMintMarketPreview(config, inspected.mint, inspected.decimals, body.pricesUsd),
         loadMintMetadata(config.solanaRpcUrl, inspected.mint),
       ]);
+      const ticker = normalizeAdminTicker(body.ticker || metadata.symbol);
       json(response, 200, { mint: String(inspected.mint), creator: String(inspected.creator), ticker, decimals: inspected.decimals, tokenProgram: String(inspected.tokenProgram), metadata, market, ready: true });
       return;
     }
@@ -303,7 +307,7 @@ const server = createServer(async (request, response) => {
       const services = requireAdminServices();
       services.auth.require(request, true);
       const body = asRecord(await readJson(request));
-      const result = await services.fees.resetMint(body.ca, body.ticker);
+      const result = await services.fees.replaceMint(body.ca, body.ticker);
       publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
       await traineeCampaigns.ensurePrimary(result.ticker);
       trade?.stop();

@@ -100,6 +100,16 @@ export async function loadProtocolDashboard(
       obligations: pool.obligations.map(String),
       protocolNow: nowSeconds.toString(),
     },
+    traineeDistribution: {
+      calculatedUntil: traineePool.calculatedUntil.toString(),
+      seriesActive: traineePool.seriesActive,
+      seriesStart: traineePool.seriesStart.toString(),
+      seriesEnd: traineePool.seriesEnd.toString(),
+      seriesCursor: traineePool.seriesCursor.toString(),
+      nextPool: traineePool.nextPool.map(String),
+      seriesRemaining: traineePool.seriesRemaining.map(String),
+      obligations: traineePool.obligations.map(String),
+    },
     vaults: {
       solLamports: String(Math.max(0, feeVaultAccount.lamports - feeVaultRent)),
       tokens: assetSymbols.map((symbol, index) => ({ symbol, mint: String(assetMints[index]), decimals: mintDetails[index].decimals, amount: vaultBalances[index].toString() })),

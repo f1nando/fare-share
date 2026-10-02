@@ -65,11 +65,20 @@ export interface AdminFeeActionDocument {
 
 export interface AdminFeeOperationDocument {
   operationId: string;
-  lock?: 'creator-fee-write';
-  kind: 'claim' | 'deposit';
+  lock?: 'creator-fee-write' | 'fare-migration';
+  kind: 'claim' | 'deposit' | 'replace_mint';
   mint: string;
+  targetMint?: string;
+  targetTicker?: string;
   amountLamports: string;
   status: 'executing' | 'submitted' | 'finalized' | 'failed';
+  stage?: 'starting' | 'paused' | 'vaults-ready' | 'rescued' | 'sold' | 'bought' | 'reset' | 'unpaused';
+  wasPaused?: boolean;
+  oldTokenAmount?: string;
+  oldWalletBalanceBefore?: string;
+  wsolBalanceBefore?: string;
+  wsolProceeds?: string;
+  signatures?: Record<string, string>;
   signature?: string;
   slot?: number;
   lastValidBlockHeight?: number;

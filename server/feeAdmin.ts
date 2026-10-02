@@ -18,6 +18,7 @@ import {
 import type { Collection } from 'mongodb';
 import { buildRescueSolInstruction, buildRescueTokenInstruction, buildResetFareMintInstruction, buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
 import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
+import { buildJupiterRoute, computeUnitLimitInstruction } from './jupiter.js';
 import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, buildPumpSharedAmmFeeTransfer, buildPumpSharedFeeDistribution, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_FEE_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
 import { solanaRpcCall } from './solanaRpc.js';
@@ -42,6 +43,10 @@ interface FeeAdminConfig {
   cluster: 'mainnet-beta' | 'devnet';
   minimumWalletLamports?: bigint;
   workerIntervalMs: number;
+  jupiterApiKey?: string;
+  swapSlippageBps?: number;
+  jupiterMaxAccounts?: number;
+  jupiterExcludeDexes?: string;
 }
 
 interface RpcAccount {
@@ -251,6 +256,7 @@ export async function createFeeAdminService(
   }
 
   async function finalizeOperation(operation: AdminFeeOperationDocument) {
+    if (operation.kind === 'replace_mint') throw new Error('FARE migration uses staged reconciliation.');
     if (!operation.signature) throw new Error(`Operation ${operation.operationId} has no transaction signature`);
     let slot = operation.slot;
     if (slot === undefined && operation.lastValidBlockHeight !== undefined) {
@@ -300,6 +306,104 @@ export async function createFeeAdminService(
     );
   }
 
+  async function acquireFareMigration(targetMint: Address, targetTicker: string) {
+    const operationId = `fare-migration-${String(targetMint)}`;
+    const active = await operations.findOne({ lock: 'fare-migration' });
+    if (active && active.operationId !== operationId) {
+      throw new FeeAdminError(`Complete the existing FARE migration to ${active.targetMint || active.mint} before starting another one.`, 409);
+    }
+    const existing = await operations.findOne({ operationId });
+    if (existing?.status === 'finalized') return existing;
+    if (existing) {
+      if (existing.status === 'executing' && Date.now() - existing.updatedAt.getTime() < 120_000) {
+        throw new FeeAdminError('This FARE migration is already running. Wait before retrying the same CA.', 409);
+      }
+      const resumed = await operations.findOneAndUpdate(
+        { operationId, status: { $in: ['executing', 'failed'] } },
+        {
+          $set: { status: 'executing', lock: 'fare-migration', targetTicker, updatedAt: new Date() },
+          $unset: { error: '' },
+        },
+        { returnDocument: 'after' },
+      );
+      if (!resumed) throw new FeeAdminError('The FARE migration is already being updated. Retry shortly.', 409);
+      return resumed;
+    }
+    const now = new Date();
+    const operation: AdminFeeOperationDocument = {
+      operationId,
+      lock: 'fare-migration',
+      kind: 'replace_mint',
+      mint: String(await configuredMint()),
+      targetMint: String(targetMint),
+      targetTicker,
+      amountLamports: '0',
+      status: 'executing',
+      stage: 'starting',
+      signatures: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    try {
+      await operations.insertOne(operation);
+      return operation;
+    } catch (error) {
+      if (isDuplicateKey(error)) throw new FeeAdminError('Another FARE migration started concurrently. Retry shortly.', 409);
+      throw error;
+    }
+  }
+
+  async function updateFareMigration(operationId: string, values: Partial<AdminFeeOperationDocument>) {
+    await operations.updateOne({ operationId }, { $set: { ...values, updatedAt: new Date() } });
+  }
+
+  async function tokenAccountAmount(account: Address) {
+    const value = await getOptionalAccount(config.rpcUrl, account);
+    return value ? tokenAmount(value.data) : 0n;
+  }
+
+  async function executeWalletSwap(input: {
+    inputMint: Address;
+    outputMint: Address;
+    amountIn: bigint;
+    source: Address;
+    destination: Address;
+    jupiterProgram: Address;
+  }) {
+    if (!config.jupiterApiKey) throw new FeeAdminError('Jupiter API is not configured for automatic CA replacement.', 503);
+    const route = await buildJupiterRoute({
+      apiKey: config.jupiterApiKey,
+      inputMint: input.inputMint,
+      outputMint: input.outputMint,
+      amountIn: input.amountIn,
+      taker: feeRecipient.address,
+      payer: admin.address,
+      destinationTokenAccount: input.destination,
+      jupiterProgram: input.jupiterProgram,
+      slippageBps: Math.min(1_000, Math.max(1, config.swapSlippageBps ?? 500)),
+      maxAccounts: config.jupiterMaxAccounts ?? 48,
+      excludeDexes: config.jupiterExcludeDexes,
+      fixedWritableAccounts: new Set([String(admin.address), String(feeRecipient.address), String(input.source), String(input.destination)]),
+    });
+    const routeAddresses = new Set(route.routeAccounts.map(account => String(account.address)));
+    if (!routeAddresses.has(String(input.source)) || !routeAddresses.has(String(input.destination))) {
+      throw new FeeAdminError('Jupiter migration route does not include the exact source and destination accounts.', 502);
+    }
+    const additional = String(admin.address) === String(feeRecipient.address) ? [] : [feeRecipient];
+    if (route.setupInstructions.length) {
+      await sendInstructions(config.rpcUrl, admin, route.setupInstructions, additional, route.lookupTables);
+    }
+    const signature = String(await sendInstructions(config.rpcUrl, admin, [
+      computeUnitLimitInstruction(),
+      {
+        programAddress: input.jupiterProgram,
+        accounts: route.routeAccounts,
+        data: route.routeData,
+      },
+    ], additional, route.lookupTables));
+    return { signature, minimumOutput: route.minOut, dexes: route.dexes };
+  }
+
   return {
     payerAddress: admin.address,
     inspectMint,
@@ -311,7 +415,7 @@ export async function createFeeAdminService(
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
-      const [fees, history, storedToken, worker, lastEmergencyRescue, lastFareRescue, lastReset, lastUnpause] = await Promise.all([
+      const [fees, history, storedToken, worker, lastEmergencyRescue, lastFareRescue, lastReset, lastUnpause, fareMigration, lastCompletedFareMigration] = await Promise.all([
         feeSnapshot(mint),
         actions.find({}, { sort: { createdAt: -1 }, limit: 20 }).toArray(),
         tokenConfig.findOne({ key: 'primary' }),
@@ -320,6 +424,8 @@ export async function createFeeAdminService(
         actions.findOne({ kind: 'rescue_fare' }, { sort: { createdAt: -1 } }),
         actions.findOne({ kind: 'reset_mint' }, { sort: { createdAt: -1 } }),
         actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } }),
+        operations.findOne({ lock: 'fare-migration' }),
+        operations.findOne({ kind: 'replace_mint', status: 'finalized' }, { sort: { updatedAt: -1 } }),
       ]);
       const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
       const dashboard = await loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs, ticker || 'FARE');
@@ -336,7 +442,16 @@ export async function createFeeAdminService(
         } : null,
         dashboard,
         rescuePendingMigration: Boolean(lastEmergencyRescue && (!lastUnpause || lastEmergencyRescue.createdAt > lastUnpause.createdAt)),
-        fareResetPending: Boolean(lastFareRescue && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt)),
+        fareResetPending: Boolean(fareMigration || (lastFareRescue
+          && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt)
+          && (!lastCompletedFareMigration || lastFareRescue.createdAt > lastCompletedFareMigration.updatedAt))),
+        fareMigration: fareMigration ? {
+          targetMint: fareMigration.targetMint,
+          targetTicker: fareMigration.targetTicker,
+          stage: fareMigration.stage,
+          status: fareMigration.status,
+          error: fareMigration.error || null,
+        } : null,
         history: history.map(publicAction),
       };
     },
@@ -379,6 +494,180 @@ export async function createFeeAdminService(
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker, unchanged: false };
+    },
+    async replaceMint(rawMint: unknown, rawTicker: unknown) {
+      let ticker: string;
+      try { ticker = normalizeTicker(rawTicker); } catch (error) { throw new FeeAdminError((error as Error).message); }
+      const inspected = await inspectMint(rawMint);
+      const initial = await configuredState();
+      const activeMigration = await operations.findOne({ lock: 'fare-migration' });
+      if (String(initial.fareMint) === String(inspected.mint) && !activeMigration) {
+        const stored = await tokenConfig.findOne({ key: 'primary' });
+        return { signature: stored?.bindSignature || '', mint: String(inspected.mint), ticker, unchanged: true, resumed: false };
+      }
+      const migration = await acquireFareMigration(inspected.mint, ticker);
+      if (migration.status === 'finalized') {
+        return {
+          signature: migration.signature || '', mint: String(inspected.mint), ticker,
+          unchanged: true, resumed: true,
+        };
+      }
+      const signatures = { ...(migration.signatures || {}) };
+      let wasPaused = migration.wasPaused;
+      try {
+        let current = await configuredState();
+        if (String(current.fareMint) !== String(inspected.mint) && current.pausedAt === 0n) {
+          const dashboard = await loadProtocolDashboard(
+            config.rpcUrl,
+            config.programId,
+            await workerStatus.findOne({ key: 'protocol-worker' }),
+            config.workerIntervalMs,
+            ticker,
+          );
+          if (dashboard.distribution.seriesActive || dashboard.traineeDistribution.seriesActive) {
+            throw new FeeAdminError('Wait for the active reward calculation to finish, then retry CA replacement.', 409);
+          }
+          const pause = await this.setPaused(true, false);
+          signatures.pause = pause.signature;
+          await updateFareMigration(migration.operationId, {
+            wasPaused: false, stage: 'paused', signatures,
+          });
+          wasPaused = false;
+          current = await configuredState();
+        } else if (migration.wasPaused === undefined) {
+          wasPaused = current.pausedAt !== 0n;
+          await updateFareMigration(migration.operationId, {
+            wasPaused,
+            stage: current.pausedAt !== 0n ? 'paused' : migration.stage,
+          });
+        }
+
+        if (String(current.fareMint) !== String(inspected.mint)) {
+          if (current.pausedAt === 0n) throw new FeeAdminError('Protocol must remain paused during automatic CA replacement.', 409);
+          if (current.fareMint.toString() !== migration.mint) throw new FeeAdminError('Configured FARE changed during migration.', 409);
+          const oldMintAccount = await getAccount(config.rpcUrl, current.fareMint);
+          if (![String(TOKEN_PROGRAM), String(TOKEN_2022_PROGRAM)].includes(oldMintAccount.owner)) {
+            throw new FeeAdminError('The current FARE mint uses an unsupported token program.', 409);
+          }
+          const oldTokenProgram = address(oldMintAccount.owner);
+          const [oldVault, oldWalletAta, wsolAta, newVault] = await Promise.all([
+            findAssociatedTokenPda({ owner: addresses.config, mint: current.fareMint, tokenProgram: oldTokenProgram }).then(([value]) => value),
+            findAssociatedTokenPda({ owner: feeRecipient.address, mint: current.fareMint, tokenProgram: oldTokenProgram }).then(([value]) => value),
+            findAssociatedTokenPda({ owner: feeRecipient.address, mint: WSOL_MINT, tokenProgram: TOKEN_PROGRAM }).then(([value]) => value),
+            findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram }).then(([value]) => value),
+          ]);
+          const setupSignature = String(await sendInstructions(config.rpcUrl, admin, [
+            getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: oldWalletAta, owner: feeRecipient.address, mint: current.fareMint, tokenProgram: oldTokenProgram }),
+            getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: wsolAta, owner: feeRecipient.address, mint: WSOL_MINT, tokenProgram: TOKEN_PROGRAM }),
+            getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: newVault, owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram }),
+          ]));
+          signatures.setup = setupSignature;
+          await updateFareMigration(migration.operationId, { stage: 'vaults-ready', signatures });
+
+          const oldVaultAmount = await tokenAccountAmount(oldVault);
+          const oldWalletBalanceBefore = migration.oldWalletBalanceBefore === undefined
+            ? await tokenAccountAmount(oldWalletAta)
+            : BigInt(migration.oldWalletBalanceBefore);
+          const oldTokenAmount = migration.oldTokenAmount === undefined
+            ? oldVaultAmount
+            : BigInt(migration.oldTokenAmount);
+          if (oldTokenAmount <= 0n) throw new FeeAdminError('The current FARE vault has no balance to convert.', 409);
+          await updateFareMigration(migration.operationId, {
+            oldTokenAmount: oldTokenAmount.toString(),
+            oldWalletBalanceBefore: oldWalletBalanceBefore.toString(),
+          });
+          if (oldVaultAmount > 0n) {
+            if (oldVaultAmount !== oldTokenAmount) throw new FeeAdminError('Old FARE vault balance changed during migration.', 409);
+            const rescued = await this.rescueFare(String(feeRecipient.address));
+            signatures.rescue = rescued.signature;
+            await updateFareMigration(migration.operationId, { stage: 'rescued', signatures });
+          }
+
+          let wsolBefore = migration.wsolBalanceBefore === undefined
+            ? await tokenAccountAmount(wsolAta)
+            : BigInt(migration.wsolBalanceBefore);
+          let oldWalletBalance = await tokenAccountAmount(oldWalletAta);
+          if (oldWalletBalance >= oldWalletBalanceBefore + oldTokenAmount) {
+            await updateFareMigration(migration.operationId, { wsolBalanceBefore: wsolBefore.toString() });
+            const sold = await executeWalletSwap({
+              inputMint: current.fareMint,
+              outputMint: WSOL_MINT,
+              amountIn: oldTokenAmount,
+              source: oldWalletAta,
+              destination: wsolAta,
+              jupiterProgram: current.jupiterProgram,
+            });
+            signatures.sell = sold.signature;
+            oldWalletBalance = await tokenAccountAmount(oldWalletAta);
+            const wsolAfterSell = await tokenAccountAmount(wsolAta);
+            const proceeds = wsolAfterSell - wsolBefore;
+            if (oldWalletBalance !== oldWalletBalanceBefore || proceeds < sold.minimumOutput || proceeds <= 0n) {
+              throw new FeeAdminError('Old FARE sale finalized with unexpected balances.', 500);
+            }
+            await updateFareMigration(migration.operationId, {
+              stage: 'sold', wsolProceeds: proceeds.toString(), signatures,
+            });
+          }
+
+          const proceeds = migration.wsolProceeds === undefined
+            ? (await tokenAccountAmount(wsolAta)) - wsolBefore
+            : BigInt(migration.wsolProceeds);
+          if (proceeds <= 0n) throw new FeeAdminError('No wrapped SOL proceeds are available for the new token purchase.', 409);
+          const newVaultBefore = await tokenAccountAmount(newVault);
+          const currentWsol = await tokenAccountAmount(wsolAta);
+          if (currentWsol >= wsolBefore + proceeds) {
+            const bought = await executeWalletSwap({
+              inputMint: WSOL_MINT,
+              outputMint: inspected.mint,
+              amountIn: proceeds,
+              source: wsolAta,
+              destination: newVault,
+              jupiterProgram: current.jupiterProgram,
+            });
+            signatures.buy = bought.signature;
+            const newVaultAfter = await tokenAccountAmount(newVault);
+            if (newVaultAfter - newVaultBefore < bought.minimumOutput || newVaultAfter <= 0n) {
+              throw new FeeAdminError('New FARE purchase finalized with an unexpected vault balance.', 500);
+            }
+            await updateFareMigration(migration.operationId, { stage: 'bought', signatures });
+          } else if (newVaultBefore <= 0n) {
+            throw new FeeAdminError('Migration proceeds are missing from both the conversion wallet and new vault.', 409);
+          }
+
+          const reset = await this.resetMint(inspected.mint, ticker);
+          signatures.reset = reset.signature;
+          await updateFareMigration(migration.operationId, { stage: 'reset', signature: reset.signature, signatures });
+          current = await configuredState();
+        }
+
+        if (String(current.fareMint) === String(inspected.mint)) {
+          await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signatures.reset || migration.signature || '');
+        }
+
+        if (!wasPaused && current.pausedAt !== 0n) {
+          const unpause = await this.setPaused(false, false, migration.operationId);
+          signatures.unpause = unpause.signature;
+        }
+        await operations.updateOne(
+          { operationId: migration.operationId },
+          {
+            $set: { status: 'finalized', stage: 'unpaused', signatures, updatedAt: new Date() },
+            $unset: { lock: '', error: '' },
+          },
+        );
+        return {
+          signature: signatures.reset || migration.signature || '',
+          mint: String(inspected.mint), ticker, unchanged: false, resumed: migration.stage !== 'starting',
+          signatures,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500);
+        await operations.updateOne(
+          { operationId: migration.operationId },
+          { $set: { status: 'failed', error: message, signatures, updatedAt: new Date() } },
+        );
+        throw error;
+      }
     },
     async resetMint(rawMint: unknown, rawTicker: unknown) {
       let ticker: string;
@@ -479,12 +768,16 @@ export async function createFeeAdminService(
       });
       return { signature, teamAccount: String(teamAccount), unchanged: false };
     },
-    async setPaused(rawPaused: unknown, migrationConfirmed: unknown) {
+    async setPaused(rawPaused: unknown, migrationConfirmed: unknown, fareMigrationOperationId?: string) {
       if (typeof rawPaused !== 'boolean') throw new FeeAdminError('Paused state must be true or false.');
       const current = await configuredState();
       const isPaused = current.pausedAt !== 0n;
       if (isPaused === rawPaused) return { signature: '', paused: isPaused, unchanged: true };
       if (!rawPaused) {
+        const activeFareMigration = await operations.findOne({ lock: 'fare-migration' });
+        if (activeFareMigration && activeFareMigration.operationId !== fareMigrationOperationId) {
+          throw new FeeAdminError('Complete or resume the active FARE migration before unpausing.', 409);
+        }
         const lastRescue = await actions.findOne({ kind: 'emergency_rescue' }, { sort: { createdAt: -1 } });
         const lastUnpause = await actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } });
         if (lastRescue && (!lastUnpause || lastRescue.createdAt > lastUnpause.createdAt) && migrationConfirmed !== true) {
@@ -494,7 +787,10 @@ export async function createFeeAdminService(
           actions.findOne({ kind: 'rescue_fare' }, { sort: { createdAt: -1 } }),
           actions.findOne({ kind: 'reset_mint' }, { sort: { createdAt: -1 } }),
         ]);
-        if (lastFareRescue && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt)) {
+        const activeMigrationCoversReset = activeFareMigration
+          && activeFareMigration.operationId === fareMigrationOperationId
+          && activeFareMigration.targetMint === String(current.fareMint);
+        if (lastFareRescue && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt) && !activeMigrationCoversReset) {
           throw new FeeAdminError('Complete the FARE conversion and on-chain reset before unpausing.', 409);
         }
       }

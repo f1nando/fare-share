@@ -103,14 +103,14 @@ export function AdminPage() {
   async function bind() {
     const replacing = Boolean(status?.mint);
     const prompt = replacing
-      ? `Permanently clear every current FARE reward, switch to ${verifiedCa} as $${verifiedTicker}, and queue the entire funded new vault for the next distribution?`
+      ? `Automatically pause, convert the full current FARE vault through SOL into $${verifiedTicker}, clear current FARE rewards, switch to ${verifiedCa}, queue the purchased balance, verify the result, and resume the protocol?`
       : `Use ${verifiedCa} as $${verifiedTicker}? New payments, rewards, Trade and quotes will switch after finalization.`;
     if (!window.confirm(prompt)) return;
-    await action('bind', async () => {
+    await action(replacing ? 'replace-ca' : 'bind', async () => {
       const endpoint = replacing ? '/api/admin/mint/reset' : '/api/admin/mint/bind';
       const result = await request(endpoint, { method: 'POST', body: { ca: verifiedCa, ticker: verifiedTicker }, csrf });
       setNotice(replacing
-        ? `FARE rewards were reset for ${result.resetMachines} taxis and ${result.resetTrainees} trainees. The new $${result.ticker} vault is queued for distribution. ${result.signature}`
+        ? `The old FARE vault was converted and $${result.ticker} is now active. The purchased balance is queued for distribution.${result.signature ? ` ${result.signature}` : ''}`
         : `CA and ticker $${result.ticker} are now bound.${result.signature ? ` ${result.signature}` : ''}`);
       setVerifiedCa('');
       setVerifiedTicker('');
@@ -234,16 +234,6 @@ export function AdminPage() {
     finally { setBusy(''); }
   }
 
-  async function rescueFareForConversion() {
-    const recipient = rescueRecipient.trim();
-    if (!window.confirm(`Move only the full current FARE vault to ${recipient} for conversion? Stock vaults and SOL will remain in the contract.`)) return;
-    await action('rescue-fare', async () => {
-      const result = await request('/api/admin/mint/rescue-current', { method: 'POST', body: { recipient }, csrf });
-      setNotice(`Current FARE vault moved for conversion. ${result.amount} raw units. ${result.signature}`);
-      await refresh();
-    });
-  }
-
   if (!csrf) return <main className="admin-shell admin-login"><form className="admin-card login-card" onSubmit={submitLogin}>
     <p className="eyebrow">FARE SHARE</p><h1>Admin</h1><p className="muted">Private creator fee management panel</p>
     <label>Username<input autoComplete="username" value={login.username} onChange={event => setLogin({ ...login, username: event.target.value })} required /></label>
@@ -268,7 +258,7 @@ export function AdminPage() {
           <h2>{status.mint ? 'Enter the ticker for the on-chain CA' : 'Waiting for the client CA and ticker'}</h2><label>Contract address<input className="mono" value={selectedCa} disabled={Boolean(status.mint)} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste CA" /></label>
           <label>Ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="For example, FARE" maxLength="10" /></label>
           <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Verify</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Bind CA and ticker</button></div>
-        </>}{status.mint && <><label>Replacement contract address<input className="mono" value={selectedCa} onChange={event => { setCa(event.target.value.trim()); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste a test or production Pump token CA" /></label><label>Replacement ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder={status.ticker || 'FARE'} maxLength="10" /></label><p className="muted">Replacement is available only while paused. First rescue and convert the entire old vault, then fund the new protocol vault. Reset clears every current FARE reward and queues the full new balance for the next distribution. Stock rewards are unchanged.</p>{status.fareResetPending && <p className="muted"><strong>FARE conversion is in progress.</strong> Unpause remains blocked until the funded new CA is reset on-chain.</p>}<label>Conversion wallet<input className="mono" value={rescueRecipient} onChange={event => setRescueRecipient(event.target.value.trim())} placeholder="Wallet that will swap the old token" /></label><button className="wide danger" onClick={rescueFareForConversion} disabled={!status.dashboard?.protocol?.paused || !rescueRecipient || busy === 'rescue-fare'}>{busy === 'rescue-fare' ? 'Moving FARE…' : 'Move only FARE for conversion'}</button><div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || selectedCa === status.mint || busy === 'inspect'}>Verify replacement</button><button className="danger" onClick={bind} disabled={!status.dashboard?.protocol?.paused || !verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Reset rewards and replace CA</button></div></>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations use this wallet, and NFT mint payments go to its canonical token account for the configured CA. Previous transfers are not moved.</p><TeamWalletWarning protocol={status.dashboard?.protocol} /><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
+        </>}{status.mint && <><label>Replacement contract address<input className="mono" value={selectedCa} onChange={event => { setCa(event.target.value.trim()); setTicker(''); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste a test or production Pump token CA" /></label><p className="muted">Paste the new CA and verify it. Replacement then pauses the protocol, sells the complete old FARE vault into wrapped SOL, buys the new token, funds its protocol vault, clears old FARE rewards, queues the purchased balance for distribution, verifies the new CA and resumes automatically. Stock rewards and protocol SOL are unchanged. Automatic swaps use at most 10% slippage and stop safely on any failed stage.</p>{status.fareResetPending && <p className="muted"><strong>FARE conversion is incomplete.</strong> Retry the same CA to resume from the finalized stage; unpause remains blocked.</p>}<div className="button-row"><button onClick={inspect} disabled={!selectedCa || selectedCa === status.mint || busy === 'inspect'}>Verify replacement</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Automatically replace CA</button></div></>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations use this wallet, and NFT mint payments go to its canonical token account for the configured CA. Previous transfers are not moved.</p><TeamWalletWarning protocol={status.dashboard?.protocol} /><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
         <MintPricingSettings prices={mintPricesUsd} setPrices={setMintPricesUsd} inspected={inspectedMint} locked={fareLocked} busy={busy} save={updateMintPrices} />
         <div className="admin-card"><p className="eyebrow">OPERATIONS</p><h2>Claim and distribution</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Claiming…' : 'Claim fees'}</button>
@@ -376,6 +366,7 @@ const adminActionLoadingMessages = {
   login: 'Signing in…',
   inspect: 'Verifying token details…',
   bind: 'Binding the token on-chain…',
+  'replace-ca': 'Converting the vault and replacing the CA…',
   claim: 'Claiming protocol fees…',
   team: 'Updating the team wallet…',
   'mint-prices': 'Updating mint prices…',
