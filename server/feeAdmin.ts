@@ -16,7 +16,7 @@ import {
   type Instruction,
 } from '@solana/kit';
 import type { Collection } from 'mongodb';
-import { buildRescueSolInstruction, buildRescueTokenInstruction, buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
+import { buildRescueSolInstruction, buildRescueTokenInstruction, buildResetFareMintInstruction, buildSetFareMintInstruction, buildSimpleAdminInstruction } from './admin.js';
 import type { AdminFeeActionDocument, AdminFeeOperationDocument, WorkerStatusDocument } from './database.js';
 import { buildPumpAmmFeeCollection, buildPumpBondingFeeCollection, buildPumpSharedAmmFeeTransfer, buildPumpSharedFeeDistribution, derivePumpBondingCurve, derivePumpFeeAddresses, derivePumpFeeSharingConfig, PUMP_AMM_PROGRAM, PUMP_FEE_PROGRAM, PUMP_PROGRAM, TOKEN_PROGRAM, WSOL_MINT } from './pump.js';
 import { parseSecretBytes } from './signing.js';
@@ -311,12 +311,14 @@ export async function createFeeAdminService(
       const activeOperation = await reconcileActiveOperation();
       const current = await configuredMint();
       const mint = String(current) === ZERO_ADDRESS ? undefined : current;
-      const [fees, history, storedToken, worker, lastRescue, lastUnpause] = await Promise.all([
+      const [fees, history, storedToken, worker, lastEmergencyRescue, lastFareRescue, lastReset, lastUnpause] = await Promise.all([
         feeSnapshot(mint),
         actions.find({}, { sort: { createdAt: -1 }, limit: 20 }).toArray(),
         tokenConfig.findOne({ key: 'primary' }),
         workerStatus.findOne({ key: 'protocol-worker' }),
         actions.findOne({ kind: 'emergency_rescue' }, { sort: { createdAt: -1 } }),
+        actions.findOne({ kind: 'rescue_fare' }, { sort: { createdAt: -1 } }),
+        actions.findOne({ kind: 'reset_mint' }, { sort: { createdAt: -1 } }),
         actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } }),
       ]);
       const ticker = mint && storedToken?.mint === String(mint) ? storedToken.ticker : null;
@@ -333,7 +335,8 @@ export async function createFeeAdminService(
           signature: activeOperation.signature || null,
         } : null,
         dashboard,
-        rescuePendingMigration: Boolean(lastRescue && (!lastUnpause || lastRescue.createdAt > lastUnpause.createdAt)),
+        rescuePendingMigration: Boolean(lastEmergencyRescue && (!lastUnpause || lastEmergencyRescue.createdAt > lastUnpause.createdAt)),
+        fareResetPending: Boolean(lastFareRescue && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt)),
         history: history.map(publicAction),
       };
     },
@@ -351,6 +354,9 @@ export async function createFeeAdminService(
         const signature = previous?.signature || '';
         await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
         return { signature, mint: String(inspected.mint), ticker, unchanged: false };
+      }
+      if (String(current) !== ZERO_ADDRESS) {
+        throw new FeeAdminError('Use the paused FARE reset flow to replace an existing CA.', 409);
       }
       const [fareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram });
       const feeSharingConfig = await derivePumpFeeSharingConfig(inspected.mint);
@@ -373,6 +379,70 @@ export async function createFeeAdminService(
       await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
       await actions.insertOne({ kind: 'bind_mint', mint: String(inspected.mint), amountLamports: '0', signature, cluster: config.cluster, createdAt: new Date() });
       return { signature, mint: String(inspected.mint), ticker, unchanged: false };
+    },
+    async resetMint(rawMint: unknown, rawTicker: unknown) {
+      let ticker: string;
+      try { ticker = normalizeTicker(rawTicker); } catch (error) { throw new FeeAdminError((error as Error).message); }
+      const inspected = await inspectMint(rawMint);
+      const current = await configuredState();
+      if (current.pausedAt === 0n) throw new FeeAdminError('Pause the protocol before resetting FARE rewards.', 409);
+      if (String(current.fareMint) === String(inspected.mint)) throw new FeeAdminError('The replacement CA is already configured.', 409);
+      const activeOperation = await reconcileActiveOperation();
+      if (activeOperation) throw new FeeAdminError('Wait for the active creator-fee operation to finalize before resetting FARE.', 409);
+
+      const oldMintAccount = await getAccount(config.rpcUrl, current.fareMint);
+      if (![String(TOKEN_PROGRAM), String(TOKEN_2022_PROGRAM)].includes(oldMintAccount.owner)) {
+        throw new FeeAdminError('The current FARE mint uses an unsupported token program.', 409);
+      }
+      const oldTokenProgram = address(oldMintAccount.owner);
+      const [oldFareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: current.fareMint, tokenProgram: oldTokenProgram });
+      const [newFareVault] = await findAssociatedTokenPda({ owner: addresses.config, mint: inspected.mint, tokenProgram: inspected.tokenProgram });
+      const [oldVaultAccount, newVaultAccount, dashboard] = await Promise.all([
+        getOptionalAccount(config.rpcUrl, oldFareVault),
+        getOptionalAccount(config.rpcUrl, newFareVault),
+        workerStatus.findOne({ key: 'protocol-worker' }).then(worker => loadProtocolDashboard(config.rpcUrl, config.programId, worker, config.workerIntervalMs, ticker)),
+      ]);
+      if (oldVaultAccount && tokenAmount(oldVaultAccount.data) !== 0n) {
+        throw new FeeAdminError('Rescue and convert the full old FARE vault before reset.', 409);
+      }
+      const nextPoolAmount = newVaultAccount ? tokenAmount(newVaultAccount.data) : 0n;
+      if (nextPoolAmount === 0n) throw new FeeAdminError('Fund the new protocol FARE vault before reset.', 409);
+      if (dashboard.distribution.seriesActive) throw new FeeAdminError('Finish the active reward series before reset.', 409);
+
+      const feeSharingConfig = await derivePumpFeeSharingConfig(inspected.mint);
+      const instruction = buildResetFareMintInstruction({
+        programId: config.programId,
+        admin: admin.address,
+        feeRecipient: feeRecipient.address,
+        config: addresses.config,
+        pool: addresses.pool,
+        traineePool: addresses.traineePool,
+        oldFareMint: current.fareMint,
+        oldFareVault,
+        newFareMint: inspected.mint,
+        newFareVault,
+        bondingCurve: inspected.bondingCurve,
+        feeSharingConfig,
+        oldTokenProgram,
+        newTokenProgram: inspected.tokenProgram,
+        machines: dashboard.machines.map(machine => address(machine.machine)),
+        trainees: dashboard.trainees.map(trainee => address(trainee.trainee)),
+      });
+      const additional = String(admin.address) === String(feeRecipient.address) ? [] : [feeRecipient];
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [instruction], additional));
+      await savePrimaryTokenConfig(tokenConfig, inspected.mint, ticker, signature);
+      await actions.insertOne({
+        kind: 'reset_mint', mint: String(inspected.mint), amountLamports: '0', signature,
+        cluster: config.cluster, rescuedTokens: [{ mint: String(inspected.mint), amount: nextPoolAmount.toString() }], createdAt: new Date(),
+      });
+      return {
+        signature,
+        mint: String(inspected.mint),
+        ticker,
+        nextPoolAmount: nextPoolAmount.toString(),
+        resetMachines: dashboard.machines.length,
+        resetTrainees: dashboard.trainees.length,
+      };
     },
     async setMintPrices(rawPrices: unknown) {
       if (!Array.isArray(rawPrices) || rawPrices.length !== 4) throw new FeeAdminError('Four USD prices are required.');
@@ -419,6 +489,13 @@ export async function createFeeAdminService(
         const lastUnpause = await actions.findOne({ kind: 'unpause' }, { sort: { createdAt: -1 } });
         if (lastRescue && (!lastUnpause || lastRescue.createdAt > lastUnpause.createdAt) && migrationConfirmed !== true) {
           throw new FeeAdminError('Assets were rescued after the last pause. Confirm completed migration before unpausing this deployment.', 409);
+        }
+        const [lastFareRescue, lastReset] = await Promise.all([
+          actions.findOne({ kind: 'rescue_fare' }, { sort: { createdAt: -1 } }),
+          actions.findOne({ kind: 'reset_mint' }, { sort: { createdAt: -1 } }),
+        ]);
+        if (lastFareRescue && (!lastReset || lastFareRescue.createdAt > lastReset.createdAt)) {
+          throw new FeeAdminError('Complete the FARE conversion and on-chain reset before unpausing.', 409);
         }
       }
       const activeOperation = await reconcileActiveOperation();
@@ -467,6 +544,33 @@ export async function createFeeAdminService(
         cluster: config.cluster, recipient: String(recipient), rescuedTokens, createdAt: new Date(),
       });
       return { signature, recipient: String(recipient), solLamports: solAmount.toString(), tokens: rescuedTokens };
+    },
+    async rescueFare(rawRecipient: unknown) {
+      if (typeof rawRecipient !== 'string') throw new FeeAdminError('Conversion recipient is required.');
+      let recipient: Address;
+      try { recipient = address(rawRecipient.trim()); } catch { throw new FeeAdminError('Conversion recipient is not a valid Solana address.'); }
+      if (String(recipient) === ZERO_ADDRESS) throw new FeeAdminError('Conversion recipient cannot be the system address.');
+      const current = await configuredState();
+      if (current.pausedAt === 0n) throw new FeeAdminError('Pause the protocol before rescuing FARE for conversion.', 409);
+      const activeOperation = await reconcileActiveOperation();
+      if (activeOperation) throw new FeeAdminError('Wait for the active creator-fee operation to finalize before rescuing FARE.', 409);
+      const mintAccount = await getAccount(config.rpcUrl, current.fareMint);
+      if (![String(TOKEN_PROGRAM), String(TOKEN_2022_PROGRAM)].includes(mintAccount.owner)) throw new FeeAdminError('The current FARE mint uses an unsupported token program.', 409);
+      const tokenProgram = address(mintAccount.owner);
+      const [vault] = await findAssociatedTokenPda({ owner: addresses.config, mint: current.fareMint, tokenProgram });
+      const vaultAccount = await getOptionalAccount(config.rpcUrl, vault);
+      const amount = vaultAccount ? tokenAmount(vaultAccount.data) : 0n;
+      if (amount === 0n) throw new FeeAdminError('The current FARE vault is already empty.', 409);
+      const [destination] = await findAssociatedTokenPda({ owner: recipient, mint: current.fareMint, tokenProgram });
+      const signature = String(await sendInstructions(config.rpcUrl, admin, [
+        getCreateAssociatedTokenIdempotentInstruction({ payer: admin, ata: destination, owner: recipient, mint: current.fareMint, tokenProgram }),
+        buildRescueTokenInstruction({ programId: config.programId, admin: admin.address, config: addresses.config, mint: current.fareMint, vault, destination, tokenProgram, amount }),
+      ]));
+      await actions.insertOne({
+        kind: 'rescue_fare', mint: String(current.fareMint), amountLamports: '0', signature,
+        cluster: config.cluster, recipient: String(recipient), rescuedTokens: [{ mint: String(current.fareMint), amount: amount.toString() }], createdAt: new Date(),
+      });
+      return { signature, recipient: String(recipient), mint: String(current.fareMint), amount: amount.toString() };
     },
     async claim(rawOperationId: unknown) {
       const mint = await requireConfiguredMint();

@@ -148,4 +148,12 @@ pub enum TaxiError {
     InvalidSwapInput,
     #[msg("Swap output is below the signed minimum")]
     InsufficientSwapOutput,
+    #[msg("FARE mint replacement requires the dedicated paused reset flow")]
+    FareResetRequired,
+    #[msg("FARE reset requires every machine and trainee account exactly once")]
+    InvalidFareResetAccounts,
+    #[msg("The old FARE vault must be empty before reset")]
+    OldFareVaultNotEmpty,
+    #[msg("The new FARE vault must be funded before reset")]
+    NewFareVaultEmpty,
 }

@@ -149,6 +149,13 @@ pub struct RewardPool {
 }
 
 impl RewardPool {
+    pub fn reset_fare(&mut self, next_amount: u64) {
+        self.obligations[0] = 0;
+        self.next_pool[0] = next_amount;
+        self.series_initial[0] = 0;
+        self.series_remaining[0] = 0;
+    }
+
     pub fn add_to_next(&mut self, amounts: [u64; ASSET_COUNT]) -> Result<()> {
         for (balance, amount) in self.next_pool.iter_mut().zip(amounts) {
             *balance = balance.checked_add(amount).ok_or(TaxiError::MathOverflow)?;
@@ -307,6 +314,12 @@ pub struct TraineeBucket {
 }
 
 impl Machine {
+    pub fn reset_fare(&mut self, accumulator: u128) {
+        self.checkpoints[0] = accumulator;
+        self.claimable[0] = 0;
+        self.fare_base = 0;
+    }
+
     pub fn expiry_is_stale(&self, event: &MachineEvent) -> Result<bool> {
         require_keys_eq!(self.asset, event.machine, TaxiError::InvalidMachineEvent);
         require!(
@@ -404,6 +417,13 @@ impl Machine {
             }
         }
         Ok(())
+    }
+}
+
+impl Trainee {
+    pub fn reset_fare(&mut self, accumulator: u128) {
+        self.checkpoint = accumulator;
+        self.checkpoint_initialized = true;
     }
 }
 
@@ -667,6 +687,43 @@ mod tests {
         pool.finish_series().unwrap();
         assert_eq!(pool.obligations[0], 100);
         assert_eq!(pool.next_pool[0], 0);
+    }
+
+    #[test]
+    fn fare_reset_clears_only_fare_and_queues_the_replacement_vault() {
+        let mut pool = RewardPool {
+            accumulators: [50, 60, 70, 80, 90],
+            obligations: [11, 12, 13, 14, 15],
+            next_pool: [21, 22, 23, 24, 25],
+            series_initial: [31, 32, 33, 34, 35],
+            series_remaining: [41, 42, 43, 44, 45],
+            ..RewardPool::default()
+        };
+        let mut machine = Machine {
+            checkpoints: [1, 2, 3, 4, 5],
+            claimable: [6, 7, 8, 9, 10],
+            fare_base: 99,
+            ..Machine::default()
+        };
+        let mut trainee = Trainee {
+            checkpoint: 4,
+            checkpoint_initialized: false,
+            ..Trainee::default()
+        };
+
+        machine.reset_fare(pool.accumulators[0]);
+        trainee.reset_fare(75);
+        pool.reset_fare(1_234);
+
+        assert_eq!(pool.obligations, [0, 12, 13, 14, 15]);
+        assert_eq!(pool.next_pool, [1_234, 22, 23, 24, 25]);
+        assert_eq!(pool.series_initial, [0, 32, 33, 34, 35]);
+        assert_eq!(pool.series_remaining, [0, 42, 43, 44, 45]);
+        assert_eq!(machine.checkpoints, [50, 2, 3, 4, 5]);
+        assert_eq!(machine.claimable, [0, 7, 8, 9, 10]);
+        assert_eq!(machine.fare_base, 0);
+        assert_eq!(trainee.checkpoint, 75);
+        assert!(trainee.checkpoint_initialized);
     }
 
     #[test]

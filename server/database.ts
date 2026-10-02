@@ -48,7 +48,7 @@ export interface RateLimitDocument {
 }
 
 export interface AdminFeeActionDocument {
-  kind: 'claim' | 'deposit' | 'bind_mint' | 'set_team' | 'pause' | 'unpause' | 'emergency_rescue';
+  kind: 'claim' | 'deposit' | 'bind_mint' | 'reset_mint' | 'rescue_fare' | 'set_team' | 'pause' | 'unpause' | 'emergency_rescue';
   mint: string;
   amountLamports: string;
   signature: string;

@@ -83,6 +83,48 @@ export function buildSetFareMintInstruction(input: {
   };
 }
 
+export function buildResetFareMintInstruction(input: {
+  programId: Address;
+  admin: Address;
+  feeRecipient: Address;
+  config: Address;
+  pool: Address;
+  traineePool: Address;
+  oldFareMint: Address;
+  oldFareVault: Address;
+  newFareMint: Address;
+  newFareVault: Address;
+  bondingCurve: Address;
+  feeSharingConfig: Address;
+  oldTokenProgram: Address;
+  newTokenProgram: Address;
+  machines: Address[];
+  trainees: Address[];
+}): Instruction {
+  if (input.trainees.length > 0xffff) throw new Error('Too many trainee accounts for one FARE reset');
+  return {
+    programAddress: input.programId,
+    accounts: [
+      meta(input.admin, AccountRole.READONLY_SIGNER),
+      meta(input.feeRecipient, AccountRole.READONLY_SIGNER),
+      meta(input.config, AccountRole.WRITABLE),
+      meta(input.pool, AccountRole.WRITABLE),
+      meta(input.traineePool, AccountRole.WRITABLE),
+      meta(input.oldFareMint, AccountRole.READONLY),
+      meta(input.oldFareVault, AccountRole.READONLY),
+      meta(input.newFareMint, AccountRole.READONLY),
+      meta(input.newFareVault, AccountRole.READONLY),
+      meta(input.bondingCurve, AccountRole.READONLY),
+      meta(input.feeSharingConfig, AccountRole.READONLY),
+      meta(input.oldTokenProgram, AccountRole.READONLY),
+      meta(input.newTokenProgram, AccountRole.READONLY),
+      ...input.machines.map(machine => meta(machine, AccountRole.WRITABLE)),
+      ...input.trainees.map(trainee => meta(trainee, AccountRole.WRITABLE)),
+    ],
+    data: concat(discriminator('reset_fare_mint'), u16(input.trainees.length)),
+  };
+}
+
 export function buildRescueTokenInstruction(input: {
   programId: Address;
   admin: Address;
@@ -129,6 +171,12 @@ function u64(value: bigint) {
   if (value < 0n || value > 0xffff_ffff_ffff_ffffn) throw new Error('Value does not fit u64');
   const result = new Uint8Array(8);
   new DataView(result.buffer).setBigUint64(0, value, true);
+  return result;
+}
+function u16(value: number) {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffff) throw new Error('Value does not fit u16');
+  const result = new Uint8Array(2);
+  new DataView(result.buffer).setUint16(0, value, true);
   return result;
 }
 function concat(...parts: readonly Uint8Array[]) {

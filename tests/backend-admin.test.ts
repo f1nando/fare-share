@@ -7,6 +7,7 @@ import { TOKEN_PROGRAM } from '../server/pump.js';
 import {
   buildRescueSolInstruction,
   buildRescueTokenInstruction,
+  buildResetFareMintInstruction,
   buildSetFareMintInstruction,
   buildSimpleAdminInstruction,
 } from '../server/admin.js';
@@ -34,6 +35,66 @@ test('simple admin commands encode Anchor discriminators and arguments', () => {
   assert.deepEqual([0, 1, 2, 3].map(index => (
     new DataView(prices.data!.buffer, prices.data!.byteOffset).getBigUint64(8 + index * 8, true)
   )), [1n, 2n, 3n, 4n]);
+});
+
+test('FARE reset encodes fixed accounts followed by writable machines and trainees', () => {
+  const instruction = buildResetFareMintInstruction({
+    programId: PROGRAM,
+    admin: ADMIN,
+    feeRecipient: ADMIN,
+    config: CONFIG,
+    pool: PROGRAM,
+    traineePool: VALUE,
+    oldFareMint: CONFIG,
+    oldFareVault: PROGRAM,
+    newFareMint: VALUE,
+    newFareVault: ADMIN,
+    bondingCurve: CONFIG,
+    feeSharingConfig: PROGRAM,
+    oldTokenProgram: VALUE,
+    newTokenProgram: TOKEN_2022_PROGRAM,
+    machines: [CONFIG, PROGRAM],
+    trainees: [VALUE],
+  });
+  assert.equal(instruction.accounts?.length, 16);
+  assert.deepEqual(instruction.accounts?.slice(-3).map(account => account.role), [
+    AccountRole.WRITABLE,
+    AccountRole.WRITABLE,
+    AccountRole.WRITABLE,
+  ]);
+  assert.deepEqual(Buffer.from(instruction.data!.slice(0, 8)), discriminator('reset_fare_mint'));
+  assert.equal(new DataView(instruction.data!.buffer, instruction.data!.byteOffset).getUint16(8, true), 1);
+});
+
+test('current seven-machine and three-trainee FARE reset fits one transaction', async () => {
+  const payer = await generateKeyPairSigner();
+  const dynamic = await Promise.all(Array.from({ length: 10 }, () => generateKeyPairSigner()));
+  const instruction = buildResetFareMintInstruction({
+    programId: PROGRAM,
+    admin: payer.address,
+    feeRecipient: payer.address,
+    config: CONFIG,
+    pool: address('XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB'),
+    traineePool: address('XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB'),
+    oldFareMint: address('XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN'),
+    oldFareVault: address('Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg'),
+    newFareMint: VALUE,
+    newFareVault: ADMIN,
+    bondingCurve: PROGRAM,
+    feeSharingConfig: CONFIG,
+    oldTokenProgram: TOKEN_PROGRAM,
+    newTokenProgram: TOKEN_2022_PROGRAM,
+    machines: dynamic.slice(0, 7).map(item => item.address),
+    trainees: dynamic.slice(7).map(item => item.address),
+  });
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(payer.address, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({ blockhash: '11111111111111111111111111111111' as never, lastValidBlockHeight: 1n }, transaction),
+    transaction => appendTransactionMessageInstructions([instruction], transaction),
+  );
+  const bytes = getTransactionEncoder().encode(compileTransaction(message));
+  assert.ok(bytes.length <= 1232, `FARE reset transaction is ${bytes.length} bytes`);
 });
 
 test('FARE mint binding uses the pre-sale Anchor instruction account order', () => {

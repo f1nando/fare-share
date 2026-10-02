@@ -165,6 +165,10 @@ pub mod taxi_park {
     pub fn set_fare_mint(ctx: Context<SetFareMint>) -> Result<()> {
         let config = &mut ctx.accounts.config;
         let fare_mint = ctx.accounts.fare_mint.key();
+        require!(
+            config.fare_mint == Pubkey::default() || config.fare_mint == fare_mint,
+            TaxiError::FareResetRequired
+        );
         validate_fare_assignment(config, fare_mint)?;
         validate_pump_fee_recipient(
             fare_mint,
@@ -190,6 +194,147 @@ pub mod taxi_park {
         require_keys_eq!(vault.mint, fare_mint, TaxiError::InvalidTokenAccount);
         require_keys_eq!(vault.owner, config_key, TaxiError::InvalidTokenAccount);
         config.fare_mint = fare_mint;
+        Ok(())
+    }
+
+    pub fn reset_fare_mint<'info>(
+        ctx: Context<'_, '_, 'info, 'info, ResetFareMint<'info>>,
+        trainee_count: u16,
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(!ctx.accounts.pool.series_active, TaxiError::SeriesAlreadyActive);
+        require!(!ctx.accounts.trainee_pool.series_active, TaxiError::SeriesAlreadyActive);
+
+        let old_mint = ctx.accounts.config.fare_mint;
+        let new_mint = ctx.accounts.new_fare_mint.key();
+        require_keys_neq!(old_mint, new_mint, TaxiError::InvalidRewardMint);
+        validate_fare_assignment(&ctx.accounts.config, new_mint)?;
+        validate_pump_fee_recipient(
+            new_mint,
+            &ctx.accounts.fee_recipient.key(),
+            &ctx.accounts.bonding_curve,
+            &ctx.accounts.fee_sharing_config,
+        )?;
+
+        token::assert_program(&ctx.accounts.old_token_program)?;
+        token::assert_program(&ctx.accounts.new_token_program)?;
+        token::mint_view(&ctx.accounts.old_fare_mint, &ctx.accounts.old_token_program.key())?;
+        token::mint_view(&ctx.accounts.new_fare_mint, &ctx.accounts.new_token_program.key())?;
+        let config_key = ctx.accounts.config.key();
+        let expected_old_vault = token::associated_token_address(
+            &config_key,
+            &old_mint,
+            &ctx.accounts.old_token_program.key(),
+        );
+        let expected_new_vault = token::associated_token_address(
+            &config_key,
+            &new_mint,
+            &ctx.accounts.new_token_program.key(),
+        );
+        require_keys_eq!(
+            ctx.accounts.old_fare_vault.key(),
+            expected_old_vault,
+            TaxiError::InvalidTokenAccount
+        );
+        require_keys_eq!(
+            ctx.accounts.new_fare_vault.key(),
+            expected_new_vault,
+            TaxiError::InvalidTokenAccount
+        );
+        let old_vault = token::account_view(
+            &ctx.accounts.old_fare_vault,
+            &ctx.accounts.old_token_program.key(),
+        )?;
+        let new_vault = token::account_view(
+            &ctx.accounts.new_fare_vault,
+            &ctx.accounts.new_token_program.key(),
+        )?;
+        require_keys_eq!(old_vault.mint, old_mint, TaxiError::InvalidTokenAccount);
+        require_keys_eq!(old_vault.owner, config_key, TaxiError::InvalidTokenAccount);
+        require_keys_eq!(new_vault.mint, new_mint, TaxiError::InvalidTokenAccount);
+        require_keys_eq!(new_vault.owner, config_key, TaxiError::InvalidTokenAccount);
+        require!(old_vault.amount == 0, TaxiError::OldFareVaultNotEmpty);
+        require!(new_vault.amount > 0, TaxiError::NewFareVaultEmpty);
+
+        let machine_count = ctx
+            .accounts
+            .config
+            .minted_by_class
+            .iter()
+            .try_fold(0_usize, |total, count| {
+                total.checked_add(usize::from(*count))
+            })
+            .ok_or(TaxiError::MathOverflow)?;
+        let trainee_count = usize::from(trainee_count);
+        require!(
+            ctx.remaining_accounts.len() == machine_count + trainee_count,
+            TaxiError::InvalidFareResetAccounts
+        );
+        let accumulator = ctx.accounts.pool.accumulators[0];
+        for (index, machine_info) in ctx.remaining_accounts[..machine_count].iter().enumerate() {
+            require!(
+                machine_info.is_writable,
+                TaxiError::MachineAccountNotWritable
+            );
+            require!(
+                !ctx.remaining_accounts[..index]
+                    .iter()
+                    .any(|previous| previous.key == machine_info.key),
+                TaxiError::InvalidFareResetAccounts
+            );
+            let mut machine = Account::<Machine>::try_from(machine_info)?;
+            let expected =
+                Pubkey::find_program_address(&[b"machine", machine.asset.as_ref()], ctx.program_id)
+                    .0;
+            require_keys_eq!(machine.key(), expected, TaxiError::InvalidFareResetAccounts);
+            machine.reset_fare(accumulator);
+            machine.exit(ctx.program_id)?;
+        }
+        let trainee_accumulator = ctx.accounts.trainee_pool.accumulators[0];
+        for (index, trainee_info) in ctx.remaining_accounts[machine_count..].iter().enumerate() {
+            require!(
+                trainee_info.is_writable,
+                TaxiError::InvalidFareResetAccounts
+            );
+            require!(
+                !ctx.remaining_accounts[machine_count..machine_count + index]
+                    .iter()
+                    .any(|previous| previous.key == trainee_info.key),
+                TaxiError::InvalidFareResetAccounts
+            );
+            let mut trainee = Account::<Trainee>::try_from(trainee_info)?;
+            let expected = Pubkey::find_program_address(
+                &[
+                    b"trainee",
+                    trainee.owner.as_ref(),
+                    &trainee.campaign_id.to_le_bytes(),
+                ],
+                ctx.program_id,
+            )
+            .0;
+            require_keys_eq!(trainee.key(), expected, TaxiError::InvalidFareResetAccounts);
+            trainee.reset_fare(trainee_accumulator);
+            trainee.exit(ctx.program_id)?;
+        }
+
+        ctx.accounts.pool.reset_fare(new_vault.amount);
+        ctx.accounts.trainee_pool.reset_fare(0);
+        ctx.accounts.config.fare_mint = new_mint;
+        ctx.accounts.config.fare_swap_nonce = ctx
+            .accounts
+            .config
+            .fare_swap_nonce
+            .checked_add(1)
+            .ok_or(TaxiError::MathOverflow)?;
+        emit!(FareMintReset {
+            old_mint,
+            new_mint,
+            next_pool_amount: new_vault.amount,
+            machine_count: u16::try_from(machine_count)
+                .map_err(|_| error!(TaxiError::MathOverflow))?,
+            trainee_count: u16::try_from(trainee_count)
+                .map_err(|_| error!(TaxiError::MathOverflow))?,
+        });
         Ok(())
     }
 
@@ -2759,6 +2904,40 @@ pub struct SetFareMint<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ResetFareMint<'info> {
+    pub admin: Signer<'info>,
+    pub fee_recipient: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump = config.bump,
+        has_one = admin @ TaxiError::Unauthorized,
+        constraint = config.fare_mint == old_fare_mint.key() @ TaxiError::InvalidRewardMint
+    )]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
+    #[account(mut, seeds = [b"pool", b"trainee"], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
+    /// CHECK: Address is constrained by config and its mint layout is validated in the handler.
+    pub old_fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Canonical old ATA is validated and must be empty.
+    pub old_fare_vault: UncheckedAccount<'info>,
+    /// CHECK: Initialized mint layout and compatibility are validated in the handler.
+    pub new_fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Canonical new ATA is validated and its full balance is queued for distribution.
+    pub new_fare_vault: UncheckedAccount<'info>,
+    /// CHECK: Pump ownership, PDA, creator, stage and flags are validated in the handler.
+    pub bonding_curve: UncheckedAccount<'info>,
+    /// CHECK: Canonical Pump Fees PDA is validated; an initialized config must be immutable and assign 100% to fee_recipient.
+    pub fee_sharing_config: UncheckedAccount<'info>,
+    /// CHECK: Must be the supported Token Program that owns old_fare_mint and old_fare_vault.
+    pub old_token_program: UncheckedAccount<'info>,
+    /// CHECK: Must be the supported Token Program that owns new_fare_mint and new_fare_vault.
+    pub new_token_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
 pub struct ClaimMany<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -3032,7 +3211,7 @@ mod accounting_tests {
     }
 
     #[test]
-    fn fare_mint_can_change_at_any_time_and_cannot_match_a_stock() {
+    fn fare_mint_assignment_accepts_supported_mints_and_rejects_stock_mints() {
         let stock_mints = [
             Pubkey::new_unique(),
             Pubkey::new_unique(),
@@ -3629,6 +3808,15 @@ pub struct MachineMinted {
     pub fare_mint: Pubkey,
     pub paid_fare_raw: u64,
     pub price_usd_cents: u64,
+}
+
+#[event]
+pub struct FareMintReset {
+    pub old_mint: Pubkey,
+    pub new_mint: Pubkey,
+    pub next_pool_amount: u64,
+    pub machine_count: u16,
+    pub trainee_count: u16,
 }
 
 #[event]

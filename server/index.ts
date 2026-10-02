@@ -299,6 +299,28 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/reset') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      const result = await services.fees.resetMint(body.ca, body.ticker);
+      publicToken = { configured: true, mint: result.mint, ticker: result.ticker };
+      await traineeCampaigns.ensurePrimary(result.ticker);
+      trade?.stop();
+      trade = createTradeService(config, database, { mint: result.mint, ticker: result.ticker });
+      void publicData.sync(true).catch(error => {
+        console.warn(`Public data refresh after FARE reset failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+      json(response, 200, result);
+      return;
+    }
+    if (request.method === 'POST' && url.pathname === '/api/admin/mint/rescue-current') {
+      const services = requireAdminServices();
+      services.auth.require(request, true);
+      const body = asRecord(await readJson(request));
+      json(response, 200, await services.fees.rescueFare(body.recipient));
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/errors') {
       requirePublicOrigin(request);
       if (!allowClientError(clientAddress(request))) {
