@@ -119,7 +119,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
             className={`fare-market-offer-scene${index === preview.previousIndex ? ' is-previous' : ''}${index === preview.currentIndex ? ' is-active' : ''}`}
             key={item.id || item.name}
           >
-            <FareStepDrivingScene scene={item} showHeadlights={false} imageLoading="eager" />
+            <FareStepDrivingScene scene={item} imageLoading="eager" />
           </div>
         ))}
       </div>
@@ -478,13 +478,18 @@ export function MarketPage({ wallet, connectWallet }) {
   }
 
   function renderOfferCard(offer) {
+    const assetScene = offer.kind === 'asset'
+      ? drivingScenes.find(scene => scene.name === taxiModelName(offer.name))
+      : null;
     return (
       <article className="fare-market-card fare-market-offer-card" key={offer.id}>
         {offer.kind !== 'asset'
           ? <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />
           : offer.imageUrl && (
             <div className="fare-market-media fare-market-offer-asset-media">
-              <img className="fare-market-offer-asset" src={offer.imageUrl} alt="" loading="lazy" />
+              {assetScene
+                ? <FareStepDrivingScene scene={{ ...assetScene, imageUrl: offer.imageUrl }} />
+                : <img className="fare-market-offer-asset" src={offer.imageUrl} alt="" loading="lazy" />}
               <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.className}</span>
               <span className="fare-market-nft-number">#{offer.nftNumber}</span>
             </div>
@@ -630,7 +635,7 @@ export function MarketPage({ wallet, connectWallet }) {
                     const bestOffer = car.matches[0];
                     const nftNumber = Number(car.name.match(/#(\d+)$/)?.[1] || 0);
                     return <article className="fare-market-card fare-market-sell-card" key={car.asset}>
-                      <div className="fare-market-media"><FareStepDrivingScene scene={car} showHeadlights={false} /><span className={`fare-fleet-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span><span className="fare-market-nft-number">#{nftNumber}</span></div>
+                      <div className="fare-market-media"><FareStepDrivingScene scene={car} /><span className={`fare-fleet-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span><span className="fare-market-nft-number">#{nftNumber}</span></div>
                       <div className="fare-market-card-copy"><h2>{car.name}</h2>
                         {car.listing
                           ? <div className="fare-market-match is-listed"><span>ACTIVE LISTING</span><strong>{formatLamports(car.listing.priceLamports)} SOL</strong><small>Cancel this listing before accepting another buyer's request.</small></div>
