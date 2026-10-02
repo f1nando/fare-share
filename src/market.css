@@ -158,6 +158,9 @@
 .fare-market-accept-actions button:disabled, .fare-market-modal-close:disabled { cursor: wait; opacity: .55; }
 
 @media (max-width: 1000px) {
+  .fare-market-heading { align-items: flex-start; flex-direction: column; gap: 34px; }
+  .fare-market-heading-action { width: 100%; max-width: none; }
+  .fare-market-heading p { max-width: 620px; }
   .fare-market-console-top { grid-template-columns: 180px minmax(0, 1fr); }
   .fare-market-live { padding: 0 22px; }
   .fare-market-summary > div { padding-right: 20px; padding-left: 20px; }
