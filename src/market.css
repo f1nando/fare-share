@@ -50,7 +50,7 @@
 .fare-market-notice + .fare-market-grid { margin-top: 0; }
 .fare-market-card { border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 6px 7px 0 #111; overflow: hidden; }
 .fare-market-media { position: relative; margin: 18px 18px 0; }
-.fare-market-media > .fare-step-media { width: 100%; height: auto; aspect-ratio: 1 / .87; border-radius: 22px; transform: none; }
+.fare-market-media > .fare-step-media { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 22px; transform: none; }
 .fare-market-media > .fare-fleet-class { top: 12px; right: 12px; left: auto; text-transform: uppercase; }
 .fare-market-nft-number { position: absolute; z-index: 5; bottom: 12px; left: 12px; display: inline-flex; min-height: 36px; align-items: center; padding: 0 14px; border: 2px solid #111; border-radius: 999px; background: #fff; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 13px; font-weight: 700; }
 .fare-market-card-copy { padding: 22px 20px 22px; }
@@ -78,23 +78,19 @@
 .fare-market-offers-heading > div { display: flex; align-items: flex-start; flex-direction: column; gap: 7px; }
 .fare-market-offers-heading span { font-size: 11px; font-weight: 900; letter-spacing: .08em; }
 .fare-market-offers-heading h2 { margin: 0; color: #fff; font-family: 'Intro Friday', Impact, sans-serif; font-size: 52px; font-weight: 400; line-height: .85; -webkit-text-stroke: 2px #111; paint-order: stroke fill; text-shadow: 5px 5px 0 #111; }
-.fare-market-offers-heading button, .fare-market-offer-card button { min-height: 48px; padding: 0 20px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; }
-.fare-market-offer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.fare-market-offer-card { display: flex; align-items: flex-start; flex-direction: column; gap: 15px; padding: 22px; border: 2px solid #111; border-radius: 24px; background: #fff; box-shadow: 5px 6px 0 #111; }
-.fare-market-offer-media { position: relative; width: calc(100% + 44px); aspect-ratio: 1 / 1; margin: -22px -22px 0; border-bottom: 2px solid #111; border-radius: 21px 21px 0 0; overflow: hidden; }
+.fare-market-offers-heading button { min-height: 48px; padding: 0 20px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; }
+.fare-market-offer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; }
+.fare-market-offer-media { position: relative; aspect-ratio: 1 / 1; overflow: hidden; }
 .fare-market-offer-scenes, .fare-market-offer-scene { position: absolute; inset: 0; }
 .fare-market-offer-scene { z-index: 0; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
 .fare-market-offer-scene.is-previous { z-index: 1; opacity: 1; }
 .fare-market-offer-scene.is-active { z-index: 2; opacity: 1; pointer-events: auto; }
 .fare-market-offer-scene:not(.is-active) .fare-fleet-road { animation-play-state: paused; }
-.fare-market-offer-scene > .fare-step-media { width: 100%; height: 100%; border-radius: 0; transform: none; }
+.fare-market-offer-scene > .fare-step-media { width: 100%; height: 100%; border-radius: 22px; transform: none; }
 .fare-market-offer-model { position: absolute; z-index: 5; top: 12px; right: 12px; padding: 7px 10px; border: 2px solid #111; border-radius: 999px; background: #fff; font-size: 10px; font-weight: 900; }
-.fare-market-offer-card > .fare-fleet-class { position: static; }
-.fare-market-offer-card h3 { min-height: 50px; margin: 0; font-size: 21px; line-height: 25px; }
-.fare-market-offer-detail { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid #ccc; }
-.fare-market-offer-detail span { color: #777; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
-.fare-market-offer-detail strong { font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 14px; }
-.fare-market-offer-card button { width: 100%; margin-top: auto; }
+.fare-market-media > .fare-market-offer-class { top: auto; right: auto; bottom: 12px; left: 12px; text-transform: uppercase; }
+.fare-market-offer-asset { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 22px; object-fit: cover; }
+.fare-market-offer-copy .fare-market-price-row button { min-width: 128px; }
 .fare-market-offers-empty { padding: 42px; border: 2px dashed #111; border-radius: 24px; background: rgb(255 255 255 / 55%); font-size: 15px; font-weight: 900; text-align: center; }
 
 @media (max-width: 1000px) {

@@ -54,6 +54,10 @@ function shortWallet(address) {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
+function taxiModelName(name = '') {
+  return name.replace(/^TAXI\s+/, '').replace(/\s+#\d+$/, '');
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -96,7 +100,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
 
   const scene = scenes[preview.currentIndex] || scenes[0];
   return (
-    <div className="fare-market-offer-media">
+    <div className="fare-market-media fare-market-offer-media">
       <div className="fare-market-offer-scenes">
         {scenes.map((item, index) => (
           <div
@@ -108,6 +112,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
         ))}
       </div>
       <span className="fare-market-offer-model">{scene.name}</span>
+      <span className={`fare-fleet-class fare-market-offer-class is-${String(className || 'economy').toLowerCase()}`}>{className}</span>
     </div>
   );
 }
@@ -142,11 +147,17 @@ export function MarketPage({ wallet, connectWallet }) {
     return () => { active = false; };
   }, []);
 
-  const listings = market.listings.map(listing => ({
-    ...listing,
-    price: Number(listing.priceLamports) / 1_000_000_000,
-    vehicleClass: CLASS_BY_NAME.get(listing.name) || { name: listing.className || 'Economy', tone: String(listing.className || 'economy').toLowerCase() },
-  }));
+  const listings = market.listings.map(listing => {
+    const modelName = taxiModelName(listing.name);
+    const scene = drivingScenes.find(item => item.name === modelName);
+    return {
+      ...scene,
+      ...listing,
+      imageUrl: listing.imageUrl || scene?.imageUrl,
+      price: Number(listing.priceLamports) / 1_000_000_000,
+      vehicleClass: CLASS_BY_NAME.get(modelName) || { name: listing.className || 'Economy', tone: String(listing.className || 'economy').toLowerCase() },
+    };
+  });
 
   const visibleListings = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -552,15 +563,31 @@ export function MarketPage({ wallet, connectWallet }) {
           {offers.length ? (
             <div className="fare-market-offer-grid">
               {offers.map(offer => (
-                <article className="fare-market-offer-card" key={offer.id}>
-                  {offer.kind !== 'asset' && <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />}
-                  <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.kind === 'class' ? `${offer.className} CLASS` : offer.kind === 'model' ? 'SPECIFIC MODEL' : 'SPECIFIC NFT'}</span>
-                  <h3>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h3>
-                  <div className="fare-market-offer-detail"><span>BUYER</span><strong>{shortWallet(offer.buyer)}</strong></div>
-                  <div className="fare-market-offer-detail"><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
-                  {wallet?.account.address === offer.buyer
-                    ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
-                    : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
+                <article className="fare-market-card fare-market-offer-card" key={offer.id}>
+                  {offer.kind !== 'asset'
+                    ? <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />
+                    : offer.imageUrl && (
+                      <div className="fare-market-media fare-market-offer-asset-media">
+                        <img className="fare-market-offer-asset" src={offer.imageUrl} alt="" loading="lazy" />
+                        <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.className}</span>
+                        <span className="fare-market-nft-number">#{offer.nftNumber}</span>
+                      </div>
+                    )}
+                  <div className="fare-market-card-copy fare-market-offer-copy">
+                    <h2>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h2>
+                    <div className="fare-market-seller">
+                      <span>BUYER</span>
+                      <a href={`https://solscan.io/account/${offer.buyer}`} target="_blank" rel="noreferrer" aria-label={`View buyer ${offer.buyer} on Solscan`}>
+                        {shortWallet(offer.buyer)} <b aria-hidden="true">↗</b>
+                      </a>
+                    </div>
+                    <div className="fare-market-price-row">
+                      <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
+                      {wallet?.account.address === offer.buyer
+                        ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
+                        : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
+                    </div>
+                  </div>
                 </article>
               ))}
             </div>
