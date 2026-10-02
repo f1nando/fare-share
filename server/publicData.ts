@@ -200,6 +200,36 @@ export function createPublicDataService(config: {
     };
   }
 
+  async function taxi(rawIdentifier: string) {
+    const identifier = rawIdentifier.trim();
+    if (!identifier) throw new PublicDataError('Enter an NFT address or number.');
+    const numberMatch = /^#?(\d{1,4})$/.exec(identifier);
+    let machine: FleetMachineDocument | null;
+    if (numberMatch) {
+      const nftNumber = Number(numberMatch[1]);
+      if (nftNumber < 1) throw new PublicDataError('NFT number must be greater than zero.');
+      machine = await database.fleetMachines.findOne({
+        name: { $regex: new RegExp(`#${String(nftNumber).padStart(4, '0')}$`) },
+        closed: false,
+      });
+    } else {
+      let asset: Address;
+      try { asset = address(identifier); } catch { throw new PublicDataError('Enter a valid NFT address or minted NFT number.'); }
+      machine = await database.fleetMachines.findOne({ asset: String(asset), closed: false });
+    }
+    if (!machine) throw new PublicDataError('This NFT has not been minted yet or is unavailable.', 404);
+    return {
+      asset: machine.asset,
+      owner: machine.owner,
+      name: machine.name,
+      imageUrl: machine.image,
+      className: machine.className,
+      weight: machine.weight,
+      nftNumber: Number(machine.name.match(/#(\d+)$/)?.[1] || 0),
+      minted: true,
+    };
+  }
+
   async function recordMint(input: unknown) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new PublicDataError('JSON object is required.');
     const body = input as Record<string, unknown>;
@@ -402,7 +432,7 @@ export function createPublicDataService(config: {
     return { listed: false, asset: String(asset) };
   }
 
-  return { overview, walletFleet, recordMint, earningHistory, market, recordMarketTransaction, sync, syncMarket };
+  return { overview, walletFleet, taxi, recordMint, earningHistory, market, recordMarketTransaction, sync, syncMarket };
 }
 
 function decodeMarketListing(bytes: Uint8Array) {

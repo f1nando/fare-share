@@ -10,6 +10,7 @@ const MAX_DURABILITY = 5 * 24 * 60 * 60;
 
 export const loadPublicOverview = () => request('/api/public/overview');
 export const loadPublicMarket = () => request('/api/public/market');
+export const loadPublicTaxi = (identifier, signal) => request(`/api/public/taxi?identifier=${encodeURIComponent(identifier)}`, { signal });
 
 export async function saveMarketTransaction(input) {
   return request('/api/market/transactions', {

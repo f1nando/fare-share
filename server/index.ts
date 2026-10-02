@@ -102,6 +102,10 @@ const server = createServer(async (request, response) => {
       json(response, 200, await publicData.market());
       return;
     }
+    if (request.method === 'GET' && url.pathname === '/api/public/taxi') {
+      json(response, 200, await publicData.taxi(url.searchParams.get('identifier') || ''), { 'cache-control': 'no-store' });
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/market/transactions') {
       requirePublicOrigin(request);
       json(response, 200, await publicData.recordMarketTransaction(await readJson(request)));

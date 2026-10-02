@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
-import { loadDatabaseFleet, loadPublicMarket, saveMarketTransaction } from './publicData.js';
+import { loadDatabaseFleet, loadPublicMarket, loadPublicTaxi, saveMarketTransaction } from './publicData.js';
 import {
   acceptMarketOffer,
   buyListedMachine,
@@ -162,6 +162,8 @@ export function MarketPage({ wallet, connectWallet }) {
   const [showOffer, setShowOffer] = useState(false);
   const [offerType, setOfferType] = useState('asset');
   const [offerAsset, setOfferAsset] = useState('');
+  const [offerAssetQuery, setOfferAssetQuery] = useState('');
+  const [offerAssetLookup, setOfferAssetLookup] = useState({ status: 'idle', taxi: null, message: '' });
   const [offerWeight, setOfferWeight] = useState('1');
   const [offerModel, setOfferModel] = useState('0:0');
   const [offerPrice, setOfferPrice] = useState('');
@@ -198,6 +200,39 @@ export function MarketPage({ wallet, connectWallet }) {
     }, toast.duration);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!showOffer || offerType !== 'asset') return undefined;
+    const identifier = offerAssetQuery.trim();
+    if (!identifier) {
+      setOfferAsset('');
+      setOfferAssetLookup({ status: 'idle', taxi: null, message: '' });
+      return undefined;
+    }
+    const listedTaxi = listings.find(listing => listing.asset === identifier);
+    if (listedTaxi) {
+      setOfferAsset(listedTaxi.asset);
+      setOfferAssetLookup({ status: 'found', taxi: listedTaxi, message: '' });
+      return undefined;
+    }
+    setOfferAsset('');
+    setOfferAssetLookup({ status: 'loading', taxi: null, message: 'Checking the minted NFT…' });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      loadPublicTaxi(identifier, controller.signal)
+        .then(taxi => {
+          setOfferAsset(taxi.asset);
+          setOfferAssetLookup({ status: 'found', taxi, message: '' });
+        })
+        .catch(error => {
+          if (error.name !== 'AbortError') setOfferAssetLookup({ status: 'error', taxi: null, message: error.message });
+        });
+    }, 450);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [showOffer, offerType, offerAssetQuery, market.listings]);
 
   useEffect(() => {
     let active = true;
@@ -255,7 +290,15 @@ export function MarketPage({ wallet, connectWallet }) {
     vehicleClass: CLASS_BY_NAME.get(selectedListingModel) || { name: 'Taxi', tone: 'economy' },
     nftNumber: selectedListingCar.name.match(/#(\d+)$/)?.[1] || '',
   } : null;
-  const offerTargetListing = listings.find(listing => listing.asset === offerAsset);
+  const offerTargetRaw = offerAssetLookup.taxi || listings.find(listing => listing.asset === offerAsset);
+  const offerTargetModel = offerTargetRaw ? taxiModelName(offerTargetRaw.name) : '';
+  const offerTargetScene = drivingScenes.find(scene => scene.name === offerTargetModel);
+  const offerTargetTaxi = offerTargetRaw ? {
+    ...offerTargetScene,
+    ...offerTargetRaw,
+    imageUrl: offerTargetRaw.imageUrl || offerTargetRaw.image || offerTargetScene?.imageUrl,
+    vehicleClass: offerTargetRaw.vehicleClass || CLASS_BY_NAME.get(offerTargetModel) || { name: offerTargetRaw.className || 'Taxi', tone: String(offerTargetRaw.className || 'economy').toLowerCase() },
+  } : null;
   const selectedOfferModel = MODEL_OPTIONS.find(model => model.value === offerModel);
   const selectedOfferModelScene = selectedOfferModel ? drivingScenes.find(scene => scene.name === selectedOfferModel.name) : null;
   const selectedOfferClass = CLASS_OPTIONS.find(item => String(item.weight) === String(offerWeight)) || CLASS_OPTIONS[0];
@@ -412,6 +455,8 @@ export function MarketPage({ wallet, connectWallet }) {
       if (!wallet) await connectWallet();
       setOfferType(asset ? 'asset' : 'model');
       setOfferAsset(asset);
+      setOfferAssetQuery(asset);
+      setOfferAssetLookup(asset ? { status: 'found', taxi: listings.find(listing => listing.asset === asset) || null, message: '' } : { status: 'idle', taxi: null, message: '' });
       setShowOffer(true);
       reportMarketStatus('Your buy request form is ready.', 'success');
     } catch (error) {
@@ -426,6 +471,7 @@ export function MarketPage({ wallet, connectWallet }) {
     setBusy(true);
     reportMarketStatus('Approve the escrowed SOL request in your wallet…', 'progress');
     try {
+      if (offerType === 'asset' && (offerAssetLookup.status !== 'found' || !offerAsset)) throw new Error('Choose a minted NFT before creating this request.');
       const connection = wallet || await connectWallet();
       const priceLamports = solToLamports(offerPrice);
       const [modelClass, modelVariant] = offerModel.split(':').map(Number);
@@ -774,10 +820,10 @@ export function MarketPage({ wallet, connectWallet }) {
           {notice && <div className="fare-market-accept-notice" role="status">{notice}</div>}
           <div className="fare-market-offer-modal-body">
             <div className="fare-market-offer-preview">
-              {offerType === 'asset' && offerTargetListing
-                ? <><div className="fare-market-listing-preview-media"><FareStepDrivingScene scene={offerTargetListing} imageLoading="eager" /><span className={`fare-fleet-class is-${offerTargetListing.vehicleClass.tone}`}>{offerTargetListing.vehicleClass.name}</span><span className="fare-market-nft-number">#{offerTargetListing.nftNumber}</span></div><div className="fare-market-offer-preview-copy"><span>YOU ARE OFFERING FOR</span><strong>{offerTargetListing.name}</strong><small>{shortWallet(offerTargetListing.asset)}</small></div></>
+              {offerType === 'asset' && offerTargetTaxi
+                ? <><div className="fare-market-listing-preview-media"><FareStepDrivingScene scene={offerTargetTaxi} imageLoading="eager" /><span className={`fare-fleet-class is-${offerTargetTaxi.vehicleClass.tone}`}>{offerTargetTaxi.vehicleClass.name}</span><span className="fare-market-nft-number">#{String(offerTargetTaxi.nftNumber).padStart(4, '0')}</span></div><div className="fare-market-offer-preview-copy"><span>YOU ARE OFFERING FOR</span><strong>{offerTargetTaxi.name}</strong><small>{shortWallet(offerTargetTaxi.asset)}</small></div></>
                 : offerType === 'asset'
-                  ? <div className="fare-market-offer-address-preview"><span>SPECIFIC NFT</span><strong>{offerAsset ? shortWallet(offerAsset) : 'ENTER NFT ADDRESS'}</strong><small>The taxi preview appears when the NFT is an active listing.</small></div>
+                  ? <div className="fare-market-offer-address-preview"><span>SPECIFIC NFT</span><strong>{offerAssetLookup.status === 'loading' ? 'CHECKING NFT…' : offerAssetLookup.status === 'error' ? 'NFT NOT AVAILABLE' : offerAssetQuery ? offerAssetQuery : 'ENTER ADDRESS OR NUMBER'}</strong><small>{offerAssetLookup.message || 'Only already minted Fare Share taxis can be requested by number.'}</small></div>
                   : <ClassOfferDrivingScene className={offerType === 'model' ? selectedOfferModel?.className : selectedOfferClass.name} modelName={offerType === 'model' ? selectedOfferModel?.name : undefined} />}
             </div>
             <div className="fare-market-offer-fields">
@@ -789,7 +835,7 @@ export function MarketPage({ wallet, connectWallet }) {
                   <option value="class">Any taxi in class</option>
                 </select>
               </label>
-              {offerType === 'asset' ? <label><span>NFT ADDRESS</span><input value={offerAsset} onChange={event => setOfferAsset(event.target.value)} placeholder="Core asset address" disabled={busy} /></label>
+              {offerType === 'asset' ? <label><span>NFT ADDRESS OR NUMBER</span><input value={offerAssetQuery} onChange={event => { setOfferAssetQuery(event.target.value); setOfferAsset(''); setOfferAssetLookup({ status: event.target.value.trim() ? 'loading' : 'idle', taxi: null, message: event.target.value.trim() ? 'Checking the minted NFT…' : '' }); }} placeholder="Core asset address or #0005" disabled={busy} /><small className={`fare-market-offer-lookup-status is-${offerAssetLookup.status}`}>{offerAssetLookup.status === 'found' ? `MINTED NFT FOUND · ${offerTargetTaxi?.name}` : offerAssetLookup.message}</small></label>
                 : offerType === 'model' ? <label><span>TAXI MODEL</span><select value={offerModel} onChange={event => setOfferModel(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(taxiClass => <optgroup label={taxiClass.name} key={taxiClass.name}>{MODEL_OPTIONS.filter(model => model.className === taxiClass.name).map(model => <option value={model.value} key={model.value}>{model.name}</option>)}</optgroup>)}</select></label>
                   : <label><span>TAXI CLASS</span><select value={offerWeight} onChange={event => setOfferWeight(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(item => <option value={item.weight} key={item.weight}>{item.name}</option>)}</select></label>}
               <label><span>OFFER IN SOL</span><input type="text" inputMode="decimal" placeholder="1.00" value={offerPrice} onChange={event => setOfferPrice(event.target.value)} disabled={busy} autoFocus /></label>
@@ -797,7 +843,7 @@ export function MarketPage({ wallet, connectWallet }) {
           </div>
           <div className="fare-market-listing-modal-actions">
             <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
-            <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && !offerAsset.trim())}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
+            <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && (offerAssetLookup.status !== 'found' || !offerAsset))}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
           </div>
         </form>
       </div>,

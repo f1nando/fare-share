@@ -10,6 +10,7 @@ import {
 } from '../server/database.js';
 
 const OWNER = '11111111111111111111111111111111';
+const ASSET = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
 
 test('public overview aggregates the bounded leaderboard once during synchronization', () => {
   const machines = Array.from({ length: 105 }, (_, index) => machine({
@@ -68,6 +69,31 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
   assert.equal((await service.earningHistory(OWNER, '24h')).points.length, 1);
   assert.equal(workerReads, 0);
   assert.equal(overviewReads, 3);
+});
+
+test('public taxi lookup resolves only already minted NFTs by address or number', async () => {
+  const minted = machine({ asset: ASSET, name: 'TAXI Toyota Prius #0005', className: 'Comfort', classIndex: 1, weight: 3 });
+  const database = {
+    fleetMachines: {
+      findOne: async (filter: Record<string, unknown>) => {
+        if ('asset' in filter) return filter.asset === minted.asset ? minted : null;
+        const regex = (filter.name as { $regex?: RegExp } | undefined)?.$regex;
+        return regex?.test(minted.name) ? minted : null;
+      },
+    },
+  } as unknown as TaxiDatabase;
+  const service = createPublicDataService({
+    solanaRpcUrl: 'https://rpc.invalid',
+    programId: address(ASSET),
+    workerIntervalMs: 60_000,
+    fareSymbol: 'FARE',
+  }, database);
+
+  assert.equal((await service.taxi('5')).asset, ASSET);
+  assert.equal((await service.taxi('#0005')).name, minted.name);
+  assert.equal((await service.taxi(ASSET)).nftNumber, 5);
+  await assert.rejects(service.taxi('6'), error => (error as { status?: number }).status === 404);
+  await assert.rejects(service.taxi('not-an-address'), /valid NFT address/);
 });
 
 test('earning history expires after a 45-day safety window', async () => {
