@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import { loadDatabaseFleet, loadPublicMarket, saveMarketTransaction } from './publicData.js';
 import {
@@ -139,12 +140,20 @@ export function MarketPage({ wallet, connectWallet }) {
   const [acceptAsset, setAcceptAsset] = useState('');
   const [openingOfferId, setOpeningOfferId] = useState(null);
   const [busy, setBusy] = useState(false);
-  const acceptOfferFormRef = useRef(null);
 
   useEffect(() => {
     if (!acceptingOffer) return;
-    acceptOfferFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [acceptingOffer]);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && !busy) setAcceptingOffer(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [acceptingOffer, busy]);
 
   useEffect(() => {
     let active = true;
@@ -366,6 +375,7 @@ export function MarketPage({ wallet, connectWallet }) {
   }
 
   return (
+    <>
     <main className="fare-market-main" id="top">
       <section className="container fare-market-section" aria-labelledby="market-page-title">
         <header className="fare-market-heading fare-page-heading">
@@ -454,26 +464,6 @@ export function MarketPage({ wallet, connectWallet }) {
             <div className="fare-market-listing-actions">
               <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
               <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && !offerAsset.trim())}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
-            </div>
-          </form>
-        )}
-
-        {acceptingOffer && (
-          <form className="fare-market-listing-form" onSubmit={handleAcceptOffer} ref={acceptOfferFormRef}>
-            <div>
-              <span>ACCEPT BUY REQUEST</span>
-              <strong>{formatLamports(acceptingOffer.priceLamports)} SOL</strong>
-              <small>The NFT and escrowed SOL exchange atomically.</small>
-            </div>
-            <label>
-              <span>YOUR ELIGIBLE TAXI</span>
-              <select value={acceptAsset} onChange={event => setAcceptAsset(event.target.value)} disabled={busy}>
-                {eligibleCars.map(car => <option value={car.asset} key={car.asset}>{car.name}</option>)}
-              </select>
-            </label>
-            <div className="fare-market-listing-actions">
-              <button className="is-secondary" type="button" onClick={() => setAcceptingOffer(null)} disabled={busy}>BACK</button>
-              <button type="submit" disabled={busy || !acceptAsset}>{busy ? 'SIGNING…' : 'ACCEPT OFFER'}</button>
             </div>
           </form>
         )}
@@ -604,6 +594,47 @@ export function MarketPage({ wallet, connectWallet }) {
         </section>
       </section>
     </main>
+    {acceptingOffer && createPortal(
+      <div
+        className="fare-market-modal-backdrop"
+        onMouseDown={event => { if (event.target === event.currentTarget && !busy) setAcceptingOffer(null); }}
+      >
+        <form className="fare-market-accept-modal" role="dialog" aria-modal="true" aria-labelledby="accept-offer-title" onSubmit={handleAcceptOffer}>
+          <div className="fare-market-accept-header">
+            <div>
+              <span>ATOMIC ON-CHAIN SALE</span>
+              <h2 id="accept-offer-title">SELL TO BUYER</h2>
+            </div>
+            <button className="fare-market-modal-close" type="button" aria-label="Close sale dialog" disabled={busy} onClick={() => setAcceptingOffer(null)} autoFocus>×</button>
+          </div>
+          <div className="fare-market-accept-summary">
+            <span>YOU RECEIVE</span>
+            <strong>{formatLamports(acceptingOffer.priceLamports)} SOL</strong>
+            <small>The selected NFT and escrowed SOL exchange atomically.</small>
+          </div>
+          {notice && <div className="fare-market-accept-notice" role="status">{notice}</div>}
+          <fieldset className="fare-market-accept-cars">
+            <legend>CHOOSE THE TAXI YOU WANT TO SELL</legend>
+            <div>
+              {eligibleCars.map(car => (
+                <label className={acceptAsset === car.asset ? 'is-selected' : ''} key={car.asset}>
+                  <input type="radio" name="acceptAsset" value={car.asset} checked={acceptAsset === car.asset} onChange={() => setAcceptAsset(car.asset)} disabled={busy} />
+                  <img src={car.image} alt="" loading="eager" />
+                  <span><strong>{car.name}</strong><small>{shortWallet(car.asset)}</small></span>
+                  <i aria-hidden="true" />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="fare-market-accept-actions">
+            <button className="is-secondary" type="button" onClick={() => setAcceptingOffer(null)} disabled={busy}>CANCEL</button>
+            <button type="submit" disabled={busy || !acceptAsset}>{busy ? 'SIGNING…' : 'SELL SELECTED TAXI'}</button>
+          </div>
+        </form>
+      </div>,
+      document.body,
+    )}
+    </>
   );
 }
 
