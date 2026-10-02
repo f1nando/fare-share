@@ -234,6 +234,16 @@ export function MarketPage({ wallet, connectWallet }) {
   const offers = market.offers || [];
   const myListings = walletAddress ? listings.filter(listing => String(listing.seller) === walletAddress) : [];
   const myOffers = walletAddress ? offers.filter(offer => String(offer.buyer) === walletAddress) : [];
+  const selectedListingCar = ownedCars.find(car => car.asset === selectedAsset);
+  const selectedListingModel = selectedListingCar ? taxiModelName(selectedListingCar.name) : '';
+  const selectedListingScene = drivingScenes.find(scene => scene.name === selectedListingModel);
+  const selectedListingPreview = selectedListingCar ? {
+    ...selectedListingScene,
+    ...selectedListingCar,
+    imageUrl: selectedListingCar.image || selectedListingScene?.imageUrl,
+    vehicleClass: CLASS_BY_NAME.get(selectedListingModel) || { name: 'Taxi', tone: 'economy' },
+    nftNumber: selectedListingCar.name.match(/#(\d+)$/)?.[1] || '',
+  } : null;
   const sellerCars = ownedCars.map(car => {
     const modelName = taxiModelName(car.name);
     const scene = drivingScenes.find(item => item.name === modelName);
@@ -732,6 +742,18 @@ export function MarketPage({ wallet, connectWallet }) {
             <small>Your NFT stays in your wallet. The on-chain delegate can transfer it only through the listed sale.</small>
           </div>
           {notice && <div className="fare-market-accept-notice" role="status">{notice}</div>}
+          {selectedListingPreview && <div className="fare-market-listing-preview">
+            <div className="fare-market-listing-preview-media">
+              <FareStepDrivingScene scene={selectedListingPreview} imageLoading="eager" />
+              <span className={`fare-fleet-class is-${selectedListingPreview.vehicleClass.tone}`}>{selectedListingPreview.vehicleClass.name}</span>
+              {selectedListingPreview.nftNumber && <span className="fare-market-nft-number">#{selectedListingPreview.nftNumber}</span>}
+            </div>
+            <div className="fare-market-listing-preview-copy">
+              <span>YOU ARE LISTING</span>
+              <strong>{selectedListingPreview.name}</strong>
+              <small>Core NFT · {shortWallet(selectedListingPreview.asset)}</small>
+            </div>
+          </div>}
           <div className="fare-market-listing-fields">
             <label>
               <span>TAXI</span>
@@ -778,7 +800,7 @@ export function MarketPage({ wallet, connectWallet }) {
                 <label className={acceptAsset === car.asset ? 'is-selected' : ''} key={car.asset}>
                   <input type="radio" name="acceptAsset" value={car.asset} checked={acceptAsset === car.asset} onChange={() => setAcceptAsset(car.asset)} disabled={busy} />
                   <img src={car.image} alt="" loading="eager" />
-                  <span><strong>{car.name}</strong><small>{shortWallet(car.asset)}</small></span>
+                  <span><strong>{car.name}</strong><small>{acceptAsset === car.asset ? 'YOU ARE SELLING · ' : ''}{shortWallet(car.asset)}</small></span>
                   <i aria-hidden="true" />
                 </label>
               ))}
