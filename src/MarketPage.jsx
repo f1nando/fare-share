@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import { loadDatabaseFleet, loadPublicMarket, saveMarketTransaction } from './publicData.js';
 import {
@@ -137,7 +137,14 @@ export function MarketPage({ wallet, connectWallet }) {
   const [acceptingOffer, setAcceptingOffer] = useState(null);
   const [eligibleCars, setEligibleCars] = useState([]);
   const [acceptAsset, setAcceptAsset] = useState('');
+  const [openingOfferId, setOpeningOfferId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const acceptOfferFormRef = useRef(null);
+
+  useEffect(() => {
+    if (!acceptingOffer) return;
+    acceptOfferFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [acceptingOffer]);
 
   useEffect(() => {
     let active = true;
@@ -310,6 +317,7 @@ export function MarketPage({ wallet, connectWallet }) {
   }
 
   async function openAcceptOffer(offer) {
+    setOpeningOfferId(offer.id);
     setBusy(true);
     setNotice('');
     try {
@@ -327,6 +335,7 @@ export function MarketPage({ wallet, connectWallet }) {
     } catch (error) {
       setNotice(error.message);
     } finally {
+      setOpeningOfferId(null);
       setBusy(false);
     }
   }
@@ -450,7 +459,7 @@ export function MarketPage({ wallet, connectWallet }) {
         )}
 
         {acceptingOffer && (
-          <form className="fare-market-listing-form" onSubmit={handleAcceptOffer}>
+          <form className="fare-market-listing-form" onSubmit={handleAcceptOffer} ref={acceptOfferFormRef}>
             <div>
               <span>ACCEPT BUY REQUEST</span>
               <strong>{formatLamports(acceptingOffer.priceLamports)} SOL</strong>
@@ -585,7 +594,7 @@ export function MarketPage({ wallet, connectWallet }) {
                       <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
                       {wallet?.account.address === offer.buyer
                         ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
-                        : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
+                        : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{openingOfferId === offer.id ? 'LOADING TAXIS…' : wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
                     </div>
                   </div>
                 </article>
