@@ -1,25 +1,25 @@
 # Чеклист посадки на финальный токен
 
-Дата проверки: `____________________`
+Дата проверки: `TBD`
 
-Проверяющий: `____________________`
+Проверяющий: `TBD`
 
-Финальный CA: `____________________________________________`
+Финальный CA: `TBD`
 
-Тикер: `____________________`
+Тикер: `TBD`
 
 Creator/claim wallet: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`
 
 ## 1. Зафиксировать исходное состояние
 
-- [ ] Текущий CA записан: `____________________________________________`
+- [ ] Текущий CA записан: `TBD`
 - [ ] Protocol state записан: `paused / live`
-- [ ] SOL на `2NUN…EGVnF`: `________________ SOL`
-- [ ] Токенов в старом protocol FARE vault: `________________`
-- [ ] Токенов старого CA в личном кошельке: `________________`
-- [ ] Main FARE obligations: `________________`
-- [ ] Trainee FARE obligations: `________________`
-- [ ] Protocol SOL: `________________`
+- [ ] SOL на `2NUN…EGVnF`: `TBD`
+- [ ] Токенов в старом protocol FARE vault: `TBD`
+- [ ] Токенов старого CA в личном кошельке: `TBD`
+- [ ] Main FARE obligations: `TBD`
+- [ ] Trainee FARE obligations: `TBD`
+- [ ] Protocol SOL: `TBD`
 - [ ] Stock vault balances сохранены отдельно.
 - [ ] Количество машин и trainee записано.
 
@@ -61,11 +61,11 @@ Creator/claim wallet: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`
 - [ ] Новый CA активен.
 - [ ] Protocol снова `live`.
 
-Pause signature: `____________________________________________`
+Pause signature: `TBD`
 
-Reset signature: `____________________________________________`
+Reset signature: `TBD`
 
-Unpause signature: `____________________________________________`
+Unpause signature: `TBD`
 
 Результат: `PASS / FAIL`
 
@@ -82,11 +82,11 @@ Unpause signature: `____________________________________________`
 - [ ] Старый protocol vault пуст.
 - [ ] Новый protocol vault пуст.
 
-Продано raw: `________________`
+Продано raw: `TBD`
 
-Получено SOL: `________________`
+Получено SOL: `TBD`
 
-Sell signature: `____________________________________________`
+Sell signature: `TBD`
 
 Результат: `PASS / FAIL`
 
@@ -159,9 +159,9 @@ Sell signature: `____________________________________________`
 - [ ] Другой кошелёк не может забрать creator fees.
 - [ ] Повторный claim не списывает одну сумму дважды.
 
-Claim signature: `____________________________________________`
+Claim signature: `TBD`
 
-Получено SOL: `________________`
+Получено SOL: `TBD`
 
 Результат: `PASS / FAIL`
 
@@ -175,9 +175,9 @@ Claim signature: `____________________________________________`
 - [ ] Worker во время смены CA был выключен.
 - [ ] Постоянная автоматическая работа включена только после ручного PASS.
 
-Reward deposit signature: `____________________________________________`
+Reward deposit signature: `TBD`
 
-Reward claim signature: `____________________________________________`
+Reward claim signature: `TBD`
 
 Результат: `PASS / FAIL`
 
