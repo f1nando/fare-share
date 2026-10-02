@@ -157,18 +157,20 @@ export function MarketPage({ wallet, connectWallet }) {
   const walletAddress = wallet?.account.address ? String(wallet.account.address) : '';
 
   useEffect(() => {
-    if (!acceptingOffer) return;
+    if (!acceptingOffer && !showListing) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const closeOnEscape = (event) => {
-      if (event.key === 'Escape' && !busy) setAcceptingOffer(null);
+      if (event.key !== 'Escape' || busy) return;
+      if (acceptingOffer) setAcceptingOffer(null);
+      else setShowListing(false);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', closeOnEscape);
     };
-  }, [acceptingOffer, busy]);
+  }, [acceptingOffer, busy, showListing]);
 
   useEffect(() => {
     let active = true;
@@ -533,30 +535,6 @@ export function MarketPage({ wallet, connectWallet }) {
           <button className={mode === 'mine' ? 'is-active' : ''} type="button" aria-current={mode === 'mine' ? 'page' : undefined} onClick={() => selectMode('mine')}><span>MY ACTIVITY</span><b>{walletAddress ? myListings.length + myOffers.length : 0}</b></button>
         </nav>
 
-        {showListing && mode === 'sell' && (
-          <form className="fare-market-listing-form" onSubmit={handleList}>
-            <div>
-              <span>CREATE LISTING</span>
-              <strong>Choose a taxi and set its price</strong>
-              <small>Your NFT stays in your wallet. The on-chain delegate can transfer it only through the listed sale.</small>
-            </div>
-            <label>
-              <span>TAXI</span>
-              <select value={selectedAsset} onChange={event => setSelectedAsset(event.target.value)} disabled={!ownedCars.length || busy}>
-                {ownedCars.map(car => <option value={car.asset} key={car.asset}>{car.name}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>PRICE IN SOL</span>
-              <input type="text" inputMode="decimal" placeholder="1.25" value={price} onChange={event => setPrice(event.target.value)} disabled={busy} />
-            </label>
-            <div className="fare-market-listing-actions">
-              <button className="is-secondary" type="button" onClick={() => setShowListing(false)} disabled={busy}>CANCEL</button>
-              <button type="submit" disabled={busy || !selectedAsset || !price.trim()}>{busy ? 'SIGNING…' : 'LIST FOR SALE'}</button>
-            </div>
-          </form>
-        )}
-
         {showOffer && mode === 'buy' && (
           <form className="fare-market-listing-form" onSubmit={handleOffer}>
             <div>
@@ -681,6 +659,44 @@ export function MarketPage({ wallet, connectWallet }) {
         )}
       </section>
     </main>
+    {showListing && mode === 'sell' && createPortal(
+      <div
+        className="fare-market-modal-backdrop"
+        onMouseDown={event => { if (event.target === event.currentTarget && !busy) setShowListing(false); }}
+      >
+        <form className="fare-market-listing-modal" role="dialog" aria-modal="true" aria-labelledby="create-listing-title" onSubmit={handleList}>
+          <div className="fare-market-accept-header">
+            <div>
+              <span>SELL YOUR TAXI</span>
+              <h2 id="create-listing-title">CREATE LISTING</h2>
+            </div>
+            <button className="fare-market-modal-close" type="button" aria-label="Close listing dialog" disabled={busy} onClick={() => setShowListing(false)}>×</button>
+          </div>
+          <div className="fare-market-listing-intro">
+            <strong>Choose a taxi and set its price</strong>
+            <small>Your NFT stays in your wallet. The on-chain delegate can transfer it only through the listed sale.</small>
+          </div>
+          {notice && <div className="fare-market-accept-notice" role="status">{notice}</div>}
+          <div className="fare-market-listing-fields">
+            <label>
+              <span>TAXI</span>
+              <select value={selectedAsset} onChange={event => setSelectedAsset(event.target.value)} disabled={!ownedCars.length || busy}>
+                {ownedCars.map(car => <option value={car.asset} key={car.asset}>{car.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>PRICE IN SOL</span>
+              <input type="text" inputMode="decimal" placeholder="1.25" value={price} onChange={event => setPrice(event.target.value)} disabled={busy} autoFocus />
+            </label>
+          </div>
+          <div className="fare-market-listing-modal-actions">
+            <button className="is-secondary" type="button" onClick={() => setShowListing(false)} disabled={busy}>CANCEL</button>
+            <button type="submit" disabled={busy || !selectedAsset || !price.trim()}>{busy ? 'SIGNING…' : 'LIST FOR SALE'}</button>
+          </div>
+        </form>
+      </div>,
+      document.body,
+    )}
     {acceptingOffer && createPortal(
       <div
         className="fare-market-modal-backdrop"
