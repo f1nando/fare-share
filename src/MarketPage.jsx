@@ -13,6 +13,7 @@ import {
   makeModelOffer,
 } from './protocol/solana.js';
 import drivingScenes from './drivingScenes.json';
+import { appAssetPath } from './appPath.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -63,21 +64,49 @@ function SearchIcon() {
 }
 
 function ClassOfferDrivingScene({ className, modelName }) {
-  const classScenes = CLASS_SCENES.get(className) || CLASS_SCENES.get('Economy');
-  const scenes = modelName ? classScenes.filter(scene => scene.name === modelName) : classScenes;
-  const [sceneIndex, setSceneIndex] = useState(0);
+  const scenes = useMemo(() => {
+    const classScenes = CLASS_SCENES.get(className) || CLASS_SCENES.get('Economy');
+    return modelName ? classScenes.filter(scene => scene.name === modelName) : classScenes;
+  }, [className, modelName]);
+  const [preview, setPreview] = useState({ currentIndex: 0, previousIndex: null });
 
   useEffect(() => {
-    setSceneIndex(0);
+    setPreview({ currentIndex: 0, previousIndex: null });
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || scenes.length < 2) return undefined;
-    const timer = window.setInterval(() => setSceneIndex(index => (index + 1) % scenes.length), 2800);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer;
+    Promise.all(scenes.map(scene => new Promise(resolve => {
+      const image = new Image();
+      image.onload = resolve;
+      image.onerror = resolve;
+      image.src = appAssetPath(scene.imageUrl);
+      if (image.complete) resolve();
+    }))).then(() => {
+      if (cancelled) return;
+      timer = window.setInterval(() => setPreview(({ currentIndex }) => ({
+        previousIndex: currentIndex,
+        currentIndex: (currentIndex + 1) % scenes.length,
+      })), 2800);
+    });
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [className, scenes]);
 
-  const scene = scenes[sceneIndex] || scenes[0];
+  const scene = scenes[preview.currentIndex] || scenes[0];
   return (
     <div className="fare-market-offer-media">
-      <FareStepDrivingScene scene={scene} showHeadlights={false} />
+      <div className="fare-market-offer-scenes">
+        {scenes.map((item, index) => (
+          <div
+            className={`fare-market-offer-scene${index === preview.previousIndex ? ' is-previous' : ''}${index === preview.currentIndex ? ' is-active' : ''}`}
+            key={item.id || item.name}
+          >
+            <FareStepDrivingScene scene={item} showHeadlights={false} />
+          </div>
+        ))}
+      </div>
       <span className="fare-market-offer-model">{scene.name}</span>
     </div>
   );
