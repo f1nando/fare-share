@@ -1238,6 +1238,9 @@ pub mod taxi_park {
         **buyer_info.try_borrow_mut_lamports()? = buyer_balance
             .checked_add(rent_refund)
             .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts
+            .offer
+            .close(ctx.accounts.seller.to_account_info())?;
 
         let instruction = metaplex_core::transfer_asset(
             ctx.accounts.asset.key(),
@@ -2522,7 +2525,6 @@ pub struct AcceptOffer<'info> {
     pub asset: UncheckedAccount<'info>,
     #[account(
         mut,
-        close = seller,
         seeds = [b"offer", offer.buyer.as_ref(), &[offer.kind], offer.target.as_ref()],
         bump = offer.bump
     )]
