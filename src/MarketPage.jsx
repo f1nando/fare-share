@@ -175,20 +175,21 @@ export function MarketPage({ wallet, connectWallet }) {
   const walletAddress = wallet?.account.address ? String(wallet.account.address) : '';
 
   useEffect(() => {
-    if (!acceptingOffer && !showListing) return;
+    if (!acceptingOffer && !showListing && !showOffer) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const closeOnEscape = (event) => {
       if (event.key !== 'Escape' || busy) return;
       if (acceptingOffer) setAcceptingOffer(null);
-      else setShowListing(false);
+      else if (showListing) setShowListing(false);
+      else setShowOffer(false);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', closeOnEscape);
     };
-  }, [acceptingOffer, busy, showListing]);
+  }, [acceptingOffer, busy, showListing, showOffer]);
 
   useEffect(() => {
     if (!toast?.duration) return undefined;
@@ -254,6 +255,10 @@ export function MarketPage({ wallet, connectWallet }) {
     vehicleClass: CLASS_BY_NAME.get(selectedListingModel) || { name: 'Taxi', tone: 'economy' },
     nftNumber: selectedListingCar.name.match(/#(\d+)$/)?.[1] || '',
   } : null;
+  const offerTargetListing = listings.find(listing => listing.asset === offerAsset);
+  const selectedOfferModel = MODEL_OPTIONS.find(model => model.value === offerModel);
+  const selectedOfferModelScene = selectedOfferModel ? drivingScenes.find(scene => scene.name === selectedOfferModel.name) : null;
+  const selectedOfferClass = CLASS_OPTIONS.find(item => String(item.weight) === String(offerWeight)) || CLASS_OPTIONS[0];
   const sellerCars = ownedCars.map(car => {
     const modelName = taxiModelName(car.name);
     const scene = drivingScenes.find(item => item.name === modelName);
@@ -620,58 +625,6 @@ export function MarketPage({ wallet, connectWallet }) {
           <button className={mode === 'mine' ? 'is-active' : ''} type="button" aria-current={mode === 'mine' ? 'page' : undefined} onClick={() => selectMode('mine')}><span>MY ACTIVITY</span><b>{walletAddress ? myListings.length + myOffers.length : 0}</b></button>
         </nav>
 
-        {showOffer && mode === 'buy' && (
-          <form className="fare-market-listing-form" onSubmit={handleOffer}>
-            <div>
-              <span>CREATE BUY REQUEST</span>
-              <strong>Offer SOL for one taxi or a whole class</strong>
-              <small>The offered SOL is locked on-chain and returned if you cancel.</small>
-            </div>
-            <label>
-              <span>REQUEST TYPE</span>
-              <select value={offerType} onChange={event => setOfferType(event.target.value)} disabled={busy}>
-                <option value="asset">Specific NFT</option>
-                <option value="model">Specific model</option>
-                <option value="class">Any taxi in class</option>
-              </select>
-            </label>
-            {offerType === 'asset' ? (
-              <label>
-                <span>NFT ADDRESS</span>
-                <input value={offerAsset} onChange={event => setOfferAsset(event.target.value)} placeholder="Core asset address" disabled={busy} />
-              </label>
-            ) : offerType === 'model' ? (
-              <label>
-                <span>TAXI MODEL</span>
-                <select value={offerModel} onChange={event => setOfferModel(event.target.value)} disabled={busy}>
-                  {CLASS_OPTIONS.map(taxiClass => (
-                    <optgroup label={taxiClass.name} key={taxiClass.name}>
-                      {MODEL_OPTIONS.filter(model => model.className === taxiClass.name).map(model => (
-                        <option value={model.value} key={model.value}>{model.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <label>
-                <span>TAXI CLASS</span>
-                <select value={offerWeight} onChange={event => setOfferWeight(event.target.value)} disabled={busy}>
-                  {CLASS_OPTIONS.map(item => <option value={item.weight} key={item.weight}>{item.name}</option>)}
-                </select>
-              </label>
-            )}
-            <label>
-              <span>OFFER IN SOL</span>
-              <input type="text" inputMode="decimal" placeholder="1.00" value={offerPrice} onChange={event => setOfferPrice(event.target.value)} disabled={busy} />
-            </label>
-            <div className="fare-market-listing-actions">
-              <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
-              <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && !offerAsset.trim())}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
-            </div>
-          </form>
-        )}
-
         {notice && <div className="fare-market-notice" role="status">{notice}<button type="button" aria-label="Close message" onClick={() => setNotice('')}>×</button></div>}
 
         {mode === 'buy' && (
@@ -796,6 +749,55 @@ export function MarketPage({ wallet, connectWallet }) {
           <div className="fare-market-listing-modal-actions">
             <button className="is-secondary" type="button" onClick={() => setShowListing(false)} disabled={busy}>CANCEL</button>
             <button type="submit" disabled={busy || !selectedAsset || !price.trim()}>{busy ? 'SIGNING…' : 'LIST FOR SALE'}</button>
+          </div>
+        </form>
+      </div>,
+      document.body,
+    )}
+    {showOffer && mode === 'buy' && createPortal(
+      <div
+        className="fare-market-modal-backdrop"
+        onMouseDown={event => { if (event.target === event.currentTarget && !busy) setShowOffer(false); }}
+      >
+        <form className="fare-market-offer-modal" role="dialog" aria-modal="true" aria-labelledby="create-offer-title" onSubmit={handleOffer}>
+          <div className="fare-market-accept-header">
+            <div>
+              <span>ESCROWED ON-CHAIN</span>
+              <h2 id="create-offer-title">CREATE BUY REQUEST</h2>
+            </div>
+            <button className="fare-market-modal-close" type="button" aria-label="Close buy request dialog" disabled={busy} onClick={() => setShowOffer(false)}>×</button>
+          </div>
+          <div className="fare-market-listing-intro">
+            <strong>Offer SOL for one taxi, model, or class</strong>
+            <small>The offered SOL is locked on-chain and returned if you cancel.</small>
+          </div>
+          {notice && <div className="fare-market-accept-notice" role="status">{notice}</div>}
+          <div className="fare-market-offer-modal-body">
+            <div className="fare-market-offer-preview">
+              {offerType === 'asset' && offerTargetListing
+                ? <><div className="fare-market-listing-preview-media"><FareStepDrivingScene scene={offerTargetListing} imageLoading="eager" /><span className={`fare-fleet-class is-${offerTargetListing.vehicleClass.tone}`}>{offerTargetListing.vehicleClass.name}</span><span className="fare-market-nft-number">#{offerTargetListing.nftNumber}</span></div><div className="fare-market-offer-preview-copy"><span>YOU ARE OFFERING FOR</span><strong>{offerTargetListing.name}</strong><small>{shortWallet(offerTargetListing.asset)}</small></div></>
+                : offerType === 'asset'
+                  ? <div className="fare-market-offer-address-preview"><span>SPECIFIC NFT</span><strong>{offerAsset ? shortWallet(offerAsset) : 'ENTER NFT ADDRESS'}</strong><small>The taxi preview appears when the NFT is an active listing.</small></div>
+                  : <ClassOfferDrivingScene className={offerType === 'model' ? selectedOfferModel?.className : selectedOfferClass.name} modelName={offerType === 'model' ? selectedOfferModel?.name : undefined} />}
+            </div>
+            <div className="fare-market-offer-fields">
+              <label>
+                <span>REQUEST TYPE</span>
+                <select value={offerType} onChange={event => setOfferType(event.target.value)} disabled={busy}>
+                  <option value="asset">Specific NFT</option>
+                  <option value="model">Specific model</option>
+                  <option value="class">Any taxi in class</option>
+                </select>
+              </label>
+              {offerType === 'asset' ? <label><span>NFT ADDRESS</span><input value={offerAsset} onChange={event => setOfferAsset(event.target.value)} placeholder="Core asset address" disabled={busy} /></label>
+                : offerType === 'model' ? <label><span>TAXI MODEL</span><select value={offerModel} onChange={event => setOfferModel(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(taxiClass => <optgroup label={taxiClass.name} key={taxiClass.name}>{MODEL_OPTIONS.filter(model => model.className === taxiClass.name).map(model => <option value={model.value} key={model.value}>{model.name}</option>)}</optgroup>)}</select></label>
+                  : <label><span>TAXI CLASS</span><select value={offerWeight} onChange={event => setOfferWeight(event.target.value)} disabled={busy}>{CLASS_OPTIONS.map(item => <option value={item.weight} key={item.weight}>{item.name}</option>)}</select></label>}
+              <label><span>OFFER IN SOL</span><input type="text" inputMode="decimal" placeholder="1.00" value={offerPrice} onChange={event => setOfferPrice(event.target.value)} disabled={busy} autoFocus /></label>
+            </div>
+          </div>
+          <div className="fare-market-listing-modal-actions">
+            <button className="is-secondary" type="button" onClick={() => setShowOffer(false)} disabled={busy}>CANCEL</button>
+            <button type="submit" disabled={busy || !offerPrice.trim() || (offerType === 'asset' && !offerAsset.trim())}>{busy ? 'SIGNING…' : 'LOCK SOL & OFFER'}</button>
           </div>
         </form>
       </div>,
