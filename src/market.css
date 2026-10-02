@@ -52,6 +52,13 @@
 .fare-market-notice button { width: 30px; height: 30px; flex: 0 0 auto; padding: 0 0 3px; border: 2px solid #111; border-radius: 50%; background: #fff; font-size: 22px; line-height: 1; }
 .fare-market-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 24px; margin-top: 74px; }
 .fare-market-notice + .fare-market-grid { margin-top: 0; }
+.fare-market-pagination { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 48px; }
+.fare-market-pagination > div { display: flex; align-items: center; gap: 8px; }
+.fare-market-pagination button { min-width: 46px; height: 46px; padding: 0 14px; border: 2px solid #111; border-radius: 999px; color: #111; background: #fff; font-size: 12px; font-weight: 900; }
+.fare-market-pagination > button { min-width: 112px; }
+.fare-market-pagination button.is-active { background: #ffe72f; box-shadow: 3px 4px 0 #111; transform: translate(-2px, -2px); }
+.fare-market-pagination button:disabled { cursor: not-allowed; opacity: .4; }
+.fare-market-pagination span { min-width: 24px; font-size: 18px; font-weight: 900; text-align: center; }
 .fare-market-card { border: 2px solid #111; border-radius: 31px; background: #fff; box-shadow: 6px 7px 0 #111; overflow: hidden; }
 .fare-market-media { position: relative; margin: 18px 18px 0; }
 .fare-market-media > .fare-step-media { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 22px; transform: none; }
@@ -217,6 +224,9 @@
   .fare-market-search > span, .fare-market-select > span, .fare-market-classes legend { font-size: 11px; }
   .fare-market-search svg { bottom: 15px; }
   .fare-market-grid { grid-template-columns: 1fr; gap: 20px; margin-top: 62px; }
+  .fare-market-pagination { align-items: stretch; flex-wrap: wrap; gap: 12px; margin-top: 38px; }
+  .fare-market-pagination > div { order: -1; width: 100%; justify-content: center; }
+  .fare-market-pagination > button { flex: 1; }
   .fare-market-notice { margin-top: 62px; }
   .fare-market-notice + .fare-market-grid { margin-top: 0; }
   .fare-market-empty { margin-top: 62px; }

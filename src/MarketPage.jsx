@@ -42,6 +42,7 @@ const CLASS_SCENES = new Map(Object.entries(CLASS_SCENE_NAMES).map(([className, 
 const MODEL_OPTIONS = Object.entries(CLASS_SCENE_NAMES).flatMap(([className, names], classIndex) => (
   names.map((name, variantIndex) => ({ className, classIndex, variantIndex, name, value: `${classIndex}:${variantIndex}` }))
 ));
+const LISTINGS_PER_PAGE = 15;
 
 const SORTERS = {
   featured: (left, right) => left.listedAt - right.listedAt,
@@ -62,6 +63,21 @@ function taxiModelName(name = '') {
 function marketModeFromLocation() {
   const mode = new URLSearchParams(window.location.search).get('mode');
   return ['buy', 'sell', 'mine'].includes(mode) ? mode : 'buy';
+}
+
+function marketPageFromLocation() {
+  const page = Number.parseInt(new URLSearchParams(window.location.search).get('page') || '1', 10);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function paginationItems(pageCount, currentPage) {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
+  const pages = [1];
+  if (currentPage > 4) pages.push('start-gap');
+  for (let page = Math.max(2, currentPage - 1); page <= Math.min(pageCount - 1, currentPage + 1); page += 1) pages.push(page);
+  if (currentPage < pageCount - 3) pages.push('end-gap');
+  pages.push(pageCount);
+  return pages;
 }
 
 function offerMatchesCar(offer, car) {
@@ -131,6 +147,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
 
 export function MarketPage({ wallet, connectWallet }) {
   const [mode, setMode] = useState(marketModeFromLocation);
+  const [listingPage, setListingPage] = useState(marketPageFromLocation);
   const [query, setQuery] = useState('');
   const [vehicleClass, setVehicleClass] = useState('all');
   const [sort, setSort] = useState('featured');
@@ -211,6 +228,9 @@ export function MarketPage({ wallet, connectWallet }) {
       .sort(SORTERS[sort]);
   }, [listings, query, sort, vehicleClass]);
   const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
+  const listingPageCount = Math.max(1, Math.ceil(visibleListings.length / LISTINGS_PER_PAGE));
+  const paginatedListings = visibleListings.slice((listingPage - 1) * LISTINGS_PER_PAGE, listingPage * LISTINGS_PER_PAGE);
+  const listingPaginationItems = paginationItems(listingPageCount, listingPage);
   const offers = market.offers || [];
   const myListings = walletAddress ? listings.filter(listing => String(listing.seller) === walletAddress) : [];
   const myOffers = walletAddress ? offers.filter(offer => String(offer.buyer) === walletAddress) : [];
@@ -235,6 +255,25 @@ export function MarketPage({ wallet, connectWallet }) {
   });
   const matchingOfferCount = new Set(sellerCars.flatMap(car => car.matches.map(offer => offer.id))).size;
 
+  useEffect(() => {
+    if (listingPage <= listingPageCount) return;
+    setListingPage(listingPageCount);
+    const url = new URL(window.location.href);
+    if (listingPageCount === 1) url.searchParams.delete('page');
+    else url.searchParams.set('page', String(listingPageCount));
+    window.history.replaceState({}, '', url);
+  }, [listingPage, listingPageCount]);
+
+  function selectListingPage(nextPage, scroll = true) {
+    const page = Math.min(listingPageCount, Math.max(1, nextPage));
+    setListingPage(page);
+    const url = new URL(window.location.href);
+    if (page === 1) url.searchParams.delete('page');
+    else url.searchParams.set('page', String(page));
+    window.history.replaceState({}, '', url);
+    if (scroll) document.querySelector('.fare-market-console')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function selectMode(nextMode) {
     setMode(nextMode);
     setNotice('');
@@ -242,6 +281,10 @@ export function MarketPage({ wallet, connectWallet }) {
     setShowOffer(false);
     const url = new URL(window.location.href);
     url.searchParams.set('mode', nextMode);
+    if (nextMode !== 'buy') {
+      setListingPage(1);
+      url.searchParams.delete('page');
+    }
     window.history.replaceState({}, '', url);
   }
 
@@ -606,19 +649,26 @@ export function MarketPage({ wallet, connectWallet }) {
                 </div>
               </div>
               <div className="fare-market-toolbar">
-                <label className="fare-market-search"><span>FIND YOUR TAXI</span><SearchIcon /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Model name or NFT #" type="search" /></label>
+                <label className="fare-market-search"><span>FIND YOUR TAXI</span><SearchIcon /><input value={query} onChange={event => { setQuery(event.target.value); selectListingPage(1, false); }} placeholder="Model name or NFT #" type="search" /></label>
                 <fieldset className="fare-market-classes">
                   <legend>CHOOSE CLASS</legend>
                   {[['all', 'All'], ['economy', 'Economy'], ['comfort', 'Comfort'], ['business', 'Business'], ['legend', 'Legend']].map(([value, label]) => (
-                    <button className={vehicleClass === value ? 'is-active' : ''} type="button" aria-pressed={vehicleClass === value} onClick={() => setVehicleClass(value)} key={value}>{label}</button>
+                    <button className={vehicleClass === value ? 'is-active' : ''} type="button" aria-pressed={vehicleClass === value} onClick={() => { setVehicleClass(value); selectListingPage(1, false); }} key={value}>{label}</button>
                   ))}
                 </fieldset>
-                <label className="fare-market-select"><span>SORT CARS</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="featured">Featured first</option><option value="newest">Newest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
+                <label className="fare-market-select"><span>SORT CARS</span><select value={sort} onChange={event => { setSort(event.target.value); selectListingPage(1, false); }}><option value="featured">Featured first</option><option value="newest">Newest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
               </div>
             </div>
             {visibleListings.length
-              ? <div className="fare-market-grid">{visibleListings.map(renderListingCard)}</div>
-              : <div className="fare-market-empty"><strong>NO CARS FOUND</strong><p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed right now. Create a buy request for the taxi you want.'}</p>{hasActiveFilters ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button> : <button type="button" onClick={() => openOffer()}>CREATE BUY REQUEST</button>}</div>}
+              ? <><div className="fare-market-grid">{paginatedListings.map(renderListingCard)}</div>
+                {listingPageCount > 1 && <nav className="fare-market-pagination" aria-label="Listings pages">
+                  <button type="button" disabled={listingPage === 1} onClick={() => selectListingPage(listingPage - 1)}>PREVIOUS</button>
+                  <div>{listingPaginationItems.map(item => typeof item === 'number'
+                    ? <button className={listingPage === item ? 'is-active' : ''} type="button" aria-current={listingPage === item ? 'page' : undefined} onClick={() => selectListingPage(item)} key={item}>{item}</button>
+                    : <span aria-hidden="true" key={item}>…</span>)}</div>
+                  <button type="button" disabled={listingPage === listingPageCount} onClick={() => selectListingPage(listingPage + 1)}>NEXT</button>
+                </nav>}</>
+              : <div className="fare-market-empty"><strong>NO CARS FOUND</strong><p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed right now. Create a buy request for the taxi you want.'}</p>{hasActiveFilters ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); selectListingPage(1, false); }}>SHOW ALL CARS</button> : <button type="button" onClick={() => openOffer()}>CREATE BUY REQUEST</button>}</div>}
             <section className="fare-market-buy-cta"><div><span>CAN'T FIND YOUR TAXI?</span><h2>CREATE A BUY REQUEST</h2><p>Choose one model, a whole class, or one exact NFT. Your SOL stays escrowed on-chain until a seller accepts or you cancel.</p></div><button type="button" disabled={busy} onClick={() => openOffer()}>CREATE REQUEST</button></section>
           </>
         )}
