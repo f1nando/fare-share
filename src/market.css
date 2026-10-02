@@ -185,6 +185,16 @@
 .fare-market-listing-modal-actions button { min-width: 150px; height: 52px; padding: 0 22px; border: 2px solid #111; border-radius: 999px; color: #111; background: #ffe72f; box-shadow: 4px 5px 0 #111; font-size: 12px; font-weight: 900; }
 .fare-market-listing-modal-actions button.is-secondary { min-width: 110px; background: #fff; box-shadow: none; }
 .fare-market-listing-modal-actions button:disabled { cursor: wait; opacity: .55; }
+.fare-market-toast { position: fixed; z-index: 1400; right: 24px; bottom: 24px; display: grid; grid-template-columns: 18px minmax(0, 1fr) 34px; width: min(440px, calc(100vw - 48px)); align-items: center; gap: 13px; padding: 16px 15px 16px 18px; border: 2px solid #111; border-radius: 20px; color: #111; background: #fff; box-shadow: 6px 7px 0 #111; animation: fare-market-toast-in .2s ease-out; }
+.fare-market-toast > i { width: 16px; height: 16px; border: 3px solid #111; border-radius: 50%; background: #ffe72f; }
+.fare-market-toast.is-progress > i { border-color: #111 #111 transparent; background: transparent; animation: fare-market-toast-spin .8s linear infinite; }
+.fare-market-toast.is-success { background: #c8ffb8; }
+.fare-market-toast.is-error { background: #ffb8b8; }
+.fare-market-toast.is-warning { background: #ffe72f; }
+.fare-market-toast > div { display: flex; min-width: 0; align-items: flex-start; flex-direction: column; gap: 4px; }
+.fare-market-toast span { font-size: 9px; font-weight: 900; letter-spacing: .09em; }
+.fare-market-toast strong { font-size: 13px; line-height: 17px; }
+.fare-market-toast button { display: grid; width: 32px; height: 32px; place-items: center; padding: 0 0 3px; border: 2px solid #111; border-radius: 50%; background: #fff; font-size: 21px; line-height: 1; }
 
 @media (max-width: 1000px) {
   .fare-market-heading { align-items: flex-start; flex-direction: column; gap: 34px; }
@@ -272,6 +282,7 @@
   .fare-market-listing-preview-copy > strong { font-size: 17px; line-height: 21px; }
   .fare-market-listing-modal-actions { display: grid; grid-template-columns: .7fr 1.3fr; }
   .fare-market-listing-modal-actions button { min-width: 0; padding: 0 12px; }
+  .fare-market-toast { right: 12px; bottom: 12px; width: calc(100vw - 24px); padding: 14px 12px 14px 15px; border-radius: 17px; box-shadow: 4px 5px 0 #111; }
 }
 
 @keyframes fare-market-live {
@@ -279,6 +290,15 @@
   50% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes fare-market-toast-in {
+  from { opacity: 0; transform: translateY(16px); }
+}
+
+@keyframes fare-market-toast-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fare-market-live i { animation: none; }
+  .fare-market-toast, .fare-market-toast.is-progress > i { animation: none; }
 }

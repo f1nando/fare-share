@@ -152,6 +152,7 @@ export function MarketPage({ wallet, connectWallet }) {
   const [vehicleClass, setVehicleClass] = useState('all');
   const [sort, setSort] = useState('featured');
   const [notice, setNotice] = useState('');
+  const [toast, setToast] = useState(null);
   const [market, setMarket] = useState({ listings: [], offers: [], floorLamports: null, totalVolumeLamports: '0' });
   const [protocolStatus, setProtocolStatus] = useState(null);
   const [showListing, setShowListing] = useState(false);
@@ -190,10 +191,18 @@ export function MarketPage({ wallet, connectWallet }) {
   }, [acceptingOffer, busy, showListing]);
 
   useEffect(() => {
+    if (!toast?.duration) return undefined;
+    const timer = window.setTimeout(() => {
+      setToast(current => current?.id === toast.id ? null : current);
+    }, toast.duration);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
     let active = true;
     Promise.all([loadPublicMarket(), loadProtocolStatus()])
       .then(([value, status]) => { if (active) { setMarket(value); setProtocolStatus(status); } })
-      .catch(error => active && setNotice(error.message));
+      .catch(error => active && reportMarketStatus(error.message, 'error'));
     return () => { active = false; };
   }, []);
 
@@ -201,9 +210,10 @@ export function MarketPage({ wallet, connectWallet }) {
     if (mode !== 'sell' || !walletAddress) return undefined;
     let active = true;
     setFleetLoading(true);
+    reportMarketStatus('Loading taxis from your wallet…', 'progress');
     loadDatabaseFleet(walletAddress)
-      .then(cars => { if (active) setOwnedCars(cars); })
-      .catch(error => { if (active) setNotice(error.message); })
+      .then(cars => { if (active) { setOwnedCars(cars); reportMarketStatus(cars.length ? 'Your taxi fleet is ready.' : 'No transferable taxis were found in this wallet.', cars.length ? 'success' : 'warning'); } })
+      .catch(error => { if (active) reportMarketStatus(error.message, 'error'); })
       .finally(() => { if (active) setFleetLoading(false); });
     return () => { active = false; };
   }, [mode, walletAddress]);
@@ -265,6 +275,16 @@ export function MarketPage({ wallet, connectWallet }) {
   });
   const matchingOfferCount = new Set(sellerCars.flatMap(car => car.matches.map(offer => offer.id))).size;
 
+  function reportMarketStatus(message, tone = 'info') {
+    setNotice(tone === 'error' || tone === 'warning' ? message : '');
+    setToast({
+      id: `${Date.now()}-${Math.random()}`,
+      message,
+      tone,
+      duration: tone === 'progress' ? 0 : tone === 'error' ? 7000 : 4500,
+    });
+  }
+
   useEffect(() => {
     if (listingPage <= listingPageCount) return;
     setListingPage(listingPageCount);
@@ -315,15 +335,16 @@ export function MarketPage({ wallet, connectWallet }) {
   async function openListing(asset = '') {
     setBusy(true);
     setNotice('');
+    reportMarketStatus('Preparing your taxis for a new listing…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const cars = await loadDatabaseFleet(connection.account.address);
       setOwnedCars(cars);
       setSelectedAsset(asset && cars.some(car => car.asset === asset) ? asset : cars[0]?.asset || '');
       setShowListing(true);
-      if (!cars.length) setNotice('This wallet has no transferable Fare Share taxis to list.');
+      reportMarketStatus(cars.length ? 'Choose the taxi you want to list.' : 'This wallet has no transferable Fare Share taxis to list.', cars.length ? 'success' : 'warning');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -332,7 +353,7 @@ export function MarketPage({ wallet, connectWallet }) {
   async function handleList(event) {
     event.preventDefault();
     setBusy(true);
-    setNotice('Approve the on-chain listing transaction in your wallet…');
+    reportMarketStatus('Approve the on-chain listing transaction in your wallet…', 'progress');
     try {
       const priceLamports = solToLamports(price);
       const machine = ownedCars.find(car => car.asset === selectedAsset);
@@ -341,9 +362,9 @@ export function MarketPage({ wallet, connectWallet }) {
       await indexAndRefreshMarket({ action: 'list', signature, asset: selectedAsset, actor: wallet.account.address });
       setShowListing(false);
       setPrice('');
-      setNotice('Your taxi is listed on-chain. The marketplace can transfer only this NFT at the listed price.');
+      reportMarketStatus('Your taxi is listed on-chain.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -351,13 +372,13 @@ export function MarketPage({ wallet, connectWallet }) {
 
   async function handleCancel(listing) {
     setBusy(true);
-    setNotice('Approve the on-chain cancellation transaction in your wallet…');
+    reportMarketStatus('Approve the listing cancellation in your wallet…', 'progress');
     try {
       const signature = await cancelMachineSale(wallet, listing.asset, protocolStatus);
       await indexAndRefreshMarket({ action: 'cancel', signature, asset: listing.asset, actor: wallet.account.address });
-      setNotice('Listing cancelled.');
+      reportMarketStatus('Listing cancelled.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -365,14 +386,14 @@ export function MarketPage({ wallet, connectWallet }) {
 
   async function handleBuy(listing) {
     setBusy(true);
-    setNotice('Approve the atomic SOL-for-NFT purchase in your wallet…');
+    reportMarketStatus('Approve the atomic SOL-for-NFT purchase in your wallet…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const signature = await buyListedMachine(connection, listing, protocolStatus);
       await indexAndRefreshMarket({ action: 'buy', signature, asset: listing.asset, actor: connection.account.address });
-      setNotice('Purchase complete. SOL was paid to the seller and the NFT is now in your wallet.');
+      reportMarketStatus('Purchase complete. The NFT is now in your wallet.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -381,13 +402,15 @@ export function MarketPage({ wallet, connectWallet }) {
   async function openOffer(asset = '') {
     setBusy(true);
     setNotice('');
+    reportMarketStatus('Preparing a new buy request…', 'progress');
     try {
       if (!wallet) await connectWallet();
       setOfferType(asset ? 'asset' : 'model');
       setOfferAsset(asset);
       setShowOffer(true);
+      reportMarketStatus('Your buy request form is ready.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -396,7 +419,7 @@ export function MarketPage({ wallet, connectWallet }) {
   async function handleOffer(event) {
     event.preventDefault();
     setBusy(true);
-    setNotice('Approve the escrowed SOL offer in your wallet…');
+    reportMarketStatus('Approve the escrowed SOL request in your wallet…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const priceLamports = solToLamports(offerPrice);
@@ -415,9 +438,9 @@ export function MarketPage({ wallet, connectWallet }) {
       });
       setShowOffer(false);
       setOfferPrice('');
-      setNotice('Offer created. Its SOL is locked on-chain until acceptance or cancellation.');
+      reportMarketStatus('Buy request created. Its SOL is now locked on-chain.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -425,14 +448,14 @@ export function MarketPage({ wallet, connectWallet }) {
 
   async function handleCancelOffer(offer) {
     setBusy(true);
-    setNotice('Approve cancellation to return the escrowed SOL…');
+    reportMarketStatus('Approve cancellation to return the escrowed SOL…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const signature = await cancelMarketOffer(connection, offer);
       await indexAndRefreshMarket({ action: 'cancel-offer', signature, offer: offer.id, actor: connection.account.address });
-      setNotice('Offer cancelled. Escrowed SOL and account rent were returned.');
+      reportMarketStatus('Buy request cancelled. Escrowed SOL and rent were returned.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -442,6 +465,7 @@ export function MarketPage({ wallet, connectWallet }) {
     setOpeningOfferId(offer.id);
     setBusy(true);
     setNotice('');
+    reportMarketStatus('Finding taxis eligible for this buy request…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const cars = await loadDatabaseFleet(connection.account.address);
@@ -454,8 +478,9 @@ export function MarketPage({ wallet, connectWallet }) {
       setEligibleCars(matches);
       setAcceptAsset(matches[0].asset);
       setAcceptingOffer(offer);
+      reportMarketStatus('Choose the taxi you want to sell.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setOpeningOfferId(null);
       setBusy(false);
@@ -465,7 +490,7 @@ export function MarketPage({ wallet, connectWallet }) {
   async function handleAcceptOffer(event) {
     event.preventDefault();
     setBusy(true);
-    setNotice('Approve the atomic offer settlement in your wallet…');
+    reportMarketStatus('Approve the atomic sale in your wallet…', 'progress');
     try {
       const connection = wallet || await connectWallet();
       const machine = eligibleCars.find(car => car.asset === acceptAsset);
@@ -480,9 +505,9 @@ export function MarketPage({ wallet, connectWallet }) {
       });
       setAcceptingOffer(null);
       setOwnedCars(cars => cars.filter(car => car.asset !== machine.asset));
-      setNotice('Offer accepted. You received SOL and the buyer received the NFT atomically.');
+      reportMarketStatus('Sale complete. You received SOL and the buyer received the NFT.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -491,10 +516,12 @@ export function MarketPage({ wallet, connectWallet }) {
   async function connectForMarket() {
     setBusy(true);
     setNotice('');
+    reportMarketStatus('Connecting your wallet…', 'progress');
     try {
       await connectWallet();
+      reportMarketStatus('Wallet connected.', 'success');
     } catch (error) {
-      setNotice(error.message);
+      reportMarketStatus(error.message, 'error');
     } finally {
       setBusy(false);
     }
@@ -811,6 +838,17 @@ export function MarketPage({ wallet, connectWallet }) {
             <button type="submit" disabled={busy || !acceptAsset}>{busy ? 'SIGNING…' : 'SELL SELECTED TAXI'}</button>
           </div>
         </form>
+      </div>,
+      document.body,
+    )}
+    {toast && createPortal(
+      <div className={`fare-market-toast is-${toast.tone}`} role={toast.tone === 'error' ? 'alert' : 'status'} aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}>
+        <i aria-hidden="true" />
+        <div>
+          <span>{toast.tone === 'progress' ? 'IN PROGRESS' : toast.tone === 'success' ? 'COMPLETED' : toast.tone === 'error' ? 'ACTION FAILED' : toast.tone === 'warning' ? 'ATTENTION' : 'MARKET UPDATE'}</span>
+          <strong>{toast.message}</strong>
+        </div>
+        <button type="button" aria-label="Dismiss notification" onClick={() => setToast(null)}>×</button>
       </div>,
       document.body,
     )}
