@@ -11,6 +11,7 @@ import {
   makeClassOffer,
   makeMachineOffer,
 } from './protocol/solana.js';
+import drivingScenes from './drivingScenes.json';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -25,6 +26,16 @@ const CLASS_OPTIONS = [
   { name: 'Business', tone: 'business', weight: 10 },
   { name: 'Legend', tone: 'legend', weight: 30 },
 ];
+const CLASS_SCENE_NAMES = {
+  Economy: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'],
+  Comfort: ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'],
+  Business: ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'],
+  Legend: ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'],
+};
+const CLASS_SCENES = new Map(Object.entries(CLASS_SCENE_NAMES).map(([className, names]) => [
+  className,
+  names.map(name => drivingScenes.find(scene => scene.name === name)).filter(Boolean),
+]));
 
 const SORTERS = {
   featured: (left, right) => left.listedAt - right.listedAt,
@@ -44,6 +55,26 @@ function SearchIcon() {
       <circle cx="10.8" cy="10.8" r="6.8" />
       <path d="m16 16 5 5" />
     </svg>
+  );
+}
+
+function ClassOfferDrivingScene({ className }) {
+  const scenes = CLASS_SCENES.get(className) || CLASS_SCENES.get('Economy');
+  const [sceneIndex, setSceneIndex] = useState(0);
+
+  useEffect(() => {
+    setSceneIndex(0);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || scenes.length < 2) return undefined;
+    const timer = window.setInterval(() => setSceneIndex(index => (index + 1) % scenes.length), 2800);
+    return () => window.clearInterval(timer);
+  }, [className, scenes]);
+
+  const scene = scenes[sceneIndex] || scenes[0];
+  return (
+    <div className="fare-market-offer-media">
+      <FareStepDrivingScene scene={scene} showHeadlights={false} />
+      <span className="fare-market-offer-model">{scene.name}</span>
+    </div>
   );
 }
 
@@ -468,10 +499,11 @@ export function MarketPage({ wallet, connectWallet }) {
             <div className="fare-market-offer-grid">
               {offers.map(offer => (
                 <article className="fare-market-offer-card" key={offer.id}>
+                  {offer.kind === 'class' && <ClassOfferDrivingScene className={offer.className} />}
                   <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.kind === 'class' ? `${offer.className} CLASS` : 'SPECIFIC NFT'}</span>
                   <h3>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h3>
-                  <div><span>BUYER</span><strong>{shortWallet(offer.buyer)}</strong></div>
-                  <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
+                  <div className="fare-market-offer-detail"><span>BUYER</span><strong>{shortWallet(offer.buyer)}</strong></div>
+                  <div className="fare-market-offer-detail"><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
                   {wallet?.account.address === offer.buyer
                     ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
                     : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
