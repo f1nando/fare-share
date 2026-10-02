@@ -70,9 +70,10 @@ export interface AdminFeeOperationDocument {
   mint: string;
   targetMint?: string;
   targetTicker?: string;
+  cashOut?: boolean;
   amountLamports: string;
   status: 'executing' | 'submitted' | 'finalized' | 'failed';
-  stage?: 'starting' | 'paused' | 'vaults-ready' | 'rescued' | 'sold' | 'bought' | 'reset' | 'unpaused';
+  stage?: 'starting' | 'paused' | 'vaults-ready' | 'rescued' | 'sold' | 'unwrapping' | 'cashed-out' | 'bought' | 'reset' | 'unpaused';
   wasPaused?: boolean;
   oldTokenAmount?: string;
   oldWalletBalanceBefore?: string;

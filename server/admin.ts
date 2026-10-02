@@ -100,6 +100,7 @@ export function buildResetFareMintInstruction(input: {
   newTokenProgram: Address;
   machines: Address[];
   trainees: Address[];
+  cashOut?: boolean;
 }): Instruction {
   if (input.trainees.length > 0xffff) throw new Error('Too many trainee accounts for one FARE reset');
   return {
@@ -121,7 +122,7 @@ export function buildResetFareMintInstruction(input: {
       ...input.machines.map(machine => meta(machine, AccountRole.WRITABLE)),
       ...input.trainees.map(trainee => meta(trainee, AccountRole.WRITABLE)),
     ],
-    data: concat(discriminator('reset_fare_mint'), u16(input.trainees.length)),
+    data: concat(discriminator('reset_fare_mint'), u16(input.trainees.length), Uint8Array.of(input.cashOut ? 1 : 0)),
   };
 }
 

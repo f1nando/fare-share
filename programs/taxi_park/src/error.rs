@@ -156,4 +156,6 @@ pub enum TaxiError {
     OldFareVaultNotEmpty,
     #[msg("The new FARE vault must be funded before reset")]
     NewFareVaultEmpty,
+    #[msg("The new FARE vault must be empty for a cash-out reset")]
+    NewFareVaultMustBeEmpty,
 }

@@ -337,6 +337,7 @@ export async function createFeeAdminService(
       mint: String(await configuredMint()),
       targetMint: String(targetMint),
       targetTicker,
+      cashOut: true,
       amountLamports: '0',
       status: 'executing',
       stage: 'starting',
@@ -360,6 +361,20 @@ export async function createFeeAdminService(
   async function tokenAccountAmount(account: Address) {
     const value = await getOptionalAccount(config.rpcUrl, account);
     return value ? tokenAmount(value.data) : 0n;
+  }
+
+  async function waitForTokenAmounts(source: Address, destination: Address, expectedSource: bigint, minimumDestination: bigint) {
+    const deadline = Date.now() + 12_000;
+    let sourceAmount = await tokenAccountAmount(source);
+    let destinationAmount = await tokenAccountAmount(destination);
+    while ((sourceAmount !== expectedSource || destinationAmount < minimumDestination) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      [sourceAmount, destinationAmount] = await Promise.all([
+        tokenAccountAmount(source),
+        tokenAccountAmount(destination),
+      ]);
+    }
+    return { sourceAmount, destinationAmount };
   }
 
   async function executeWalletSwap(input: {
@@ -571,7 +586,6 @@ export async function createFeeAdminService(
           const oldTokenAmount = migration.oldTokenAmount === undefined
             ? oldVaultAmount
             : BigInt(migration.oldTokenAmount);
-          if (oldTokenAmount <= 0n) throw new FeeAdminError('The current FARE vault has no balance to convert.', 409);
           await updateFareMigration(migration.operationId, {
             oldTokenAmount: oldTokenAmount.toString(),
             oldWalletBalanceBefore: oldWalletBalanceBefore.toString(),
@@ -583,11 +597,15 @@ export async function createFeeAdminService(
             await updateFareMigration(migration.operationId, { stage: 'rescued', signatures });
           }
 
-          let wsolBefore = migration.wsolBalanceBefore === undefined
+          const wsolBefore = migration.wsolBalanceBefore === undefined
             ? await tokenAccountAmount(wsolAta)
             : BigInt(migration.wsolBalanceBefore);
+          if (wsolBefore !== 0n) throw new FeeAdminError('Clear the conversion wallet WSOL account before cash-out replacement.', 409);
           let oldWalletBalance = await tokenAccountAmount(oldWalletAta);
-          if (oldWalletBalance >= oldWalletBalanceBefore + oldTokenAmount) {
+          let proceeds = migration.wsolProceeds === undefined ? 0n : BigInt(migration.wsolProceeds);
+          const alreadyCashedOut = migration.stage === 'cashed-out' || migration.stage === 'reset' || migration.stage === 'unpaused';
+          const unwrapPending = migration.stage === 'unwrapping';
+          if (!alreadyCashedOut && oldTokenAmount > 0n && oldWalletBalance >= oldWalletBalanceBefore + oldTokenAmount) {
             await updateFareMigration(migration.operationId, { wsolBalanceBefore: wsolBefore.toString() });
             const sold = await executeWalletSwap({
               inputMint: current.fareMint,
@@ -598,9 +616,15 @@ export async function createFeeAdminService(
               jupiterProgram: current.jupiterProgram,
             });
             signatures.sell = sold.signature;
-            oldWalletBalance = await tokenAccountAmount(oldWalletAta);
-            const wsolAfterSell = await tokenAccountAmount(wsolAta);
-            const proceeds = wsolAfterSell - wsolBefore;
+            const settled = await waitForTokenAmounts(
+              oldWalletAta,
+              wsolAta,
+              oldWalletBalanceBefore,
+              wsolBefore + sold.minimumOutput,
+            );
+            oldWalletBalance = settled.sourceAmount;
+            const wsolAfterSell = settled.destinationAmount;
+            proceeds = wsolAfterSell - wsolBefore;
             if (oldWalletBalance !== oldWalletBalanceBefore || proceeds < sold.minimumOutput || proceeds <= 0n) {
               throw new FeeAdminError('Old FARE sale finalized with unexpected balances.', 500);
             }
@@ -609,32 +633,29 @@ export async function createFeeAdminService(
             });
           }
 
-          const proceeds = migration.wsolProceeds === undefined
-            ? (await tokenAccountAmount(wsolAta)) - wsolBefore
-            : BigInt(migration.wsolProceeds);
-          if (proceeds <= 0n) throw new FeeAdminError('No wrapped SOL proceeds are available for the new token purchase.', 409);
-          const newVaultBefore = await tokenAccountAmount(newVault);
           const currentWsol = await tokenAccountAmount(wsolAta);
-          if (currentWsol >= wsolBefore + proceeds) {
-            const bought = await executeWalletSwap({
-              inputMint: WSOL_MINT,
-              outputMint: inspected.mint,
-              amountIn: proceeds,
-              source: wsolAta,
-              destination: newVault,
-              jupiterProgram: current.jupiterProgram,
-            });
-            signatures.buy = bought.signature;
-            const newVaultAfter = await tokenAccountAmount(newVault);
-            if (newVaultAfter - newVaultBefore < bought.minimumOutput || newVaultAfter <= 0n) {
-              throw new FeeAdminError('New FARE purchase finalized with an unexpected vault balance.', 500);
-            }
-            await updateFareMigration(migration.operationId, { stage: 'bought', signatures });
-          } else if (newVaultBefore <= 0n) {
-            throw new FeeAdminError('Migration proceeds are missing from both the conversion wallet and new vault.', 409);
+          if (proceeds === 0n) proceeds = currentWsol;
+          if (!alreadyCashedOut && !unwrapPending && oldTokenAmount > 0n && (proceeds <= 0n || currentWsol < proceeds)) {
+            throw new FeeAdminError('Cash-out proceeds are missing from the conversion wallet.', 409);
           }
+          if (currentWsol > 0n || await getOptionalAccount(config.rpcUrl, wsolAta)) {
+            if (!alreadyCashedOut && !unwrapPending && currentWsol > 0n) {
+              await updateFareMigration(migration.operationId, { stage: 'unwrapping', wsolProceeds: proceeds.toString(), signatures });
+            }
+            const nativeBefore = await getBalance(config.rpcUrl, feeRecipient.address);
+            const unwrapSignature = String(await sendInstructions(config.rpcUrl, admin, [
+              getCloseAccountInstruction({ account: wsolAta, destination: feeRecipient.address, owner: feeRecipient }),
+            ], String(admin.address) === String(feeRecipient.address) ? [] : [feeRecipient]));
+            signatures.unwrap = unwrapSignature;
+            const nativeAfter = await getBalance(config.rpcUrl, feeRecipient.address);
+            if (!alreadyCashedOut && currentWsol > 0n && proceeds > 0n && nativeAfter - nativeBefore < proceeds - 20_000n) {
+              throw new FeeAdminError('Native SOL cash-out delta is below the finalized WSOL proceeds.', 500);
+            }
+            await updateFareMigration(migration.operationId, { stage: 'cashed-out', wsolProceeds: proceeds.toString(), signatures });
+          }
+          if (await tokenAccountAmount(newVault) !== 0n) throw new FeeAdminError('The replacement vault must be empty for cash-out replacement.', 409);
 
-          const reset = await this.resetMint(inspected.mint, ticker);
+          const reset = await this.resetMint(inspected.mint, ticker, true);
           signatures.reset = reset.signature;
           await updateFareMigration(migration.operationId, { stage: 'reset', signature: reset.signature, signatures });
           current = await configuredState();
@@ -669,7 +690,7 @@ export async function createFeeAdminService(
         throw error;
       }
     },
-    async resetMint(rawMint: unknown, rawTicker: unknown) {
+    async resetMint(rawMint: unknown, rawTicker: unknown, cashOut = false) {
       let ticker: string;
       try { ticker = normalizeTicker(rawTicker); } catch (error) { throw new FeeAdminError((error as Error).message); }
       const inspected = await inspectMint(rawMint);
@@ -695,7 +716,11 @@ export async function createFeeAdminService(
         throw new FeeAdminError('Rescue and convert the full old FARE vault before reset.', 409);
       }
       const nextPoolAmount = newVaultAccount ? tokenAmount(newVaultAccount.data) : 0n;
-      if (nextPoolAmount === 0n) throw new FeeAdminError('Fund the new protocol FARE vault before reset.', 409);
+      if (cashOut ? nextPoolAmount !== 0n : nextPoolAmount === 0n) {
+        throw new FeeAdminError(cashOut
+          ? 'The replacement protocol vault must be empty for cash-out reset.'
+          : 'Fund the new protocol FARE vault before reset.', 409);
+      }
       if (dashboard.distribution.seriesActive) throw new FeeAdminError('Finish the active reward series before reset.', 409);
 
       const feeSharingConfig = await derivePumpFeeSharingConfig(inspected.mint);
@@ -716,6 +741,7 @@ export async function createFeeAdminService(
         newTokenProgram: inspected.tokenProgram,
         machines: dashboard.machines.map(machine => address(machine.machine)),
         trainees: dashboard.trainees.map(trainee => address(trainee.trainee)),
+        cashOut,
       });
       const additional = String(admin.address) === String(feeRecipient.address) ? [] : [feeRecipient];
       const signature = String(await sendInstructions(config.rpcUrl, admin, [instruction], additional));

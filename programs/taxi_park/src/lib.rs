@@ -200,6 +200,7 @@ pub mod taxi_park {
     pub fn reset_fare_mint<'info>(
         ctx: Context<'_, '_, 'info, 'info, ResetFareMint<'info>>,
         trainee_count: u16,
+        cash_out: bool,
     ) -> Result<()> {
         require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
         require!(!ctx.accounts.pool.series_active, TaxiError::SeriesAlreadyActive);
@@ -254,7 +255,11 @@ pub mod taxi_park {
         require_keys_eq!(new_vault.mint, new_mint, TaxiError::InvalidTokenAccount);
         require_keys_eq!(new_vault.owner, config_key, TaxiError::InvalidTokenAccount);
         require!(old_vault.amount == 0, TaxiError::OldFareVaultNotEmpty);
-        require!(new_vault.amount > 0, TaxiError::NewFareVaultEmpty);
+        if cash_out {
+            require!(new_vault.amount == 0, TaxiError::NewFareVaultMustBeEmpty);
+        } else {
+            require!(new_vault.amount > 0, TaxiError::NewFareVaultEmpty);
+        }
 
         let machine_count = ctx
             .accounts
@@ -317,7 +322,9 @@ pub mod taxi_park {
             trainee.exit(ctx.program_id)?;
         }
 
-        ctx.accounts.pool.reset_fare(new_vault.amount);
+        ctx.accounts
+            .pool
+            .reset_fare(if cash_out { 0 } else { new_vault.amount });
         ctx.accounts.trainee_pool.reset_fare(0);
         ctx.accounts.config.fare_mint = new_mint;
         ctx.accounts.config.fare_swap_nonce = ctx
@@ -330,6 +337,7 @@ pub mod taxi_park {
             old_mint,
             new_mint,
             next_pool_amount: new_vault.amount,
+            cash_out,
             machine_count: u16::try_from(machine_count)
                 .map_err(|_| error!(TaxiError::MathOverflow))?,
             trainee_count: u16::try_from(trainee_count)
@@ -3815,6 +3823,7 @@ pub struct FareMintReset {
     pub old_mint: Pubkey,
     pub new_mint: Pubkey,
     pub next_pool_amount: u64,
+    pub cash_out: bool,
     pub machine_count: u16,
     pub trainee_count: u16,
 }

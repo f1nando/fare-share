@@ -55,6 +55,7 @@ test('FARE reset encodes fixed accounts followed by writable machines and traine
     newTokenProgram: TOKEN_2022_PROGRAM,
     machines: [CONFIG, PROGRAM],
     trainees: [VALUE],
+    cashOut: true,
   });
   assert.equal(instruction.accounts?.length, 16);
   assert.deepEqual(instruction.accounts?.slice(-3).map(account => account.role), [
@@ -64,6 +65,7 @@ test('FARE reset encodes fixed accounts followed by writable machines and traine
   ]);
   assert.deepEqual(Buffer.from(instruction.data!.slice(0, 8)), discriminator('reset_fare_mint'));
   assert.equal(new DataView(instruction.data!.buffer, instruction.data!.byteOffset).getUint16(8, true), 1);
+  assert.equal(instruction.data![10], 1);
 });
 
 test('current seven-machine and three-trainee FARE reset fits one transaction', async () => {
