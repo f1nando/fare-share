@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './clientErrorLog.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import { BACKEND_URL as API_BASE } from './backendUrl.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 import './driving-demo.css';
 
 const DEFAULTS = {
@@ -270,8 +271,9 @@ function DrivingDemo() {
   useEffect(() => { refreshScenes(); }, []);
 
   const saveScene = async () => {
-    if (!activeSceneId) { setSceneStatus('Upload and select a scene first.'); return; }
+    if (!activeSceneId) { const message = 'Upload and select a scene first.'; setSceneStatus(message); notifyError(message); return; }
     setSceneStatus('Saving…');
+    const toastId = notifyLoading('Saving scene settings…');
     try {
       const body = await request(`/api/driving-scenes/${activeSceneId}`, {
         method: 'PUT',
@@ -279,15 +281,17 @@ function DrivingDemo() {
       });
       setScenes((current) => current.map((scene) => scene.id === body.scene.id ? body.scene : scene));
       setSceneStatus('Scene settings saved to MongoDB.');
-    } catch (error) { setSceneStatus(error.message); }
+      notifySuccess('Scene settings saved.', { id: toastId });
+    } catch (error) { setSceneStatus(error.message); notifyError(error.message, { id: toastId }); }
   };
 
   const uploadScene = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { setSceneStatus('The file must not exceed 8 MB.'); return; }
+    if (file.size > 8 * 1024 * 1024) { const message = 'The file must not exceed 8 MB.'; setSceneStatus(message); notifyError(message); return; }
     setSceneStatus('Converting the image to WebP…');
+    const toastId = notifyLoading('Uploading and converting the scene…');
     try {
       const imageDataUrl = await imageFileToWebPDataUrl(file);
       const body = await request('/api/driving-scenes', {
@@ -302,17 +306,20 @@ function DrivingDemo() {
       });
       await refreshScenes(body.scene.id);
       setSceneStatus('Scene uploaded. Configure it and click Save.');
-    } catch (error) { setSceneStatus(error.message); }
+      notifySuccess('Scene uploaded. Configure it and click Save.', { id: toastId });
+    } catch (error) { setSceneStatus(error.message); notifyError(error.message, { id: toastId }); }
   };
 
   const deleteScene = async () => {
     if (!activeSceneId || !window.confirm(`Delete the scene “${sceneName}”?`)) return;
+    const toastId = notifyLoading('Deleting scene…');
     try {
       await request(`/api/driving-scenes/${activeSceneId}`, { method: 'DELETE' });
       setActiveSceneId('');
       await refreshScenes();
       setSceneStatus('Scene deleted.');
-    } catch (error) { setSceneStatus(error.message); }
+      notifySuccess('Scene deleted.', { id: toastId });
+    } catch (error) { setSceneStatus(error.message); notifyError(error.message, { id: toastId }); }
   };
 
   const applySettingsBundle = (bundle, message) => {
@@ -338,6 +345,7 @@ function DrivingDemo() {
     link.click();
     URL.revokeObjectURL(url);
     setSceneStatus('Settings exported to JSON.');
+    notifySuccess('Settings exported to JSON.');
   };
 
   const importSettings = async (event) => {
@@ -348,7 +356,8 @@ function DrivingDemo() {
       const bundle = JSON.parse(await file.text());
       if (bundle.format !== 'taxi-driving-settings') throw new Error('This is not a Taxi Driving settings file.');
       applySettingsBundle(bundle, 'Settings imported. Click Save to store them for this car.');
-    } catch (error) { setSceneStatus(error.message); }
+      notifySuccess('Settings imported. Click Save to store them for this car.');
+    } catch (error) { setSceneStatus(error.message); notifyError(error.message); }
   };
 
   useEffect(() => {

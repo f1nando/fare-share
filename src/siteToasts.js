@@ -51,4 +51,13 @@ if (typeof document !== 'undefined' && !document.getElementById(hostId)) {
 export const notifySuccess = (message, options) => toast.success(message, options);
 export const notifyError = (message, options) => toast.error(message, options);
 export const notifyLoading = (message, options) => toast.loading(message, options);
+export const notifyWarning = (message, options = {}) => toast(message, {
+  duration: 7_000,
+  icon: '⚠',
+  ...options,
+  style: {
+    background: '#fff4c2',
+    ...options.style,
+  },
+});
 export const dismissToast = id => toast.dismiss(id);

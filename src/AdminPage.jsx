@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BACKEND_URL as API } from './backendUrl.js';
 import { apiErrorMessage } from './clientErrorLog.js';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 
 const OPERATION_STORAGE = { claim: 'taxi.admin.claimOperationId', deposit: 'taxi.admin.depositOperationId' };
 
@@ -28,6 +28,7 @@ export function AdminPage() {
   const [codeWord, setCodeWord] = useState('');
   const [automation, setAutomation] = useState({ enabled: false, intervalSeconds: 60, minimumSol: '0.001' });
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
+  const actionToastId = useRef(null);
   const pricesInitialized = useRef(false);
   const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
   const selectedCa = ca || status?.mint || '';
@@ -61,8 +62,16 @@ export function AdminPage() {
   useEffect(() => {
     request('/api/admin/session').then(session => setCsrf(session.csrf)).catch(() => undefined);
   }, []);
-  useEffect(() => { if (error) notifyError(error, { id: 'admin-action-error' }); }, [error]);
-  useEffect(() => { if (notice) notifySuccess(notice); }, [notice]);
+  useEffect(() => {
+    if (!error) return;
+    notifyError(error, { id: actionToastId.current || 'admin-action-error' });
+    actionToastId.current = null;
+  }, [error]);
+  useEffect(() => {
+    if (!notice) return;
+    notifySuccess(notice, actionToastId.current ? { id: actionToastId.current } : undefined);
+    actionToastId.current = null;
+  }, [notice]);
   useEffect(() => {
     if (!csrf) return undefined;
     refresh();
@@ -76,6 +85,7 @@ export function AdminPage() {
       const session = await request('/api/admin/login', { method: 'POST', body: login });
       setCsrf(session.csrf);
       setLogin(current => ({ ...current, password: '' }));
+      setNotice('Signed in successfully.');
     });
   }
 
@@ -206,11 +216,13 @@ export function AdminPage() {
     await action('logout', async () => {
       await request('/api/admin/logout', { method: 'POST', body: {}, csrf });
       setCsrf(''); setStatus(null);
+      setNotice('Signed out.');
     });
   }
 
   async function action(name, work) {
     setBusy(name); setError(''); setNotice('');
+    actionToastId.current = notifyLoading(adminActionLoadingMessage(name));
     try { await work(); } catch (reason) { setError(reason.message); }
     finally { setBusy(''); }
   }
@@ -343,6 +355,22 @@ function LiveLine({ label, value, hint }) { return <div className="live-line"><s
 function QueueBar({ label, queue }) { const percent = Math.min(100, queue.count / queue.capacity * 100); return <div className="queue"><div><span>{label}</span><b>{queue.count} events · {queue.readyPages} ready pages</b></div><div className="queue-track"><i style={{ width: `${percent}%` }} /></div></div>; }
 function Amount({ label, value, asset }) { return <div><span>{label}</span><b className="mono">{formatToken(value, asset.decimals)}</b></div>; }
 const labels = { claim: 'CLAIM', deposit: 'TO CONTRACT', bind_mint: 'CA', set_team: 'TEAM WALLET', pause: 'PAUSE', unpause: 'UNPAUSE', emergency_rescue: 'RESCUE' };
+const adminActionLoadingMessages = {
+  login: 'Signing in…',
+  inspect: 'Verifying token details…',
+  bind: 'Binding the token on-chain…',
+  claim: 'Claiming protocol fees…',
+  team: 'Updating the team wallet…',
+  'mint-prices': 'Updating mint prices…',
+  pause: 'Pausing the protocol…',
+  unpause: 'Unpausing the protocol…',
+  rescue: 'Rescuing vault assets…',
+  deposit: 'Sending SOL to the contract…',
+  'trainee-word': 'Creating the trainee campaign…',
+  'automation-settings': 'Saving automation settings…',
+  logout: 'Signing out…',
+};
+function adminActionLoadingMessage(name) { return adminActionLoadingMessages[name] || (name.startsWith('automation-') ? 'Running automation…' : 'Processing…'); }
 function short(value) { return `${value.slice(0, 7)}…${value.slice(-7)}`; }
 function explorer(signature, cluster) { return `https://solscan.io/tx/${signature}${cluster === 'devnet' ? '?cluster=devnet' : ''}`; }
 function accountExplorer(value) { return `https://solscan.io/account/${value}`; }

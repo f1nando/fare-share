@@ -8,6 +8,7 @@ import drivingScenes from './drivingScenes.json';
 import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { loadPublicOverview } from './publicData.js';
 import { appAssetPath, appPath } from './appPath.js';
+import { notifyError, notifySuccess } from './siteToasts.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -561,6 +562,7 @@ export function FareShareLanding({ publicHolding = false }) {
     if (publicHolding || !token.mint) return;
     try {
       await copyToClipboard(token.mint);
+      notifySuccess('Contract address copied.', { id: 'copy-token-address' });
       setCaCopyState('copied');
       setCopyAnimationKey(key => key + 1);
       window.clearTimeout(copyResetTimerRef.current);
@@ -571,6 +573,7 @@ export function FareShareLanding({ publicHolding = false }) {
       }, 900);
     } catch (error) {
       console.error('Could not copy token CA', error);
+      notifyError('Could not copy the contract address.', { id: 'copy-token-address' });
     }
   };
 

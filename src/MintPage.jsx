@@ -213,6 +213,7 @@ export function MintPage({ wallet, connectWallet }) {
     setBuyBusy(true);
     setSignature('');
     setNotice(`Preparing the ${fareTicker} purchase…`);
+    const toastId = notifyLoading(`Preparing your ${fareTicker} purchase…`);
     try {
       const connection = wallet || await connectWallet();
       if (!preparedMint.ownerFareAccountExists) {
@@ -234,12 +235,12 @@ export function MintPage({ wallet, connectWallet }) {
         ? `${fareTicker} is ready. You can mint your taxi now.`
         : `Your balance is still below the refreshed mint quote. Buy the remaining ${fareTicker} amount.`;
       setNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       const message = error.message || `${fareTicker} purchase failed.`;
       setNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBuyBusy(false);
     }
@@ -247,12 +248,13 @@ export function MintPage({ wallet, connectWallet }) {
 
   async function handleActivateTrainee(event) {
     event.preventDefault();
-    if (!status?.deployed) return setTraineeNotice('The trainee program is not available.');
-    if (paused) return setTraineeNotice('The protocol is paused. Trainee activation is temporarily disabled.');
-    if (!keyword.trim()) return setTraineeNotice('Enter the code word.');
+    if (!status?.deployed) return showTraineeError('The trainee program is not available.');
+    if (paused) return showTraineeError('The protocol is paused. Trainee activation is temporarily disabled.');
+    if (!keyword.trim()) return showTraineeError('Enter the code word.');
     setTraineeBusy('activate');
     setTraineeNotice('Approve one activation transaction in Phantom…');
     setTraineeSignature('');
+    const toastId = notifyLoading('Activating your trainee taxi…');
     try {
       const connection = wallet || await connectWallet();
       const nextSignature = await activateTrainee(connection, keyword.trim(), status);
@@ -263,12 +265,12 @@ export function MintPage({ wallet, connectWallet }) {
       setTraineeSignature(nextSignature);
       const message = 'Your temporary trainee taxi is active and participates automatically.';
       setTraineeNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setTraineeSignature(error.signature);
       const message = error.message || 'Trainee activation failed.';
       setTraineeNotice(message);
-      notifyError(message);
+      notifyError(message, { id: toastId });
     } finally {
       setTraineeBusy('');
     }

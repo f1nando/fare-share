@@ -10,7 +10,7 @@ import {
   quoteTrade,
   subscribeTradeEvents,
 } from './tradeApi.js';
-import { notifyError, notifySuccess } from './siteToasts.js';
+import { notifyError, notifyLoading, notifySuccess, notifyWarning } from './siteToasts.js';
 
 function LiveTradeChart({ candles, symbol }) {
   const widgetRef = useRef(null);
@@ -102,6 +102,7 @@ function TradeForm({ token, wallet, connectWallet }) {
   async function submit() {
     setBusy(true);
     setNotice('');
+    const toastId = notifyLoading(`Preparing your ${side === 'buy' ? 'purchase' : 'sale'}…`);
     try {
       const connection = wallet || await connectWallet();
       const freshQuote = await quoteTrade(side, Number(payAmount));
@@ -110,10 +111,11 @@ function TradeForm({ token, wallet, connectWallet }) {
       const signature = await executeTrade(connection, freshQuote.quoteId);
       const message = `Transaction submitted: ${shortAddress(signature)}`;
       setNotice(message);
-      notifySuccess(message);
+      notifySuccess(message, { id: toastId });
     } catch (error) {
-      setNotice(error.message);
-      notifyError(error.message);
+      const message = error.message || 'Trade submission failed.';
+      setNotice(message);
+      notifyError(message, { id: toastId });
     } finally {
       setBusy(false);
     }
@@ -128,11 +130,14 @@ function TradeForm({ token, wallet, connectWallet }) {
       const available = side === 'buy' ? Math.max(0, balance.sol - balance.estimatedBuyReserveSol) : balance.token;
       setPayAmount(formatInputAmount(available * portion, side === 'buy' ? 9 : token?.decimals || 6));
       if (side === 'buy' && portion === 1) {
-        setNotice(`An estimated ${formatInputAmount(balance.estimatedBuyReserveSol, 9)} SOL is reserved from current network priority and account-creation costs. Your wallet shows the final fee.`);
+        const message = `An estimated ${formatInputAmount(balance.estimatedBuyReserveSol, 9)} SOL is reserved from current network priority and account-creation costs. Your wallet shows the final fee.`;
+        setNotice(message);
+        notifyWarning(message, { id: 'trade-max-reserve' });
       }
     } catch (error) {
-      setNotice(error.message);
-      notifyError(error.message);
+      const message = error.message || 'Could not load your available balance.';
+      setNotice(message);
+      notifyError(message);
     } finally {
       setBalanceBusy(false);
     }
