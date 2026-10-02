@@ -752,12 +752,15 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
   }).send();
   if (simulation.value.err) {
     const logEntries = Array.isArray(simulation.value.logs) ? simulation.value.logs : [];
+    const errorDetails = stringifyRpcError(simulation.value.err);
     const insufficientSol = logEntries.find(entry => /insufficient lamports/i.test(entry));
     if (insufficientSol) {
       throw new Error('Your wallet does not have enough SOL for the network fee and NFT account rent. Add SOL and try again. No transaction was sent.');
     }
+    if (errorDetails.includes('6040')) {
+      throw new Error('This wallet is no longer the current owner of this NFT. Refresh your taxis and try again. No transaction was sent.');
+    }
     const logs = logEntries.slice(-4).join(' | ');
-    const errorDetails = stringifyRpcError(simulation.value.err);
     throw new Error(`Transaction simulation failed: ${errorDetails}${logs ? ` — ${logs}` : ''}. No transaction was sent.`);
   }
 

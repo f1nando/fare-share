@@ -51,6 +51,7 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
     publicSnapshots: { findOne: async () => { overviewReads += 1; return { ...snapshot(), key: 'overview', overview: prepared, updatedAt: new Date() }; } },
     fleetMachines: {
       find: (filter: Record<string, unknown>) => cursor('owner' in filter ? fleetRows : []),
+      bulkWrite: async () => undefined,
     },
     fleetTrainees: { find: () => cursor([]) },
     fleetEarningSnapshots: { find: () => cursor(historyRows) },
@@ -60,6 +61,7 @@ test('public read endpoints use MongoDB snapshots without starting an on-chain s
     programId: address('GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4'),
     workerIntervalMs: 60_000,
     fareSymbol: 'FARE',
+    assetLoader: async (_rpcUrl, ids) => ids.map(id => ({ id, ownership: { owner: OWNER } })),
   }, database);
 
   const overviews = await Promise.all(Array.from({ length: 25 }, () => service.overview()));
@@ -94,6 +96,31 @@ test('public taxi lookup resolves only already minted NFTs by address or number'
   assert.equal((await service.taxi(ASSET)).nftNumber, 5);
   assert.deepEqual(await service.taxi('6'), { minted: false, error: 'This NFT has not been minted yet or is unavailable.' });
   assert.deepEqual(await service.taxi('not-an-address'), { minted: false, error: 'Enter a valid NFT address or minted NFT number.' });
+});
+
+test('wallet fleet removes a taxi whose live NFT owner has changed', async () => {
+  const updates: unknown[] = [];
+  const staleMachine = machine({ asset: ASSET, owner: OWNER });
+  const database = {
+    publicSnapshots: { findOne: async () => ({ ...snapshot(), key: 'overview', updatedAt: new Date() }) },
+    fleetMachines: {
+      find: () => cursor([staleMachine]),
+      bulkWrite: async (operations: unknown[]) => { updates.push(...operations); },
+    },
+    fleetTrainees: { find: () => cursor([]) },
+  } as unknown as TaxiDatabase;
+  const newOwner = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+  const service = createPublicDataService({
+    solanaRpcUrl: 'https://rpc.invalid',
+    programId: address(ASSET),
+    workerIntervalMs: 60_000,
+    fareSymbol: 'FARE',
+    assetLoader: async () => [{ id: ASSET, ownership: { owner: newOwner } }],
+  }, database);
+
+  assert.equal((await service.walletFleet(OWNER)).machines.length, 0);
+  assert.equal(updates.length, 1);
+  assert.equal((updates[0] as { updateOne: { update: { $set: { owner: string } } } }).updateOne.update.$set.owner, newOwner);
 });
 
 test('earning history expires after a 45-day safety window', async () => {

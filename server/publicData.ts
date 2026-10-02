@@ -53,6 +53,7 @@ export function createPublicDataService(config: {
   programId: Address;
   workerIntervalMs: number;
   fareSymbol: string | (() => string);
+  assetLoader?: (rpcUrl: string, ids: string[]) => Promise<DasAsset[]>;
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -185,12 +186,25 @@ export function createPublicDataService(config: {
   async function walletFleet(rawOwner: string) {
     let owner: Address;
     try { owner = address(rawOwner); } catch { throw new PublicDataError('Invalid wallet address.'); }
-    const [snapshot, machines, trainees] = await Promise.all([
+    const [snapshot, storedMachines, trainees] = await Promise.all([
       database.publicSnapshots.findOne({ key: 'overview' }),
       database.fleetMachines.find({ owner: String(owner), closed: false }).sort({ activeUntil: -1 }).toArray(),
       database.fleetTrainees.find({ owner: String(owner) }).sort({ activeUntil: -1 }).toArray(),
     ]);
     if (!snapshot) throw new PublicDataError('Public protocol snapshot is unavailable.', 503);
+    const liveAssets = await (config.assetLoader || loadAssets)(config.solanaRpcUrl, storedMachines.map(machine => machine.asset));
+    const liveOwners = new Map(liveAssets.map(asset => [asset.id, asset.ownership?.owner]));
+    const ownershipChanges = storedMachines.filter(machine => liveOwners.get(machine.asset) && liveOwners.get(machine.asset) !== machine.owner);
+    if (ownershipChanges.length) {
+      const now = new Date();
+      await database.fleetMachines.bulkWrite(ownershipChanges.map(machine => ({
+        updateOne: {
+          filter: { asset: machine.asset },
+          update: { $set: { owner: liveOwners.get(machine.asset)!, updatedAt: now } },
+        },
+      })));
+    }
+    const machines = storedMachines.filter(machine => liveOwners.get(machine.asset) === String(owner));
     return {
       machines: machines.map(({ _id, lastSeenAt, updatedAt, ...machine }) => machine),
       trainees: trainees.map(({ _id, lastSeenAt, updatedAt, ...trainee }) => trainee),
@@ -400,6 +414,10 @@ export function createPublicDataService(config: {
       let offer: Address;
       try { offer = address(String(body.offer || '')); } catch { throw new PublicDataError('Invalid offer address.'); }
       if (!keyStrings.includes(String(offer))) throw new PublicDataError('Transaction does not contain this offer.', 409);
+      if (action === 'accept-offer') {
+        if (!asset) throw new PublicDataError('Asset address is required.');
+        await refreshMachineOwner(asset, actor);
+      }
       await syncMarket(true);
       return { offer: String(offer), active: action === 'offer-asset' || action === 'offer-class' };
     }
@@ -427,9 +445,17 @@ export function createPublicDataService(config: {
     if (action === 'buy') {
       const liveAsset = await solanaRpcCall<DasAsset | null>(config.solanaRpcUrl, 'getAsset', [{ id: String(asset) }]);
       if (liveAsset?.ownership?.owner !== String(actor)) throw new PublicDataError('On-chain purchase owner does not match the buyer.', 409);
+      await database.fleetMachines.updateOne({ asset: String(asset) }, { $set: { owner: String(actor), updatedAt: now } });
     }
     await database.marketListings.updateOne({ asset: String(asset), status: 'active' }, { $set: { status: 'cancelled', updatedAt: now, transactionSignature: signature } });
     return { listed: false, asset: String(asset) };
+  }
+
+  async function refreshMachineOwner(asset: Address, previousOwner: Address) {
+    const liveAsset = await solanaRpcCall<DasAsset | null>(config.solanaRpcUrl, 'getAsset', [{ id: String(asset) }]);
+    const owner = liveAsset?.ownership?.owner;
+    if (!owner || owner === String(previousOwner)) throw new PublicDataError('On-chain sale owner has not updated yet.', 409);
+    await database.fleetMachines.updateOne({ asset: String(asset) }, { $set: { owner, updatedAt: new Date() } });
   }
 
   return { overview, walletFleet, taxi, recordMint, earningHistory, market, recordMarketTransaction, sync, syncMarket };

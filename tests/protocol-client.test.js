@@ -748,6 +748,27 @@ test('wallet preflight explains insufficient SOL without failing to serialize bi
   assert.doesNotMatch(error.message, /serialize a BigInt/);
 });
 
+test('wallet preflight explains when the connected wallet no longer owns the NFT', async () => {
+  const owner = await generateKeyPairSigner();
+  const blockhash = await generateKeyPairSigner();
+  const rpc = {
+    getLatestBlockhash: () => ({ send: async () => ({ value: { blockhash: String(blockhash.address), lastValidBlockHeight: 999n } }) }),
+    simulateTransaction: () => ({ send: async () => ({ value: {
+      err: { InstructionError: [0n, { Custom: 6040n }] },
+      logs: [],
+    } }) }),
+  };
+  const error = await sendWalletInstructions({
+    rpc,
+    wallet: { features: {} },
+    account: { address: owner.address },
+    chain: 'solana:mainnet',
+    instructions: [],
+  }).catch(value => value);
+  assert.match(error.message, /no longer the current owner/);
+  assert.doesNotMatch(error.message, /6040|serialize a BigInt/);
+});
+
 test('wallet transaction timeout keeps its signature for Explorer verification', async () => {
   const rpc = {
     getSignatureStatuses() {
