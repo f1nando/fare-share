@@ -14,6 +14,13 @@ const MARKET_LISTING_DISCRIMINATOR_BASE58 = 'WMPLAdohQsZ';
 const MARKET_OFFER_ACCOUNT_SIZE = 82;
 const MARKET_OFFER_DISCRIMINATOR_BASE58 = 'ajwsU7aDXDU';
 const CLASS_NAME_BY_WEIGHT = new Map([[1, 'Economy'], [3, 'Comfort'], [10, 'Business'], [30, 'Legend']]);
+const MODEL_NAMES = [
+  ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'],
+  ['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'],
+  ['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'],
+  ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'],
+] as const;
+const MODEL_CLASS_WEIGHTS = [1, 3, 10, 30] as const;
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
@@ -305,6 +312,7 @@ export function createPublicDataService(config: {
         asset: offer.asset,
         weight: offer.weight,
         className: offer.weight ? CLASS_NAME_BY_WEIGHT.get(offer.weight) : machine?.className,
+        modelName: offer.modelName,
         priceLamports: offer.priceLamports,
         createdAt: offer.createdAt.getTime(),
         name: machine?.name,
@@ -341,7 +349,7 @@ export function createPublicDataService(config: {
       actor = address(String(body.actor || ''));
       if (body.asset) asset = address(String(body.asset));
     } catch { throw new PublicDataError('Invalid asset or wallet address.'); }
-    const offerActions = ['offer-asset', 'offer-class', 'cancel-offer', 'accept-offer'];
+    const offerActions = ['offer-asset', 'offer-class', 'offer-model', 'cancel-offer', 'accept-offer'];
     if (![...offerActions, 'list', 'cancel', 'buy'].includes(action)) throw new PublicDataError('Invalid marketplace action.');
     if (!/^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(signature)) throw new PublicDataError('Invalid transaction signature.');
     const statuses = await solanaRpcCall<{ value: Array<{ confirmationStatus?: string; err: unknown } | null> }>(config.solanaRpcUrl, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
@@ -410,15 +418,22 @@ function decodeMarketOffer(offer: string, bytes: Uint8Array) {
   if (bytes.length < MARKET_OFFER_ACCOUNT_SIZE) throw new PublicDataError('On-chain offer data is invalid.', 409);
   const kindValue = bytes[40];
   const target = bytes.subarray(41, 73);
-  if (kindValue !== 0 && kindValue !== 1) throw new PublicDataError('On-chain offer kind is invalid.', 409);
+  if (kindValue !== 0 && kindValue !== 1 && kindValue !== 2) throw new PublicDataError('On-chain offer kind is invalid.', 409);
   const weight = kindValue === 1 ? new DataView(target.buffer, target.byteOffset, 2).getUint16(0, true) : undefined;
   if (weight !== undefined && !CLASS_NAME_BY_WEIGHT.has(weight)) throw new PublicDataError('On-chain class offer is invalid.', 409);
+  const modelClass = kindValue === 2 ? target[0] : undefined;
+  const modelVariant = kindValue === 2 ? target[1] : undefined;
+  const modelName = modelClass === undefined || modelVariant === undefined ? undefined : MODEL_NAMES[modelClass]?.[modelVariant];
+  if (kindValue === 2 && (!modelName || target.slice(2).some(value => value !== 0))) {
+    throw new PublicDataError('On-chain model offer is invalid.', 409);
+  }
   return {
     offer,
     buyer: String(addressDecoder.decode(bytes.subarray(8, 40))),
-    kind: kindValue === 0 ? 'asset' as const : 'class' as const,
+    kind: kindValue === 0 ? 'asset' as const : kindValue === 1 ? 'class' as const : 'model' as const,
     asset: kindValue === 0 ? String(addressDecoder.decode(target)) : undefined,
-    weight,
+    weight: kindValue === 2 ? MODEL_CLASS_WEIGHTS[modelClass!] : weight,
+    modelName,
     priceLamports: new DataView(bytes.buffer, bytes.byteOffset + 73, 8).getBigUint64(0, true).toString(),
   };
 }

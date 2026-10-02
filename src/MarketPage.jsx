@@ -10,6 +10,7 @@ import {
   loadProtocolStatus,
   makeClassOffer,
   makeMachineOffer,
+  makeModelOffer,
 } from './protocol/solana.js';
 import drivingScenes from './drivingScenes.json';
 import './market.css';
@@ -36,6 +37,9 @@ const CLASS_SCENES = new Map(Object.entries(CLASS_SCENE_NAMES).map(([className, 
   className,
   names.map(name => drivingScenes.find(scene => scene.name === name)).filter(Boolean),
 ]));
+const MODEL_OPTIONS = Object.entries(CLASS_SCENE_NAMES).flatMap(([className, names], classIndex) => (
+  names.map((name, variantIndex) => ({ className, classIndex, variantIndex, name, value: `${classIndex}:${variantIndex}` }))
+));
 
 const SORTERS = {
   featured: (left, right) => left.listedAt - right.listedAt,
@@ -58,8 +62,9 @@ function SearchIcon() {
   );
 }
 
-function ClassOfferDrivingScene({ className }) {
-  const scenes = CLASS_SCENES.get(className) || CLASS_SCENES.get('Economy');
+function ClassOfferDrivingScene({ className, modelName }) {
+  const classScenes = CLASS_SCENES.get(className) || CLASS_SCENES.get('Economy');
+  const scenes = modelName ? classScenes.filter(scene => scene.name === modelName) : classScenes;
   const [sceneIndex, setSceneIndex] = useState(0);
 
   useEffect(() => {
@@ -93,6 +98,7 @@ export function MarketPage({ wallet, connectWallet }) {
   const [offerType, setOfferType] = useState('asset');
   const [offerAsset, setOfferAsset] = useState('');
   const [offerWeight, setOfferWeight] = useState('1');
+  const [offerModel, setOfferModel] = useState('0:0');
   const [offerPrice, setOfferPrice] = useState('');
   const [acceptingOffer, setAcceptingOffer] = useState(null);
   const [eligibleCars, setEligibleCars] = useState([]);
@@ -208,7 +214,7 @@ export function MarketPage({ wallet, connectWallet }) {
     setNotice('');
     try {
       if (!wallet) await connectWallet();
-      setOfferType(asset ? 'asset' : 'class');
+      setOfferType(asset ? 'asset' : 'model');
       setOfferAsset(asset);
       setShowOffer(true);
     } catch (error) {
@@ -225,11 +231,14 @@ export function MarketPage({ wallet, connectWallet }) {
     try {
       const connection = wallet || await connectWallet();
       const priceLamports = solToLamports(offerPrice);
+      const [modelClass, modelVariant] = offerModel.split(':').map(Number);
       const result = offerType === 'asset'
         ? await makeMachineOffer(connection, offerAsset.trim(), priceLamports)
-        : await makeClassOffer(connection, Number(offerWeight), priceLamports);
+        : offerType === 'model'
+          ? await makeModelOffer(connection, modelClass, modelVariant, priceLamports)
+          : await makeClassOffer(connection, Number(offerWeight), priceLamports);
       await indexAndRefreshMarket({
-        action: offerType === 'asset' ? 'offer-asset' : 'offer-class',
+        action: offerType === 'asset' ? 'offer-asset' : offerType === 'model' ? 'offer-model' : 'offer-class',
         signature: result.signature,
         offer: result.offer,
         asset: offerType === 'asset' ? offerAsset.trim() : undefined,
@@ -268,7 +277,9 @@ export function MarketPage({ wallet, connectWallet }) {
       const cars = await loadDatabaseFleet(connection.account.address);
       const matches = cars.filter(car => offer.kind === 'asset'
         ? car.asset === offer.asset
-        : Number(car.weight) === Number(offer.weight));
+        : offer.kind === 'model'
+          ? car.name.startsWith(`TAXI ${offer.modelName} #`)
+          : Number(car.weight) === Number(offer.weight));
       if (!matches.length) throw new Error('This wallet has no eligible taxi for this offer.');
       setEligibleCars(matches);
       setAcceptAsset(matches[0].asset);
@@ -357,6 +368,7 @@ export function MarketPage({ wallet, connectWallet }) {
               <span>REQUEST TYPE</span>
               <select value={offerType} onChange={event => setOfferType(event.target.value)} disabled={busy}>
                 <option value="asset">Specific NFT</option>
+                <option value="model">Specific model</option>
                 <option value="class">Any taxi in class</option>
               </select>
             </label>
@@ -364,6 +376,19 @@ export function MarketPage({ wallet, connectWallet }) {
               <label>
                 <span>NFT ADDRESS</span>
                 <input value={offerAsset} onChange={event => setOfferAsset(event.target.value)} placeholder="Core asset address" disabled={busy} />
+              </label>
+            ) : offerType === 'model' ? (
+              <label>
+                <span>TAXI MODEL</span>
+                <select value={offerModel} onChange={event => setOfferModel(event.target.value)} disabled={busy}>
+                  {CLASS_OPTIONS.map(taxiClass => (
+                    <optgroup label={taxiClass.name} key={taxiClass.name}>
+                      {MODEL_OPTIONS.filter(model => model.className === taxiClass.name).map(model => (
+                        <option value={model.value} key={model.value}>{model.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </label>
             ) : (
               <label>
@@ -499,9 +524,9 @@ export function MarketPage({ wallet, connectWallet }) {
             <div className="fare-market-offer-grid">
               {offers.map(offer => (
                 <article className="fare-market-offer-card" key={offer.id}>
-                  {offer.kind === 'class' && <ClassOfferDrivingScene className={offer.className} />}
-                  <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.kind === 'class' ? `${offer.className} CLASS` : 'SPECIFIC NFT'}</span>
-                  <h3>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h3>
+                  {offer.kind !== 'asset' && <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />}
+                  <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.kind === 'class' ? `${offer.className} CLASS` : offer.kind === 'model' ? 'SPECIFIC MODEL' : 'SPECIFIC NFT'}</span>
+                  <h3>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h3>
                   <div className="fare-market-offer-detail"><span>BUYER</span><strong>{shortWallet(offer.buyer)}</strong></div>
                   <div className="fare-market-offer-detail"><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
                   {wallet?.account.address === offer.buyer

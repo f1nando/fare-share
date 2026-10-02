@@ -226,9 +226,10 @@ export interface MarketListingDocument {
 export interface MarketOfferDocument {
   offer: string;
   buyer: string;
-  kind: 'asset' | 'class';
+  kind: 'asset' | 'class' | 'model';
   asset?: string;
   weight?: number;
+  modelName?: string;
   priceLamports: string;
   status: 'active' | 'cancelled';
   createdAt: Date;

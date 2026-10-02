@@ -17,6 +17,7 @@ test('market exposes only active listings whose seller still owns the taxi', asy
   const offers = [
     { offer: 'offer-1', buyer: 'buyer-1', kind: 'asset', asset: 'asset-1', priceLamports: '1000000000', status: 'active', createdAt: listedAt, updatedAt: listedAt },
     { offer: 'offer-2', buyer: 'buyer-2', kind: 'class', weight: 30, priceLamports: '2000000000', status: 'active', createdAt: listedAt, updatedAt: listedAt },
+    { offer: 'offer-3', buyer: 'buyer-3', kind: 'model', weight: 30, modelName: 'BMW M3 E46', priceLamports: '3000000000', status: 'active', createdAt: listedAt, updatedAt: listedAt },
   ];
   const database = {
     marketListings: { find: () => cursor(listings) },
@@ -35,9 +36,10 @@ test('market exposes only active listings whose seller still owns the taxi', asy
   assert.equal(market.listings[0].asset, 'asset-1');
   assert.equal(market.listings[0].nftNumber, 42);
   assert.equal(market.floorLamports, '1250000000');
-  assert.equal(market.offers.length, 2);
+  assert.equal(market.offers.length, 3);
   assert.equal(market.offers[0].name, 'TAXI Toyota Camry #0042');
   assert.equal(market.offers[1].className, 'Legend');
+  assert.equal(market.offers[2].modelName, 'BMW M3 E46');
 });
 
 function cursor<T>(rows: T[]) {

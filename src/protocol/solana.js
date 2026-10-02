@@ -731,6 +731,13 @@ export async function makeClassOffer(connection, weight, priceLamports) {
   return makeMarketOffer(connection, 1, target, priceLamports);
 }
 
+export async function makeModelOffer(connection, classIndex, variantIndex, priceLamports) {
+  const target = new Uint8Array(32);
+  target[0] = Number(classIndex);
+  target[1] = Number(variantIndex);
+  return makeMarketOffer(connection, 2, target, priceLamports);
+}
+
 async function makeMarketOffer(connection, kind, target, priceLamports) {
   const buyer = address(connection.account.address);
   const offer = await deriveMarketOffer(PROGRAM_ID, buyer, kind, target);

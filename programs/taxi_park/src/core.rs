@@ -202,6 +202,16 @@ pub fn assert_asset(
     Ok(())
 }
 
+pub fn assert_asset_model(account: &AccountInfo<'_>, expected_model: &str) -> Result<()> {
+    require_keys_eq!(*account.owner, MPL_CORE_ID, TaxiError::InvalidCollection);
+    let data = account.try_borrow_data()?;
+    let name = asset_name_from_data(&data).ok_or(TaxiError::InvalidOffer)?;
+    let expected_prefix = format!("TAXI {expected_model} #");
+    let serial = name.strip_prefix(&expected_prefix).ok_or(TaxiError::InvalidOffer)?;
+    require!(serial.len() == 4 && serial.bytes().all(|value| value.is_ascii_digit()), TaxiError::InvalidOffer);
+    Ok(())
+}
+
 pub fn asset_owner(account: &AccountInfo<'_>, collection: &Pubkey) -> Result<Pubkey> {
     require_keys_eq!(*account.owner, MPL_CORE_ID, TaxiError::InvalidCollection);
     let data = account.try_borrow_data()?;
@@ -231,9 +241,27 @@ fn pubkey_at(data: &[u8], offset: usize) -> Option<Pubkey> {
     Some(Pubkey::new_from_array(bytes))
 }
 
+fn asset_name_from_data(data: &[u8]) -> Option<&str> {
+    const NAME_LENGTH_OFFSET: usize = 66;
+    let length = u32::from_le_bytes(data.get(NAME_LENGTH_OFFSET..NAME_LENGTH_OFFSET + 4)?.try_into().ok()?) as usize;
+    let start = NAME_LENGTH_OFFSET + 4;
+    std::str::from_utf8(data.get(start..start.checked_add(length)?)?).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn asset_model_name_requires_the_exact_minted_model_shape() {
+        let mut data = vec![0_u8; 70];
+        let name = b"TAXI BMW M3 E46 #0012";
+        data[0] = ASSET_V1_KEY;
+        data[66..70].copy_from_slice(&(name.len() as u32).to_le_bytes());
+        data.extend_from_slice(name);
+        assert_eq!(asset_name_from_data(&data), Some("TAXI BMW M3 E46 #0012"));
+        assert!(asset_name_from_data(&data[..69]).is_none());
+    }
 
     #[test]
     fn create_asset_layout_matches_mpl_core_shape() {

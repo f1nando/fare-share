@@ -676,7 +676,7 @@ test('marketplace instructions bind one listing PDA, exact price, and atomic buy
   assert.equal(buy.accounts[6].role, AccountRole.WRITABLE);
 });
 
-test('escrowed asset and class offers use target-bound PDAs and settlement accounts', async () => {
+test('escrowed asset, class, and model offers use target-bound PDAs and settlement accounts', async () => {
   const seller = address('11111111111111111111111111111111');
   const buyer = address('So11111111111111111111111111111111111111112');
   const asset = address('Vote111111111111111111111111111111111111111');
@@ -685,17 +685,25 @@ test('escrowed asset and class offers use target-bound PDAs and settlement accou
   const assetTarget = addressBytes(asset);
   const classTarget = new Uint8Array(32);
   new DataView(classTarget.buffer).setUint16(0, 30, true);
-  const [assetOffer, classOffer] = await Promise.all([
+  const modelTarget = new Uint8Array(32);
+  modelTarget[0] = 3;
+  modelTarget[1] = 0;
+  const [assetOffer, classOffer, modelOffer] = await Promise.all([
     deriveMarketOffer(PROGRAM_ID, buyer, 0, assetTarget),
     deriveMarketOffer(PROGRAM_ID, buyer, 1, classTarget),
+    deriveMarketOffer(PROGRAM_ID, buyer, 2, modelTarget),
   ]);
   assert.notEqual(String(assetOffer), String(classOffer));
+  assert.notEqual(String(classOffer), String(modelOffer));
 
   const make = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer, kind: 1, target: classTarget, priceLamports: 2_000_000_000n });
+  const makeModel = buildMakeOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: modelOffer, kind: 2, target: modelTarget, priceLamports: 3_000_000_000n });
   const cancel = buildCancelOfferInstruction({ programAddress: PROGRAM_ID, buyer, offer: classOffer });
   const accept = buildAcceptOfferInstruction({ programAddress: PROGRAM_ID, seller, buyer, config: derived.config, machine: derived.machine, asset, offer: classOffer, collection });
   assert.deepEqual([...make.data.slice(0, 8)], [...TAXI_DISCRIMINATORS.makeOffer]);
   assert.equal(make.data[8], 1);
+  assert.equal(makeModel.data[8], 2);
+  assert.deepEqual([...makeModel.data.slice(9, 11)], [3, 0]);
   assert.equal(new DataView(make.data.buffer, make.data.byteOffset + 41, 8).getBigUint64(0, true), 2_000_000_000n);
   assert.deepEqual([...cancel.data], [...TAXI_DISCRIMINATORS.cancelOffer]);
   assert.deepEqual([...accept.data], [...TAXI_DISCRIMINATORS.acceptOffer]);

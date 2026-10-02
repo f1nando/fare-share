@@ -1204,11 +1204,16 @@ pub mod taxi_park {
     pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
         require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
         require_keys_neq!(ctx.accounts.seller.key(), ctx.accounts.buyer.key(), TaxiError::InvalidOffer);
-        validate_offer_for_machine(&ctx.accounts.offer, &ctx.accounts.asset.key(), ctx.accounts.machine.weight)?;
         metaplex_core::assert_asset(
             &ctx.accounts.asset,
             &ctx.accounts.seller.key(),
             &ctx.accounts.config.collection,
+        )?;
+        validate_offer_for_machine(
+            &ctx.accounts.offer,
+            &ctx.accounts.asset.key(),
+            ctx.accounts.machine.weight,
+            Some(&ctx.accounts.asset.to_account_info()),
         )?;
 
         let price_lamports = ctx.accounts.offer.price_lamports;
@@ -2115,6 +2120,7 @@ pub mod taxi_park {
 
 const ASSET_OFFER_KIND: u8 = 0;
 const CLASS_OFFER_KIND: u8 = 1;
+const MODEL_OFFER_KIND: u8 = 2;
 
 fn validate_offer_target(kind: u8, target: &[u8; 32]) -> Result<()> {
     match kind {
@@ -2126,12 +2132,22 @@ fn validate_offer_target(kind: u8, target: &[u8; 32]) -> Result<()> {
             require!(CLASS_WEIGHTS.contains(&weight), TaxiError::InvalidOffer);
             require!(target[2..].iter().all(|value| *value == 0), TaxiError::InvalidOffer);
         }
+        MODEL_OFFER_KIND => {
+            require!(usize::from(target[0]) < CLASS_COUNT, TaxiError::InvalidOffer);
+            require!(usize::from(target[1]) < VARIANTS_PER_CLASS, TaxiError::InvalidOffer);
+            require!(target[2..].iter().all(|value| *value == 0), TaxiError::InvalidOffer);
+        }
         _ => return err!(TaxiError::InvalidOffer),
     }
     Ok(())
 }
 
-fn validate_offer_for_machine(offer: &MarketOffer, asset: &Pubkey, weight: u16) -> Result<()> {
+fn validate_offer_for_machine(
+    offer: &MarketOffer,
+    asset: &Pubkey,
+    weight: u16,
+    asset_info: Option<&AccountInfo<'_>>,
+) -> Result<()> {
     validate_offer_target(offer.kind, &offer.target)?;
     match offer.kind {
         ASSET_OFFER_KIND => require!(offer.target == asset.to_bytes(), TaxiError::InvalidOffer),
@@ -2139,6 +2155,13 @@ fn validate_offer_for_machine(offer: &MarketOffer, asset: &Pubkey, weight: u16) 
             u16::from_le_bytes([offer.target[0], offer.target[1]]) == weight,
             TaxiError::InvalidOffer
         ),
+        MODEL_OFFER_KIND => {
+            let class = offer.target[0];
+            let variant = offer.target[1];
+            require!(CLASS_WEIGHTS[usize::from(class)] == weight, TaxiError::InvalidOffer);
+            let account = asset_info.ok_or(TaxiError::InvalidOffer)?;
+            metaplex_core::assert_asset_model(account, model_name(class, variant)?)?;
+        }
         _ => return err!(TaxiError::InvalidOffer),
     }
     Ok(())
@@ -2952,12 +2975,24 @@ mod accounting_tests {
             target[..2].copy_from_slice(&weight.to_le_bytes());
             assert!(validate_offer_target(CLASS_OFFER_KIND, &target).is_ok());
             let offer = MarketOffer { kind: CLASS_OFFER_KIND, target, ..MarketOffer::default() };
-            assert!(validate_offer_for_machine(&offer, &asset, weight).is_ok());
+            assert!(validate_offer_for_machine(&offer, &asset, weight, None).is_ok());
         }
 
         let mut invalid_class = [0; 32];
         invalid_class[..2].copy_from_slice(&2_u16.to_le_bytes());
         assert!(validate_offer_target(CLASS_OFFER_KIND, &invalid_class).is_err());
+
+        for class in 0..CLASS_COUNT as u8 {
+            for variant in 0..VARIANTS_PER_CLASS as u8 {
+                let mut target = [0; 32];
+                target[0] = class;
+                target[1] = variant;
+                assert!(validate_offer_target(MODEL_OFFER_KIND, &target).is_ok());
+            }
+        }
+        let mut invalid_model = [0; 32];
+        invalid_model[0] = CLASS_COUNT as u8;
+        assert!(validate_offer_target(MODEL_OFFER_KIND, &invalid_model).is_err());
     }
 
     #[test]
