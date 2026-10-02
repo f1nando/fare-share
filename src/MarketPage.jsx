@@ -59,6 +59,17 @@ function taxiModelName(name = '') {
   return name.replace(/^TAXI\s+/, '').replace(/\s+#\d+$/, '');
 }
 
+function marketModeFromLocation() {
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  return ['buy', 'sell', 'mine'].includes(mode) ? mode : 'buy';
+}
+
+function offerMatchesCar(offer, car) {
+  if (offer.kind === 'asset') return car.asset === offer.asset;
+  if (offer.kind === 'model') return taxiModelName(car.name) === offer.modelName;
+  return Number(car.weight) === Number(offer.weight);
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -119,6 +130,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
 }
 
 export function MarketPage({ wallet, connectWallet }) {
+  const [mode, setMode] = useState(marketModeFromLocation);
   const [query, setQuery] = useState('');
   const [vehicleClass, setVehicleClass] = useState('all');
   const [sort, setSort] = useState('featured');
@@ -139,7 +151,10 @@ export function MarketPage({ wallet, connectWallet }) {
   const [eligibleCars, setEligibleCars] = useState([]);
   const [acceptAsset, setAcceptAsset] = useState('');
   const [openingOfferId, setOpeningOfferId] = useState(null);
+  const [fleetLoading, setFleetLoading] = useState(false);
+  const [showAllOffers, setShowAllOffers] = useState(false);
   const [busy, setBusy] = useState(false);
+  const walletAddress = wallet?.account.address ? String(wallet.account.address) : '';
 
   useEffect(() => {
     if (!acceptingOffer) return;
@@ -163,6 +178,17 @@ export function MarketPage({ wallet, connectWallet }) {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (mode !== 'sell' || !walletAddress) return undefined;
+    let active = true;
+    setFleetLoading(true);
+    loadDatabaseFleet(walletAddress)
+      .then(cars => { if (active) setOwnedCars(cars); })
+      .catch(error => { if (active) setNotice(error.message); })
+      .finally(() => { if (active) setFleetLoading(false); });
+    return () => { active = false; };
+  }, [mode, walletAddress]);
+
   const listings = market.listings.map(listing => {
     const modelName = taxiModelName(listing.name);
     const scene = drivingScenes.find(item => item.name === modelName);
@@ -184,6 +210,38 @@ export function MarketPage({ wallet, connectWallet }) {
   }, [listings, query, sort, vehicleClass]);
   const hasActiveFilters = Boolean(query.trim()) || vehicleClass !== 'all';
   const offers = market.offers || [];
+  const myListings = walletAddress ? listings.filter(listing => String(listing.seller) === walletAddress) : [];
+  const myOffers = walletAddress ? offers.filter(offer => String(offer.buyer) === walletAddress) : [];
+  const sellerCars = ownedCars.map(car => {
+    const modelName = taxiModelName(car.name);
+    const scene = drivingScenes.find(item => item.name === modelName);
+    const matches = offers
+      .filter(offer => String(offer.buyer) !== walletAddress && offerMatchesCar(offer, car))
+      .sort((left, right) => {
+        const leftPrice = BigInt(left.priceLamports);
+        const rightPrice = BigInt(right.priceLamports);
+        return leftPrice === rightPrice ? 0 : leftPrice > rightPrice ? -1 : 1;
+    });
+    return {
+      ...scene,
+      ...car,
+      imageUrl: car.image || scene?.imageUrl,
+      vehicleClass: CLASS_BY_NAME.get(modelName) || { name: 'Taxi', tone: 'economy' },
+      matches,
+      listing: listings.find(listing => listing.asset === car.asset),
+    };
+  });
+  const matchingOfferCount = new Set(sellerCars.flatMap(car => car.matches.map(offer => offer.id))).size;
+
+  function selectMode(nextMode) {
+    setMode(nextMode);
+    setNotice('');
+    setShowListing(false);
+    setShowOffer(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', nextMode);
+    window.history.replaceState({}, '', url);
+  }
 
   async function refreshMarket() {
     setMarket(await loadPublicMarket());
@@ -199,14 +257,14 @@ export function MarketPage({ wallet, connectWallet }) {
     await refreshMarket();
   }
 
-  async function openListing() {
+  async function openListing(asset = '') {
     setBusy(true);
     setNotice('');
     try {
       const connection = wallet || await connectWallet();
       const cars = await loadDatabaseFleet(connection.account.address);
       setOwnedCars(cars);
-      setSelectedAsset(cars[0]?.asset || '');
+      setSelectedAsset(asset && cars.some(car => car.asset === asset) ? asset : cars[0]?.asset || '');
       setShowListing(true);
       if (!cars.length) setNotice('This wallet has no transferable Fare Share taxis to list.');
     } catch (error) {
@@ -366,12 +424,86 @@ export function MarketPage({ wallet, connectWallet }) {
         actor: connection.account.address,
       });
       setAcceptingOffer(null);
+      setOwnedCars(cars => cars.filter(car => car.asset !== machine.asset));
       setNotice('Offer accepted. You received SOL and the buyer received the NFT atomically.');
     } catch (error) {
       setNotice(error.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function connectForMarket() {
+    setBusy(true);
+    setNotice('');
+    try {
+      await connectWallet();
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderListingCard(listing) {
+    return (
+      <article className="fare-market-card" key={listing.id}>
+        <div className="fare-market-media">
+          <FareStepDrivingScene scene={listing} />
+          <span className={`fare-fleet-class is-${listing.vehicleClass.tone}`}>{listing.vehicleClass.name}</span>
+          <span className="fare-market-nft-number">#{listing.nftNumber}</span>
+        </div>
+        <div className="fare-market-card-copy">
+          <h2>{listing.name}</h2>
+          <div className="fare-market-seller">
+            <span>SELLER</span>
+            <a href={`https://solscan.io/account/${listing.seller}`} target="_blank" rel="noreferrer" aria-label={`View seller ${listing.seller} on Solscan`}>
+              {shortWallet(listing.seller)} <b aria-hidden="true">↗</b>
+            </a>
+          </div>
+          <div className="fare-market-price-row">
+            <div><span>PRICE</span><strong>{formatSolPrice(listing.price)} SOL</strong></div>
+            {walletAddress === String(listing.seller)
+              ? <button type="button" disabled={busy} onClick={() => handleCancel(listing)}>CANCEL LISTING</button>
+              : <div className="fare-market-card-actions">
+                <button className="is-secondary" type="button" disabled={busy} onClick={() => openOffer(listing.asset)}>MAKE OFFER</button>
+                <button type="button" disabled={busy} onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>
+              </div>}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  function renderOfferCard(offer) {
+    return (
+      <article className="fare-market-card fare-market-offer-card" key={offer.id}>
+        {offer.kind !== 'asset'
+          ? <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />
+          : offer.imageUrl && (
+            <div className="fare-market-media fare-market-offer-asset-media">
+              <img className="fare-market-offer-asset" src={offer.imageUrl} alt="" loading="lazy" />
+              <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.className}</span>
+              <span className="fare-market-nft-number">#{offer.nftNumber}</span>
+            </div>
+          )}
+        <div className="fare-market-card-copy fare-market-offer-copy">
+          <h2>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h2>
+          <div className="fare-market-seller">
+            <span>BUYER</span>
+            <a href={`https://solscan.io/account/${offer.buyer}`} target="_blank" rel="noreferrer" aria-label={`View buyer ${offer.buyer} on Solscan`}>
+              {shortWallet(offer.buyer)} <b aria-hidden="true">↗</b>
+            </a>
+          </div>
+          <div className="fare-market-price-row">
+            <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
+            {walletAddress === String(offer.buyer)
+              ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
+              : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{openingOfferId === offer.id ? 'LOADING TAXIS…' : wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
+          </div>
+        </div>
+      </article>
+    );
   }
 
   return (
@@ -384,15 +516,24 @@ export function MarketPage({ wallet, connectWallet }) {
             <h1 className="fare-page-title is-short" id="market-page-title">MARKET</h1>
           </div>
           <div className="fare-market-heading-action">
-            <p>List a taxi at your price or buy one atomically with SOL. Fare Share never holds your NFT or payment.</p>
+            <p>{mode === 'buy' ? 'Buy a listed taxi now or create a request for the exact model you want.' : mode === 'sell' ? 'See the best live requests for every taxi in your wallet and sell without searching.' : 'Manage your active listings and escrowed buy requests in one place.'}</p>
             <div className="fare-market-heading-buttons">
-              <button type="button" disabled={busy} onClick={openListing}>LIST YOUR NFT</button>
-              <button className="is-secondary" type="button" disabled={busy} onClick={() => openOffer()}>CREATE BUY REQUEST</button>
+              {mode === 'buy'
+                ? <><button type="button" disabled={busy} onClick={() => openOffer()}>CREATE BUY REQUEST</button><button className="is-secondary" type="button" onClick={() => selectMode('sell')}>I WANT TO SELL</button></>
+                : mode === 'sell'
+                  ? <><button type="button" disabled={busy} onClick={() => openListing()}>LIST AT YOUR PRICE</button><button className="is-secondary" type="button" onClick={() => selectMode('buy')}>BROWSE TAXIS</button></>
+                  : <><button type="button" onClick={() => selectMode('buy')}>BUY A TAXI</button><button className="is-secondary" type="button" onClick={() => selectMode('sell')}>SELL A TAXI</button></>}
             </div>
           </div>
         </header>
 
-        {showListing && (
+        <nav className="fare-market-modes" aria-label="Marketplace mode">
+          <button className={mode === 'buy' ? 'is-active' : ''} type="button" aria-current={mode === 'buy' ? 'page' : undefined} onClick={() => selectMode('buy')}><span>BUY A TAXI</span><b>{listings.length}</b></button>
+          <button className={mode === 'sell' ? 'is-active' : ''} type="button" aria-current={mode === 'sell' ? 'page' : undefined} onClick={() => selectMode('sell')}><span>SELL A TAXI</span><b>{walletAddress ? matchingOfferCount : offers.length}</b></button>
+          <button className={mode === 'mine' ? 'is-active' : ''} type="button" aria-current={mode === 'mine' ? 'page' : undefined} onClick={() => selectMode('mine')}><span>MY ACTIVITY</span><b>{walletAddress ? myListings.length + myOffers.length : 0}</b></button>
+        </nav>
+
+        {showListing && mode === 'sell' && (
           <form className="fare-market-listing-form" onSubmit={handleList}>
             <div>
               <span>CREATE LISTING</span>
@@ -416,7 +557,7 @@ export function MarketPage({ wallet, connectWallet }) {
           </form>
         )}
 
-        {showOffer && (
+        {showOffer && mode === 'buy' && (
           <form className="fare-market-listing-form" onSubmit={handleOffer}>
             <div>
               <span>CREATE BUY REQUEST</span>
@@ -468,130 +609,76 @@ export function MarketPage({ wallet, connectWallet }) {
           </form>
         )}
 
-        <div className="fare-market-console">
-          <div className="fare-market-console-top">
-            <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE LISTINGS</span></div>
-            <div className="fare-market-summary" aria-label="Marketplace summary">
-              <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
-              <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
-              <div><strong>{(Number(market.totalVolumeLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>VERIFIED VOLUME</span></div>
-            </div>
-          </div>
-
-          <div className="fare-market-toolbar">
-            <label className="fare-market-search">
-              <span>FIND YOUR TAXI</span>
-              <SearchIcon />
-              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Model name or NFT #" type="search" />
-            </label>
-
-            <fieldset className="fare-market-classes">
-              <legend>CHOOSE CLASS</legend>
-              {[
-                ['all', 'All'],
-                ['economy', 'Economy'],
-                ['comfort', 'Comfort'],
-                ['business', 'Business'],
-                ['legend', 'Legend'],
-              ].map(([value, label]) => (
-                <button className={vehicleClass === value ? 'is-active' : ''} type="button" aria-pressed={vehicleClass === value} onClick={() => setVehicleClass(value)} key={value}>{label}</button>
-              ))}
-            </fieldset>
-
-            <label className="fare-market-select">
-              <span>SORT CARS</span>
-              <select value={sort} onChange={event => setSort(event.target.value)}>
-                <option value="featured">Featured first</option>
-                <option value="newest">Newest first</option>
-                <option value="price-low">Price: low to high</option>
-                <option value="price-high">Price: high to low</option>
-                <option value="name">Name: A–Z</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
         {notice && <div className="fare-market-notice" role="status">{notice}<button type="button" aria-label="Close message" onClick={() => setNotice('')}>×</button></div>}
 
-        {visibleListings.length ? (
-          <div className="fare-market-grid">
-            {visibleListings.map(listing => (
-              <article className="fare-market-card" key={listing.id}>
-                <div className="fare-market-media">
-                  <FareStepDrivingScene scene={listing} />
-                  <span className={`fare-fleet-class is-${listing.vehicleClass.tone}`}>{listing.vehicleClass.name}</span>
-                  <span className="fare-market-nft-number">#{listing.nftNumber}</span>
+        {mode === 'buy' && (
+          <>
+            <div className="fare-market-console">
+              <div className="fare-market-console-top">
+                <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE LISTINGS</span></div>
+                <div className="fare-market-summary" aria-label="Marketplace summary">
+                  <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
+                  <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
+                  <div><strong>{offers.length}</strong><span>BUY REQUESTS</span></div>
                 </div>
-                <div className="fare-market-card-copy">
-                  <h2>{listing.name}</h2>
-                  <div className="fare-market-seller">
-                    <span>SELLER</span>
-                    <a href={`https://solscan.io/account/${listing.seller}`} target="_blank" rel="noreferrer" aria-label={`View seller ${listing.seller} on Solscan`}>
-                      {shortWallet(listing.seller)} <b aria-hidden="true">↗</b>
-                    </a>
-                  </div>
-                  <div className="fare-market-price-row">
-                    <div><span>PRICE</span><strong>{formatSolPrice(listing.price)} SOL</strong></div>
-                    {wallet?.account.address === listing.seller
-                      ? <button type="button" disabled={busy} onClick={() => handleCancel(listing)}>CANCEL LISTING</button>
-                      : <div className="fare-market-card-actions">
-                        <button className="is-secondary" type="button" disabled={busy} onClick={() => openOffer(listing.asset)}>MAKE OFFER</button>
-                        <button type="button" disabled={busy} onClick={() => handleBuy(listing)}>{wallet ? 'BUY NOW' : 'CONNECT TO BUY'}</button>
-                      </div>}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="fare-market-empty">
-            <strong>NO CARS FOUND</strong>
-              <p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed yet. Be the first owner to create a listing.'}</p>
-              {hasActiveFilters
-                ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button>
-                : <button type="button" onClick={openListing}>LIST YOUR NFT</button>}
-          </div>
+              </div>
+              <div className="fare-market-toolbar">
+                <label className="fare-market-search"><span>FIND YOUR TAXI</span><SearchIcon /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Model name or NFT #" type="search" /></label>
+                <fieldset className="fare-market-classes">
+                  <legend>CHOOSE CLASS</legend>
+                  {[['all', 'All'], ['economy', 'Economy'], ['comfort', 'Comfort'], ['business', 'Business'], ['legend', 'Legend']].map(([value, label]) => (
+                    <button className={vehicleClass === value ? 'is-active' : ''} type="button" aria-pressed={vehicleClass === value} onClick={() => setVehicleClass(value)} key={value}>{label}</button>
+                  ))}
+                </fieldset>
+                <label className="fare-market-select"><span>SORT CARS</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="featured">Featured first</option><option value="newest">Newest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="name">Name: A–Z</option></select></label>
+              </div>
+            </div>
+            {visibleListings.length
+              ? <div className="fare-market-grid">{visibleListings.map(renderListingCard)}</div>
+              : <div className="fare-market-empty"><strong>NO CARS FOUND</strong><p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed right now. Create a buy request for the taxi you want.'}</p>{hasActiveFilters ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); }}>SHOW ALL CARS</button> : <button type="button" onClick={() => openOffer()}>CREATE BUY REQUEST</button>}</div>}
+            <section className="fare-market-buy-cta"><div><span>CAN'T FIND YOUR TAXI?</span><h2>CREATE A BUY REQUEST</h2><p>Choose one model, a whole class, or one exact NFT. Your SOL stays escrowed on-chain until a seller accepts or you cancel.</p></div><button type="button" disabled={busy} onClick={() => openOffer()}>CREATE REQUEST</button></section>
+          </>
         )}
 
-
-        <section className="fare-market-offers" aria-labelledby="market-offers-title">
-          <div className="fare-market-offers-heading">
-            <div><span>ESCROWED ON-CHAIN</span><h2 id="market-offers-title">BUY REQUESTS</h2></div>
-            <button type="button" disabled={busy} onClick={() => openOffer()}>CREATE REQUEST</button>
-          </div>
-          {offers.length ? (
-            <div className="fare-market-offer-grid">
-              {offers.map(offer => (
-                <article className="fare-market-card fare-market-offer-card" key={offer.id}>
-                  {offer.kind !== 'asset'
-                    ? <ClassOfferDrivingScene className={offer.className} modelName={offer.modelName} />
-                    : offer.imageUrl && (
-                      <div className="fare-market-media fare-market-offer-asset-media">
-                        <img className="fare-market-offer-asset" src={offer.imageUrl} alt="" loading="lazy" />
-                        <span className={`fare-fleet-class is-${String(offer.className || 'economy').toLowerCase()}`}>{offer.className}</span>
-                        <span className="fare-market-nft-number">#{offer.nftNumber}</span>
+        {mode === 'sell' && (
+          <section className="fare-market-sell-view" aria-labelledby="sell-view-title">
+            {!walletAddress
+              ? <div className="fare-market-intent-empty"><span>SELL A TAXI</span><h2 id="sell-view-title">CONNECT YOUR WALLET</h2><p>See your taxis and every live request that matches them.</p><button type="button" disabled={busy} onClick={connectForMarket}>{busy ? 'CONNECTING…' : 'CONNECT WALLET'}</button></div>
+              : fleetLoading
+                ? <div className="fare-market-intent-empty"><span>YOUR TAXIS</span><h2 id="sell-view-title">LOADING YOUR FLEET…</h2></div>
+                : <>
+                  <div className="fare-market-view-heading"><div><span>YOUR WALLET</span><h2 id="sell-view-title">YOUR TAXIS</h2></div><strong>{matchingOfferCount} MATCHING REQUEST{matchingOfferCount === 1 ? '' : 'S'}</strong></div>
+                  {sellerCars.length ? <div className="fare-market-seller-grid">{sellerCars.map(car => {
+                    const bestOffer = car.matches[0];
+                    const nftNumber = Number(car.name.match(/#(\d+)$/)?.[1] || 0);
+                    return <article className="fare-market-card fare-market-sell-card" key={car.asset}>
+                      <div className="fare-market-media"><FareStepDrivingScene scene={car} showHeadlights={false} /><span className={`fare-fleet-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span><span className="fare-market-nft-number">#{nftNumber}</span></div>
+                      <div className="fare-market-card-copy"><h2>{car.name}</h2>
+                        {car.listing
+                          ? <div className="fare-market-match is-listed"><span>ACTIVE LISTING</span><strong>{formatLamports(car.listing.priceLamports)} SOL</strong><small>Cancel this listing before accepting another buyer's request.</small></div>
+                          : bestOffer
+                            ? <div className="fare-market-match"><span>BEST MATCH · {car.matches.length} REQUEST{car.matches.length === 1 ? '' : 'S'}</span><strong>{formatLamports(bestOffer.priceLamports)} SOL</strong><small>{bestOffer.kind === 'class' ? `Any ${bestOffer.className} taxi` : bestOffer.kind === 'model' ? bestOffer.modelName : 'This exact NFT'}</small></div>
+                            : <div className="fare-market-match is-empty"><span>NO MATCHING REQUESTS</span><small>List this taxi at your own price.</small></div>}
+                        <div className="fare-market-sell-actions">{car.listing ? <button type="button" disabled={busy} onClick={() => handleCancel(car.listing)}>CANCEL LISTING</button> : bestOffer && <button type="button" disabled={busy} onClick={() => openAcceptOffer(bestOffer)}>SELL NOW · {formatLamports(bestOffer.priceLamports)} SOL</button>}<button className="is-secondary" type="button" disabled={busy || Boolean(car.listing)} onClick={() => openListing(car.asset)}>LIST AT YOUR PRICE</button></div>
                       </div>
-                    )}
-                  <div className="fare-market-card-copy fare-market-offer-copy">
-                    <h2>{offer.kind === 'asset' ? (offer.name || shortWallet(offer.asset)) : offer.kind === 'model' ? offer.modelName : `ANY ${String(offer.className).toUpperCase()} TAXI`}</h2>
-                    <div className="fare-market-seller">
-                      <span>BUYER</span>
-                      <a href={`https://solscan.io/account/${offer.buyer}`} target="_blank" rel="noreferrer" aria-label={`View buyer ${offer.buyer} on Solscan`}>
-                        {shortWallet(offer.buyer)} <b aria-hidden="true">↗</b>
-                      </a>
-                    </div>
-                    <div className="fare-market-price-row">
-                      <div><span>ESCROWED OFFER</span><strong>{formatLamports(offer.priceLamports)} SOL</strong></div>
-                      {wallet?.account.address === offer.buyer
-                        ? <button type="button" disabled={busy} onClick={() => handleCancelOffer(offer)}>CANCEL & RETURN SOL</button>
-                        : <button type="button" disabled={busy} onClick={() => openAcceptOffer(offer)}>{openingOfferId === offer.id ? 'LOADING TAXIS…' : wallet ? 'SELL TO BUYER' : 'CONNECT TO ACCEPT'}</button>}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : <div className="fare-market-offers-empty">NO ACTIVE BUY REQUESTS</div>}
-        </section>
+                    </article>;
+                  })}</div> : <div className="fare-market-intent-empty"><span>YOUR TAXIS</span><h2>NO TAXIS IN THIS WALLET</h2><p>Buy or mint a taxi before creating a sale listing.</p><div><button type="button" onClick={() => selectMode('buy')}>BUY A TAXI</button><a href={appAssetPath('/mint/')}>MINT A TAXI</a></div></div>}
+                  <div className="fare-market-all-requests"><button type="button" onClick={() => setShowAllOffers(value => !value)}>{showAllOffers ? 'HIDE ALL BUY REQUESTS' : `SHOW ALL BUY REQUESTS · ${offers.length}`}</button></div>
+                  {showAllOffers && (offers.length ? <div className="fare-market-offer-grid">{offers.filter(offer => String(offer.buyer) !== walletAddress).map(renderOfferCard)}</div> : <div className="fare-market-offers-empty">NO ACTIVE BUY REQUESTS</div>)}
+                </>}
+          </section>
+        )}
+
+        {mode === 'mine' && (
+          <section className="fare-market-mine-view" aria-labelledby="mine-view-title">
+            {!walletAddress
+              ? <div className="fare-market-intent-empty"><span>MY ACTIVITY</span><h2 id="mine-view-title">CONNECT YOUR WALLET</h2><p>Manage your listings and escrowed buy requests.</p><button type="button" disabled={busy} onClick={connectForMarket}>{busy ? 'CONNECTING…' : 'CONNECT WALLET'}</button></div>
+              : <><div className="fare-market-view-heading"><div><span>CONNECTED WALLET</span><h2 id="mine-view-title">MY ACTIVITY</h2></div><strong>{shortWallet(walletAddress)}</strong></div>
+                <section className="fare-market-personal-section"><div className="fare-market-personal-heading"><h3>MY LISTINGS</h3><button type="button" onClick={() => selectMode('sell')}>LIST ANOTHER TAXI</button></div>{myListings.length ? <div className="fare-market-grid is-personal">{myListings.map(renderListingCard)}</div> : <div className="fare-market-offers-empty">YOU HAVE NO ACTIVE LISTINGS</div>}</section>
+                <section className="fare-market-personal-section"><div className="fare-market-personal-heading"><h3>MY BUY REQUESTS</h3><button type="button" onClick={() => { selectMode('buy'); window.setTimeout(() => openOffer(), 0); }}>CREATE REQUEST</button></div>{myOffers.length ? <div className="fare-market-offer-grid">{myOffers.map(renderOfferCard)}</div> : <div className="fare-market-offers-empty">YOU HAVE NO ACTIVE BUY REQUESTS</div>}</section>
+              </>}
+          </section>
+        )}
       </section>
     </main>
     {acceptingOffer && createPortal(
