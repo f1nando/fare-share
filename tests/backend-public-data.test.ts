@@ -92,8 +92,8 @@ test('public taxi lookup resolves only already minted NFTs by address or number'
   assert.equal((await service.taxi('5')).asset, ASSET);
   assert.equal((await service.taxi('#0005')).name, minted.name);
   assert.equal((await service.taxi(ASSET)).nftNumber, 5);
-  await assert.rejects(service.taxi('6'), error => (error as { status?: number }).status === 404);
-  await assert.rejects(service.taxi('not-an-address'), /valid NFT address/);
+  assert.deepEqual(await service.taxi('6'), { minted: false, error: 'This NFT has not been minted yet or is unavailable.' });
+  assert.deepEqual(await service.taxi('not-an-address'), { minted: false, error: 'Enter a valid NFT address or minted NFT number.' });
 });
 
 test('earning history expires after a 45-day safety window', async () => {

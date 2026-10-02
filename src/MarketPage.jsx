@@ -221,6 +221,10 @@ export function MarketPage({ wallet, connectWallet }) {
     const timer = window.setTimeout(() => {
       loadPublicTaxi(identifier, controller.signal)
         .then(taxi => {
+          if (!taxi.minted) {
+            setOfferAssetLookup({ status: 'error', taxi: null, message: taxi.error || 'This NFT is unavailable.' });
+            return;
+          }
           setOfferAsset(taxi.asset);
           setOfferAssetLookup({ status: 'found', taxi, message: '' });
         })

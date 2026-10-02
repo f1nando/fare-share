@@ -207,17 +207,17 @@ export function createPublicDataService(config: {
     let machine: FleetMachineDocument | null;
     if (numberMatch) {
       const nftNumber = Number(numberMatch[1]);
-      if (nftNumber < 1) throw new PublicDataError('NFT number must be greater than zero.');
+      if (nftNumber < 1) return { minted: false, error: 'NFT number must be greater than zero.' };
       machine = await database.fleetMachines.findOne({
         name: { $regex: new RegExp(`#${String(nftNumber).padStart(4, '0')}$`) },
         closed: false,
       });
     } else {
       let asset: Address;
-      try { asset = address(identifier); } catch { throw new PublicDataError('Enter a valid NFT address or minted NFT number.'); }
+      try { asset = address(identifier); } catch { return { minted: false, error: 'Enter a valid NFT address or minted NFT number.' }; }
       machine = await database.fleetMachines.findOne({ asset: String(asset), closed: false });
     }
-    if (!machine) throw new PublicDataError('This NFT has not been minted yet or is unavailable.', 404);
+    if (!machine) return { minted: false, error: 'This NFT has not been minted yet or is unavailable.' };
     return {
       asset: machine.asset,
       owner: machine.owner,
