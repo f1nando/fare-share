@@ -602,9 +602,12 @@ export function createCity(container, initialSettings, benchmark = null) {
     // finish the entire next strip; missing tiles still have a synchronous path.
     if (moving && performance.now() - start < 4) scenery.warmOne();
     const renderStart = benchmark ? performance.now() : 0;
+    // Changing pixel ratio reallocates and clears the drawing buffer. Apply an
+    // adaptive profile before rendering so the resized buffer is filled in the
+    // same animation frame instead of flashing the page background once.
+    adaptiveQuality?.record(timestamp, rafMs);
     benchmark?.beforeRender?.();
     renderer.render(scene, camera);
-    adaptiveQuality?.record(timestamp, rafMs);
     if (benchmark) {
       const end = performance.now();
       benchmark.afterRender?.();
