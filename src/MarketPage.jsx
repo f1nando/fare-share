@@ -103,7 +103,7 @@ function ClassOfferDrivingScene({ className, modelName }) {
             className={`fare-market-offer-scene${index === preview.previousIndex ? ' is-previous' : ''}${index === preview.currentIndex ? ' is-active' : ''}`}
             key={item.id || item.name}
           >
-            <FareStepDrivingScene scene={item} showHeadlights={false} />
+            <FareStepDrivingScene scene={item} showHeadlights={false} imageLoading="eager" />
           </div>
         ))}
       </div>

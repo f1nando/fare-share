@@ -197,7 +197,7 @@ function FleetSceneCard({ scene, fleetClass }) {
   );
 }
 
-export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlights = true }) {
+export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlights = true, imageLoading = 'lazy' }) {
   const roadRef = useRef(null);
   const boundsRef = useRef(null);
   const rateFrameRef = useRef(0);
@@ -263,7 +263,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
       onPointerMove={updateRoadRateFromPointer}
       onPointerLeave={() => setTargetRoadRate(1)}
     >
-      <img className="fare-step-driving-car" src={imageUrl} alt="" loading="lazy" decoding="async" />
+      <img className="fare-step-driving-car" src={imageUrl} alt="" loading={imageLoading} decoding="async" />
       <div className="fare-fleet-road" ref={roadRef} style={{
         '--road-travel-x': `${settings.markSpacing * pathX}cqw`,
         '--road-travel-y': `${settings.markSpacing * pathY}cqw`,
