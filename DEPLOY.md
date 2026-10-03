@@ -33,7 +33,7 @@ Production обновляется отдельно или атомарно пр�
 > signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Test CA
 > `C4TZ…NKrj` (`TAXI`) привязан. 2026-10-03 production pause снят транзакцией
 > `37V6YmKwZ5KexbvCah3wTedgwyruQnFJsSP9mem7QBn8Us8uRkGFjyQqXrwGVHBZFA3Vep7zb7wPkvstsFVk2fyd`;
-> protocol находится в состоянии `live`, backend release `7328712` активен,
+> protocol находится в состоянии `live`, backend/frontend release `d04e644` активен,
 > постоянный worker выключен.
 > Sale уже была необратимо начата, supply `[0,1,0,0]`.
 
@@ -74,6 +74,8 @@ retry после временных RPC-ошибок также завершён
 `348.516417 TAXI`, `0.00017406 UBERx`, `0.00003261 TSLAx`, `0.00003549 GOOGLx`
 и `0.00004800 AMZNx`; все reward `nextPool` и `seriesRemaining` пусты. Protocol
 vault содержит `15,151` lamport, необработанные creator fees отсутствуют.
+Trade index version `6` исключает rent создания/закрытия token accounts из
+исторических цены и объёма; после rebuild показатель 24H составляет около `-4.47%`.
 Постоянный worker остаётся выключенным.
 Recovery manifest SHA-256:
 `f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
