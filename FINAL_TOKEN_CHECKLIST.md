@@ -215,9 +215,20 @@ production `$FARE`, пока владелец отдельно не утверд
 - Idempotent repeat bind: `SyLYkUzKeiFm4UhSWzfSvGdxRiVnFFufKpyJ1v7E9QuTJwziwTbp1g7aErSDHXBKsYoyaPXJ9z7fejo4uJVQXL7`.
 - Runtime token config: `configured=true`, ticker `TAXI`; backend health/token smoke PASS.
 - Mainnet recovery audit after binding: PASS; all six protocol token vaults are zero.
-- Protocol remains paused, sale is closed, supply is `[0,0,0,0]`; backend and worker are stopped.
-- Paid mint smoke is intentionally not started until this test CA is explicitly approved
-  for opening sale; `start_sale` is irreversible even though pause remains available.
+- Test liquidity buy (`0.22 SOL`): `3JgQXgqsDmsC7vinqD7iBTnxdEkRf1bNXVzo5BBEuJJ6FovtXqk3PMRxTZ4bxCkkgJaW18w4ntBpLew1EWi4Z2Uu`.
+- Sale start: `4oM53eps2xXivy4yDRyxpxdDuubk8quZvdJGx7KDtFPRqqmtmM6gzdeMQXxpabzKQyM7pGghxvFmiz38465VZL2X`.
+- Test unpause: `mMewmKtJEmjsLr28TMuNd3xpuXqAooSQGGtCzG2zBX5nmocaperyKVoKQZYM47cvj994TuU4Ns34MK4wKMCjC6Q`.
+- Paid mint (`$25`, assignment `0`, Comfort/Toyota Prius): `REV4vebghECi4qtujKaisyWMuhR3RUJjLgkj67oaGrd29vKLwJHrCzUoQqJhSFSdAwW1U3ehAxcGEEiNaFBE1Hz`.
+- Minted asset: `EMaK2hrp7QxrpgMmQ5fHbtVWTubSHgwho9Hmv8kbZ4iU`; machine PDA:
+  `6EJd9S3WVhp1x8yTcqUwmDeQdh9N7HRXmzHv6ETy6CEU`.
+- Post-smoke pause: `2Nj6PgqcLmjHrcyTA97ouBCpwbjz2WmRuwZuHhK6rE8eBH7mhYeo4ryUuaHnfomFijQqQJtNojsa7iuwQN9RHNrs`.
+- Full TAXI unwind: `3uGALA6WkA3M49GxUZVMb537F2qa4p4dBF1PUFqqExWsHtR4dFfqtfTRkhawk7igFJej8XN2jyVnACiYZZ9werNu`.
+- Post-smoke creator-fee distribution: `omG2ep6vRbyArXrKZwSQC81B6hH21sTQFy1nf62oEbAHfvZ9msrRLrPDZmSooqoKc7qVb1PGeKmLLayF9mDUcWS`.
+- Smoke found and fixed the server-only assignment-manifest traversal permission:
+  `/etc/ownataxi/private` is now `750 root:ownataxi`; the manifest remains `640`.
+- Final state: protocol paused, sale started, minted supply `[0,1,0,0]`, all protocol
+  token vaults and obligations zero, outstanding claim count zero, backend and worker stopped.
+- End-to-end net project-wallet spend since the test token launch: `0.060987558 SOL`.
 
 Финальный результат: `PASS / FAIL`
 

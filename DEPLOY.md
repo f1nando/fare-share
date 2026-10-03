@@ -30,8 +30,9 @@ Production обновляется отдельно или атомарно пр�
 
 > **Текущий статус:** новый production Program `8Z9M…YwxD` и Collection
 > `Ebcw…RXpm` опубликованы в mainnet. Upgrade authority, protocol admin, backend
-> signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Sale закрыта,
-> `$FARE` ещё не привязан, supply равен нулю.
+> signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Test CA
+> `C4TZ…NKrj` (`TAXI`) привязан; после paid-mint smoke протокол снова paused.
+> Sale уже была необратимо начата, supply `[0,1,0,0]`.
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
@@ -62,7 +63,9 @@ Mainnet deployment выполнен 2026-10-03: initial deploy
 Collection переключена до старта sale и до первого mint на `Ebcw…RXpm` транзакцией
 `4oDz4H…7nPSZ`; DAS подтверждает authority `F3jK…n8tR`. Ошибочно созданная до
 переноса authority Collection сожжена и оставила только Core tombstone `0.000655320 SOL`.
-Протокол paused, sale закрыта, `$FARE` не привязан, supply `[0,0,0,0]`.
+2026-10-03 test CA `C4TZ…NKrj` был привязан к протоколу. Paid-mint smoke выпустил
+Comfort asset `EMaK…Z4iU` транзакцией `REV4ve…E1Hz`. После теста протокол paused,
+saleStarted остаётся `true`, supply `[0,1,0,0]`, token vaults и obligations нулевые.
 Recovery manifest SHA-256:
 `f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
 fail-closed close dry-run — PASS, но close не выполнялся.
