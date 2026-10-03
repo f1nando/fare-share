@@ -34,6 +34,7 @@ export async function loadDatabaseFleet(owner) {
       machineAddress: machine.machine,
       name: machine.name,
       image: machine.image,
+      className: machine.className,
       weight: machine.weight,
       durability: calculateDurabilityPercent(secondsLeft),
       rewards,

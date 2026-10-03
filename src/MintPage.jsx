@@ -554,7 +554,7 @@ async function loadMintReveal(owner, asset) {
       const rightPrice = BigInt(right.priceLamports);
       return leftPrice === rightPrice ? 0 : leftPrice > rightPrice ? -1 : 1;
     })[0] || null;
-  return { ...taxi, bestOffer };
+  return { ...taxi, className: taxi.className || classNameFromWeight(taxi.weight), bestOffer };
 }
 
 function offerMatchesMint(offer, taxi) {
@@ -569,6 +569,10 @@ function taxiModelName(name) {
 
 function classTone(className) {
   return String(className || 'Economy').toLowerCase().replace('legendary', 'legend');
+}
+
+function classNameFromWeight(weight) {
+  return ({ 1: 'Economy', 3: 'Comfort', 10: 'Business', 30: 'Legend' })[Number(weight)] || 'Taxi';
 }
 
 function formatSolOffer(rawLamports) {
