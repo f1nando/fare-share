@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 import traineeDrivingScene from './traineeDrivingScene.json';
-import { appAssetPath } from './appPath.js';
+import { appAssetPath, appPath } from './appPath.js';
 import {
   activateTrainee,
   claimTrainee,
@@ -15,7 +15,7 @@ import {
   prepareMintQuote,
   waitForTransaction,
 } from './protocol/solana.js';
-import { loadPublicOverview, saveMintToDatabase } from './publicData.js';
+import { loadDatabaseFleet, loadPublicMarket, loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
 import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
@@ -96,6 +96,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [traineeBusy, setTraineeBusy] = useState('');
   const [traineeNotice, setTraineeNotice] = useState('');
   const [traineeSignature, setTraineeSignature] = useState('');
+  const [mintReveal, setMintReveal] = useState(null);
   const [preview, dispatchPreview] = useReducer(previewReducer, undefined, createPreviewState);
   const selectedPreview = PREVIEW_ITEMS[preview.currentIndex];
   const onchainMintedByClass = status?.config?.mintedByClass;
@@ -201,6 +202,10 @@ export function MintPage({ wallet, connectWallet }) {
       setStatus(await loadProtocolStatus());
       setPreparedMint(null);
       setSignature(lastSignature);
+      if (indexedMint.indexed) {
+        const reveal = await loadMintReveal(String(connection.account.address), String(result.asset));
+        if (reveal) setMintReveal(reveal);
+      }
       const message = indexedMint.indexed
         ? 'Taxi NFT minted and added to your fleet.'
         : 'Taxi NFT minted. Fleet indexing is still in progress.';
@@ -353,6 +358,18 @@ export function MintPage({ wallet, connectWallet }) {
     });
   }, [preview.currentIndex]);
 
+  useEffect(() => {
+    if (!mintReveal) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = event => { if (event.key === 'Escape') setMintReveal(null); };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [mintReveal]);
+
   return (
     <>
       <main className="fare-mint-main" id="top">
@@ -480,6 +497,70 @@ export function MintPage({ wallet, connectWallet }) {
           </section>
         </section>
       </main>
+      {mintReveal && <div className="fare-mint-reveal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setMintReveal(null); }}>
+        <section className="fare-mint-reveal" role="dialog" aria-modal="true" aria-labelledby="mint-reveal-title">
+          <button className="fare-mint-reveal-close" type="button" aria-label="Close taxi reveal" onClick={() => setMintReveal(null)}>×</button>
+          <div className="fare-mint-reveal-visual">
+            {mintReveal.image
+              ? <img src={mintReveal.image} alt={mintReveal.name} />
+              : <div className="fare-mint-reveal-image-fallback">TAXI</div>}
+            <span className={`fare-fleet-class is-${classTone(mintReveal.className)}`}>{mintReveal.className.toUpperCase()}</span>
+          </div>
+          <div className="fare-mint-reveal-copy">
+            <span className="fare-mint-reveal-kicker">YOUR TAXI IS READY</span>
+            <h2 id="mint-reveal-title">CONGRATULATIONS!</h2>
+            <p>You got <strong>{mintReveal.name}</strong>. This taxi is already in your fleet.</p>
+            <div className="fare-mint-reveal-stats">
+              <div><span>WEIGHT</span><strong>{mintReveal.weight}</strong></div>
+              <div><span>CLASS</span><strong>{mintReveal.className}</strong></div>
+              {mintReveal.bestOffer && <div className="is-market"><span>BEST BUY OFFER</span><strong>{formatSolOffer(mintReveal.bestOffer.priceLamports)} SOL</strong></div>}
+            </div>
+            {mintReveal.bestOffer && <p className="fare-mint-reveal-offer">There is already an active market request matching this taxi.</p>}
+            <div className="fare-mint-reveal-actions">
+              <a href={appPath('/garage/')}>View in Garage</a>
+              {mintReveal.bestOffer && <a className="is-secondary" href={appPath('/market/?mode=sell')}>View offer</a>}
+              <button type="button" onClick={() => setMintReveal(null)}>Continue</button>
+            </div>
+          </div>
+        </section>
+      </div>}
     </>
   );
+}
+
+async function loadMintReveal(owner, asset) {
+  const [fleetResult, marketResult] = await Promise.allSettled([
+    loadDatabaseFleet(owner),
+    loadPublicMarket(),
+  ]);
+  if (fleetResult.status !== 'fulfilled') return null;
+  const taxi = fleetResult.value.find(item => item.asset === asset);
+  if (!taxi) return null;
+  const offers = marketResult.status === 'fulfilled' ? marketResult.value.offers || [] : [];
+  const bestOffer = offers
+    .filter(offer => String(offer.buyer) !== owner && offerMatchesMint(offer, taxi))
+    .sort((left, right) => {
+      const leftPrice = BigInt(left.priceLamports);
+      const rightPrice = BigInt(right.priceLamports);
+      return leftPrice === rightPrice ? 0 : leftPrice > rightPrice ? -1 : 1;
+    })[0] || null;
+  return { ...taxi, bestOffer };
+}
+
+function offerMatchesMint(offer, taxi) {
+  if (offer.kind === 'asset') return offer.asset === taxi.asset;
+  if (offer.kind === 'class') return Number(offer.weight) === Number(taxi.weight);
+  return offer.kind === 'model' && offer.modelName === taxiModelName(taxi.name);
+}
+
+function taxiModelName(name) {
+  return String(name || '').replace(/^TAXI\s+/i, '').replace(/\s+#\d+$/, '');
+}
+
+function classTone(className) {
+  return String(className || 'Economy').toLowerCase().replace('legendary', 'legend');
+}
+
+function formatSolOffer(rawLamports) {
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(Number(BigInt(rawLamports)) / 1_000_000_000);
 }
