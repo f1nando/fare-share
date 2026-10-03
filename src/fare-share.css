@@ -376,7 +376,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-garage-durability-copy strong { font-family: 'Roboto Mono', 'Courier New', monospace; }
 .fare-garage-durability { height: 12px; margin-top: 9px; border: 2px solid #111; border-radius: 999px; background: #fff; overflow: hidden; }
 .fare-garage-durability span { display: block; height: 100%; border-right: 2px solid #111; background: #ffe72f; }
-.fare-garage-earned { display: grid; grid-template: 'label amount' auto 'label stocks' auto / 1fr auto; align-items: end; gap: 4px 12px; margin-top: 20px; }
+.fare-garage-earned { display: grid; grid-template: 'label amount' auto 'stocks stocks' auto / 1fr auto; align-items: end; gap: 4px 12px; margin-top: 20px; }
 .fare-garage-earned > span { grid-area: label; align-self: start; font-size: 14px; font-weight: 700; }
 .fare-garage-earned strong { grid-area: amount; justify-self: end; font-size: 20px; font-weight: 900; text-align: right; }
 .fare-garage-earned small { grid-area: stocks; color: #666; font-size: 11px; text-align: right; }
