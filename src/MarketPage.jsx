@@ -775,11 +775,10 @@ export function MarketPage({ wallet, connectWallet }) {
         )}
 
         {mode === 'mine' && (
-          <section className="fare-market-mine-view" aria-labelledby="mine-view-title">
+          <section className="fare-market-mine-view" aria-label="My activity">
             {!walletAddress
               ? <div className="fare-market-intent-empty"><span>MY ACTIVITY</span><h2 id="mine-view-title">CONNECT YOUR WALLET</h2><p>Manage your listings and escrowed buy requests.</p><button type="button" disabled={busy} onClick={connectForMarket}>{busy ? 'CONNECTING…' : 'CONNECT WALLET'}</button></div>
-              : <><div className="fare-market-view-heading"><div><span>CONNECTED WALLET</span><h2 id="mine-view-title">MY ACTIVITY</h2></div><strong>{shortWallet(walletAddress)}</strong></div>
-                <section className="fare-market-personal-section"><div className="fare-market-personal-heading"><h3>MY LISTINGS</h3><button type="button" onClick={() => selectMode('sell')}>LIST ANOTHER TAXI</button></div>{myListings.length ? <div className="fare-market-grid is-personal">{myListings.map(renderListingCard)}</div> : <div className="fare-market-offers-empty">YOU HAVE NO ACTIVE LISTINGS</div>}</section>
+              : <><section className="fare-market-personal-section"><div className="fare-market-personal-heading"><h3>MY LISTINGS</h3><button type="button" onClick={() => selectMode('sell')}>LIST ANOTHER TAXI</button></div>{myListings.length ? <div className="fare-market-grid is-personal">{myListings.map(renderListingCard)}</div> : <div className="fare-market-offers-empty">YOU HAVE NO ACTIVE LISTINGS</div>}</section>
                 <section className="fare-market-personal-section"><div className="fare-market-personal-heading"><h3>MY BUY REQUESTS</h3><button type="button" onClick={() => { selectMode('buy'); window.setTimeout(() => openOffer(), 0); }}>CREATE REQUEST</button></div>{myOffers.length ? <div className="fare-market-offer-grid">{myOffers.map(renderOfferCard)}</div> : <div className="fare-market-offers-empty">YOU HAVE NO ACTIVE BUY REQUESTS</div>}</section>
               </>}
           </section>
