@@ -9,7 +9,7 @@ import {
   normalizeKeyword,
   parseBackendSigner,
 } from '../server/signing.js';
-import { decodeClockFields } from '../server/solanaState.js';
+import { decodeClockFields, findAvailableBlockTime } from '../server/solanaState.js';
 import { consumeRateLimit, VoucherError, voucherExpiresAt } from '../server/voucherService.js';
 
 test('voucher message matches the Rust field order and little-endian values', () => {
@@ -89,6 +89,17 @@ test('server decodes protocol pause clock after variable metadata strings', () =
 
 test('voucher expiry follows Solana chain time instead of the server clock', () => {
   assert.equal(voucherExpiresAt(1_000n, 180), 1_180n);
+});
+
+test('protocol clock falls back when the newest confirmed block is unavailable', async () => {
+  const requested: number[] = [];
+  const blockTime = await findAvailableBlockTime(500, async slot => {
+    requested.push(slot);
+    if (slot === 500) throw new Error('Block not available for slot 500');
+    return 1_234;
+  });
+  assert.equal(blockTime, 1_234);
+  assert.deepEqual(requested, [500, 499]);
 });
 
 test('parallel first requests cannot bypass the ten-attempt rate limit', async () => {

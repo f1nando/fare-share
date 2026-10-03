@@ -51,8 +51,9 @@ export async function loadProtocolClock(rpcUrl: string, programId: Address): Pro
   // A finalized slot can lag the current Clock across a minute boundary and make a
   // freshly issued voucher fail immediately with InvalidTraineeTimes.
   const slotResult = await solanaRpcCall<number>(rpcUrl, 'getSlot', [{ commitment: 'confirmed' }]);
-  const blockTime = await solanaRpcCall<number | null>(rpcUrl, 'getBlockTime', [slotResult]);
-  if (blockTime === null) throw new Error('Confirmed Solana block time is unavailable');
+  const blockTime = await findAvailableBlockTime(slotResult, slot => (
+    solanaRpcCall<number | null>(rpcUrl, 'getBlockTime', [slot])
+  ));
   const chainNow = BigInt(blockTime);
   const frozenNow = state.pausedAt === 0n ? chainNow : state.pausedAt;
   return {
@@ -62,6 +63,21 @@ export async function loadProtocolClock(rpcUrl: string, programId: Address): Pro
     protocolTime: frozenNow - state.totalPausedSeconds,
     paused: state.pausedAt !== 0n,
   };
+}
+
+export async function findAvailableBlockTime(
+  confirmedSlot: number,
+  getBlockTime: (slot: number) => Promise<number | null>,
+) {
+  for (let offset = 0; offset < 8; offset += 1) {
+    try {
+      const blockTime = await getBlockTime(confirmedSlot - offset);
+      if (blockTime !== null) return blockTime;
+    } catch (error) {
+      if (!/block not available|slot .* skipped|missing due to ledger/i.test(String(error))) throw error;
+    }
+  }
+  throw new Error('Confirmed Solana block time is unavailable');
 }
 
 export function decodeClockFields(bytes: Uint8Array) {
