@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
 import { appPath } from './appPath.js';
 import { formatCompactNumber } from './compactNumber.js';
+import { FareStepDrivingScene } from './FareShareLanding.jsx';
+import drivingScenes from './drivingScenes.json';
 
 export function MintRevealModal({ reveal, onClose }) {
+  const drivingScene = reveal.scene || drivingScenes.find(scene => String(reveal.name || '').includes(scene.name));
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = event => { if (event.key === 'Escape') onClose(); };
@@ -18,7 +21,9 @@ export function MintRevealModal({ reveal, onClose }) {
     <section className="fare-mint-reveal" role="dialog" aria-modal="true" aria-labelledby="mint-reveal-title">
       <button className="fare-mint-reveal-close" type="button" aria-label="Close taxi reveal" onClick={onClose}>×</button>
       <div className="fare-mint-reveal-visual">
-        {reveal.image
+        {drivingScene
+          ? <FareStepDrivingScene scene={drivingScene} showHeadlights imageLoading="eager" />
+          : reveal.image
           ? <img src={reveal.image} alt={reveal.name} />
           : <div className="fare-mint-reveal-image-fallback">TAXI</div>}
         <span className={`fare-fleet-class is-${classTone(reveal.className)}`}>{String(reveal.className || 'Taxi').toUpperCase()}</span>

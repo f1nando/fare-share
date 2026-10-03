@@ -1,11 +1,9 @@
 import { useCallback, useState } from 'react';
-import { appAssetPath } from './appPath.js';
 import { MintRevealModal } from './MintRevealModal.jsx';
 
 const TEST_REVEAL = {
   asset: 'test-mint-preview',
   name: 'TAXI Checker Marathon #0011',
-  image: appAssetPath('/fare-share/fleet/checker-marathon.webp'),
   className: 'Economy',
   weight: 1,
   bestOffer: null,
