@@ -234,8 +234,8 @@ production `$FARE`, пока владелец отдельно не утверд
 - Post-smoke creator-fee distribution: `omG2ep6vRbyArXrKZwSQC81B6hH21sTQFy1nf62oEbAHfvZ9msrRLrPDZmSooqoKc7qVb1PGeKmLLayF9mDUcWS`.
 - Smoke found and fixed the server-only assignment-manifest traversal permission:
   `/etc/ownataxi/private` is now `750 root:ownataxi`; the manifest remains `640`.
-- Final state: protocol paused, sale started, minted supply `[0,1,0,0]`, all protocol
-  token vaults and obligations zero, outstanding claim count zero, backend and worker stopped.
+- Paid-mint smoke end state was paused with supply `[0,1,0,0]`; production was later
+  activated and the reward state below supersedes the zero-vault snapshot.
 - End-to-end net project-wallet spend since the test token launch: `0.060987558 SOL`.
 
 Финальный результат: `PASS / FAIL`
@@ -245,6 +245,26 @@ production `$FARE`, пока владелец отдельно не утверд
 ```text
 
 ```
+
+## Production worker smoke — 2026-10-03
+
+- Trade buy `0.003 SOL`: `4WVG5Xm9Hw6TLysf1oPxCc18mX7a2G7rwyqThL4fRf5mNM7Bs8TUBKfqQ37ZmwWtUbz36bcx8Xrf5dMLZKjHadmP`.
+- Round-trip sell `105,955.005991 TAXI`: `26BCst2P3ohghF33yuovXW7uEeXnMqS7GEJ2vbjhMKheK5gKE6KBmXu8aiRxhZNxBHtjBbD7N8vTD7BCwpRmpd5r`.
+- Creator fees increased from `4,149` to `21,927` lamports.
+- Creator-fee claim: `VyQUUCrQsEHB9k1CJH6NxSd4VVTWFF5Xduo91XXZszziW55R97ctk1rxH55deuU4XvDX9Dk6ivfLtJ2pGZKWSCW`.
+- Protocol deposit: `59vLnmUsWj92nFWn8ifEnyAzQaGWRyKN1d8RZbhtD7eA1g4r4BimMzgfSWaeH6ceMZnAnvP64yhFkpb9YHiS8xxN`.
+- FARE swap: `3sPExH7sw84bDDnxNqq2fjyXzKqcHDaepFDrMrCdqerzKzphSEPj2gPwnFxSASqAfT9afzLvSnofEf16BkN49MuY`.
+- Reward calculation: `4m7BFVQgShCrt5pBxEzu2jbNJwviK3Y1uWXJkQtZTjNucypm4CBL9NDGp9MThk7x6YEuNTx2Tu1pAMh1BDiaUm5G`.
+- Active machine claimable: `348.516417 TAXI`, `0.00017406 UBERx`,
+  `0.00003261 TSLAx`, `0 GOOGLx`, `0.00004800 AMZNx`.
+- `GOOGLx` route remained unavailable after three alternate Jupiter routes; its
+  `101,096` lamport reserve remains in the protocol vault and was not lost.
+- Worker retry policy now treats unresolved submissions as retryable and rotates DEXes.
+- Manual worker state returned to `disabled`; permanent automation remains off.
+- Net project-wallet cost of trade plus worker smoke: `0.000349310 SOL`.
+
+Результат: `PASS` для fee claim/deposit, FARE swap, reward calculation and allocation;
+`GOOGLx` route is a documented liquidity limitation.
 
 ## Запрещённые проверки
 

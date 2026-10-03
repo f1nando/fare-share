@@ -66,11 +66,13 @@ Collection переключена до старта sale и до первого 
 `4oDz4H…7nPSZ`; DAS подтверждает authority `F3jK…n8tR`. Ошибочно созданная до
 переноса authority Collection сожжена и оставила только Core tombstone `0.000655320 SOL`.
 2026-10-03 test CA `C4TZ…NKrj` был привязан к протоколу. Paid-mint smoke выпустил
-Comfort asset `EMaK…Z4iU` транзакцией `REV4ve…E1Hz`. После теста протокол paused,
-saleStarted остаётся `true`, supply `[0,1,0,0]`. Reward smoke начислил и выплатил
-машине `31,791.080200 TAXI`; machine claimable снова нулевой. В trainee `nextPool`
-осталось `3,532.342244 TAXI` до появления активного trainee, main rounding residual —
-`0.000001 TAXI`, а fee-vault stock reserves — `0.000400000 SOL`. Постоянный worker
+Comfort asset `EMaK…Z4iU` транзакцией `REV4ve…E1Hz`. Production protocol сейчас
+`live`, saleStarted `true`, supply `[0,1,0,0]`. Production worker smoke подтвердил
+creator-fee claim/deposit, FARE/xStock swaps и reward calculation. Активной машине
+доступны `348.516417 TAXI`, `0.00017406 UBERx`, `0.00003261 TSLAx` и
+`0.00004800 AMZNx`; trainee `nextPool` содержит `3,571.066290 TAXI`. Маршрут
+`GOOGLx` недоступен после трёх альтернативных Jupiter routes, поэтому его
+`101,096` lamport reserve безопасно остался в protocol vault. Постоянный worker
 остаётся выключенным.
 Recovery manifest SHA-256:
 `f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
