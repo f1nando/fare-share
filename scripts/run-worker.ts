@@ -32,6 +32,9 @@ const feeAdmin = await createFeeAdminService({
 }, database.adminFeeActions, database.adminFeeOperations, database.tokenConfig, database.workerStatus);
 const defaults = { enabled: false, intervalMs: config.workerIntervalMs, minimumLamports: config.swapMinimumLamports };
 const REWARD_INTERVAL_MS = 60_000;
+const once = process.argv.includes('--once');
+const manualOnce = once && process.argv.includes('--manual');
+if (process.argv.includes('--manual') && !once) throw new Error('--manual requires --once');
 const telegram = config.telegramBotTokenFile
   ? await createTelegramAlertService(
       config.telegramBotTokenFile,
@@ -48,6 +51,8 @@ let lastBackendHealthAt = 0;
 process.once('SIGINT', () => { stopping = true; });
 process.once('SIGTERM', () => { stopping = true; });
 
+if (manualOnce) console.log(`MANUAL_WORKER_BEFORE=${JSON.stringify(manualAudit(await feeAdmin.status()))}`);
+
 while (!stopping) {
   await telegramCall(telegram, service => service.pollAdminClaim());
   if (telegram && config.telegramBackendHealthUrl && Date.now() - lastBackendHealthAt >= 30_000) {
@@ -61,14 +66,14 @@ while (!stopping) {
     }
   }
   const settings = await loadWorkerSettings(database.workerStatus, defaults);
-  if (!settings.enabled && !process.argv.includes('--once')) {
+  if (!settings.enabled && !once) {
     await database.workerStatus.updateOne({ key: 'protocol-worker', state: { $ne: 'running' } }, {
       $set: { state: 'disabled', updatedAt: new Date() }, $unset: { nextRunAt: '' },
     });
     await wait(5_000);
     continue;
   }
-  if (!process.argv.includes('--once')) {
+  if (!once) {
     try {
       const balance = BigInt(await solanaRpcCall<number>(config.solanaRpcUrl, 'getBalance', [
         feeAdmin.payerAddress,
@@ -103,7 +108,7 @@ while (!stopping) {
     }
   }
   const started = Date.now();
-  const fullDue = process.argv.includes('--once') || started - lastFullCycleAt >= settings.intervalMs;
+  const fullDue = once || started - lastFullCycleAt >= settings.intervalMs;
   const rewardsDue = started - lastRewardCycleAt >= REWARD_INTERVAL_MS;
   if (!fullDue && !rewardsDue) {
     const nextFullAt = lastFullCycleAt + settings.intervalMs;
@@ -116,9 +121,11 @@ while (!stopping) {
   }
   const action = fullDue ? 'full' : 'rewards';
   try {
-    await runWorkerAction(database.workerStatus, defaults, action, 'automatic', (active, runId) => (
-      performWorkerAction(action, 'automatic', active, runId, feeAdmin)
+    const source = manualOnce ? 'manual' : 'automatic';
+    const result = await runWorkerAction(database.workerStatus, defaults, action, source, (active, runId) => (
+      performWorkerAction(action, source, active, runId, feeAdmin)
     ));
+    if (once) console.log(`WORKER_ACTION_RESULT=${JSON.stringify(result)}`);
     const finishedAt = Date.now();
     lastRewardCycleAt = finishedAt;
     if (action === 'full') lastFullCycleAt = finishedAt;
@@ -145,9 +152,11 @@ while (!stopping) {
     lastRewardCycleAt = failedAt;
     if (action === 'full') lastFullCycleAt = failedAt;
   }
-  if (process.argv.includes('--once')) break;
+  if (once) break;
   await wait(1_000);
 }
+
+if (manualOnce) console.log(`MANUAL_WORKER_AFTER=${JSON.stringify(manualAudit(await feeAdmin.status()))}`);
 
 await database.client.close();
 
@@ -162,4 +171,28 @@ async function telegramCall(service: TelegramAlertService | undefined, call: (se
   } catch (error) {
     console.error('Telegram alert operation failed:', error instanceof Error ? error.message : String(error));
   }
+}
+
+function manualAudit(status: Awaited<ReturnType<typeof feeAdmin.status>>) {
+  return {
+    fees: {
+      availableLamports: status.availableLamports,
+      bondingLamports: status.bondingLamports,
+      ammLamports: status.ammLamports,
+      pendingUnwrapLamports: status.pendingUnwrapLamports,
+    },
+    protocol: {
+      fareMint: status.dashboard.protocol.fareMint,
+      paused: status.dashboard.protocol.paused,
+      saleStarted: status.dashboard.protocol.saleStarted,
+    },
+    distribution: {
+      activeWeight: status.dashboard.distribution.activeWeight,
+      nextPool: status.dashboard.distribution.nextPool,
+      obligations: status.dashboard.distribution.obligations,
+      seriesRemaining: status.dashboard.distribution.seriesRemaining,
+      seriesActive: status.dashboard.distribution.seriesActive,
+    },
+    vaults: status.dashboard.vaults,
+  };
 }
