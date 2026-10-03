@@ -524,8 +524,13 @@ function setCors(request: IncomingMessage, response: ServerResponse) {
 }
 
 function requireLocalSceneAccess(request: IncomingMessage) {
-  const address = request.socket.remoteAddress || '';
-  if (address !== '127.0.0.1' && address !== '::1' && address !== '::ffff:127.0.0.1') {
+  const remoteAddress = request.socket.remoteAddress || '';
+  const host = request.headers.host || '';
+  const origin = request.headers.origin || '';
+  const loopbackSocket = remoteAddress === '127.0.0.1' || remoteAddress === '::1' || remoteAddress === '::ffff:127.0.0.1';
+  const loopbackHost = /^(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(host);
+  const loopbackOrigin = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin);
+  if (!loopbackSocket || !loopbackHost || !loopbackOrigin) {
     throw new DrivingSceneError('Driving scene library is available only on this computer.', 403);
   }
 }
