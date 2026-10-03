@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 
 export const FARE_FAQ_ITEMS = [
   {
     question: 'HOW DO I EARN FROM MY CARS?',
-    answer: 'A newly minted taxi starts participating automatically. While its durability remains active, it receives a weight-based share of calculated TAXI, UBERx, TSLAx, GOOGLx and AMZNx rewards.',
+    answer: 'A newly minted taxi starts participating automatically. While its durability remains active, it receives a weight-based share of calculated $FARE, UBERx, TSLAx, GOOGLx and AMZNx rewards.',
   },
   {
     question: 'WHAT ARE THE FEES?',
@@ -11,7 +12,7 @@ export const FARE_FAQ_ITEMS = [
   },
   {
     question: 'CAN I SELL MY CARS?',
-    answer: 'You can transfer a taxi directly from Garage. The Market link opens Magic Eden; always verify the official collection address before trading.',
+    answer: 'Yes. Fare Share Market supports onchain SOL listings and escrowed offers for an exact taxi, model or class. A listed taxi stays in your wallet until an atomic sale, and you can cancel your listing at any time.',
   },
   {
     question: 'IS THIS A REAL PRODUCT?',
@@ -33,6 +34,7 @@ function FaqChevron() {
 }
 
 export function FareFaq({ id = 'faq', titleId = 'fare-faq-title', titleClassName, titleTag: TitleTag = 'h2', answerIdPrefix = 'fare-faq-answer' }) {
+  const ticker = displayTicker(useTokenConfig());
   const [openIndex, setOpenIndex] = useState(null);
 
   return (
@@ -56,7 +58,7 @@ export function FareFaq({ id = 'faq', titleId = 'fare-faq-title', titleClassName
                 <FaqChevron />
               </button>
               <div className="fare-faq-answer" id={answerId} aria-hidden={!isOpen}>
-                <div><p>{item.answer}</p></div>
+                <div><p>{item.answer.replaceAll('$FARE', `$${ticker}`)}</p></div>
               </div>
             </article>;
           })}

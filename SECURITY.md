@@ -60,6 +60,6 @@ acknowledge good-faith reports and coordinate validation and remediation.
 - Domain: `https://ownataxi.com/rehearsal/`
 - Program: `3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z`
 - Collection: `DnRzC8Mgpa3EHeTgXLxWXnLCt7dRbSLegjviAq5knH6c`
-- Test token: `HGLuaP3kL2AXvU8gRZmQzLCqFvKcotm1Gsw5nZSzQdCA`
+- Rehearsal token (`TAXI2`): `PcKm4VNMurd8YV6rgie7tfGB9JYBv6C4YNDuD3Mpump`
 
 These rehearsal identifiers are not promises of future production addresses.

@@ -164,7 +164,7 @@ production launch:
 |---|---|
 | Program | `3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z` |
 | Collection | `DnRzC8Mgpa3EHeTgXLxWXnLCt7dRbSLegjviAq5knH6c` |
-| Test token (`FARETEST`) | `HGLuaP3kL2AXvU8gRZmQzLCqFvKcotm1Gsw5nZSzQdCA` |
+| Rehearsal token (`TAXI2`) | `PcKm4VNMurd8YV6rgie7tfGB9JYBv6C4YNDuD3Mpump` |
 
 Production will use a separately frozen and verified program deployment,
 collection, token, keyset, configuration manifest, and release artifact.
