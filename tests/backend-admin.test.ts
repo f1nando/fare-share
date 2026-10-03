@@ -68,9 +68,9 @@ test('FARE reset encodes fixed accounts followed by writable machines and traine
   assert.equal(instruction.data![10], 1);
 });
 
-test('current seven-machine and three-trainee FARE reset fits one transaction', async () => {
+test('current nine-machine and three-trainee FARE reset fits one transaction', async () => {
   const payer = await generateKeyPairSigner();
-  const dynamic = await Promise.all(Array.from({ length: 10 }, () => generateKeyPairSigner()));
+  const dynamic = await Promise.all(Array.from({ length: 12 }, () => generateKeyPairSigner()));
   const instruction = buildResetFareMintInstruction({
     programId: PROGRAM,
     admin: payer.address,
@@ -86,8 +86,8 @@ test('current seven-machine and three-trainee FARE reset fits one transaction', 
     feeSharingConfig: CONFIG,
     oldTokenProgram: TOKEN_PROGRAM,
     newTokenProgram: TOKEN_2022_PROGRAM,
-    machines: dynamic.slice(0, 7).map(item => item.address),
-    trainees: dynamic.slice(7).map(item => item.address),
+    machines: dynamic.slice(0, 9).map(item => item.address),
+    trainees: dynamic.slice(9).map(item => item.address),
   });
   const message = pipe(
     createTransactionMessage({ version: 0 }),
