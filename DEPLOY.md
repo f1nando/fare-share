@@ -220,8 +220,13 @@ tombstone и считается заранее известной невозвр
 2. Поставить протокол на паузу и подтвердить on-chain pause.
 3. Зафиксировать balances, обязательства и список всех SOL/token vault.
    До rescue обязательно выполнить `npm run protocol:audit-shutdown-claims -- --require-zero`.
-   Скрипт связывает каждую ненулевую Machine reward с текущим DAS owner; неизвестный
-   или неподконтрольный owner блокирует rescue и close до подписанного Claim.
+   Скрипт связывает каждую ненулевую Machine reward с текущим DAS owner. Если owner
+   недоступен, paused-программа позволяет admin вызвать `shutdown_claim_for_owner`
+   или `shutdown_claim_trainee_for_owner`: подпись owner не нужна, но выплата может
+   уйти только в canonical ATA фактического NFT owner. После owner-bound settlement
+   аудит повторяется с `--require-zero`. Отдельная shutdown-инструкция может очистить
+   только rounding dust не более `16 raw` на один asset; более крупная obligation
+   всегда блокирует rescue и close.
 4. Выполнить разрешённые `rescue-sol` / `rescue-token` на заранее проверенные
    адреса получателей.
 5. Повторный аудит обязан подтвердить нулевой доступный SOL в fee vault и нулевые
@@ -265,6 +270,12 @@ Wrapper повторяет аудит непосредственно перед 
 Запрещено закрывать программу ради rollback, при работающих сервисах, при ненулевых
 vault, при несовпадении хотя бы одного адреса или без доступной резервной копии
 authority keypair. После close тот же Program ID использовать повторно нельзя.
+
+Текущая rehearsal-программа `3i1Y…Ep1Z` окончательно закрыта на mainnet-beta
+2026-10-03. Close signature: `5p1cJoeCC2NwVGUZRYCrHFBnCV9PnkYZWyiHWdQHKW9VTBCCpxWepL8mkT2p44BRUQcDSQSja8RbRTTTPz2c6zPr`.
+ProgramData `5dRM…DSiuW` отсутствует, recipient `2NUN…EGVnF` получил
+`4.442094320 SOL` после комиссии `0.000005000 SOL`, а Program ID остался loader-v3
+tombstone с `0.000833120 SOL`.
 
 ### Подтверждение на настоящем mainnet
 

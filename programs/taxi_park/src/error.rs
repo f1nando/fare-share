@@ -158,4 +158,6 @@ pub enum TaxiError {
     NewFareVaultEmpty,
     #[msg("The new FARE vault must be empty for a cash-out reset")]
     NewFareVaultMustBeEmpty,
+    #[msg("Shutdown residual exceeds the maximum rounding-dust allowance")]
+    ShutdownResidualTooLarge,
 }

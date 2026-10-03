@@ -26,6 +26,7 @@ declare_id!("3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z");
 declare_id!("FJgPHdMEFi8JQSeW7h9ogLCDvm2gixWkXG8g7tqn7aJr");
 
 const MINT_PRICE_USD_CENTS: u64 = 2_500;
+const MAX_SHUTDOWN_RESIDUAL_RAW: u64 = 16;
 
 #[program]
 pub mod taxi_park {
@@ -2074,6 +2075,183 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn shutdown_claim_for_owner<'info>(
+        ctx: Context<'_, '_, 'info, 'info, ShutdownClaimForOwner<'info>>,
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(!ctx.accounts.machine.closed, TaxiError::MachineClosed);
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+        )?;
+        require!(
+            ctx.remaining_accounts.len() == ASSET_COUNT * 4,
+            TaxiError::InvalidClaimAccounts
+        );
+
+        ctx.accounts.machine.settle(&ctx.accounts.pool, true)?;
+        let amounts = ctx.accounts.machine.claimable;
+        let config_info = ctx.accounts.config.to_account_info();
+        let bump = [ctx.accounts.config.bump];
+        let signer_seeds: &[&[u8]] = &[b"config", &bump];
+
+        for (index, amount) in amounts.into_iter().enumerate() {
+            let offset = index * 4;
+            let mint_info = &ctx.remaining_accounts[offset];
+            let vault_info = &ctx.remaining_accounts[offset + 1];
+            let destination_info = &ctx.remaining_accounts[offset + 2];
+            let token_program_info = &ctx.remaining_accounts[offset + 3];
+            require_keys_eq!(
+                ctx.accounts.config.asset_mint(index)?,
+                mint_info.key(),
+                TaxiError::InvalidRewardMint
+            );
+            token::assert_program(token_program_info)?;
+            let mint = token::mint_view(mint_info, token_program_info.key)?;
+            let vault = token::account_view(vault_info, token_program_info.key)?;
+            require_keys_eq!(vault.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
+            require_keys_eq!(
+                vault.owner,
+                ctx.accounts.config.key(),
+                TaxiError::InvalidTokenAccount
+            );
+
+            if amount > 0 {
+                require_keys_eq!(
+                    destination_info.key(),
+                    token::associated_token_address(
+                        &ctx.accounts.owner.key(),
+                        &mint_info.key(),
+                        token_program_info.key,
+                    ),
+                    TaxiError::InvalidTokenAccount
+                );
+                let destination = token::account_view(destination_info, token_program_info.key)?;
+                require_keys_eq!(destination.mint, mint_info.key(), TaxiError::InvalidTokenAccount);
+                require_keys_eq!(
+                    destination.owner,
+                    ctx.accounts.owner.key(),
+                    TaxiError::InvalidTokenAccount
+                );
+                token::transfer_checked(
+                    token::TransferCheckedAccounts {
+                        program: token_program_info,
+                        source: vault_info,
+                        mint: mint_info,
+                        destination: destination_info,
+                        authority: &config_info,
+                    },
+                    amount,
+                    mint.decimals,
+                    &[signer_seeds],
+                )?;
+            }
+        }
+
+        for (index, amount) in amounts.into_iter().enumerate() {
+            ctx.accounts.pool.consume_obligation(index, amount)?;
+            ctx.accounts.machine.claimable[index] = 0;
+        }
+        emit!(RewardsClaimed {
+            asset: ctx.accounts.machine.asset,
+            owner: ctx.accounts.owner.key(),
+            amounts
+        });
+        Ok(())
+    }
+
+    pub fn shutdown_claim_trainee_for_owner(
+        ctx: Context<ShutdownClaimTraineeForOwner>,
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        metaplex_core::assert_asset(
+            &ctx.accounts.asset,
+            &ctx.accounts.owner.key(),
+            &ctx.accounts.config.collection,
+        )?;
+        require!(ctx.accounts.start_bucket.processed, TaxiError::TraineeRewardsNotCalculated);
+        let effective_until = if ctx.accounts.trainee_pool.series_active {
+            ctx.accounts.trainee_pool.series_cursor
+        } else {
+            ctx.accounts.trainee_pool.calculated_until
+        };
+        require!(effective_until >= ctx.accounts.trainee.active_from, TaxiError::TraineeRewardsNotCalculated);
+        let target = if effective_until >= ctx.accounts.trainee.active_until {
+            require!(ctx.accounts.end_bucket.processed, TaxiError::TraineeRewardsNotCalculated);
+            ctx.accounts.end_bucket.accumulator
+        } else {
+            ctx.accounts.trainee_pool.accumulators[0]
+        };
+        let checkpoint = if ctx.accounts.trainee.checkpoint_initialized {
+            ctx.accounts.trainee.checkpoint
+        } else {
+            ctx.accounts.start_bucket.accumulator
+        };
+        let amount = math::machine_reward(target, checkpoint, TRAINEE_WEIGHT)?;
+        token::assert_program(&ctx.accounts.token_program)?;
+        let fare_mint = token::mint_view(&ctx.accounts.fare_mint, &ctx.accounts.token_program.key())?;
+        let vault = token::account_view(&ctx.accounts.vault, &ctx.accounts.token_program.key())?;
+        require_keys_eq!(vault.mint, ctx.accounts.fare_mint.key(), TaxiError::InvalidTokenAccount);
+        require_keys_eq!(vault.owner, ctx.accounts.config.key(), TaxiError::InvalidTokenAccount);
+
+        if amount > 0 {
+            require_keys_eq!(
+                ctx.accounts.destination.key(),
+                token::associated_token_address(
+                    &ctx.accounts.owner.key(),
+                    &ctx.accounts.fare_mint.key(),
+                    &ctx.accounts.token_program.key(),
+                ),
+                TaxiError::InvalidTokenAccount
+            );
+            let destination_info = ctx.accounts.destination.to_account_info();
+            let destination = token::account_view(&destination_info, &ctx.accounts.token_program.key())?;
+            require_keys_eq!(destination.mint, ctx.accounts.fare_mint.key(), TaxiError::InvalidTokenAccount);
+            require_keys_eq!(destination.owner, ctx.accounts.owner.key(), TaxiError::InvalidTokenAccount);
+            let bump = [ctx.accounts.config.bump];
+            let seeds: &[&[u8]] = &[b"config", &bump];
+            token::transfer_checked(
+                token::TransferCheckedAccounts {
+                    program: &ctx.accounts.token_program,
+                    source: &ctx.accounts.vault,
+                    mint: &ctx.accounts.fare_mint,
+                    destination: &destination_info,
+                    authority: &ctx.accounts.config.to_account_info(),
+                },
+                amount,
+                fare_mint.decimals,
+                &[seeds],
+            )?;
+        }
+        ctx.accounts.trainee_pool.obligations[0] = ctx.accounts.trainee_pool.obligations[0]
+            .checked_sub(amount)
+            .ok_or(TaxiError::MathOverflow)?;
+        ctx.accounts.trainee.checkpoint = target;
+        ctx.accounts.trainee.checkpoint_initialized = true;
+        emit!(TraineeRewardsClaimed {
+            owner: ctx.accounts.owner.key(),
+            campaign_id: ctx.accounts.trainee.campaign_id,
+            amount,
+        });
+        Ok(())
+    }
+
+    pub fn shutdown_clear_residual_obligations(
+        ctx: Context<ShutdownClearResidualObligations>,
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(
+            !ctx.accounts.pool.series_active && !ctx.accounts.trainee_pool.series_active,
+            TaxiError::SeriesAlreadyActive
+        );
+        clear_shutdown_residuals(
+            &mut ctx.accounts.pool.obligations,
+            &mut ctx.accounts.trainee_pool.obligations,
+        )?;
+        Ok(())
+    }
+
     pub fn claim_many<'info>(
         ctx: Context<'_, '_, 'info, 'info, ClaimMany<'info>>,
         machine_count: u8,
@@ -2912,6 +3090,74 @@ pub struct SetFareMint<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ShutdownClaimForOwner<'info> {
+    pub admin: Signer<'info>,
+    /// CHECK: Current Core asset ownership and every destination ATA are verified.
+    pub owner: UncheckedAccount<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
+    #[account(mut, seeds = [b"machine", asset.key().as_ref()], bump = machine.bump, has_one = asset @ TaxiError::InvalidMachineEvent)]
+    pub machine: Box<Account<'info, Machine>>,
+    /// CHECK: Core owner, asset owner and collection are validated by metaplex_core::assert_asset.
+    #[account(address = machine.asset)]
+    pub asset: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ShutdownClaimTraineeForOwner<'info> {
+    pub admin: Signer<'info>,
+    /// CHECK: Current Core asset ownership and the destination ATA are verified.
+    pub owner: UncheckedAccount<'info>,
+    #[account(
+        seeds = [b"config"],
+        bump = config.bump,
+        has_one = admin @ TaxiError::Unauthorized,
+        has_one = fare_mint @ TaxiError::InvalidRewardMint
+    )]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"trainee"], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
+    #[account(
+        mut,
+        seeds = [b"trainee", owner.key().as_ref(), &trainee.campaign_id.to_le_bytes()],
+        bump = trainee.bump,
+        has_one = owner @ TaxiError::Unauthorized,
+        has_one = asset @ TaxiError::InvalidAssetOwner
+    )]
+    pub trainee: Account<'info, Trainee>,
+    /// CHECK: Core owner, asset owner and collection are validated in the handler.
+    #[account(address = trainee.asset)]
+    pub asset: UncheckedAccount<'info>,
+    #[account(seeds = [b"trainee-bucket", &trainee.active_from.to_le_bytes()], bump = start_bucket.bump)]
+    pub start_bucket: Account<'info, TraineeBucket>,
+    #[account(seeds = [b"trainee-bucket", &trainee.active_until.to_le_bytes()], bump = end_bucket.bump)]
+    pub end_bucket: Account<'info, TraineeBucket>,
+    /// CHECK: Address, owner and decimals are validated in the handler.
+    pub fare_mint: UncheckedAccount<'info>,
+    /// CHECK: Canonical vault, mint and authority are validated in the handler.
+    #[account(mut)]
+    pub vault: UncheckedAccount<'info>,
+    /// CHECK: Canonical owner ATA is validated before transfer.
+    #[account(mut)]
+    pub destination: UncheckedAccount<'info>,
+    /// CHECK: Must be the program that owns fare_mint.
+    pub token_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ShutdownClearResidualObligations<'info> {
+    pub admin: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Box<Account<'info, Configuration>>,
+    #[account(mut, seeds = [b"pool", b"main"], bump = pool.bump)]
+    pub pool: Box<Account<'info, RewardPool>>,
+    #[account(mut, seeds = [b"pool", b"trainee"], bump = trainee_pool.bump)]
+    pub trainee_pool: Box<Account<'info, RewardPool>>,
+}
+
+#[derive(Accounts)]
 pub struct ResetFareMint<'info> {
     pub admin: Signer<'info>,
     pub fee_recipient: Signer<'info>,
@@ -3161,9 +3407,37 @@ fn decode_direct_pump_curve(data: &[u8]) -> Result<(Pubkey, bool)> {
     Ok((creator, data[COMPLETE_OFFSET] != 0))
 }
 
+fn clear_shutdown_residuals(
+    main: &mut [u64; ASSET_COUNT],
+    trainee: &mut [u64; ASSET_COUNT],
+) -> Result<()> {
+    require!(
+        main.iter()
+            .chain(trainee.iter())
+            .all(|amount| *amount <= MAX_SHUTDOWN_RESIDUAL_RAW),
+        TaxiError::ShutdownResidualTooLarge
+    );
+    *main = [0; ASSET_COUNT];
+    *trainee = [0; ASSET_COUNT];
+    Ok(())
+}
+
 #[cfg(test)]
 mod accounting_tests {
     use super::*;
+
+    #[test]
+    fn shutdown_clears_only_bounded_rounding_dust() {
+        let mut main = [MAX_SHUTDOWN_RESIDUAL_RAW; ASSET_COUNT];
+        let mut trainee = [1; ASSET_COUNT];
+        assert!(clear_shutdown_residuals(&mut main, &mut trainee).is_ok());
+        assert_eq!(main, [0; ASSET_COUNT]);
+        assert_eq!(trainee, [0; ASSET_COUNT]);
+
+        main[0] = MAX_SHUTDOWN_RESIDUAL_RAW + 1;
+        assert!(clear_shutdown_residuals(&mut main, &mut trainee).is_err());
+        assert_eq!(main[0], MAX_SHUTDOWN_RESIDUAL_RAW + 1);
+    }
 
     #[test]
     fn market_offer_targets_bind_assets_and_supported_classes() {
