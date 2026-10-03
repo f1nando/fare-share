@@ -75,10 +75,11 @@ while (!stopping) {
   }
   if (!once) {
     try {
-      const balance = BigInt(await solanaRpcCall<number>(config.solanaRpcUrl, 'getBalance', [
+      const balanceResult = await solanaRpcCall<{ value: number }>(config.solanaRpcUrl, 'getBalance', [
         feeAdmin.payerAddress,
         { commitment: 'finalized' },
-      ]));
+      ]);
+      const balance = BigInt(balanceResult.value);
       if (balance < config.adminMinimumWalletLamports) {
         const now = new Date();
         await database.workerStatus.updateOne({ key: 'protocol-worker' }, {
