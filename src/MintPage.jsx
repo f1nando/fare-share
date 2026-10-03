@@ -390,7 +390,6 @@ export function MintPage({ wallet, connectWallet }) {
               <span>GENESIS TAXI COLLECTION</span>
               <h1 className="fare-page-title is-long" id="mint-page-title">MINT YOUR TAXI</h1>
             </div>
-            <p>Preview the next precommitted taxi, mint the NFT and put the car to work immediately. After that, you only need to keep it fueled.</p>
           </div>
 
           <div className="fare-mint-layout">
