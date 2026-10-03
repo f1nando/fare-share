@@ -519,7 +519,7 @@ export function MintPage({ wallet, connectWallet }) {
             {mintReveal.bestOffer && <p className="fare-mint-reveal-offer">There is already an active market request matching this taxi.</p>}
             <div className="fare-mint-reveal-actions">
               <a href={appPath('/garage/')}>View in Garage</a>
-              {mintReveal.bestOffer && <a className="is-secondary" href={appPath('/market/?mode=sell')}>View offer</a>}
+              {mintReveal.bestOffer && <a className="is-secondary" href={appPath('/market/sell/')}>View offer</a>}
               <button type="button" onClick={() => setMintReveal(null)}>Continue</button>
             </div>
           </div>

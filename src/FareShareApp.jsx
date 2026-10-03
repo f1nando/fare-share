@@ -42,6 +42,24 @@ const routes = {
     activeItem: 'market',
     title: 'Market — Fare Share',
   },
+  '/market/buy/': {
+    className: 'fare-market-page',
+    component: MarketPage,
+    activeItem: 'market',
+    title: 'Buy a Taxi — Fare Share',
+  },
+  '/market/sell/': {
+    className: 'fare-market-page',
+    component: MarketPage,
+    activeItem: 'market',
+    title: 'Sell a Taxi — Fare Share',
+  },
+  '/market/mine/': {
+    className: 'fare-market-page',
+    component: MarketPage,
+    activeItem: 'market',
+    title: 'My Market Activity — Fare Share',
+  },
   '/leaderboard/': {
     className: 'fare-leaderboard-page',
     component: LeaderboardPage,

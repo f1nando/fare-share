@@ -14,7 +14,7 @@ import {
   makeModelOffer,
 } from './protocol/solana.js';
 import drivingScenes from './drivingScenes.json';
-import { appAssetPath } from './appPath.js';
+import { appAssetPath, appPath } from './appPath.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -61,6 +61,8 @@ function taxiModelName(name = '') {
 }
 
 function marketModeFromLocation() {
+  const pathMode = window.location.pathname.match(/\/market\/(buy|sell|mine)\/?$/)?.[1];
+  if (pathMode) return pathMode;
   const mode = new URLSearchParams(window.location.search).get('mode');
   return ['buy', 'sell', 'mine'].includes(mode) ? mode : 'buy';
 }
@@ -359,6 +361,15 @@ export function MarketPage({ wallet, connectWallet }) {
   }
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    const canonicalPath = appPath(`/market/${mode}/`);
+    if (url.pathname === canonicalPath && !url.searchParams.has('mode')) return;
+    url.pathname = canonicalPath;
+    url.searchParams.delete('mode');
+    window.history.replaceState({}, '', url);
+  }, []);
+
+  useEffect(() => {
     if (listingPage <= listingPageCount) return;
     setListingPage(listingPageCount);
     const url = new URL(window.location.href);
@@ -383,7 +394,8 @@ export function MarketPage({ wallet, connectWallet }) {
     setShowListing(false);
     setShowOffer(false);
     const url = new URL(window.location.href);
-    url.searchParams.set('mode', nextMode);
+    url.pathname = appPath(`/market/${nextMode}/`);
+    url.searchParams.delete('mode');
     if (nextMode !== 'buy') {
       setListingPage(1);
       url.searchParams.delete('page');
