@@ -3,6 +3,7 @@ import type { DrivingSceneDocument } from './drivingScenes.js';
 import type { TradeHolderDocument, TradeStateDocument, TradeTransactionDocument } from './trade.js';
 import type { AdminLoginLimitDocument } from './adminAuth.js';
 import type { TokenConfigDocument } from './tokenConfig.js';
+import type { StockLiquiditySnapshotDocument } from './stockLiquidity.js';
 
 export const FLEET_EARNING_RETENTION_SECONDS = 45 * 24 * 60 * 60;
 export const ERROR_LOG_RETENTION_SECONDS = 30 * 24 * 60 * 60;
@@ -297,6 +298,7 @@ export interface TaxiDatabase {
   marketListings: Collection<MarketListingDocument>;
   marketOffers: Collection<MarketOfferDocument>;
   errorLogs: Collection<ErrorLogDocument>;
+  stockLiquiditySnapshots: Collection<StockLiquiditySnapshotDocument>;
 }
 
 export async function connectDatabase(uri: string, databaseName: string): Promise<TaxiDatabase> {
@@ -329,6 +331,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const marketListings = db.collection<MarketListingDocument>('market_listings');
   const marketOffers = db.collection<MarketOfferDocument>('market_offers');
   const errorLogs = db.collection<ErrorLogDocument>('error_logs');
+  const stockLiquiditySnapshots = db.collection<StockLiquiditySnapshotDocument>('stock_liquidity_snapshots');
   await Promise.all([
     campaigns.createIndex({ campaignId: 1 }, { unique: true }),
     campaigns.createIndex({ keywordHash: 1 }, { unique: true }),
@@ -381,8 +384,10 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     errorLogs.createIndex({ createdAt: -1 }),
     errorLogs.createIndex({ source: 1, status: 1, createdAt: -1 }),
     errorLogs.createIndex({ expiresAt: 1 }, { name: 'error_logs_ttl', expireAfterSeconds: 0 }),
+    stockLiquiditySnapshots.createIndex({ symbol: 1, checkedAt: -1 }),
+    stockLiquiditySnapshots.createIndex({ expiresAt: 1 }, { name: 'stock_liquidity_ttl', expireAfterSeconds: 0 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, protocolClaims, protocolIndexState, marketListings, marketOffers, errorLogs };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, protocolClaims, protocolIndexState, marketListings, marketOffers, errorLogs, stockLiquiditySnapshots };
 }
 
 export function ensureFleetEarningRetention(

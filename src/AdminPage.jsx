@@ -29,6 +29,8 @@ export function AdminPage() {
   const [codeWord, setCodeWord] = useState('');
   const [automation, setAutomation] = useState({ enabled: false, intervalSeconds: 60, minimumSol: '0.001' });
   const [panel, setPanel] = useState('protocol');
+  const [stockLiquidity, setStockLiquidity] = useState(null);
+  const [stockLiquidityBusy, setStockLiquidityBusy] = useState(false);
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const actionToastId = useRef(null);
   const pricesInitialized = useRef(false);
@@ -80,6 +82,17 @@ export function AdminPage() {
     const timer = setInterval(refresh, 15_000);
     return () => clearInterval(timer);
   }, [csrf, refresh]);
+  useEffect(() => {
+    if (panel !== 'liquidity' || !csrf) return;
+    loadStockLiquidity(false);
+  }, [panel, csrf]);
+
+  async function loadStockLiquidity(force) {
+    setStockLiquidityBusy(true);
+    try { setStockLiquidity(await request(`/api/admin/stock-liquidity${force ? '?refresh=1' : ''}`)); }
+    catch (reason) { setError(reason.message); }
+    finally { setStockLiquidityBusy(false); }
+  }
 
   async function submitLogin(event) {
     event.preventDefault();
@@ -244,8 +257,8 @@ export function AdminPage() {
   </form></main>;
 
   return <main className="admin-shell">
-    <header><div><p className="eyebrow">FARE SHARE</p><h1>{panel === 'driving' ? 'Taxi visual editor' : 'Protocol control'}</h1></div><div className="header-actions"><button className="secondary" onClick={() => setPanel(panel === 'driving' ? 'protocol' : 'driving')}>{panel === 'driving' ? 'Protocol' : 'Roads & headlights'}</button>{panel === 'protocol' && <><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button></>}<button className="ghost" onClick={logout}>Sign out</button></div></header>
-    {panel === 'driving' ? <DrivingDemo admin csrf={csrf} /> : !status ? <section className="admin-card">Loading on-chain state…</section> : <>
+    <header><div><p className="eyebrow">FARE SHARE</p><h1>{panel === 'driving' ? 'Taxi visual editor' : panel === 'liquidity' ? 'Stock liquidity' : 'Protocol control'}</h1></div><div className="header-actions"><button className="secondary" onClick={() => setPanel('protocol')}>Protocol</button><button className="secondary" onClick={() => setPanel('liquidity')}>Stock liquidity</button><button className="secondary" onClick={() => setPanel('driving')}>Roads & headlights</button>{panel === 'protocol' && <><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button></>}<button className="ghost" onClick={logout}>Sign out</button></div></header>
+    {panel === 'driving' ? <DrivingDemo admin csrf={csrf} /> : panel === 'liquidity' ? <StockLiquidityPanel report={stockLiquidity} busy={stockLiquidityBusy} refresh={() => loadStockLiquidity(true)} /> : !status ? <section className="admin-card">Loading on-chain state…</section> : <>
       <section className="metrics">
         <Metric label="Available to claim" value={formatSol(status.availableLamports)} />
         <Metric label="Pump curve" value={formatSol(status.bondingLamports)} />
@@ -280,6 +293,22 @@ export function AdminPage() {
 }
 
 function Metric({ label, value }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
+function StockLiquidityPanel({ report, busy, refresh }) {
+  return <section className="admin-card stock-liquidity-card">
+    <div className="section-title"><div><p className="eyebrow">JUPITER ROUTE MONITOR</p><h2>Supported stocks</h2></div><button onClick={refresh} disabled={busy}>{busy ? 'Checking…' : 'Check now'}</button></div>
+    <p className="muted">Every 15 minutes the backend tests swaps of 0.01, 0.05 and 0.1 SOL. Availability is retained for 30 days. This page is monitoring only and cannot replace assets or send transactions.</p>
+    {!report ? <p className="muted">Loading liquidity history…</p> : <div className="stock-liquidity-grid">{report.stocks.map(stock => {
+      const available = stock.routes.filter(route => route.available).length;
+      const state = available === stock.routes.length && available > 0 ? 'healthy' : available > 0 ? 'limited' : 'failed';
+      return <article className={`stock-liquidity-item is-${state}`} key={stock.mint}>
+        <div className="section-title"><div><h2>{stock.symbol}</h2><p className="mono break">{stock.mint}</p></div><span className="stock-liquidity-state">{state === 'healthy' ? 'Healthy' : state === 'limited' ? 'Limited' : 'No route'}</span></div>
+        <div className="stock-liquidity-summary"><span>24 hours <strong>{stock.availability24h === null ? '—' : `${stock.availability24h}%`}</strong></span><span>7 days <strong>{stock.availability7d === null ? '—' : `${stock.availability7d}%`}</strong></span><span>Samples <strong>{stock.samples7d}</strong></span></div>
+        <div className="stock-liquidity-routes">{stock.routes.map(route => <div key={route.inputLamports}><span>{Number(route.inputLamports) / 1_000_000_000} SOL</span><strong>{route.available ? `${route.hops} hop${route.hops === 1 ? '' : 's'} · ${Number(route.priceImpactPct || 0).toFixed(3)}% impact` : 'No route'}</strong></div>)}</div>
+        <p className="muted">Last checked: {stock.checkedAt ? new Date(stock.checkedAt).toLocaleString('en-US') : 'Never'}</p>
+      </article>;
+    })}</div>}
+  </section>;
+}
 function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
   return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
     <label>Price, USD<input type="number" min="25" max="25" step="0.01" value={prices[0]} disabled onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>

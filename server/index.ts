@@ -18,6 +18,7 @@ import { createRehearsalBudgetGuard, RehearsalBudgetError } from './rehearsalBud
 import { configureTransactionBudgetGuard } from './transaction.js';
 import { createTelegramAlertService } from './telegramAlerts.js';
 import { installConsoleErrorPersistence, recordError } from './errorLog.js';
+import { createStockLiquidityMonitor } from './stockLiquidity.js';
 
 const config = loadServerConfig();
 const database = await connectDatabase(config.mongoUri, config.mongoDatabase);
@@ -77,6 +78,7 @@ const traineeCampaigns = createTraineeCampaignAdmin({
   ...config,
   primaryWord: fixedTraineeCampaignWord(config.mongoDatabase),
 }, database);
+const stockLiquidity = createStockLiquidityMonitor(database.stockLiquiditySnapshots, config.jupiterApiKey);
 if (publicToken.ticker) await traineeCampaigns.ensurePrimary(publicToken.ticker);
 
 const server = createServer(async (request, response) => {
@@ -310,6 +312,12 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
+    if (request.method === 'GET' && url.pathname === '/api/admin/stock-liquidity') {
+      const services = requireAdminServices();
+      services.auth.require(request);
+      json(response, 200, await stockLiquidity.report(url.searchParams.get('refresh') === '1'), { 'cache-control': 'no-store' });
+      return;
+    }
     if (request.method === 'POST' && url.pathname === '/api/admin/mint/reset') {
       const services = requireAdminServices();
       services.auth.require(request, true);
@@ -498,6 +506,11 @@ server.listen(config.port, () => {
     publicData.sync().catch(error => console.error('Scheduled public data sync failed', error));
   }, 5 * 60 * 1_000);
   publicDataTimer.unref();
+  stockLiquidity.probe().catch(error => console.error('Initial stock liquidity probe failed', error));
+  const stockLiquidityTimer = setInterval(() => {
+    stockLiquidity.probe().catch(error => console.error('Scheduled stock liquidity probe failed', error));
+  }, 15 * 60 * 1_000);
+  stockLiquidityTimer.unref();
 });
 
 async function readJson(request: IncomingMessage, maximumSize = 16_384): Promise<unknown> {
