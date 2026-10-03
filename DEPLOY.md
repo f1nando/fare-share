@@ -33,7 +33,8 @@ Production обновляется отдельно или атомарно пр�
 > signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Test CA
 > `C4TZ…NKrj` (`TAXI`) привязан. 2026-10-03 production pause снят транзакцией
 > `37V6YmKwZ5KexbvCah3wTedgwyruQnFJsSP9mem7QBn8Us8uRkGFjyQqXrwGVHBZFA3Vep7zb7wPkvstsFVk2fyd`;
-> protocol находится в состоянии `live`, backend активен, постоянный worker выключен.
+> protocol находится в состоянии `live`, backend release `7328712` активен,
+> постоянный worker выключен.
 > Sale уже была необратимо начата, supply `[0,1,0,0]`.
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
@@ -68,12 +69,12 @@ Collection переключена до старта sale и до первого 
 2026-10-03 test CA `C4TZ…NKrj` был привязан к протоколу. Paid-mint smoke выпустил
 Comfort asset `EMaK…Z4iU` транзакцией `REV4ve…E1Hz`. Production protocol сейчас
 `live`, saleStarted `true`, supply `[0,1,0,0]`. Production worker smoke подтвердил
-creator-fee claim/deposit, FARE/xStock swaps и reward calculation. Активной машине
-доступны `348.516417 TAXI`, `0.00017406 UBERx`, `0.00003261 TSLAx` и
-`0.00004800 AMZNx`; trainee `nextPool` содержит `3,571.066290 TAXI`. Маршрут
-`GOOGLx` недоступен после трёх альтернативных Jupiter routes, поэтому его
-`101,096` lamport reserve безопасно остался в protocol vault. Постоянный worker
-остаётся выключенным.
+creator-fee claim/deposit, FARE/xStock swaps и reward calculation. Автоматический
+retry после временных RPC-ошибок также завершён успешно. Активной машине доступны
+`348.516417 TAXI`, `0.00017406 UBERx`, `0.00003261 TSLAx`, `0.00003549 GOOGLx`
+и `0.00004800 AMZNx`; все reward `nextPool` и `seriesRemaining` пусты. Protocol
+vault содержит `15,151` lamport, необработанные creator fees отсутствуют.
+Постоянный worker остаётся выключенным.
 Recovery manifest SHA-256:
 `f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
 fail-closed close dry-run — PASS, но close не выполнялся.
