@@ -133,7 +133,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-button-dark { min-width: 0; justify-content: flex-start; padding-left: var(--fare-control-padding-lg); color: #fff; background: #111; box-shadow: 8px 10px 0 #ffe72f; font-weight: 500; }
 .fare-button-dark:hover { transform: translate(var(--press-x), var(--press-y)); box-shadow: 0 0 0 #ffe72f; }
 .fare-token-symbol { margin-right: 24px; color: #9f9f9f; font-weight: 500; }
-.fare-copy-icon { position: relative; flex: 0 0 auto; width: 18px; height: 22px; margin-left: var(--fare-control-gap); }
+.fare-copy-icon { position: relative; flex: 0 0 auto; width: 18px; height: 22px; margin-left: 22px; }
 .fare-copy-glyph { position: absolute; inset: 0; border: 2px solid #fff; border-radius: 3px; }
 .fare-copy-glyph::before { content: ''; position: absolute; top: -8px; left: -9px; width: 14px; height: 18px; border: 2px solid #fff; border-radius: 3px; background: #111; }
 .fare-copy-check { position: absolute; inset: -3px; width: 24px; height: 24px; opacity: 0; }
@@ -713,7 +713,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-hero .fare-button-dark { width: fit-content; min-width: 0; grid-column: 1 / -1; justify-self: start; box-shadow: 3px 4px 0 #ffe72f; }
   .fare-hero .fare-round-arrow { width: 40px; height: 40px; margin-left: 10px; font-size: 22px; }
   .fare-hero .fare-token-symbol { margin-right: 14px; }
-  .fare-hero .fare-copy-icon { width: 16px; height: 20px; margin-left: var(--fare-control-gap); }
+  .fare-hero .fare-copy-icon { width: 16px; height: 20px; margin-left: 22px; }
   .fare-treasury { padding-top: 100px; padding-bottom: 80px; }
   .fare-treasury-heading { grid-template-columns: 1fr; }
   .fare-treasury-intro { margin-top: 24px; }
