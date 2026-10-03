@@ -43,6 +43,7 @@ import {
   sendInstructions,
   SolanaTransactionSimulationError,
   SolanaTransactionTooLargeError,
+  UnresolvedSolanaTransactionError,
 } from './transaction.js';
 import { SolanaRpcWriteRejectedError, solanaRpcCall } from './solanaRpc.js';
 
@@ -337,7 +338,7 @@ async function processPendingSwaps(
         await cleanupRouteAtas(config.solanaRpcUrl, caller, routeCleanupInstructions, routeLookupTables, swapKey);
         const canTryAnotherRoute = attempt < SWAP_ROUTE_ATTEMPTS
           && routeDexes.length > 0
-          && isRejectedRoute(error);
+          && isRetryableSwapRouteError(error);
         if (canTryAnotherRoute) {
           quarantineJupiterDexes(routeDexes);
           console.warn(`${swapKey} route rejected; retrying without ${routeDexes.join(', ')} (${attempt}/${SWAP_ROUTE_ATTEMPTS})`);
@@ -379,10 +380,11 @@ async function cleanupRouteAtas(
   }
 }
 
-function isRejectedRoute(error: unknown) {
+export function isRetryableSwapRouteError(error: unknown) {
   return error instanceof SolanaTransactionSimulationError
     || error instanceof SolanaTransactionTooLargeError
-    || error instanceof SolanaRpcWriteRejectedError;
+    || error instanceof SolanaRpcWriteRejectedError
+    || error instanceof UnresolvedSolanaTransactionError;
 }
 
 function buildCreateWsolAtaInstruction(caller: KeyPairSigner, ata: Address): Instruction {

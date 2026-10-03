@@ -15,6 +15,7 @@ import {
   buildCleanupBurnedMachineInstruction,
   hasAssignableRewards,
   isBurnedCoreAssetAccount,
+  isRetryableSwapRouteError,
 } from '../server/worker.js';
 import { performWorkerAction } from '../server/workerAutomation.js';
 import { parseWorkerAction } from '../server/workerControl.js';
@@ -24,6 +25,7 @@ import {
   sendInstructions,
   SolanaTransactionSimulationError,
   SolanaTransactionTooLargeError,
+  UnresolvedSolanaTransactionError,
 } from '../server/transaction.js';
 
 const targetA = address('11111111111111111111111111111111');
@@ -209,6 +211,11 @@ test('wire transaction size is rejected before RPC submission', () => {
     () => assertWireTransactionSize(Buffer.alloc(1233).toString('base64')),
     SolanaTransactionTooLargeError,
   );
+});
+
+test('an unresolved swap submission retries with another Jupiter route', () => {
+  assert.equal(isRetryableSwapRouteError(new UnresolvedSolanaTransactionError('1'.repeat(64))), true);
+  assert.equal(isRetryableSwapRouteError(new Error('unrelated failure')), false);
 });
 
 test('transactions are explicitly simulated before submission', async () => {
