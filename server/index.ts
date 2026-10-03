@@ -509,7 +509,7 @@ server.listen(config.port, () => {
   stockLiquidity.probe().catch(error => console.error('Initial stock liquidity probe failed', error));
   const stockLiquidityTimer = setInterval(() => {
     stockLiquidity.probe().catch(error => console.error('Scheduled stock liquidity probe failed', error));
-  }, 15 * 60 * 1_000);
+  }, 5 * 60 * 1_000);
   stockLiquidityTimer.unref();
 });
 

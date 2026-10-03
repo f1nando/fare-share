@@ -109,5 +109,15 @@ function summarize(symbol: string, mint: string, snapshots: StockLiquiditySnapsh
     availability7d: availability(own),
     samples24h: last24h.length,
     samples7d: own.length,
+    history24h: last24h.slice().reverse().map(snapshot => {
+      const availableRoutes = snapshot.routes.filter(route => route.available);
+      return {
+        checkedAt: snapshot.checkedAt,
+        availabilityPct: Math.round(availableRoutes.length / Math.max(snapshot.routes.length, 1) * 100),
+        maxImpactPct: availableRoutes.length
+          ? Math.max(...availableRoutes.map(route => Number(route.priceImpactPct || 0)))
+          : null,
+      };
+    }),
   };
 }

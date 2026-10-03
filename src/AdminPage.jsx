@@ -296,7 +296,7 @@ function Metric({ label, value }) { return <div className="metric"><span>{label}
 function StockLiquidityPanel({ report, busy, refresh }) {
   return <section className="admin-card stock-liquidity-card">
     <div className="section-title"><div><p className="eyebrow">JUPITER ROUTE MONITOR</p><h2>Supported stocks</h2></div><button onClick={refresh} disabled={busy}>{busy ? 'Checking…' : 'Check now'}</button></div>
-    <p className="muted">Every 15 minutes the backend tests swaps of 0.01, 0.05 and 0.1 SOL. Availability is retained for 30 days. This page is monitoring only and cannot replace assets or send transactions.</p>
+    <p className="muted">Every 5 minutes the backend tests swaps of 0.01, 0.05 and 0.1 SOL. Availability is retained for 30 days. This page is monitoring only and cannot replace assets or send transactions.</p>
     {!report ? <p className="muted">Loading liquidity history…</p> : <div className="stock-liquidity-grid">{report.stocks.map(stock => {
       const available = stock.routes.filter(route => route.available).length;
       const state = available === stock.routes.length && available > 0 ? 'healthy' : available > 0 ? 'limited' : 'failed';
@@ -304,10 +304,27 @@ function StockLiquidityPanel({ report, busy, refresh }) {
         <div className="section-title"><div><h2>{stock.symbol}</h2><p className="mono break">{stock.mint}</p></div><span className="stock-liquidity-state">{state === 'healthy' ? 'Healthy' : state === 'limited' ? 'Limited' : 'No route'}</span></div>
         <div className="stock-liquidity-summary"><span>24 hours <strong>{stock.availability24h === null ? '—' : `${stock.availability24h}%`}</strong></span><span>7 days <strong>{stock.availability7d === null ? '—' : `${stock.availability7d}%`}</strong></span><span>Samples <strong>{stock.samples7d}</strong></span></div>
         <div className="stock-liquidity-routes">{stock.routes.map(route => <div key={route.inputLamports}><span>{Number(route.inputLamports) / 1_000_000_000} SOL</span><strong>{route.available ? `${route.hops} hop${route.hops === 1 ? '' : 's'} · ${Number(route.priceImpactPct || 0).toFixed(3)}% impact` : 'No route'}</strong></div>)}</div>
+        <div className="stock-liquidity-charts">
+          <LiquiditySparkline title="Route availability · 24h" points={stock.history24h} field="availabilityPct" maximum={100} suffix="%" />
+          <LiquiditySparkline title="Maximum price impact · 24h" points={stock.history24h} field="maxImpactPct" suffix="%" />
+        </div>
         <p className="muted">Last checked: {stock.checkedAt ? new Date(stock.checkedAt).toLocaleString('en-US') : 'Never'}</p>
       </article>;
     })}</div>}
   </section>;
+}
+function LiquiditySparkline({ title, points, field, maximum, suffix }) {
+  const values = points.map(point => point[field]).filter(value => value !== null && Number.isFinite(Number(value))).map(Number);
+  const ceiling = maximum || Math.max(...values, 0.001);
+  const coordinates = points.map((point, index) => {
+    const value = point[field];
+    if (value === null || !Number.isFinite(Number(value))) return null;
+    const x = points.length <= 1 ? 0 : index / (points.length - 1) * 100;
+    const y = 38 - Math.min(1, Math.max(0, Number(value) / ceiling)) * 34;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).filter(Boolean).join(' ');
+  const latest = values.at(-1);
+  return <div className="stock-liquidity-chart"><div><span>{title}</span><strong>{latest === undefined ? '—' : `${latest.toFixed(field === 'availabilityPct' ? 0 : 3)}${suffix}`}</strong></div><svg viewBox="0 0 100 42" preserveAspectRatio="none" role="img" aria-label={title}><path d="M0 38H100" /><polyline points={coordinates} /></svg></div>;
 }
 function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
   return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
