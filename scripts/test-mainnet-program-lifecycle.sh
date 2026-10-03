@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-EXPECTED_PAYER="2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
+EXPECTED_PAYER="F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR"
 MAINNET_GENESIS="5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
 RPC_URL="${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}"
 PAYER_KEYPAIR="${PAYER_KEYPAIR:-$HOME/.config/solana/taxi-devnet-deployer.json}"

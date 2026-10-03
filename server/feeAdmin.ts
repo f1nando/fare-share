@@ -28,7 +28,7 @@ import { loadProtocolDashboard } from './protocolDashboard.js';
 import { finalizedTransactionOutcome, sendInstructions, UnresolvedSolanaTransactionError } from './transaction.js';
 import { normalizeTicker, savePrimaryTokenConfig, type TokenConfigDocument } from './tokenConfig.js';
 
-export const FIXED_FEE_RECIPIENT = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
+export const FIXED_FEE_RECIPIENT = address('F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR');
 const TOKEN_2022_PROGRAM = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 const ZERO_ADDRESS = '11111111111111111111111111111111';
 const BONDING_CURVE_DISCRIMINATOR = Buffer.from([23, 183, 248, 55, 96, 216, 172, 96]);

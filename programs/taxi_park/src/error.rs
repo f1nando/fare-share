@@ -160,4 +160,6 @@ pub enum TaxiError {
     NewFareVaultMustBeEmpty,
     #[msg("Shutdown residual exceeds the maximum rounding-dust allowance")]
     ShutdownResidualTooLarge,
+    #[msg("Collection cannot be replaced after any machine has been minted")]
+    CollectionAlreadyInUse,
 }

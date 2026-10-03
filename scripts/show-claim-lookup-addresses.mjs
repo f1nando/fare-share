@@ -10,7 +10,7 @@ const rpcUrl = process.env.SOLANA_RPC_URL || process.env.VITE_SOLANA_RPC_URL || 
 const programAddress = address(
   process.env.TAXI_PROGRAM_ID
   || process.env.VITE_TAXI_PROGRAM_ID
-  || 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4',
+  || '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD',
 );
 const utf8 = getUtf8Encoder();
 const [[configAddress], [pool]] = await Promise.all([

@@ -28,27 +28,33 @@ Production обновляется отдельно или атомарно пр�
 через `deploy/switch-ownataxi-frontend.sh`. Holding-сборка показывает только
 главную страницу и `COMING SOON` вместо CA.
 
-> **Текущий статус:** по решению владельца deployment `GHGq…i3i4` и Collection
-> `5DwD…5nroP` являются mainnet-тестом, а не production-релизом. Sale была открыта
-> только для smoke и после тестов снова поставлена на pause. Для настоящего запуска
-> потребуется новый Program ID, новая Collection и отдельный release freeze.
+> **Текущий статус:** новый production Program `8Z9M…YwxD` и Collection
+> `49Ko…bCDD` опубликованы в mainnet. Upgrade authority, protocol admin, backend
+> signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Sale закрыта,
+> `$FARE` ещё не привязан, supply равен нулю.
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
-Постоянный публичный Program ID подготовлен: `GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4`. Его keypair, а также отдельные admin/backend/worker keypair хранятся локально вне репозитория и не передаются через Git или чат.
+Постоянный публичный Program ID: `8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD`.
+ProgramData: `8JHtNnvcKH435F55hD5gv3ZUCBfuzBSoAf4k1NLJLkCY`. Keypair и резервные
+копии хранятся вне репозитория и не передаются через Git или чат.
 
 Подготовленные публичные адреса:
 
-- admin/deployer: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`;
-- backend signer: `DixHreV9jd2wdnA1FJYcrN5kdfuv5TbYGk7XEd2pxG6w`;
-- worker: `4KxGWNpEiyZTNhcRtJGMYERniHDH6rSb1Mwk8pFxa6Cq`;
-- `FeeVault` и pump.fun creator PDA: `Hi8JVmmHZmyDnQg8JH3i4jVPcN8GNfGC4KsoQWMvNLT6`.
+- deployer, upgrade authority, admin, backend signer, team и recovery owner:
+  `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`;
+- Collection: `49KoCVgKtkb5vLEQwTsDQ6ePGfEFVZgJARUmNMHAbCDD`;
+- initialize/claim ALT: `DyChCqg6MV2QmP2YGX19Ai9nEGriydCVFeiLigDLGRQn`.
 
 Ранее зарезервированные пустые адреса `9ZLA…6eVv`, `2uGK…tAr`, `5Pbb…gMZK` и
 `5p7K…2vW3` выведены из использования из-за отсутствия keypair. На них не было
 deploy или SOL; они не являются частью release и не должны пополняться.
 
-Для первой mainnet-публикации admin/deployer должен иметь минимум `6.82 SOL`. Frozen production SBF занимает `669552` байт. При deploy одновременно финансируются известный upload buffer (`3.402162360 SOL`), upgradeable ProgramData (`3.402203000 SOL`) и Program tombstone (`0.000833120 SOL`); точный peak до transaction fees — `6.805198480 SOL`. Buffer возвращается после успешного deploy, а ProgramData rent остаётся recoverable, пока сохранена upgrade authority.
+Frozen production SBF занимает `880576` байт, SHA-256
+`45cb6d9e622e7e56c1746233732d00e2958fc17ef65a354c18b800ac09290ad5`.
+ProgramData capacity `882048` байт содержит `4.481682680 SOL` recoverable rent;
+upload buffer закрыт после
+deploy, а Program tombstone составляет `0.000833120 SOL`.
 
 ## 1. Сначала зафиксировать Program ID
 

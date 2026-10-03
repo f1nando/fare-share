@@ -1,7 +1,7 @@
 const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 const addresses = {
-  deployer: '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF',
+  deployer: 'F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR',
   worker: 'J38s2zZLszLssXu6CAencaqwrZ6wvE3hmoc4jWy2piJu',
   program: 'H7X7Ky8q6mvEdeDLikx6fPGAyjjHywR74W53DyXZJrsY',
   programData: '3dUwFwcqrq15iqQJdW5hsAs4HRtpEu4YrysvA9iV8DSH',

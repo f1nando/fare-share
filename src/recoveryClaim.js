@@ -4,7 +4,7 @@ import { createRateLimitedSolanaRpc } from './protocol/requestLimits.js';
 import { PROGRAM_ID, RPC_URL, loadProtocolStatus } from './protocol/solana.js';
 import { calculateOutstandingMachineRewards } from '../server/shutdownClaims.js';
 
-export const RECOVERY_PROGRAM_ID = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
+export const RECOVERY_PROGRAM_ID = '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD';
 export const RECOVERY_OWNER = 'CBJQC1CGS4WQeogopZipSFj2RCW1DJYqGdsMerjHmswW';
 export const RECOVERY_MACHINE = '2KAMpP9SWTXEJfWE5vyKfY2iEzDJdQwUnFNKHLUB11r4';
 export const RECOVERY_ASSET = 'CpkY8xZ1hsgC77f8Z4GmncWN4vJRQL5bUQzfp1JFh3ZK';

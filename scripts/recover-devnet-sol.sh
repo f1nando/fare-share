@@ -4,7 +4,7 @@ set -euo pipefail
 
 PROGRAM_ID="H7X7Ky8q6mvEdeDLikx6fPGAyjjHywR74W53DyXZJrsY"
 PROGRAM_DATA="3dUwFwcqrq15iqQJdW5hsAs4HRtpEu4YrysvA9iV8DSH"
-DEPLOYER="2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
+DEPLOYER="F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR"
 WORKER="J38s2zZLszLssXu6CAencaqwrZ6wvE3hmoc4jWy2piJu"
 DEVNET_GENESIS="EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"
 DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/home/ivand/.config/solana/taxi-devnet-deployer.json}"

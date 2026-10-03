@@ -19,7 +19,7 @@ const required = (name: string) => {
   return value;
 };
 const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const programId = address(process.env.TAXI_PROGRAM_ID || 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4');
+const programId = address(process.env.TAXI_PROGRAM_ID || '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD');
 const admin = await createKeyPairSignerFromBytes(parseSecretBytes(required('ADMIN_KEYPAIR_SECRET_KEY'), 'ADMIN_KEYPAIR_SECRET_KEY'));
 const addresses = await protocolAddresses(programId);
 const [commandName, ...args] = process.argv.slice(2);

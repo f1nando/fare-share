@@ -5,17 +5,17 @@
 ## Зафиксированные адреса и ограничения
 
 Поддержка обоих разрешённых Pump creator-fee вариантов является обязательным
-release gate для test и production: (1) direct creator `2NUN…`; (2) canonical
+release gate для test и production: (1) direct creator `F3jK…`; (2) canonical
 Pump Fees sharing config того же типа, что проверенный пользователем пример —
-version 2, active, `admin_revoked = true`, единственный shareholder `2NUN…` с
+version 2, active, `admin_revoked = true`, единственный shareholder `F3jK…` с
 долей `10_000 bps`. Релиз, который не умеет валидировать, показывать и собирать
 комиссии из второго варианта через V2 distribution, запрещён.
 
-- Получатель pump.fun Creator Fees: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`.
-- Заказчик самостоятельно создаёт SOL-paired токен на pump.fun. Поддерживаются direct creator `2NUN…` и Pump Fees sharing config, который активен, необратимо зафиксирован и назначает ровно 100% этому же кошельку.
-- Direct creator wallet `2NUN…` следует использовать только для одного `$FARE`, потому что direct vault агрегирует fees по creator. Безопасный immutable sharing config имеет отдельный vault конкретного CA.
-- Mayhem Mode, Cashback, Holder Rewards, изменяемая custom creator fee, редактируемый fee sharing и распределение кому-либо кроме `2NUN…` запрещены.
-- Приватный ключ `2NUN…` хранится только в server secret storage как `PUMP_FEE_RECIPIENT_SECRET_KEY`. Backend при запуске обязан получить из него public key и строго сравнить с зафиксированным адресом.
+- Получатель pump.fun Creator Fees: `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`.
+- Заказчик самостоятельно создаёт SOL-paired токен на pump.fun. Поддерживаются direct creator `F3jK…` и Pump Fees sharing config, который активен, необратимо зафиксирован и назначает ровно 100% этому же кошельку.
+- Direct creator wallet `F3jK…` следует использовать только для одного `$FARE`, потому что direct vault агрегирует fees по creator. Безопасный immutable sharing config имеет отдельный vault конкретного CA.
+- Mayhem Mode, Cashback, Holder Rewards, изменяемая custom creator fee, редактируемый fee sharing и распределение кому-либо кроме `F3jK…` запрещены.
+- Приватный ключ `F3jK…` хранится только в server secret storage как `PUMP_FEE_RECIPIENT_SECRET_KEY`. Backend при запуске обязан получить из него public key и строго сравнить с зафиксированным адресом.
 
 ## 1. Подготовка до получения CA
 
@@ -34,10 +34,10 @@ Backend проверяет finalized on-chain состояние:
 1. Mint существует и принадлежит поддерживаемому SPL Token Program.
 2. Pump bonding-curve PDA действительно выведен из этого mint и принадлежит официальной Pump Program.
 3. Токен имеет SOL quote.
-4. `BondingCurve.creator` равен `2NUN…` либо canonical sharing-config PDA данного mint.
+4. `BondingCurve.creator` равен `F3jK…` либо canonical sharing-config PDA данного mint.
 5. Токен не использует Mayhem Mode, Cashback или Holder Rewards.
 6. Custom creator fee равна нулю и не может редактироваться.
-7. Если fee sharing config существует, он принадлежит официальной Pump Fees Program, имеет version 2/active, `admin_revoked = true` и единственную долю `2NUN… = 10_000 bps`.
+7. Если fee sharing config существует, он принадлежит официальной Pump Fees Program, имеет version 2/active, `admin_revoked = true` и единственную долю `F3jK… = 10_000 bps`.
 8. Токен ещё не graduated. CA фиксируется до graduation, чтобы PumpSwap не успел получить несогласованного `coin_creator`.
 9. On-chain `Configuration.fare_mint` ещё пуст.
 
@@ -68,7 +68,7 @@ Offsets, discriminators, account order и PDA seeds сверены с офици
 - bonding-curve fees;
 - PumpSwap fees;
 - общую сумму, доступную к claim;
-- SOL-баланс `2NUN…`;
+- SOL-баланс `F3jK…`;
 - сумму последнего finalized claim;
 - историю последних операций и ссылки на Solscan.
 
@@ -79,7 +79,7 @@ Offsets, discriminators, account order и PDA seeds сверены с офици
 1. Backend повторно проверяет, что on-chain CA и creator не изменились.
 2. Читает обе независимые суммы: Pump bonding creator vault и PumpSwap creator vault.
 3. Если обе суммы нулевые, транзакция не отправляется.
-4. Серверный hot key `2NUN…` подписывает официальный claim flow.
+4. Серверный hot key `F3jK…` подписывает официальный claim flow.
 5. До отправки backend требует нулевой исходный баланс creator WSOL ATA. ATA создаётся idempotently, обе fee-суммы поступают туда и разворачиваются в SOL закрытием ATA в той же атомарной транзакции. При постороннем WSOL claim блокируется.
 6. После finalized определяется фактически полученная сумма по разнице баланса с учётом network fee.
 7. В MongoDB записываются сумма, signature, slot, время и раздельные источники Pump/PumpSwap.
@@ -93,7 +93,7 @@ Offsets, discriminators, account order и PDA seeds сверены с офици
 
 Одна атомарная транзакция содержит:
 
-1. перевод выбранной суммы с `2NUN…` в `FeeVault`;
+1. перевод выбранной суммы с `F3jK…` в `FeeVault`;
 2. немедленный вызов Taxi `collect_fees`.
 
 Если распределение не проходит, перевод также откатывается. После finalized история сохраняет введённую сумму и signature.
@@ -146,8 +146,8 @@ Private keys, пароль, cookie и полные RPC payload в MongoDB не �
 
 ## 8. Блокирующие release gates
 
-- подтверждён backup hot key `2NUN…`;
-- при direct mode `2NUN…` не используется creator-адресом других токенов; sharing mode использует отдельный vault конкретного CA;
+- подтверждён backup hot key `F3jK…`;
+- при direct mode `F3jK…` не используется creator-адресом других токенов; sharing mode использует отдельный vault конкретного CA;
 - admin password hash/session secret установлены через secret storage;
 - проверены direct creator либо immutable 100% sharing recipient, отсутствие cashback и SOL quote;
 - CA зафиксирован on-chain и остаётся заменяемым только до `start-sale`;

@@ -24,7 +24,7 @@ npm run protocol:preflight
 
 Страница `/admin/` включается только при полной конфигурации `ADMIN_USERNAME`, `ADMIN_PASSWORD_SCRYPT`, `ADMIN_SESSION_SECRET`, `ADMIN_KEYPAIR_SECRET_KEY` и `PUMP_FEE_RECIPIENT_SECRET_KEY`.
 
-Хеш пароля создаётся локально командой `npm run admin:hash-password -- <password>`; пароль и выведенный hash не отправлять в чат. Fee-recipient key обязан соответствовать `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`. Полный flow CA, claim и атомарного направления средств описан в [`ADMIN-FEE-FLOW.md`](ADMIN-FEE-FLOW.md).
+Хеш пароля создаётся локально командой `npm run admin:hash-password -- <password>`; пароль и выведенный hash не отправлять в чат. Fee-recipient key обязан соответствовать `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`. Полный flow CA, claim и атомарного направления средств описан в [`ADMIN-FEE-FLOW.md`](ADMIN-FEE-FLOW.md).
 
 ## Live trade API
 
@@ -160,7 +160,7 @@ Swaps используют актуальный Jupiter Swap API V2 `/build`. Sy
 
 Перед devnet/mainnet запуском выполняется `npm run protocol:check-xstocks`. Команда проверяет публичной котировкой Jupiter наличие маршрута `0.1 SOL → xStock` для каждого из четырёх официальных mint. Размер можно переопределить через `XSTOCKS_CHECK_LAMPORTS`. Эта проверка подтверждает наличие маршрута, но не заменяет production-проверку Jupiter V2 `/build` с реальным `JUPITER_API_KEY` и program-controlled destination account.
 
-До создания тестового или основного `$FARE` выполните `npm run protocol:addresses` с целевым `TAXI_PROGRAM_ID`. Для creator fees используется `2NUN…`: напрямую либо через canonical Pump Fees sharing config, который необратимо назначает этому кошельку 100%. Backend автоматически выбирает direct collect или permissionless V2 distribution. Holder rewards, изменяемые shares и любые другие recipients запрещены.
+До создания тестового или основного `$FARE` выполните `npm run protocol:addresses` с целевым `TAXI_PROGRAM_ID`. Для creator fees используется `F3jK…`: напрямую либо через canonical Pump Fees sharing config, который необратимо назначает этому кошельку 100%. Backend автоматически выбирает direct collect или permissionless V2 distribution. Holder rewards, изменяемые shares и любые другие recipients запрещены.
 
 `BACKEND_SIGNER_SECRET_KEY` только подписывает ваучеры и swap-планы и не нуждается в SOL. Отдельный `WORKER_KEYPAIR_SECRET_KEY` является обычным permissionless caller/fee payer: на нём должен быть небольшой запас SOL для служебных транзакций, но он не получает административных прав и не контролирует vault.
 

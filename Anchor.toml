@@ -5,6 +5,9 @@ anchor_version = "0.32.1"
 resolution = true
 skip-lint = false
 
+[programs.mainnet]
+taxi_park = "8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD"
+
 [programs.devnet]
 taxi_park = "FJgPHdMEFi8JQSeW7h9ogLCDvm2gixWkXG8g7tqn7aJr"
 

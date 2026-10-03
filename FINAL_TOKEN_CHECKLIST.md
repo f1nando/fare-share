@@ -8,13 +8,13 @@
 
 Тикер: `TBD`
 
-Creator/claim wallet: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`
+Creator/claim wallet: `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`
 
 ## 1. Зафиксировать исходное состояние
 
 - [ ] Текущий CA записан: `TBD`
 - [ ] Protocol state записан: `paused / live`
-- [ ] SOL на `2NUN…EGVnF`: `TBD`
+- [ ] SOL на `F3jK…n8tR`: `TBD`
 - [ ] Токенов в старом protocol FARE vault: `TBD`
 - [ ] Токенов старого CA в личном кошельке: `TBD`
 - [ ] Main FARE obligations: `TBD`
@@ -28,7 +28,7 @@ Creator/claim wallet: `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`
 - [ ] В `/rehearsal/admin/` введён финальный CA.
 - [ ] Нажата кнопка **Verify replacement**.
 - [ ] Name, ticker, image и metadata правильные.
-- [ ] Creator — `2NUN…EGVnF` или canonical immutable sharing config с долей `2NUN…EGVnF = 100%`.
+- [ ] Creator — `F3jK…n8tR` или canonical immutable sharing config с долей `F3jK…n8tR = 100%`.
 - [ ] Mayhem выключен.
 - [ ] Cashback выключен.
 - [ ] Holder Rewards выключены.
@@ -78,7 +78,7 @@ Unpause signature: `TBD`
 - [ ] Выполнена замена CA.
 - [ ] Продан ровно баланс protocol vault.
 - [ ] Личные токены кошелька не продавались.
-- [ ] Полученный WSOL развёрнут в native SOL на `2NUN…EGVnF`.
+- [ ] Полученный WSOL развёрнут в native SOL на `F3jK…n8tR`.
 - [ ] Старый protocol vault пуст.
 - [ ] Новый protocol vault пуст.
 
@@ -155,7 +155,7 @@ Sell signature: `TBD`
 
 - [ ] Creator fees появились.
 - [ ] Claim выполнен через админку.
-- [ ] SOL поступил на `2NUN…EGVnF`.
+- [ ] SOL поступил на `F3jK…n8tR`.
 - [ ] Другой кошелёк не может забрать creator fees.
 - [ ] Повторный claim не списывает одну сумму дважды.
 
@@ -186,7 +186,7 @@ Reward claim signature: `TBD`
 - [ ] Новый CA совпадает on-chain, в API, админке, Trade и mint quote.
 - [ ] Protocol находится в состоянии `live`.
 - [ ] Reward pool и FARE obligations имеют ожидаемые значения.
-- [ ] Creator fees принадлежат `2NUN…EGVnF`.
+- [ ] Creator fees принадлежат `F3jK…n8tR`.
 - [ ] Stock vaults, NFT, Collection и protocol SOL сохранены.
 - [ ] Backend restart не возвращает старый CA.
 - [ ] Worker проверен вручную перед постоянным включением.

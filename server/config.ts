@@ -1,6 +1,6 @@
 import { address } from '@solana/kit';
 
-const DEFAULT_PROGRAM_ID = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
+const DEFAULT_PROGRAM_ID = '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD';
 
 function required(name: string): string {
   const value = process.env[name]?.trim();

@@ -46,7 +46,7 @@ const lookupTableAddress = process.env.VITE_TAXI_LOOKUP_TABLE?.trim();
 const lookupTables = lookupTableAddress ? await loadLookupTable(lookupTableAddress) : {};
 const result = await initializeProtocol({
   rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
-  programId: address(process.env.TAXI_PROGRAM_ID || 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4'),
+  programId: address(process.env.TAXI_PROGRAM_ID || '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD'),
   admin,
   backendSignerSecret: required('BACKEND_SIGNER_SECRET_KEY'),
   teamAccount: address(required('TEAM_ACCOUNT')),

@@ -13,7 +13,7 @@ import {
 
 const PROGRAM = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
 const PROGRAM_DATA = '3mUafcsMtJmQBym8AzguUQPZSV5yNgTjYsc3cpuReazU';
-const SHARED = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+const SHARED = 'F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR';
 const BUFFER = '5uK9HMPXw7mhr8D5darUMvJnRL9gunQw9p1FWWk6TuoQ';
 
 async function fixture(): Promise<{ options: DeployOptions; calls: string[][] }> {

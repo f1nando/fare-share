@@ -5,7 +5,7 @@ import { decodePumpBondingCurve, decodePumpFeeSharingConfig, normalizeOperationI
 import { normalizeTicker, tokenConfigFromDocument } from '../server/tokenConfig.js';
 
 test('Pump curve decoder reads direct creator and all prohibited reward flags', () => {
-  const creator = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
+  const creator = address('F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR');
   const data = new Uint8Array(125);
   data.set([23, 183, 248, 55, 96, 216, 172, 96]);
   data.set(getAddressEncoder().encode(creator), 49);
@@ -31,7 +31,7 @@ test('Pump curve decoder rejects legacy layouts that cannot prove reward setting
 test('Pump fee sharing decoder reads an immutable 100% wallet recipient', () => {
   const mint = address('4fg5Nh2wjVddSfDPW1AATQ9Tvmdc1Np1pBQQGL4Mpump');
   const admin = address('FuDZGBHsZwDNWiQNy1bvYHawKEiTnZ91dkA49zxGcmmG');
-  const recipient = address('2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF');
+  const recipient = address('F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR');
   const data = new Uint8Array(1024);
   data.set([216, 74, 9, 0, 56, 140, 93, 75]);
   data[8] = 252;

@@ -130,7 +130,7 @@ export function UIKitPage() {
               <div className="ui-footer-type"><strong>NAVIGATION</strong><a href="#footer-sample">Fleet</a><p>Build your taxi fleet and collect park fees.</p></div>
             </Specimen>
             <Specimen name="Data and mono" meta="Roboto Mono · 18–23px">
-              <div className="ui-mono-type"><span>$NFT</span><strong>2NUNSx...2EGVnF</strong></div>
+              <div className="ui-mono-type"><span>$NFT</span><strong>F3jKZo...hbn8tR</strong></div>
             </Specimen>
           </div>
         </section>

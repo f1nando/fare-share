@@ -198,6 +198,51 @@ pub mod taxi_park {
         Ok(())
     }
 
+    pub fn replace_collection_before_sale(
+        ctx: Context<ReplaceCollectionBeforeSale>,
+        collection_name: String,
+        collection_uri: String,
+    ) -> Result<()> {
+        require!(ctx.accounts.config.is_paused(), TaxiError::NotPaused);
+        require!(!ctx.accounts.config.sale_started, TaxiError::SaleAlreadyStarted);
+        require!(
+            ctx.accounts
+                .config
+                .minted_by_class
+                .iter()
+                .all(|minted| *minted == 0),
+            TaxiError::CollectionAlreadyInUse
+        );
+        require!(
+            !collection_name.is_empty()
+                && collection_name.len() <= MAX_COLLECTION_NAME_LEN
+                && !collection_uri.is_empty()
+                && collection_uri.len() <= MAX_METADATA_URI_LEN,
+            TaxiError::InvalidMetadataUri
+        );
+
+        let instruction = metaplex_core::create_collection_v2(
+            ctx.accounts.new_collection.key(),
+            ctx.accounts.admin.key(),
+            ctx.accounts.config.key(),
+            ctx.accounts.admin.key(),
+            ctx.accounts.system_program.key(),
+            &collection_name,
+            &collection_uri,
+        )?;
+        anchor_lang::solana_program::program::invoke(
+            &instruction,
+            &[
+                ctx.accounts.mpl_core_program.to_account_info(),
+                ctx.accounts.new_collection.to_account_info(),
+                ctx.accounts.admin.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
+        ctx.accounts.config.collection = ctx.accounts.new_collection.key();
+        Ok(())
+    }
+
     pub fn reset_fare_mint<'info>(
         ctx: Context<'_, '_, 'info, 'info, ResetFareMint<'info>>,
         trainee_count: u16,
@@ -2744,6 +2789,21 @@ pub struct MintMachine<'info> {
     /// CHECK: Fixed Solana instructions sysvar used to inspect the preceding Ed25519 verification.
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
+    /// CHECK: Fixed official Metaplex Core program.
+    #[account(address = metaplex_core::MPL_CORE_ID)]
+    pub mpl_core_program: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ReplaceCollectionBeforeSale<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin @ TaxiError::Unauthorized)]
+    pub config: Box<Account<'info, Configuration>>,
+    /// CHECK: New Metaplex Core collection created atomically by this instruction.
+    #[account(mut)]
+    pub new_collection: Signer<'info>,
     /// CHECK: Fixed official Metaplex Core program.
     #[account(address = metaplex_core::MPL_CORE_ID)]
     pub mpl_core_program: UncheckedAccount<'info>,

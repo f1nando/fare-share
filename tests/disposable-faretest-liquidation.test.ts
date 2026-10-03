@@ -12,7 +12,7 @@ import {
 } from '../scripts/liquidate-disposable-faretest.js';
 
 const MINT = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
-const SHARED = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+const SHARED = 'F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR';
 const TOKEN = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const JUPITER = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
 const WSOL = 'So11111111111111111111111111111111111111112';

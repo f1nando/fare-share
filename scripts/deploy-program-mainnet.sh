@@ -3,19 +3,19 @@
 set -euo pipefail
 PATH=/home/ivand/.local/share/solana/install/active_release/bin:/home/ivand/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-EXPECTED_PROGRAM_ID="GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4"
-EXPECTED_PROGRAMDATA="3mUafcsMtJmQBym8AzguUQPZSV5yNgTjYsc3cpuReazU"
-EXPECTED_DEPLOYER="2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF"
-EXPECTED_BUFFER="5uK9HMPXw7mhr8D5darUMvJnRL9gunQw9p1FWWk6TuoQ"
+EXPECTED_PROGRAM_ID="8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD"
+EXPECTED_PROGRAMDATA="8JHtNnvcKH435F55hD5gv3ZUCBfuzBSoAf4k1NLJLkCY"
+EXPECTED_DEPLOYER="F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR"
+EXPECTED_BUFFER="9FxHoCC6jTocECMZmRKqKYoZSDzN3yhHPTEVHoAffeVY"
 MAINNET_GENESIS="5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
-EXPECTED_PROGRAM_SHA256="61abf9dad7389db5f28c6b149d4a20cd9cf5a30a6f5e84c650e329e7251ab2f1"
-EXPECTED_PROGRAM_BYTES=669552
-MIN_BALANCE_LAMPORTS=6820000000
+EXPECTED_PROGRAM_SHA256="45cb6d9e622e7e56c1746233732d00e2958fc17ef65a354c18b800ac09290ad5"
+EXPECTED_PROGRAM_BYTES=880576
+MIN_BALANCE_LAMPORTS=9000000000
 
-PROGRAM_SO="${PROGRAM_SO:-/home/ivand/taxi-sbf-production-61abf9d/taxi_park.so}"
-PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/program-keypair.json}"
-DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/admin-keypair.json}"
-BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/deploy-buffer-keypair.json}"
+PROGRAM_SO="${PROGRAM_SO:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/final-release-8268df7/taxi_park.so}"
+PROGRAM_KEYPAIR="${PROGRAM_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/final-program-keypair.json}"
+DEPLOYER_KEYPAIR="${DEPLOYER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/final-contract-deployer-keypair.json}"
+BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/final-deploy-buffer-keypair.json}"
 RPC_URL="${SOLANA_RPC_URL:-mainnet-beta}"
 
 for required_file in "$PROGRAM_SO" "$PROGRAM_KEYPAIR" "$DEPLOYER_KEYPAIR"; do
@@ -62,7 +62,7 @@ fi
 
 balance_lamports="$(solana balance "$EXPECTED_DEPLOYER" --url "$RPC_URL" --lamports | tr -cd '0-9')"
 if [[ -z "$balance_lamports" || "$balance_lamports" -lt "$MIN_BALANCE_LAMPORTS" ]]; then
-  echo "Deployer needs at least 6.82 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
+  echo "Deployer needs at least 9 SOL before deployment; current balance is ${balance_lamports:-unknown} lamports." >&2
   exit 1
 fi
 
@@ -127,7 +127,7 @@ if ! grep -Fq "ProgramData Address: $EXPECTED_PROGRAMDATA" <<<"$program_output";
   exit 1
 fi
 
-onchain_binary="/home/ivand/taxi-sbf-production-61abf9d/onchain-taxi_park.so"
+onchain_binary="/mnt/c/Users/ivand/Documents/fare-taxi-park-keys/final-release-8268df7/onchain-taxi_park.so"
 rm -f "$onchain_binary"
 solana program dump "$EXPECTED_PROGRAM_ID" "$onchain_binary" \
   --url "$RPC_URL" --keypair "$DEPLOYER_KEYPAIR"

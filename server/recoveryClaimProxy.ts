@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createSolanaProxy, SolanaProxyError } from './solanaProxy.js';
 
-const PROGRAM_ID = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
+const PROGRAM_ID = '8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD';
 const rpcUrl = required('SOLANA_RPC_URL');
 const allowedOrigin = process.env.RECOVERY_CLAIM_ORIGIN?.trim() || 'https://ownataxi.com';
 const port = Number(process.env.PORT || 8787);

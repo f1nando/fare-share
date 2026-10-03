@@ -9,7 +9,7 @@ export const OFFICIAL_XSTOCK_MINTS = [
 ] as const;
 
 export const REHEARSAL_DATABASE = 'fare_share_disposable_rehearsal';
-export const REHEARSAL_SHARED_ROLE_ADDRESS = '2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF';
+export const REHEARSAL_SHARED_ROLE_ADDRESS = 'F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR';
 
 export interface PreflightResult {
   errors: string[];
@@ -211,7 +211,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     }
   }
   if (!rehearsalMode && secrets.length === secretNames.length && new Set(secrets).size !== secrets.length) {
-    errors.push('ADMIN and BACKEND_SIGNER must use different keypairs');
+    warnings.push('ADMIN and BACKEND_SIGNER use the same explicitly approved project wallet');
   }
   if (rehearsalMode && signerAddresses.some(signerAddress => signerAddress !== REHEARSAL_SHARED_ROLE_ADDRESS)) {
     errors.push(`ADMIN_KEYPAIR_SECRET_KEY and BACKEND_SIGNER_SECRET_KEY: rehearsal signers must match ${REHEARSAL_SHARED_ROLE_ADDRESS}`);
@@ -237,7 +237,7 @@ export async function validateDeploymentEnvironment(env: NodeJS.ProcessEnv): Pro
     try {
       const signer = await createKeyPairSignerFromBytes(parseSecretBytes(feeRecipientSecret, 'PUMP_FEE_RECIPIENT_SECRET_KEY'));
       if (frontendChain === 'solana:mainnet' && String(signer.address) !== REHEARSAL_SHARED_ROLE_ADDRESS) {
-        errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: must match the fixed 2NUN… mainnet wallet');
+        errors.push('PUMP_FEE_RECIPIENT_SECRET_KEY: must match the fixed F3jK… mainnet wallet');
       }
     } catch (error) {
       errors.push(String((error as Error).message));

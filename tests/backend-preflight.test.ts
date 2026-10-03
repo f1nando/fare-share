@@ -135,11 +135,12 @@ test('rehearsal environment is fail-closed around mainnet, database, worker and 
   const rehearsal = await validateDeploymentEnvironment(env);
   const combined = rehearsal.errors.join('\n');
   assert.doesNotMatch(combined, /ADMIN and BACKEND_SIGNER must use different keypairs/);
-  assert.match(combined, /rehearsal signers must match 2NUN/);
+  assert.match(combined, /rehearsal signers must match F3jK/);
 
   env.REHEARSAL_MODE = 'false';
   const production = await validateDeploymentEnvironment(env);
-  assert.match(production.errors.join('\n'), /ADMIN and BACKEND_SIGNER must use different keypairs/);
+  assert.doesNotMatch(production.errors.join('\n'), /ADMIN and BACKEND_SIGNER/);
+  assert.match(production.warnings.join('\n'), /same explicitly approved project wallet/);
 });
 
 test('rehearsal environment requires explicit safe fixed settings', async () => {

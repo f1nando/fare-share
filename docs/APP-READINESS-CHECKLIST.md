@@ -116,7 +116,7 @@
 
 ## 6. Creator fees и Trade
 
-- ✅ Pump fee-sharing проверен: `2NUN… = 100%`.
+- ✅ Pump fee-sharing проверен: `F3jK… = 100%`.
 - ✅ Два реальных buy→sell цикла создали creator fees.
 - ✅ Creator fee claim на admin wallet выполнен.
 - ✅ Admin deposit в контракт идемпотентен через operation ID и MongoDB lock/reconciliation.
@@ -215,7 +215,7 @@
 
 - [ ] Создать новый production Program ID и сохранить recoverable upgrade-authority/buffer procedure.
 - [ ] Создать новую production Core Collection и подтвердить 16 canonical immutable metadata.
-- [ ] Создать production token с утверждёнными Pump settings и `2NUN… = 100%` fee sharing.
+- [ ] Создать production token с утверждёнными Pump settings и `F3jK… = 100%` fee sharing.
 - [ ] Установить `MINT_PRICES_USD_CENTS=2500,2500,2500,2500`, проверить assignment manifest/root и настроить `$FARE` CA; после старта цена и порядок блокируются, CA остаётся runtime-replaceable.
 - [ ] Проверить отказ mint quote при stale/no-liquidity/high-impact/divergent market data и мониторинг доступности Jupiter.
 - [ ] Проверить атомарный mint: 100% `$FARE` приходит только в canonical ATA team wallet, неправильные mint/source/destination отклоняются, burn и reward-pool пополнение отсутствуют.

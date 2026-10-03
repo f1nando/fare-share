@@ -263,7 +263,7 @@ export function AdminPage() {
         <Metric label="Available to claim" value={formatSol(status.availableLamports)} />
         <Metric label="Pump curve" value={formatSol(status.bondingLamports)} />
         <Metric label="PumpSwap" value={formatSol(status.ammLamports)} />
-        <Metric label="2NUN balance" value={formatSol(status.walletLamports)} />
+        <Metric label="Project wallet balance" value={formatSol(status.walletLamports)} />
       </section>
       <LiveOverview dashboard={status.dashboard} />
       <AutomationControls settings={automation} setSettings={setAutomation} worker={status.dashboard?.worker} busy={busy} save={saveAutomation} run={runAutomation} />
