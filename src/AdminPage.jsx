@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BACKEND_URL as API } from './backendUrl.js';
 import { apiErrorMessage } from './clientErrorLog.js';
 import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
+import { DrivingDemo } from './driving-demo.jsx';
 
 const OPERATION_STORAGE = { claim: 'taxi.admin.claimOperationId', deposit: 'taxi.admin.depositOperationId' };
 
@@ -27,6 +28,7 @@ export function AdminPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [codeWord, setCodeWord] = useState('');
   const [automation, setAutomation] = useState({ enabled: false, intervalSeconds: 60, minimumSol: '0.001' });
+  const [panel, setPanel] = useState('protocol');
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const actionToastId = useRef(null);
   const pricesInitialized = useRef(false);
@@ -242,8 +244,8 @@ export function AdminPage() {
   </form></main>;
 
   return <main className="admin-shell">
-    <header><div><p className="eyebrow">FARE SHARE</p><h1>Protocol control</h1></div><div className="header-actions"><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button><button className="ghost" onClick={logout}>Sign out</button></div></header>
-    {!status ? <section className="admin-card">Loading on-chain state…</section> : <>
+    <header><div><p className="eyebrow">FARE SHARE</p><h1>{panel === 'driving' ? 'Taxi visual editor' : 'Protocol control'}</h1></div><div className="header-actions"><button className="secondary" onClick={() => setPanel(panel === 'driving' ? 'protocol' : 'driving')}>{panel === 'driving' ? 'Protocol' : 'Roads & headlights'}</button>{panel === 'protocol' && <><span className="live-dot">● LIVE · 15 SEC</span><button className="secondary" onClick={refresh}>Refresh</button></>}<button className="ghost" onClick={logout}>Sign out</button></div></header>
+    {panel === 'driving' ? <DrivingDemo admin csrf={csrf} /> : !status ? <section className="admin-card">Loading on-chain state…</section> : <>
       <section className="metrics">
         <Metric label="Available to claim" value={formatSol(status.availableLamports)} />
         <Metric label="Pump curve" value={formatSol(status.bondingLamports)} />

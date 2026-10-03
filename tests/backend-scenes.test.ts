@@ -54,4 +54,17 @@ test('scene summary omits image data and exposes a versioned image URL', () => {
   assert.equal(summary.id, id.toHexString());
   assert.equal(summary.vehicleClass, 'Trainee');
   assert.match(summary.imageUrl, new RegExp(`${id.toHexString()}/image\\?v=${date.getTime()}`));
+  assert.equal(
+    sceneSummary({
+      _id: id,
+      name: 'Taxi',
+      imageMime: 'image/png',
+      settings: {},
+      vehicleClass: 'Economy',
+      lightsOn: false,
+      createdAt: date,
+      updatedAt: date,
+    }, '/api/admin/driving-scenes').imageUrl,
+    `/api/admin/driving-scenes/${id.toHexString()}/image?v=${date.getTime()}`,
+  );
 });

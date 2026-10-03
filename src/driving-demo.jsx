@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import './clientErrorLog.js';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import { BACKEND_URL as API_BASE } from './backendUrl.js';
 import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
@@ -202,7 +200,7 @@ function FinePositionButtons({ value, onChange }) {
   );
 }
 
-function DrivingDemo() {
+export function DrivingDemo({ admin = false, csrf = '' }) {
   const [initialState] = useState(loadStoredState);
   const [bmwM3E46Reference] = useState(() => loadBmwM3E46Reference(initialState));
   const [settings, setSettings] = useState(initialState.settings);
@@ -229,6 +227,7 @@ function DrivingDemo() {
   const activeScene = scenes.find((scene) => scene.id === activeSceneId);
   const databaseBmwM3E46 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'bmw m3 e46');
   const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/bmw-m3-e46.webp';
+  const sceneApi = admin ? '/api/admin/driving-scenes' : '/api/driving-scenes';
 
   const selectScene = (scene) => {
     setActiveSceneId(scene?.id || '');
@@ -244,8 +243,10 @@ function DrivingDemo() {
   const request = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
+      credentials: 'include',
       headers: {
         'content-type': 'application/json',
+        ...(csrf && options.method && options.method !== 'GET' ? { 'x-csrf-token': csrf } : {}),
         ...options.headers,
       },
     });
@@ -258,7 +259,7 @@ function DrivingDemo() {
 
   const refreshScenes = async (preferredId) => {
     try {
-      const body = await request('/api/driving-scenes');
+      const body = await request(sceneApi);
       setScenes(body.scenes);
       const selected = body.scenes.find((scene) => scene.id === (preferredId || activeSceneId)) || body.scenes[0];
       if (selected) selectScene(selected);
@@ -275,7 +276,7 @@ function DrivingDemo() {
     setSceneStatus('Saving…');
     const toastId = notifyLoading('Saving scene settings…');
     try {
-      const body = await request(`/api/driving-scenes/${activeSceneId}`, {
+      const body = await request(`${sceneApi}/${activeSceneId}`, {
         method: 'PUT',
         body: JSON.stringify({ name: sceneName, settings, vehicleClass, lightsOn: false }),
       });
@@ -294,7 +295,7 @@ function DrivingDemo() {
     const toastId = notifyLoading('Uploading and converting the scene…');
     try {
       const imageDataUrl = await imageFileToWebPDataUrl(file);
-      const body = await request('/api/driving-scenes', {
+      const body = await request(sceneApi, {
         method: 'POST',
         body: JSON.stringify({
           name: file.name.replace(/\.[^.]+$/, '').slice(0, 80) || 'New scene',
@@ -314,7 +315,7 @@ function DrivingDemo() {
     if (!activeSceneId || !window.confirm(`Delete the scene “${sceneName}”?`)) return;
     const toastId = notifyLoading('Deleting scene…');
     try {
-      await request(`/api/driving-scenes/${activeSceneId}`, { method: 'DELETE' });
+      await request(`${sceneApi}/${activeSceneId}`, { method: 'DELETE' });
       setActiveSceneId('');
       await refreshScenes();
       setSceneStatus('Scene deleted.');
@@ -458,7 +459,7 @@ function DrivingDemo() {
   const markY = compactSpacingPreview ? 77 : settings.markY;
   const previewSettings = { ...settings, markSpacing: spacing, markY };
   return (
-    <main className="driving-demo">
+    <div className="driving-demo">
       <header className="demo-header">
         <div>
           <p>Motion lab / NFT taxi</p>
@@ -668,8 +669,6 @@ function DrivingDemo() {
           </fieldset>
         </aside>
       </section>
-    </main>
+    </div>
   );
 }
-
-createRoot(document.getElementById('root')).render(<DrivingDemo />);

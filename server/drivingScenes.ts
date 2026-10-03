@@ -38,14 +38,14 @@ export function parseSceneInput(value: unknown, requireImage: boolean) {
   return result;
 }
 
-export function sceneSummary(document: Omit<DrivingSceneDocument, 'image'>) {
+export function sceneSummary(document: Omit<DrivingSceneDocument, 'image'>, apiBase = '/api/driving-scenes') {
   return {
     id: document._id.toHexString(),
     name: document.name,
     settings: document.settings,
     vehicleClass: document.vehicleClass || 'Economy',
     lightsOn: document.lightsOn,
-    imageUrl: `/api/driving-scenes/${document._id.toHexString()}/image?v=${document.updatedAt.getTime()}`,
+    imageUrl: `${apiBase}/${document._id.toHexString()}/image?v=${document.updatedAt.getTime()}`,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
   };
@@ -60,9 +60,9 @@ function parseVehicleClass(value: unknown): VehicleClass {
   return value as VehicleClass;
 }
 
-export async function listScenes(collection: Collection<DrivingSceneDocument>) {
+export async function listScenes(collection: Collection<DrivingSceneDocument>, apiBase = '/api/driving-scenes') {
   const scenes = await collection.find({}, { projection: { image: 0 } }).sort({ updatedAt: -1 }).toArray();
-  return scenes.map(scene => sceneSummary(scene as Omit<DrivingSceneDocument, 'image'>));
+  return scenes.map(scene => sceneSummary(scene as Omit<DrivingSceneDocument, 'image'>, apiBase));
 }
 
 function parseSettings(value: unknown) {

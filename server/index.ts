@@ -88,7 +88,14 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url || '/', 'http://localhost');
     if (url.pathname.startsWith('/api/admin')) requireAdminOrigin(request);
-    if (url.pathname.startsWith('/api/driving-scenes')) requireLocalSceneAccess(request);
+    const adminDrivingScenes = url.pathname === '/api/admin/driving-scenes'
+      || url.pathname.startsWith('/api/admin/driving-scenes/');
+    if (adminDrivingScenes) requireAdminServices().auth.require(request, request.method !== 'GET');
+    else if (url.pathname.startsWith('/api/driving-scenes')) requireLocalSceneAccess(request);
+    const drivingScenePath = adminDrivingScenes
+      ? url.pathname.replace('/api/admin/driving-scenes', '/api/driving-scenes')
+      : url.pathname;
+    const drivingSceneApiBase = adminDrivingScenes ? '/api/admin/driving-scenes' : '/api/driving-scenes';
     if (request.method === 'GET' && request.url === '/api/health') {
       json(response, 200, { ok: true });
       return;
@@ -356,8 +363,8 @@ const server = createServer(async (request, response) => {
       json(response, 200, await trade.buildMintBuyInstructions(await readJson(request)));
       return;
     }
-    if (request.method === 'GET' && url.pathname === '/api/driving-scenes') {
-      json(response, 200, { scenes: await listScenes(database.drivingScenes) });
+    if (request.method === 'GET' && drivingScenePath === '/api/driving-scenes') {
+      json(response, 200, { scenes: await listScenes(database.drivingScenes, drivingSceneApiBase) });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/api/trade/token') {
@@ -407,18 +414,18 @@ const server = createServer(async (request, response) => {
       json(response, 200, await trade.signatureStatus(decodeURIComponent(tradeStatusRoute[1])));
       return;
     }
-    const sceneRoute = /^\/api\/driving-scenes\/([a-f0-9]{24})(?:\/(image))?$/.exec(url.pathname);
+    const sceneRoute = /^\/api\/driving-scenes\/([a-f0-9]{24})(?:\/(image))?$/.exec(drivingScenePath);
     if (request.method === 'GET' && sceneRoute?.[2] === 'image') {
       const scene = await database.drivingScenes.findOne({ _id: new ObjectId(sceneRoute[1]) }, { projection: { image: 1, imageMime: 1, updatedAt: 1 } });
       if (!scene) throw new DrivingSceneError('Scene not found.', 404);
       response.writeHead(200, {
         'content-type': scene.imageMime,
-        'cache-control': 'public, max-age=31536000, immutable',
+        'cache-control': adminDrivingScenes ? 'private, max-age=3600' : 'public, max-age=31536000, immutable',
       });
       response.end(Buffer.from(scene.image.buffer));
       return;
     }
-    if (request.method === 'POST' && url.pathname === '/api/driving-scenes') {
+    if (request.method === 'POST' && drivingScenePath === '/api/driving-scenes') {
       const input = parseSceneInput(await readJson(request, 12 * 1024 * 1024), true);
       const now = new Date();
       const document = {
@@ -434,7 +441,7 @@ const server = createServer(async (request, response) => {
       };
       await database.drivingScenes.insertOne(document);
       const { image: _image, ...summary } = document;
-      json(response, 201, { scene: sceneSummary(summary) });
+      json(response, 201, { scene: sceneSummary(summary, drivingSceneApiBase) });
       return;
     }
     if (request.method === 'PUT' && sceneRoute && !sceneRoute[2]) {
@@ -457,7 +464,7 @@ const server = createServer(async (request, response) => {
         { returnDocument: 'after', projection: { image: 0 } },
       );
       if (!result) throw new DrivingSceneError('Scene not found.', 404);
-      json(response, 200, { scene: sceneSummary(result as Omit<DrivingSceneDocument, 'image'>) });
+      json(response, 200, { scene: sceneSummary(result as Omit<DrivingSceneDocument, 'image'>, drivingSceneApiBase) });
       return;
     }
     if (request.method === 'DELETE' && sceneRoute && !sceneRoute[2]) {
