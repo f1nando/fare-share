@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { address } from '@solana/kit';
-import { buildPublicOverview, createPublicDataService, validateTraineeAsset } from '../server/publicData.js';
+import { address, getAddressEncoder } from '@solana/kit';
+import { buildPublicOverview, createPublicDataService, parseRewardClaimEvents, validateTraineeAsset } from '../server/publicData.js';
 import {
   ensureFleetEarningRetention,
   FLEET_EARNING_RETENTION_SECONDS,
@@ -20,7 +21,7 @@ test('public overview aggregates the bounded leaderboard once during synchroniza
     weight: index === 104 ? 30 : 1,
     classIndex: index === 104 ? 3 : 0,
   }));
-  const overview = buildPublicOverview(snapshot(), machines, 'FARE');
+  const overview = buildPublicOverview(snapshot(), machines, 'FARE', new Map([['owner-104', 12.5]]));
   assert.equal(overview.stats.mintedCars, 105);
   assert.equal(overview.stats.uniqueOwners, 105);
   assert.equal(overview.leaders.length, 100);
@@ -30,6 +31,23 @@ test('public overview aggregates the bounded leaderboard once during synchroniza
   assert.equal(overview.mint.fareDecimals, 6);
   assert.equal(overview.mint.fareMint, 'fare-mint');
   assert.equal(overview.mint.fareTicker, 'FARE');
+  assert.equal(overview.leaders[0].lifetimeClaimedUsd, 12.5);
+});
+
+test('reward claim events preserve every claimed asset amount and owner', () => {
+  const bytes = Buffer.alloc(112);
+  createHash('sha256').update('event:RewardsClaimed').digest().subarray(0, 8).copy(bytes);
+  Buffer.from(getAddressEncoder().encode(address(ASSET))).copy(bytes, 8);
+  Buffer.from(getAddressEncoder().encode(address(OWNER))).copy(bytes, 40);
+  [10n, 20n, 30n, 40n, 50n].forEach((amount, index) => bytes.writeBigUInt64LE(amount, 72 + index * 8));
+
+  assert.deepEqual(parseRewardClaimEvents([`Program data: ${bytes.toString('base64')}`]), [{
+    eventIndex: 0,
+    kind: 'machine',
+    asset: ASSET,
+    owner: OWNER,
+    amounts: ['10', '20', '30', '40', '50'],
+  }]);
 });
 
 test('public read endpoints use MongoDB snapshots without starting an on-chain sync', async () => {

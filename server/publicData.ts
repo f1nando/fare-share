@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { address, getAddressDecoder, getAddressEncoder, getProgramDerivedAddress, getUtf8Encoder, type Address } from '@solana/kit';
 import type { FleetMachineDocument, PublicSnapshotDocument, TaxiDatabase } from './database.js';
+import { jupiterRequest } from './jupiterHttp.js';
 import { decodeDashboardMachine, decodeDashboardPool, loadProtocolDashboard } from './protocolDashboard.js';
 import { solanaRpcCall } from './solanaRpc.js';
 import { protocolAddresses } from './setup.js';
@@ -22,6 +24,8 @@ const MODEL_NAMES = [
   ['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'],
 ] as const;
 const MODEL_CLASS_WEIGHTS = [1, 3, 10, 30] as const;
+const REWARDS_CLAIMED_DISCRIMINATOR = createHash('sha256').update('event:RewardsClaimed').digest().subarray(0, 8);
+const TRAINEE_REWARDS_CLAIMED_DISCRIMINATOR = createHash('sha256').update('event:TraineeRewardsClaimed').digest().subarray(0, 8);
 const utf8 = getUtf8Encoder();
 const addressEncoder = getAddressEncoder();
 const addressDecoder = getAddressDecoder();
@@ -55,10 +59,12 @@ export function createPublicDataService(config: {
   workerIntervalMs: number;
   fareSymbol: string | (() => string);
   assetLoader?: (rpcUrl: string, ids: string[]) => Promise<DasAsset[]>;
-  taxiIndexRefresher?: () => Promise<void>;
-  mintReceiptVerifier?: (signature: string, asset: string, owner: string) => Promise<{ slot: number; blockTime: Date }>;
-  mintMachineLoader?: (asset: string, owner: string) => Promise<FleetMachineDocument | null>;
-}, database: TaxiDatabase) {
+    taxiIndexRefresher?: () => Promise<void>;
+    mintReceiptVerifier?: (signature: string, asset: string, owner: string) => Promise<{ slot: number; blockTime: Date }>;
+    mintMachineLoader?: (asset: string, owner: string) => Promise<FleetMachineDocument | null>;
+    jupiterApiKey?: string;
+    usdPriceLoader?: (mints: string[]) => Promise<Map<string, number>>;
+  }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
   let lastMarketSyncAt = 0;
@@ -79,6 +85,8 @@ export function createPublicDataService(config: {
       ]);
       const assetsById = new Map(assets.map(asset => [asset.id, asset]));
       const now = new Date();
+      const rewardAssets = dashboard.vaults.tokens.map(token => ({ mint: token.mint, decimals: token.decimals }));
+      await syncRewardClaims(config.solanaRpcUrl, config.programId, database, rewardAssets);
       if (dashboard.machines.length) {
         await database.fleetMachines.bulkWrite(dashboard.machines.map(machine => {
           const asset = assetsById.get(machine.asset);
@@ -158,7 +166,11 @@ export function createPublicDataService(config: {
       } satisfies Omit<PublicSnapshotDocument, 'overview'>;
       const machines = await database.fleetMachines.find({ closed: false }).toArray();
       if (dashboard.machines.length) await saveEarningSnapshots(database, now, machines);
-      const preparedOverview = buildPublicOverview(snapshot, machines, fareSymbol);
+      const claimedUsdByOwner = await loadLifetimeClaimUsd(
+        database,
+        config.usdPriceLoader || (mints => loadUsdPrices(mints, config.jupiterApiKey)),
+      );
+      const preparedOverview = buildPublicOverview(snapshot, machines, fareSymbol, claimedUsdByOwner);
       await database.publicSnapshots.updateOne({ key: 'overview' }, { $set: {
         ...snapshot,
         overview: preparedOverview,
@@ -594,6 +606,7 @@ export function buildPublicOverview(
   snapshot: Pick<PublicSnapshotDocument, 'protocol' | 'distribution' | 'vaults' | 'observedAt'>,
   machines: FleetMachineDocument[],
   fareTicker = 'FARE',
+  claimedUsdByOwner = new Map<string, number>(),
 ) {
   const ownerRows = new Map<string, { owner: string; cars: number; activeWeight: number; claimableFareRaw: bigint }>();
   for (const machine of machines) {
@@ -606,7 +619,11 @@ export function buildPublicOverview(
   const leaders = [...ownerRows.values()]
     .sort((left, right) => right.activeWeight - left.activeWeight || right.cars - left.cars || left.owner.localeCompare(right.owner))
     .slice(0, 100)
-    .map(row => ({ ...row, claimableFareRaw: row.claimableFareRaw.toString() }));
+    .map(row => ({
+      ...row,
+      claimableFareRaw: row.claimableFareRaw.toString(),
+      lifetimeClaimedUsd: claimedUsdByOwner.get(row.owner) || 0,
+    }));
   const classCounts = [0, 0, 0, 0];
   for (const machine of machines) classCounts[machine.classIndex] += 1;
   return {
@@ -640,6 +657,133 @@ export function buildPublicOverview(
 }
 
 type PublicOverview = ReturnType<typeof buildPublicOverview>;
+
+type RewardAsset = { mint: string; decimals: number };
+
+type ParsedRewardClaim = {
+  eventIndex: number;
+  kind: 'machine' | 'trainee';
+  owner: string;
+  asset?: string;
+  campaignId?: string;
+  amounts: string[];
+};
+
+export function parseRewardClaimEvents(logMessages: string[]): ParsedRewardClaim[] {
+  const events: ParsedRewardClaim[] = [];
+  logMessages.forEach((message, eventIndex) => {
+    if (!message.startsWith('Program data: ')) return;
+    const bytes = Buffer.from(message.slice('Program data: '.length), 'base64');
+    const discriminator = bytes.subarray(0, 8);
+    if (bytes.length >= 112 && discriminator.equals(REWARDS_CLAIMED_DISCRIMINATOR)) {
+      events.push({
+        eventIndex,
+        kind: 'machine',
+        asset: String(addressDecoder.decode(bytes.subarray(8, 40))),
+        owner: String(addressDecoder.decode(bytes.subarray(40, 72))),
+        amounts: Array.from({ length: 5 }, (_, index) => bytes.readBigUInt64LE(72 + index * 8).toString()),
+      });
+    } else if (bytes.length >= 56 && discriminator.equals(TRAINEE_REWARDS_CLAIMED_DISCRIMINATOR)) {
+      events.push({
+        eventIndex,
+        kind: 'trainee',
+        owner: String(addressDecoder.decode(bytes.subarray(8, 40))),
+        campaignId: bytes.readBigUInt64LE(40).toString(),
+        amounts: [bytes.readBigUInt64LE(48).toString(), '0', '0', '0', '0'],
+      });
+    }
+  });
+  return events;
+}
+
+async function syncRewardClaims(
+  rpcUrl: string,
+  programId: Address,
+  database: TaxiDatabase,
+  rewardAssets: RewardAsset[],
+) {
+  const state = await database.protocolIndexState.findOne({ key: 'reward-claims' });
+  const signatures: Array<{ signature: string; slot: number; err: unknown; blockTime: number | null }> = [];
+  let before: string | undefined;
+  do {
+    const options: Record<string, unknown> = { limit: 1_000 };
+    if (before) options.before = before;
+    if (state?.newestSignature) options.until = state.newestSignature;
+    const page = await solanaRpcCall<typeof signatures>(rpcUrl, 'getSignaturesForAddress', [String(programId), options]);
+    signatures.push(...page);
+    before = page.length === 1_000 ? page.at(-1)?.signature : undefined;
+  } while (before);
+  if (!signatures.length) return;
+
+  const successful = signatures.filter(row => row.err === null);
+  const now = new Date();
+  for (let offset = 0; offset < successful.length; offset += 10) {
+    const rows = successful.slice(offset, offset + 10);
+    const transactions = await Promise.all(rows.map(row => solanaRpcCall<{
+      slot: number;
+      blockTime: number | null;
+      meta?: { err?: unknown; logMessages?: string[] | null };
+    } | null>(rpcUrl, 'getTransaction', [row.signature, {
+      commitment: 'finalized',
+      encoding: 'json',
+      maxSupportedTransactionVersion: 0,
+    }])));
+    const writes = transactions.flatMap((transaction, index) => {
+      if (!transaction || transaction.meta?.err || !transaction.meta?.logMessages) return [];
+      const signature = rows[index].signature;
+      return parseRewardClaimEvents(transaction.meta.logMessages).map(event => ({
+        updateOne: {
+          filter: { signature, eventIndex: event.eventIndex },
+          update: { $setOnInsert: {
+            ...event,
+            signature,
+            rewardMints: rewardAssets.map(asset => asset.mint),
+            rewardDecimals: rewardAssets.map(asset => asset.decimals),
+            slot: transaction.slot,
+            blockTime: new Date((transaction.blockTime || rows[index].blockTime || 0) * 1_000),
+            createdAt: now,
+          } },
+          upsert: true,
+        },
+      }));
+    });
+    if (writes.length) await database.protocolClaims.bulkWrite(writes);
+  }
+  await database.protocolIndexState.updateOne(
+    { key: 'reward-claims' },
+    { $set: { newestSignature: signatures[0].signature, updatedAt: now } },
+    { upsert: true },
+  );
+}
+
+async function loadLifetimeClaimUsd(
+  database: TaxiDatabase,
+  priceLoader: (mints: string[]) => Promise<Map<string, number>>,
+) {
+  const claims = await database.protocolClaims.find({}).toArray();
+  const mints = [...new Set(claims.flatMap(claim => claim.rewardMints))];
+  if (!mints.length) return new Map<string, number>();
+  const prices = await priceLoader(mints);
+  const totals = new Map<string, number>();
+  for (const claim of claims) {
+    const usd = claim.amounts.reduce((total, raw, index) => {
+      const price = prices.get(claim.rewardMints[index]) || 0;
+      return total + Number(raw) / 10 ** Number(claim.rewardDecimals[index] || 0) * price;
+    }, 0);
+    totals.set(claim.owner, (totals.get(claim.owner) || 0) + usd);
+  }
+  return totals;
+}
+
+async function loadUsdPrices(mints: string[], apiKey?: string) {
+  const response = await jupiterRequest(
+    `https://api.jup.ag/price/v3?ids=${encodeURIComponent(mints.join(','))}`,
+    { headers: apiKey ? { 'x-api-key': apiKey } : undefined },
+    { operation: 'reward USD prices', requestTimeoutMs: 8_000 },
+  );
+  const payload = await response.json() as Record<string, { usdPrice?: number }>;
+  return new Map(mints.map(mint => [mint, Number(payload[mint]?.usdPrice || 0)]));
+}
 
 async function saveEarningSnapshots(database: TaxiDatabase, observedAt: Date, machines: FleetMachineDocument[]) {
   const owners = new Map<string, { claimable: bigint[]; cars: number; activeWeight: number }>();

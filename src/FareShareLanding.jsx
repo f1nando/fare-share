@@ -714,15 +714,15 @@ export function FareShareLanding({ publicHolding = false }) {
 
           <div className="fare-leaderboard" id="leaderboard">
             <div className="fare-leaderboard-row fare-leaderboard-header">
-              <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>ACTIVE WEIGHT</span>
+              <span>#</span><span>DRIVER</span><span>WEIGHT</span><span>RECEIVED, USD</span>
             </div>
             {leaders.map((leader, index) => <div className="fare-leaderboard-row" key={leader.owner}>
               <span data-label="#">{index + 1}</span>
               <span className="fare-driver-cell" data-label="WALLET"><a href={`https://solscan.io/account/${leader.owner}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', textDecorationThickness: '1px', textUnderlineOffset: '3px' }}>{shortLandingWallet(leader.owner)}</a></span>
-              <span data-label="CARS">{leader.cars} {leader.cars === 1 ? 'Car' : 'Cars'}</span>
-              <span data-label="ACTIVE WEIGHT">{leader.activeWeight}</span>
+              <span data-label="WEIGHT">{leader.activeWeight} ({leader.cars} {leader.cars === 1 ? 'car' : 'cars'})</span>
+              <span data-label="RECEIVED, USD">${formatCompactNumber(leader.lifetimeClaimedUsd || 0)}</span>
             </div>)}
-            {overview && leaders.length === 0 && <div className="fare-leaderboard-row"><span>—</span><span>No verified owners yet</span><span>0 Cars</span><span>0</span></div>}
+            {overview && leaders.length === 0 && <div className="fare-leaderboard-row"><span>—</span><span>No verified owners yet</span><span>0 (0 cars)</span><span>$0</span></div>}
           </div>
           </div>
         </section>

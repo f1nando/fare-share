@@ -223,6 +223,27 @@ export interface FleetEarningSnapshotDocument {
   updatedAt: Date;
 }
 
+export interface ProtocolClaimDocument {
+  signature: string;
+  eventIndex: number;
+  kind: 'machine' | 'trainee';
+  owner: string;
+  asset?: string;
+  campaignId?: string;
+  amounts: string[];
+  rewardMints: string[];
+  rewardDecimals: number[];
+  slot: number;
+  blockTime: Date;
+  createdAt: Date;
+}
+
+export interface ProtocolIndexStateDocument {
+  key: 'reward-claims';
+  newestSignature?: string;
+  updatedAt: Date;
+}
+
 export interface MarketListingDocument {
   asset: string;
   seller: string;
@@ -271,6 +292,8 @@ export interface TaxiDatabase {
   publicSnapshots: Collection<PublicSnapshotDocument>;
   fleetMintReceipts: Collection<FleetMintReceiptDocument>;
   fleetEarningSnapshots: Collection<FleetEarningSnapshotDocument>;
+  protocolClaims: Collection<ProtocolClaimDocument>;
+  protocolIndexState: Collection<ProtocolIndexStateDocument>;
   marketListings: Collection<MarketListingDocument>;
   marketOffers: Collection<MarketOfferDocument>;
   errorLogs: Collection<ErrorLogDocument>;
@@ -301,6 +324,8 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
   const publicSnapshots = db.collection<PublicSnapshotDocument>('public_snapshots');
   const fleetMintReceipts = db.collection<FleetMintReceiptDocument>('fleet_mint_receipts');
   const fleetEarningSnapshots = db.collection<FleetEarningSnapshotDocument>('fleet_earning_snapshots');
+  const protocolClaims = db.collection<ProtocolClaimDocument>('protocol_claims');
+  const protocolIndexState = db.collection<ProtocolIndexStateDocument>('protocol_index_state');
   const marketListings = db.collection<MarketListingDocument>('market_listings');
   const marketOffers = db.collection<MarketOfferDocument>('market_offers');
   const errorLogs = db.collection<ErrorLogDocument>('error_logs');
@@ -342,6 +367,9 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     fleetEarningSnapshots.createIndex({ owner: 1, bucketAt: 1 }, { unique: true }),
     fleetEarningSnapshots.createIndex({ bucketAt: 1 }),
     ensureFleetEarningRetention(fleetEarningSnapshots),
+    protocolClaims.createIndex({ signature: 1, eventIndex: 1 }, { unique: true }),
+    protocolClaims.createIndex({ owner: 1, blockTime: -1 }),
+    protocolIndexState.createIndex({ key: 1 }, { unique: true }),
     marketListings.createIndex({ asset: 1 }, { unique: true }),
     marketListings.createIndex({ status: 1, listedAt: -1 }),
     marketOffers.createIndex({ offer: 1 }, { unique: true }),
@@ -354,7 +382,7 @@ export async function connectDatabase(uri: string, databaseName: string): Promis
     errorLogs.createIndex({ source: 1, status: 1, createdAt: -1 }),
     errorLogs.createIndex({ expiresAt: 1 }, { name: 'error_logs_ttl', expireAfterSeconds: 0 }),
   ]);
-  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, marketListings, marketOffers, errorLogs };
+  return { client, db, campaigns, voucherIssues, rateLimits, drivingScenes, tradeTransactions, tradeHolders, tradeState, adminLoginLimits, adminFeeActions, adminFeeOperations, tokenConfig, workerStatus, telegramAlerts, telegramAlertStates, telegramAudit, rehearsalBudget, fleetMachines, fleetTrainees, publicSnapshots, fleetMintReceipts, fleetEarningSnapshots, protocolClaims, protocolIndexState, marketListings, marketOffers, errorLogs };
 }
 
 export function ensureFleetEarningRetention(

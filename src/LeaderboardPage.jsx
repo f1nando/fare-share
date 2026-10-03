@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadPublicOverview } from './publicData.js';
+import { formatCompactNumber } from './compactNumber.js';
 
 export function LeaderboardPage({ wallet }) {
   const currentDriverRef = useRef(null);
@@ -53,14 +54,14 @@ export function LeaderboardPage({ wallet }) {
 
           <div className="fare-leaderboard fare-leaderboard-full">
             <div className="fare-leaderboard-row fare-leaderboard-header">
-              <span>#</span><span>DRIVER</span><span>CARS OWNED</span><span>ACTIVE WEIGHT</span>
+              <span>#</span><span>DRIVER</span><span>WEIGHT</span><span>RECEIVED, USD</span>
             </div>
             {leaders.map((leader, index) => (
               <div className={`fare-leaderboard-row${leader.owner === currentOwner ? ' is-current-driver' : ''}`} key={leader.owner} ref={leader.owner === currentOwner ? currentDriverRef : undefined}>
                 <span>{index + 1}</span>
                 <span className="fare-driver-cell"><a className="fare-driver-name" href={`https://solscan.io/account/${leader.owner}`} target="_blank" rel="noreferrer">{shortWallet(leader.owner)}{leader.owner === currentOwner && <strong className="fare-you-badge">YOU</strong>}</a></span>
-                <span>{leader.cars} {leader.cars === 1 ? 'Car' : 'Cars'}</span>
-                <span>{leader.activeWeight}</span>
+                <span>{leader.activeWeight} ({leader.cars} {leader.cars === 1 ? 'car' : 'cars'})</span>
+                <span>${formatCompactNumber(leader.lifetimeClaimedUsd || 0)}</span>
               </div>
             ))}
             {notice && <div className="fare-leaderboard-row"><span>—</span><span>{notice}</span><span>—</span><span>—</span></div>}
@@ -71,8 +72,8 @@ export function LeaderboardPage({ wallet }) {
       <div className={`fare-current-driver-dock${dockHidden ? ' is-hidden' : ''}`} aria-hidden={dockHidden}>
         <span>{currentIndex + 1}</span>
         <span className="fare-driver-cell"><span className="fare-driver-name">{currentLeader ? shortWallet(currentLeader.owner) : '—'}<strong className="fare-you-badge">YOU</strong></span></span>
-        <span>{currentLeader?.cars || 0} Cars</span>
-        <span>{currentLeader?.activeWeight || 0}</span>
+        <span>{currentLeader?.activeWeight || 0} ({currentLeader?.cars || 0} {currentLeader?.cars === 1 ? 'car' : 'cars'})</span>
+        <span>${formatCompactNumber(currentLeader?.lifetimeClaimedUsd || 0)}</span>
       </div>
 
     </>
