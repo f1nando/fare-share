@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { fillTradeCandles, parseTradeTransaction, TradeService } from '../server/trade.js';
+import { decodePumpCurvePriceSol, fillTradeCandles, parseTradeTransaction, TradeService } from '../server/trade.js';
 import type { ServerConfig } from '../server/config.js';
 import type { TaxiDatabase } from '../server/database.js';
 
@@ -55,6 +55,13 @@ test('a single trade opens its candle at the previous close', () => {
   assert.deepEqual(candles[1], { time: 300, open: 100, high: 110, low: 100, close: 110, volume: 2 });
 });
 
+test('Pump curve spot price uses virtual reserves instead of wallet SOL deltas', () => {
+  const bytes = Buffer.alloc(49);
+  bytes.writeBigUInt64LE(1_072_950_547_208_576n, 8);
+  bytes.writeBigUInt64LE(30_001_382_719n, 16);
+  assert.ok(Math.abs((decodePumpCurvePriceSol(bytes, 6) || 0) - 2.7961570826e-8) < 1e-18);
+});
+
 test('holders exclude the Pump bonding curve liquidity account', async () => {
   let holderFilter: any;
   const holder = { mint: MINT, owner: 'So11111111111111111111111111111111111111112', balance: 10, supplyShare: 1 };
@@ -102,6 +109,13 @@ test('trade reads are bounded and concurrent identical requests share cached wor
     tradeHolders: { countDocuments: async () => 2 },
   } as unknown as TaxiDatabase;
   const service = new TradeService({ solanaRpcUrl: 'https://rpc.invalid' } as ServerConfig, database, { mint: MINT, ticker: 'FARE' });
+  Object.assign((service as any).state, {
+    decimals: 6,
+    supplyRaw: '1000000000',
+    stage: 'bonding_curve',
+    bondingCurvePriceSol: 1,
+    solUsd: 100,
+  });
 
   const tokenResults = await Promise.all(Array.from({ length: 20 }, () => service.tokenSnapshot()));
   assert.ok(tokenResults.every(result => result === tokenResults[0]));
@@ -110,8 +124,11 @@ test('trade reads are bounded and concurrent identical requests share cached wor
   assert.equal(findCalls, 2);
   assert.equal(Math.max(...limits), 20_001);
   assert.equal(tokenResults[0].volume24hSol, 40_000);
+  assert.equal(tokenResults[0].priceSol, 1);
+  assert.equal(tokenResults[0].marketCapUsd, 100_000);
   assert.equal(tokenResults[0].sourceTradesTruncated, true);
   assert.ok(candleResults[0].candles.length >= 1 && candleResults[0].candles.length <= 2);
+  assert.equal(candleResults[0].candles.at(-1)?.close, 100_000);
   assert.equal(candleResults[0].sourceTradesTruncated, true);
 });
 

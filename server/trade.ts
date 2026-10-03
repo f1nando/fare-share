@@ -58,6 +58,7 @@ export interface TradeStateDocument {
   bondingCurve?: string;
   bondingCurveRemainingRaw?: string;
   bondingCurveRemainingPercent?: number;
+  bondingCurvePriceSol?: number;
   routeLabel?: string;
   routePriceSol?: number;
   tradingAvailable: boolean;
@@ -238,17 +239,20 @@ export class TradeService {
     const boundedRecent = sourceTradesTruncated ? recent.slice(0, MAX_TRADE_METRIC_ROWS) : recent;
     const firstPrice = boundedRecent.at(-1)?.priceSol;
     const lastPrice = latest?.priceSol;
+    const currentPrice = this.state.stage === 'bonding_curve' && this.state.bondingCurvePriceSol
+      ? this.state.bondingCurvePriceSol
+      : lastPrice || this.state.routePriceSol || 0;
     const change24h = firstPrice && lastPrice ? ((lastPrice / firstPrice) - 1) * 100 : 0;
     const volume24h = boundedRecent.reduce((total, row) => total + row.solAmount, 0);
     const supply = Number(this.state.supplyRaw) / 10 ** this.state.decimals;
     return {
       ...this.publicState(),
-      priceSol: lastPrice || 0,
-      priceUsd: lastPrice && this.state.solUsd ? lastPrice * this.state.solUsd : 0,
+      priceSol: currentPrice,
+      priceUsd: currentPrice && this.state.solUsd ? currentPrice * this.state.solUsd : 0,
       change24h,
       volume24hSol: volume24h,
       volume24hUsd: this.state.solUsd ? volume24h * this.state.solUsd : 0,
-      marketCapUsd: lastPrice && this.state.solUsd ? supply * lastPrice * this.state.solUsd : 0,
+      marketCapUsd: currentPrice && this.state.solUsd ? supply * currentPrice * this.state.solUsd : 0,
       holders: await this.database.tradeHolders.countDocuments({
         mint: String(this.mint),
         balance: { $gt: 0 },
@@ -313,10 +317,16 @@ export class TradeService {
     const accepted = trades.filter(trade => trade.priceSol >= lowerPrice && trade.priceSol <= upperPrice);
     const supply = Number(this.state.supplyRaw || '0') / 10 ** this.state.decimals;
     const marketCapMultiplier = supply > 0 && this.state.solUsd ? supply * this.state.solUsd : 1;
+    const latestIndexedPrice = accepted.at(-1)?.priceSol || 0;
+    const bondingCurveScale = this.state.stage === 'bonding_curve'
+      && this.state.bondingCurvePriceSol
+      && latestIndexedPrice > 0
+      ? this.state.bondingCurvePriceSol / latestIndexedPrice
+      : 1;
     const buckets = new Map<number, TradeCandle>();
     for (const trade of accepted) {
       const time = Math.floor(trade.blockTime.getTime() / 1_000 / seconds) * seconds;
-      const price = trade.priceSol * marketCapMultiplier;
+      const price = trade.priceSol * bondingCurveScale * marketCapMultiplier;
       const volume = this.state.solUsd ? trade.solAmount * this.state.solUsd : trade.solAmount;
       const candle = buckets.get(time);
       if (candle) {
@@ -565,11 +575,12 @@ export class TradeService {
       else if (complete && route) stage = 'external';
       else if (complete) stage = 'migrating';
       else if (route) stage = pumpRoute ? 'pumpswap' : 'external';
+      const decimals = Number(tokenInfo.decimals ?? supplyValue.decimals ?? this.state.decimals);
       const next: TradeStateDocument = {
         ...this.state,
         name: String(metadataValue.name || this.state.name),
         symbol: this.state.symbol,
-        decimals: Number(tokenInfo.decimals ?? supplyValue.decimals ?? this.state.decimals),
+        decimals,
         supplyRaw: String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw),
         stage,
         bondingCurve: curveExists ? String(bondingCurve) : undefined,
@@ -577,6 +588,7 @@ export class TradeService {
         bondingCurveRemainingPercent: curveRemainingRaw && BigInt(String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw)) > 0n
           ? Number(BigInt(curveRemainingRaw) * 1_000_000n / BigInt(String(tokenInfo.supply ?? supplyValue.amount ?? this.state.supplyRaw))) / 10_000
           : undefined,
+        bondingCurvePriceSol: curveExists ? decodePumpCurvePriceSol(bytes, decimals) : undefined,
         routeLabel: labels.join(' → ') || undefined,
         routePriceSol,
         tradingAvailable: Boolean(route),
@@ -906,6 +918,17 @@ export function createTradeService(config: ServerConfig, database: TaxiDatabase,
   const service = new TradeService(config, database, token);
   service.start();
   return service;
+}
+
+export function decodePumpCurvePriceSol(bytes: Uint8Array, decimals: number) {
+  if (bytes.length <= 24) return undefined;
+  const data = Buffer.from(bytes);
+  const virtualTokenRaw = data.readBigUInt64LE(8);
+  const virtualSolLamports = data.readBigUInt64LE(16);
+  if (virtualTokenRaw === 0n || virtualSolLamports === 0n) return undefined;
+  const price = Number(virtualSolLamports) * 10 ** decimals
+    / Number(virtualTokenRaw) / LAMPORTS_PER_SOL;
+  return Number.isFinite(price) && price > 0 ? price : undefined;
 }
 
 export function parseTradeTransaction(value: JsonRecord, mint: string, decimals: number, solUsd?: number): TradeTransactionDocument | null {
