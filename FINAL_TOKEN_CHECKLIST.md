@@ -167,19 +167,27 @@ Claim signature: `TBD`
 
 ## 12. Проверить reward pool и worker
 
-- [ ] Новый reward pool пополнен небольшой суммой финального токена.
-- [ ] Выполнен один ручной reward cycle.
-- [ ] Начисления созданы только в новом токене.
-- [ ] Выполнен один небольшой claim.
-- [ ] Баланс vault уменьшился на сумму claim.
-- [ ] Worker во время смены CA был выключен.
-- [ ] Постоянная автоматическая работа включена только после ручного PASS.
+- [x] Новый reward pool пополнен небольшой суммой тестового `TAXI`.
+- [x] Выполнен один ручной reward cycle.
+- [x] Начисления созданы только в новом токене.
+- [x] Выполнен один небольшой claim.
+- [x] Баланс vault уменьшился на сумму claim.
+- [x] Worker во время смены CA был выключен.
+- [x] Ручной PASS получен; постоянный worker оставлен выключенным до release-решения.
 
-Reward deposit signature: `TBD`
+Reward deposit signature: `4CF2ktaeeqy1TzVxy8ME7FfmEbBXrGwo6DrcLibvhUhR73NUNNy3AeBRcK5R7DvFY2aCkuQYEePKBXirha4t6A3t`
 
-Reward claim signature: `TBD`
+FARE swap signature: `4hXP8CrcGRLkJiSRF2skKMQHzMVLsu3RHy1CN4ouTbVgpE7971f8rfWkDNSSa6Z4Wcci3mbN9ZLVHtSDafGmZxhM`
 
-Результат: `PASS / FAIL`
+Reward calculation signatures: `ftxfmFb24NeBxNvC7Bj9hHAQd8DHLsG5fVxpbou6atENhvdXiXBG5M3mhPsvWkAJnUM2UsPG84ybRzxsdu9LBfL`, `5KHQN86KQG7GhKy58bNpygBwnUGPCQftCDk1rEHkAqd78nRF2cw6ULM4ERU84XURMKnxvA7pQEoYsjzCeGuPtkq3`
+
+Reward claim signature: `5V4Z5gn14MKZNDdECvzt95vremNzzJcJuZCMmshQd7s28kG5ifjZFVt4JPTRfXVuaPJfaxMKC5cKSMaxRqk4PBvP`
+
+Получено: `31,791.080200 TAXI`. После claim machine claimable равен нулю.
+Оставшиеся `3,532.342244 TAXI` корректно находятся в trainee `nextPool`, где нет
+активного trainee; ещё `0.000001 TAXI` является bounded main-pool rounding residual.
+
+Результат: `PASS`
 
 ## Итоговый release gate
 

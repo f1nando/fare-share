@@ -65,7 +65,11 @@ Collection переключена до старта sale и до первого 
 переноса authority Collection сожжена и оставила только Core tombstone `0.000655320 SOL`.
 2026-10-03 test CA `C4TZ…NKrj` был привязан к протоколу. Paid-mint smoke выпустил
 Comfort asset `EMaK…Z4iU` транзакцией `REV4ve…E1Hz`. После теста протокол paused,
-saleStarted остаётся `true`, supply `[0,1,0,0]`, token vaults и obligations нулевые.
+saleStarted остаётся `true`, supply `[0,1,0,0]`. Reward smoke начислил и выплатил
+машине `31,791.080200 TAXI`; machine claimable снова нулевой. В trainee `nextPool`
+осталось `3,532.342244 TAXI` до появления активного trainee, main rounding residual —
+`0.000001 TAXI`, а fee-vault stock reserves — `0.000400000 SOL`. Постоянный worker
+остаётся выключенным.
 Recovery manifest SHA-256:
 `f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
 fail-closed close dry-run — PASS, но close не выполнялся.
