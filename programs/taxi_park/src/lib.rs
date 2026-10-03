@@ -21,7 +21,7 @@ pub use swap::{SwapPlan, FARE_SWAP_KIND, STOCK_SWAP_KIND};
 pub use voucher::{ActivateTraineeArgs, MintAssignmentArgs, MintQuoteArgs};
 
 #[cfg(feature = "mainnet")]
-declare_id!("3i1YDj1ZKCypwoYqP21CzGatdPMzuRPUGrsjSxGBEp1Z");
+declare_id!("8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD");
 #[cfg(not(feature = "mainnet"))]
 declare_id!("FJgPHdMEFi8JQSeW7h9ogLCDvm2gixWkXG8g7tqn7aJr");
 
