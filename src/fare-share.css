@@ -459,6 +459,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-test-mint-main h1 { margin: 14px 0; font-size: 48px; }
 .fare-test-mint-main p { font-size: 17px; line-height: 24px; }
 .fare-test-mint-main > section > button { min-height: 48px; margin-top: 18px; padding: 0 20px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; font-weight: 900; }
+
+@media (min-width: 851px) {
+  .fare-mint-reveal { width: min(980px, 100%, calc((100vh - 48px) * 2.105)); aspect-ratio: 2.105 / 1; }
+  .fare-mint-reveal-visual { min-height: 0; }
+}
+
 .fare-trainee-mint { display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); gap: 28px; margin-top: 70px; padding: 38px; border: 2px solid #111; border-radius: 31px; background: #ffe72f; box-shadow: 7px 8px 0 #111; }
 .fare-trainee-mint-copy > span { display: inline-flex; min-height: 32px; align-items: center; padding: 0 14px; border: 2px solid #111; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 900; letter-spacing: .05em; }
 .fare-trainee-mint-copy h2 { max-width: 520px; margin: 24px 0 18px; font-family: 'Intro Friday', Impact, sans-serif; font-size: 48px; font-weight: 400; line-height: .92; letter-spacing: -.025em; }
