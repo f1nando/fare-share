@@ -18,7 +18,7 @@ import {
 import { loadDatabaseFleet, loadPublicMarket, loadPublicOverview, saveMintToDatabase } from './publicData.js';
 import { useTokenConfig } from './tokenConfig.jsx';
 import { executeTrade, quoteMintFarePurchase, quoteTrade } from './tradeApi.js';
-import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
+import { dismissToast, notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 
 const MINT_CLASSES = [
   { name: 'Economy', tone: 'economy', weight: 1, supply: 833, sceneNames: ['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'] },
@@ -202,15 +202,16 @@ export function MintPage({ wallet, connectWallet }) {
       setStatus(await loadProtocolStatus());
       setPreparedMint(null);
       setSignature(lastSignature);
-      if (indexedMint.indexed) {
-        const reveal = await loadMintReveal(String(connection.account.address), String(result.asset));
-        if (reveal) setMintReveal(reveal);
-      }
+      const reveal = indexedMint.indexed
+        ? await loadMintReveal(String(connection.account.address), String(result.asset))
+        : null;
+      if (reveal) setMintReveal(reveal);
       const message = indexedMint.indexed
         ? 'Taxi NFT minted and added to your fleet.'
         : 'Taxi NFT minted. Fleet indexing is still in progress.';
       setNotice(message);
-      notifySuccess(message, { id: toastId });
+      if (reveal) dismissToast(toastId);
+      else notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setSignature(error.signature);
       const message = mintedCount
