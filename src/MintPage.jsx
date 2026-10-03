@@ -405,7 +405,6 @@ export function MintPage({ wallet, connectWallet }) {
 
             <div className="fare-mint-panel">
               <h2>RANDOM TAXI MINT</h2>
-              <p className="muted">Every mint costs $25. The next taxi comes from a precommitted shuffled supply of 1,222 cars.</p>
 
               <div className="fare-mint-classes" aria-label="Taxi class">
                 {MINT_CLASSES.map((item, index) => {
@@ -468,8 +467,6 @@ export function MintPage({ wallet, connectWallet }) {
                   <span className="fare-round-arrow fare-round-arrow-dark"><ArrowIcon /></span>
                 </button>
               )}
-              {preparedMint && !hasQuotedBalance && <p className="fare-mint-note">The purchase uses the same Jupiter transaction flow as the Trade page. After confirmation, this button changes to mint.</p>}
-              <p className="fare-mint-note">Final token amount is quoted immediately before minting. 100% of the ${fareTicker} payment goes to the team wallet. A small amount of SOL is required for the purchase, network fees and account rent.</p>
             </div>
           </div>
 
