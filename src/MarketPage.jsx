@@ -742,7 +742,6 @@ export function MarketPage({ wallet, connectWallet }) {
                   <button type="button" disabled={listingPage === listingPageCount} onClick={() => selectListingPage(listingPage + 1)}>NEXT</button>
                 </nav>}</>
               : <div className="fare-market-empty"><strong>NO CARS FOUND</strong><p>{hasActiveFilters ? 'Try another model, NFT number, or class.' : 'No taxis are listed right now. Create a buy request for the taxi you want.'}</p>{hasActiveFilters ? <button type="button" onClick={() => { setQuery(''); setVehicleClass('all'); selectListingPage(1, false); }}>SHOW ALL CARS</button> : <button type="button" onClick={() => openOffer()}>CREATE BUY REQUEST</button>}</div>}
-            <section className="fare-market-buy-cta"><div><span>CAN'T FIND YOUR TAXI?</span><h2>CREATE A BUY REQUEST</h2><p>Choose one model, a whole class, or one exact NFT. Your SOL stays escrowed on-chain until a seller accepts or you cancel.</p></div><button type="button" disabled={busy} onClick={() => openOffer()}>CREATE REQUEST</button></section>
           </>
         )}
 
