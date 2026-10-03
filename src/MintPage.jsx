@@ -34,6 +34,7 @@ const PREVIEW_ITEMS = [
   ...MINT_CLASSES.flatMap(item => item.scenes.map(scene => ({ scene, label: item.name, tone: item.tone }))),
   { scene: traineeDrivingScene, label: 'Trainee', tone: 'trainee' },
 ];
+const PRIMARY_TRAINEE_CAMPAIGN_ID = 1n;
 
 function formatUsdCents(cents) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(cents) / 100);
@@ -163,7 +164,7 @@ export function MintPage({ wallet, connectWallet }) {
       .then(value => {
         if (!active) return;
         setTrainees(value);
-        setKeyword(value.some(trainee => trainee.campaignId === 1n) ? '' : 'TAXI');
+        setKeyword(value.some(trainee => trainee.campaignId === PRIMARY_TRAINEE_CAMPAIGN_ID) ? '' : 'TAXI');
       })
       .catch(error => active && setTraineeNotice(error.message));
     return () => { active = false; };
@@ -273,6 +274,12 @@ export function MintPage({ wallet, connectWallet }) {
     const toastId = notifyLoading('Activating your trainee taxi…');
     try {
       const connection = wallet || await connectWallet();
+      const ownedTrainees = await loadOwnedTrainees(connection.account.address, status);
+      setTrainees(ownedTrainees);
+      if (ownedTrainees.some(trainee => trainee.campaignId === PRIMARY_TRAINEE_CAMPAIGN_ID)) {
+        setKeyword('');
+        throw new Error('This wallet already has a trainee taxi for the TAXI campaign.');
+      }
       const nextSignature = await activateTrainee(connection, keyword.trim(), status);
       const nextStatus = await loadProtocolStatus();
       setStatus(nextStatus);
@@ -284,7 +291,10 @@ export function MintPage({ wallet, connectWallet }) {
       notifySuccess(message, { id: toastId });
     } catch (error) {
       if (error.signature) setTraineeSignature(error.signature);
-      const message = error.message || 'Trainee activation failed.';
+      const rawMessage = error.message || 'Trainee activation failed.';
+      const message = /Allocate: account .* already in use/i.test(rawMessage)
+        ? 'This wallet already has a trainee taxi for the TAXI campaign.'
+        : rawMessage;
       setTraineeNotice(message);
       notifyError(message, { id: toastId });
     } finally {
