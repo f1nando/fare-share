@@ -8,6 +8,7 @@ import { notifyError } from './siteToasts.js';
 import { LeaderboardPage } from './LeaderboardPage.jsx';
 import { DisclaimerPage, PrivacyPage, TermsPage } from './LegalPage.jsx';
 import { MintPage } from './MintPage.jsx';
+import { TestMintPage } from './TestMintPage.jsx';
 import { MarketPage } from './MarketPage.jsx';
 import { TradePage } from './TradePage.jsx';
 import { connectTradeWallet } from './tradeApi.js';
@@ -29,6 +30,12 @@ const routes = {
     component: MintPage,
     activeItem: 'mint',
     title: 'Mint — Fare Share',
+  },
+  '/testmint/': {
+    className: 'fare-mint-page',
+    component: TestMintPage,
+    activeItem: 'mint',
+    title: 'Mint Reveal Test — Fare Share',
   },
   '/garage/': {
     className: 'fare-garage-page',

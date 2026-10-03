@@ -430,15 +430,15 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-submit .fare-round-arrow { width: 48px; height: 48px; color: #ffe72f; }
 .fare-mint-note { margin: 28px 0 0; color: #555; font-size: 17px; font-weight: 500; line-height: 24px; }
 .fare-mint-reveal-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 24px; background: rgb(17 17 17 / 72%); backdrop-filter: blur(8px); }
-.fare-mint-reveal { position: relative; display: grid; width: min(980px, 100%); max-height: calc(100vh - 48px); grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr); border: 2px solid #111; border-radius: 34px; background: #ffe72f; box-shadow: 10px 12px 0 #111; overflow: auto; }
+.fare-mint-reveal { position: relative; display: grid; width: min(980px, 100%); max-height: calc(100vh - 48px); grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr); border: 2px solid #111; border-radius: 34px; background: #ffe72f; box-shadow: 10px 12px 0 #111; overflow-x: hidden; overflow-y: auto; }
 .fare-mint-reveal-close { position: absolute; z-index: 3; top: 18px; right: 18px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0 0 3px; border: 2px solid #111; border-radius: 50%; color: #111; background: #fff; font-size: 30px; line-height: 1; }
 .fare-mint-reveal-visual { position: relative; min-height: 520px; border-right: 2px solid #111; background: #ddd; overflow: hidden; }
 .fare-mint-reveal-visual img { width: 100%; height: 100%; object-fit: cover; }
 .fare-mint-reveal-visual > .fare-fleet-class { top: 20px; left: 20px; }
 .fare-mint-reveal-image-fallback { display: grid; width: 100%; height: 100%; min-height: 520px; place-items: center; color: #fff; background: #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 82px; }
-.fare-mint-reveal-copy { display: flex; justify-content: center; flex-direction: column; padding: 64px 46px 42px; }
+.fare-mint-reveal-copy { display: flex; min-width: 0; justify-content: center; flex-direction: column; padding: 64px 46px 42px; }
 .fare-mint-reveal-kicker { width: fit-content; padding: 8px 12px; border: 2px solid #111; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 900; letter-spacing: .08em; }
-.fare-mint-reveal-copy h2 { margin: 24px 0 18px; font-family: 'Intro Friday', Impact, sans-serif; font-size: 58px; font-weight: 400; line-height: .86; letter-spacing: -.025em; }
+.fare-mint-reveal-copy h2 { max-width: 100%; margin: 24px 0 18px; overflow-wrap: anywhere; font-family: 'Intro Friday', Impact, sans-serif; font-size: 46px; font-weight: 400; line-height: .86; letter-spacing: -.025em; }
 .fare-mint-reveal-copy > p { margin: 0; font-size: 17px; font-weight: 600; line-height: 24px; }
 .fare-mint-reveal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
 .fare-mint-reveal-stats > div { padding: 15px 16px; border: 2px solid #111; border-radius: 18px; background: #fff; }
@@ -450,6 +450,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-reveal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
 .fare-mint-reveal-actions a, .fare-mint-reveal-actions button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 0 18px; border: 2px solid #111; border-radius: 999px; color: #fff; background: #111; font-size: 12px; font-weight: 900; text-decoration: none; }
 .fare-mint-reveal-actions .is-secondary, .fare-mint-reveal-actions button { color: #111; background: #fff; }
+.fare-test-mint-main { display: grid; min-height: 100vh; place-items: center; padding: 160px 24px 80px; }
+.fare-test-mint-main > section { max-width: 620px; padding: 36px; border: 2px solid #111; border-radius: 28px; background: #fff; box-shadow: 7px 8px 0 #111; }
+.fare-test-mint-main h1 { margin: 14px 0; font-size: 48px; }
+.fare-test-mint-main p { font-size: 17px; line-height: 24px; }
+.fare-test-mint-main button { min-height: 48px; margin-top: 18px; padding: 0 20px; border: 2px solid #111; border-radius: 999px; background: #ffe72f; font-weight: 900; }
 .fare-trainee-mint { display: grid; grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr); gap: 28px; margin-top: 70px; padding: 38px; border: 2px solid #111; border-radius: 31px; background: #ffe72f; box-shadow: 7px 8px 0 #111; }
 .fare-trainee-mint-copy > span { display: inline-flex; min-height: 32px; align-items: center; padding: 0 14px; border: 2px solid #111; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 900; letter-spacing: .05em; }
 .fare-trainee-mint-copy h2 { max-width: 520px; margin: 24px 0 18px; font-family: 'Intro Friday', Impact, sans-serif; font-size: 48px; font-weight: 400; line-height: .92; letter-spacing: -.025em; }
@@ -840,7 +845,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-mint-reveal { max-height: calc(100vh - 24px); grid-template-columns: 1fr; border-radius: 25px; box-shadow: 6px 7px 0 #111; }
   .fare-mint-reveal-visual { min-height: 0; aspect-ratio: 1; border-right: 0; border-bottom: 2px solid #111; }
   .fare-mint-reveal-copy { padding: 34px 20px 22px; }
-  .fare-mint-reveal-copy h2 { margin-top: 18px; font-size: 42px; }
+  .fare-mint-reveal-copy h2 { margin-top: 18px; font-size: 30px; }
   .fare-mint-reveal-copy > p { font-size: 14px; line-height: 19px; }
   .fare-mint-reveal-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .fare-mint-reveal-actions > :last-child { grid-column: 1 / -1; }
