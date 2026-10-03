@@ -249,7 +249,11 @@ export class TradeService {
       volume24hSol: volume24h,
       volume24hUsd: this.state.solUsd ? volume24h * this.state.solUsd : 0,
       marketCapUsd: lastPrice && this.state.solUsd ? supply * lastPrice * this.state.solUsd : 0,
-      holders: await this.database.tradeHolders.countDocuments({ mint: String(this.mint), balance: { $gt: 0 } }),
+      holders: await this.database.tradeHolders.countDocuments({
+        mint: String(this.mint),
+        balance: { $gt: 0 },
+        ...(this.state.bondingCurve ? { owner: { $ne: this.state.bondingCurve } } : {}),
+      }),
       sourceTradesTruncated,
     };
   }
@@ -265,32 +269,14 @@ export class TradeService {
   async listHolders(limit = 50, skip = 0) {
     const poolOwner = this.state.stage === 'bonding_curve' ? this.state.bondingCurve : undefined;
     const requestedLimit = Math.min(Math.max(limit, 1), 250);
-    const regularLimit = poolOwner && skip === 0 ? requestedLimit - 1 : requestedLimit;
     const filter = {
       mint: String(this.mint),
       balance: { $gt: 0 },
       ...(poolOwner ? { owner: { $ne: poolOwner } } : {}),
     };
-    const rows = regularLimit > 0
-      ? await this.database.tradeHolders.find(filter).sort({ balance: -1 }).skip(Math.max(skip, 0)).limit(regularLimit).toArray()
-      : [];
-    const holders: Array<Record<string, unknown>> = rows.map(row => ({ ...row }));
-    if (poolOwner && skip === 0) {
-      const stored = await this.database.tradeHolders.findOne({ mint: String(this.mint), owner: poolOwner });
-      const remainingRaw = stored?.balanceRaw || this.state.bondingCurveRemainingRaw || '0';
-      const remainingPercent = stored?.supplyShare ?? this.state.bondingCurveRemainingPercent ?? 0;
-      holders.unshift({
-        ...(stored || {
-          mint: String(this.mint), owner: poolOwner, snapshotId: 'on-chain', updatedSlot: this.state.lastTradeSlot, updatedAt: this.state.updatedAt,
-          balanceRaw: remainingRaw, balance: Number(remainingRaw) / 10 ** this.state.decimals, supplyShare: this.state.bondingCurveRemainingPercent || 0,
-        }),
-        kind: 'liquidity_pool',
-        supplyLeftRaw: remainingRaw,
-        supplyLeft: Number(remainingRaw) / 10 ** this.state.decimals,
-        supplyLeftPercent: remainingPercent,
-      });
-    }
-    return { holders, total: await this.database.tradeHolders.countDocuments(filter) + (poolOwner ? 1 : 0) };
+    const holders = await this.database.tradeHolders.find(filter)
+      .sort({ balance: -1 }).skip(Math.max(skip, 0)).limit(requestedLimit).toArray();
+    return { holders, total: await this.database.tradeHolders.countDocuments(filter) };
   }
 
   async candles(interval: string, requestedLimit = 300) {

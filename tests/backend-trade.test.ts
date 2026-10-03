@@ -55,6 +55,32 @@ test('a single trade opens its candle at the previous close', () => {
   assert.deepEqual(candles[1], { time: 300, open: 100, high: 110, low: 100, close: 110, volume: 2 });
 });
 
+test('holders exclude the Pump bonding curve liquidity account', async () => {
+  let holderFilter: any;
+  const holder = { mint: MINT, owner: 'So11111111111111111111111111111111111111112', balance: 10, supplyShare: 1 };
+  const database = {
+    tradeHolders: {
+      find(filter: unknown) {
+        holderFilter = filter;
+        return {
+          sort() { return this; },
+          skip() { return this; },
+          limit() { return this; },
+          async toArray() { return [holder]; },
+        };
+      },
+      countDocuments: async () => 1,
+    },
+  } as unknown as TaxiDatabase;
+  const service = new TradeService({ solanaRpcUrl: 'https://rpc.invalid' } as ServerConfig, database, { mint: MINT, ticker: 'FARE' });
+  (service as any).state.stage = 'bonding_curve';
+  (service as any).state.bondingCurve = WALLET;
+
+  const result = await service.listHolders();
+  assert.deepEqual((holderFilter as any).owner, { $ne: WALLET });
+  assert.deepEqual(result, { holders: [holder], total: 1 });
+});
+
 test('trade reads are bounded and concurrent identical requests share cached work', async () => {
   const now = new Date();
   const row = { blockTime: new Date(now.getTime() - 60_000), priceSol: 2, tokenAmount: 1, solAmount: 2 };
