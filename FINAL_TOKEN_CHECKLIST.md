@@ -211,7 +211,13 @@ production `$FARE`, пока владелец отдельно не утверд
   creator fee `0 bps` and not editable.
 - Launcher token balance and SOL balance after cleanup: `0`.
 - Net project-wallet spend from metadata through cleanup: `0.012486002 SOL`.
-- Protocol binding and sale start were not performed.
+- Protocol bind: `275PTTdWFTPLJ2fNseDNqre51GG9GioCiKsBzLqqYoFsXqUiK8ZyJxvgxqaTNRHic91YJ1TAPBDXuVffHjdiFYDm`.
+- Idempotent repeat bind: `SyLYkUzKeiFm4UhSWzfSvGdxRiVnFFufKpyJ1v7E9QuTJwziwTbp1g7aErSDHXBKsYoyaPXJ9z7fejo4uJVQXL7`.
+- Runtime token config: `configured=true`, ticker `TAXI`; backend health/token smoke PASS.
+- Mainnet recovery audit after binding: PASS; all six protocol token vaults are zero.
+- Protocol remains paused, sale is closed, supply is `[0,0,0,0]`; backend and worker are stopped.
+- Paid mint smoke is intentionally not started until this test CA is explicitly approved
+  for opening sale; `start_sale` is irreversible even though pause remains available.
 
 Финальный результат: `PASS / FAIL`
 
