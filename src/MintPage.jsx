@@ -184,16 +184,26 @@ export function MintPage({ wallet, connectWallet }) {
       lastSignature = result.signature;
       mintedCount = 1;
       setSignature(lastSignature);
-      await saveMintToDatabase({
+      const indexedMint = await saveMintToDatabase({
         signature: result.signature,
         asset: String(result.asset),
         owner: String(connection.account.address),
+      }, {
+        attempts: 4,
+        pollMs: 1_000,
+        onPending: () => {
+          const message = 'Minted, indexing your taxi…';
+          setNotice(message);
+          notifyLoading(message, { id: toastId });
+        },
       });
       setDatabaseMint((await loadPublicOverview()).mint);
       setStatus(await loadProtocolStatus());
       setPreparedMint(null);
       setSignature(lastSignature);
-      const message = 'Taxi NFT minted from the precommitted random collection.';
+      const message = indexedMint.indexed
+        ? 'Taxi NFT minted and added to your fleet.'
+        : 'Taxi NFT minted. Fleet indexing is still in progress.';
       setNotice(message);
       notifySuccess(message, { id: toastId });
     } catch (error) {

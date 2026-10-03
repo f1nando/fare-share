@@ -69,11 +69,18 @@ export async function loadDatabaseEarningHistory(owner, period = '24h') {
   };
 }
 
-export function saveMintToDatabase({ signature, asset, owner }) {
-  return request('/api/fleet/mints', {
-    method: 'POST',
-    body: JSON.stringify({ signature, asset, owner }),
-  });
+export async function saveMintToDatabase({ signature, asset, owner }, { attempts = 1, pollMs = 1_000, onPending } = {}) {
+  let result;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    result = await request('/api/fleet/mints', {
+      method: 'POST',
+      body: JSON.stringify({ signature, asset, owner }),
+    });
+    if (result.indexed) return result;
+    onPending?.(result, attempt + 1);
+    if (attempt + 1 < attempts) await new Promise(resolve => setTimeout(resolve, pollMs));
+  }
+  return result;
 }
 
 async function request(path, options = {}) {

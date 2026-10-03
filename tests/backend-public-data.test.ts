@@ -11,6 +11,7 @@ import {
 
 const OWNER = '11111111111111111111111111111111';
 const ASSET = 'GHGqUCx5Gf1KgNPXFdWnxYH1DbX9htA5517tFaDXi3i4';
+const SIGNATURE = '5'.repeat(88);
 
 test('public overview aggregates the bounded leaderboard once during synchronization', () => {
   const machines = Array.from({ length: 105 }, (_, index) => machine({
@@ -124,6 +125,39 @@ test('wallet fleet removes a taxi whose live NFT owner has changed', async () =>
   assert.equal((await service.walletFleet(OWNER)).machines.length, 0);
   assert.equal(updates.length, 1);
   assert.equal((updates[0] as { updateOne: { update: { $set: { owner: string } } } }).updateOne.update.$set.owner, newOwner);
+});
+
+test('recording a finalized mint immediately indexes its targeted machine', async () => {
+  const indexedMachine = machine({ asset: ASSET, owner: OWNER });
+  let storedMachine: FleetMachineDocument | null = null;
+  let receiptStatus = 'pending';
+  const database = {
+    fleetMintReceipts: {
+      updateOne: async (_filter: unknown, update: { $set?: { status?: string } }) => {
+        if (update.$set?.status) receiptStatus = update.$set.status;
+      },
+    },
+    fleetMachines: {
+      findOne: async () => storedMachine,
+      updateOne: async (_filter: unknown, update: { $set: FleetMachineDocument | Partial<FleetMachineDocument> }) => {
+        storedMachine = { ...(storedMachine || indexedMachine), ...update.$set };
+      },
+    },
+  } as unknown as TaxiDatabase;
+  const service = createPublicDataService({
+    solanaRpcUrl: 'https://rpc.invalid',
+    programId: address(ASSET),
+    workerIntervalMs: 60_000,
+    fareSymbol: 'FARE',
+    mintReceiptVerifier: async () => ({ slot: 123, blockTime: new Date('2026-10-03T00:10:26.000Z') }),
+    mintMachineLoader: async () => indexedMachine,
+  }, database);
+
+  const result = await service.recordMint({ signature: SIGNATURE, asset: ASSET, owner: OWNER });
+  const savedMachine = storedMachine as FleetMachineDocument | null;
+  assert.equal(result.indexed, true);
+  assert.equal(savedMachine?.mintSignature, SIGNATURE);
+  assert.equal(receiptStatus, 'indexed');
 });
 
 test('earning history expires after a 45-day safety window', async () => {

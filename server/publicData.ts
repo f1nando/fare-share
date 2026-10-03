@@ -1,7 +1,8 @@
 import { address, getAddressDecoder, getAddressEncoder, getProgramDerivedAddress, getUtf8Encoder, type Address } from '@solana/kit';
 import type { FleetMachineDocument, PublicSnapshotDocument, TaxiDatabase } from './database.js';
-import { loadProtocolDashboard } from './protocolDashboard.js';
+import { decodeDashboardMachine, decodeDashboardPool, loadProtocolDashboard } from './protocolDashboard.js';
 import { solanaRpcCall } from './solanaRpc.js';
+import { protocolAddresses } from './setup.js';
 
 const CLASS_INDEX = new Map([[1, 0], [3, 1], [10, 2], [30, 3]]);
 const SYNC_TTL_MS = 15_000;
@@ -55,6 +56,8 @@ export function createPublicDataService(config: {
   fareSymbol: string | (() => string);
   assetLoader?: (rpcUrl: string, ids: string[]) => Promise<DasAsset[]>;
   taxiIndexRefresher?: () => Promise<void>;
+  mintReceiptVerifier?: (signature: string, asset: string, owner: string) => Promise<{ slot: number; blockTime: Date }>;
+  mintMachineLoader?: (asset: string, owner: string) => Promise<FleetMachineDocument | null>;
 }, database: TaxiDatabase) {
   let lastSyncAt = 0;
   let activeSync: Promise<void> | null = null;
@@ -259,31 +262,32 @@ export function createPublicDataService(config: {
     const owner = String(body.owner || '').trim();
     if (!/^[1-9A-HJ-NP-Za-km-z]{80,100}$/.test(signature)) throw new PublicDataError('Invalid transaction signature.');
     try { address(asset); address(owner); } catch { throw new PublicDataError('Invalid asset or owner address.'); }
-    const statuses = await solanaRpcCall<{ value: Array<{ confirmationStatus?: string; err: unknown; slot: number } | null> }>(
-      config.solanaRpcUrl,
-      'getSignatureStatuses',
-      [[signature], { searchTransactionHistory: true }],
-    );
-    const status = statuses.value[0];
-    if (!status || status.err || status.confirmationStatus !== 'finalized') throw new PublicDataError('Mint transaction is not finalized.', 409);
-    const transaction = await solanaRpcCall<{
-      blockTime: number | null;
-      transaction: { message: { accountKeys: Array<string | { pubkey: string; signer?: boolean }> } };
-    } | null>(config.solanaRpcUrl, 'getTransaction', [signature, { commitment: 'finalized', encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]);
-    if (!transaction) throw new PublicDataError('Mint transaction is unavailable.', 409);
-    const keys = transaction.transaction.message.accountKeys;
-    const keyStrings = keys.map(key => typeof key === 'string' ? key : key.pubkey);
-    const ownerSigned = keys.some(key => typeof key !== 'string' && key.pubkey === owner && key.signer);
-    if (!ownerSigned || !keyStrings.includes(String(config.programId)) || !keyStrings.includes(asset)) {
-      throw new PublicDataError('Transaction does not match this mint program, owner, and asset.', 409);
-    }
+    const verified = config.mintReceiptVerifier
+      ? await config.mintReceiptVerifier(signature, asset, owner)
+      : await verifyMintReceipt(config.solanaRpcUrl, config.programId, signature, asset, owner);
     const now = new Date();
-    const blockTime = new Date((transaction.blockTime || Math.floor(Date.now() / 1000)) * 1000);
+    const blockTime = verified.blockTime;
     await database.fleetMintReceipts.updateOne({ signature }, {
-      $set: { asset, owner, slot: status.slot, blockTime, updatedAt: now },
+      $set: { asset, owner, slot: verified.slot, blockTime, updatedAt: now },
       $setOnInsert: { signature, status: 'pending', createdAt: now },
     }, { upsert: true });
-    const machine = await database.fleetMachines.findOne({ asset, owner });
+    let machine: FleetMachineDocument | null = await database.fleetMachines.findOne({ asset, owner });
+    if (!machine) {
+      try {
+        machine = config.mintMachineLoader
+          ? await config.mintMachineLoader(asset, owner)
+          : await loadMintMachine(config.solanaRpcUrl, config.programId, asset, owner, config.assetLoader || loadAssets);
+        if (machine) {
+          await database.fleetMachines.updateOne(
+            { asset },
+            { $set: machine },
+            { upsert: true },
+          );
+        }
+      } catch (error) {
+        console.warn(`Targeted mint indexing failed for ${asset}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     if (!machine) return { saved: true, indexed: false, asset, owner, signature };
     await database.fleetMachines.updateOne({ asset }, { $set: {
       mintSignature: signature,
@@ -466,6 +470,81 @@ export function createPublicDataService(config: {
   }
 
   return { overview, walletFleet, taxi, recordMint, earningHistory, market, recordMarketTransaction, sync, syncMarket };
+}
+
+async function verifyMintReceipt(rpcUrl: string, programId: Address, signature: string, asset: string, owner: string) {
+  const statuses = await solanaRpcCall<{ value: Array<{ confirmationStatus?: string; err: unknown; slot: number } | null> }>(
+    rpcUrl,
+    'getSignatureStatuses',
+    [[signature], { searchTransactionHistory: true }],
+  );
+  const status = statuses.value[0];
+  if (!status || status.err || status.confirmationStatus !== 'finalized') throw new PublicDataError('Mint transaction is not finalized.', 409);
+  const transaction = await solanaRpcCall<{
+    blockTime: number | null;
+    transaction: { message: { accountKeys: Array<string | { pubkey: string; signer?: boolean }> } };
+  } | null>(rpcUrl, 'getTransaction', [signature, { commitment: 'finalized', encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]);
+  if (!transaction) throw new PublicDataError('Mint transaction is unavailable.', 409);
+  const keys = transaction.transaction.message.accountKeys;
+  const keyStrings = keys.map(key => typeof key === 'string' ? key : key.pubkey);
+  const ownerSigned = keys.some(key => typeof key !== 'string' && key.pubkey === owner && key.signer);
+  if (!ownerSigned || !keyStrings.includes(String(programId)) || !keyStrings.includes(asset)) {
+    throw new PublicDataError('Transaction does not match this mint program, owner, and asset.', 409);
+  }
+  return {
+    slot: status.slot,
+    blockTime: new Date((transaction.blockTime || Math.floor(Date.now() / 1000)) * 1000),
+  };
+}
+
+async function loadMintMachine(
+  rpcUrl: string,
+  programId: Address,
+  rawAsset: string,
+  owner: string,
+  assetLoader: (rpcUrl: string, ids: string[]) => Promise<DasAsset[]>,
+): Promise<FleetMachineDocument | null> {
+  const asset = address(rawAsset);
+  const [[machine], addresses] = await Promise.all([
+    getProgramDerivedAddress({
+      programAddress: programId,
+      seeds: [utf8.encode('machine'), Uint8Array.from(addressEncoder.encode(asset))],
+    }),
+    protocolAddresses(programId),
+  ]);
+  const accounts = await solanaRpcCall<{ value: Array<{ data: [string, string] } | null> }>(rpcUrl, 'getMultipleAccounts', [
+    [String(machine), String(addresses.pool)],
+    { commitment: 'finalized', encoding: 'base64' },
+  ]);
+  const [machineAccount, poolAccount] = accounts.value;
+  if (!machineAccount || !poolAccount) return null;
+  const pool = decodeDashboardPool(Uint8Array.from(Buffer.from(poolAccount.data[0], 'base64')));
+  const state = decodeDashboardMachine(Uint8Array.from(Buffer.from(machineAccount.data[0], 'base64')), pool);
+  if (String(state.asset) !== rawAsset) return null;
+  const metadata = (await assetLoader(rpcUrl, [rawAsset])).find(item => item.id === rawAsset);
+  if (!metadata || metadata.ownership?.owner !== owner) return null;
+  const classIndex = CLASS_INDEX.get(state.weight);
+  if (classIndex === undefined) throw new Error(`Unknown taxi weight ${state.weight}`);
+  const now = new Date();
+  const className = CLASS_NAME_BY_WEIGHT.get(state.weight) || `Weight ${state.weight}`;
+  return {
+    asset: rawAsset,
+    machine: String(machine),
+    owner,
+    name: metadata.content?.metadata?.name || `${className} Taxi`,
+    image: metadata.content?.links?.image || metadata.content?.files?.find(file => file.mime?.startsWith('image/'))?.uri || '',
+    className,
+    classIndex,
+    weight: state.weight,
+    activeUntil: state.activeUntil.toString(),
+    rewardActive: state.rewardActive,
+    closed: state.closed,
+    claimable: state.claimable.map(String),
+    pending: state.pending.map(String),
+    fareBase: state.fareBase.toString(),
+    lastSeenAt: now,
+    updatedAt: now,
+  };
 }
 
 function decodeMarketListing(bytes: Uint8Array) {
