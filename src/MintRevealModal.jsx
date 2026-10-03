@@ -4,7 +4,7 @@ import { formatCompactNumber } from './compactNumber.js';
 import { FareStepDrivingScene } from './FareShareLanding.jsx';
 import drivingScenes from './drivingScenes.json';
 
-export function MintRevealModal({ reveal, onClose }) {
+export function MintRevealModal({ reveal, onClose, onWeightClick }) {
   const drivingScene = reveal.scene || drivingScenes.find(scene => String(reveal.name || '').includes(scene.name));
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -33,7 +33,9 @@ export function MintRevealModal({ reveal, onClose }) {
         <h2 id="mint-reveal-title">CONGRATULATIONS!</h2>
         <p>You got <strong>{reveal.name}</strong>. This taxi is already in your fleet.</p>
         <div className="fare-mint-reveal-stats">
-          <div><span>WEIGHT</span><strong>{reveal.weight}</strong></div>
+          {onWeightClick
+            ? <button className="is-interactive" type="button" title="Show another test taxi" onClick={onWeightClick}><span>WEIGHT</span><strong>{reveal.weight}</strong></button>
+            : <div><span>WEIGHT</span><strong>{reveal.weight}</strong></div>}
           <div><span>CLASS</span><strong>{reveal.className || 'Taxi'}</strong></div>
           {reveal.bestOffer && <div className="is-market"><span>BEST BUY OFFER</span><strong>{formatSolOffer(reveal.bestOffer.priceLamports)} SOL</strong></div>}
         </div>

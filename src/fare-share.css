@@ -435,7 +435,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-reveal-visual { position: relative; min-height: 520px; border-right: 2px solid #111; background: #ddd; overflow: hidden; }
 .fare-mint-reveal-visual > img { width: 100%; height: 100%; object-fit: cover; }
 .fare-mint-reveal-visual > .fare-step-driving { width: 100%; height: 100%; max-width: none; border-radius: 0; }
-.fare-mint-reveal-visual .fare-fleet-headlight { opacity: .7; }
 .fare-mint-reveal-visual > .fare-fleet-class { top: 20px; left: 20px; }
 .fare-mint-reveal-image-fallback { display: grid; width: 100%; height: 100%; min-height: 520px; place-items: center; color: #fff; background: #111; font-family: 'Intro Friday', Impact, sans-serif; font-size: 82px; }
 .fare-mint-reveal-copy { display: flex; min-width: 0; justify-content: center; flex-direction: column; padding: 64px 46px 42px; }
@@ -443,7 +442,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-mint-reveal-copy h2 { max-width: 100%; margin: 24px 0 18px; overflow-wrap: anywhere; font-family: 'Intro Friday', Impact, sans-serif; font-size: 46px; font-weight: 400; line-height: .86; letter-spacing: -.025em; }
 .fare-mint-reveal-copy > p { margin: 0; font-size: 17px; font-weight: 600; line-height: 24px; }
 .fare-mint-reveal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
-.fare-mint-reveal-stats > div { padding: 15px 16px; border: 2px solid #111; border-radius: 18px; background: #fff; }
+.fare-mint-reveal-stats > div, .fare-mint-reveal-stats > button { min-width: 0; padding: 15px 16px; border: 2px solid #111; border-radius: 18px; color: #111; background: #fff; text-align: left; }
+.fare-mint-reveal-stats > button.is-interactive { cursor: pointer; }
+.fare-mint-reveal-stats > button.is-interactive:hover { background: #f3f3f3; }
+.fare-mint-reveal-stats > button.is-interactive:focus-visible { outline: 3px solid #111; outline-offset: 2px; }
 .fare-mint-reveal-stats > div.is-market { grid-column: 1 / -1; color: #fff; background: #111; }
 .fare-mint-reveal-stats span { display: block; font-size: 10px; font-weight: 900; letter-spacing: .08em; }
 .fare-mint-reveal-stats strong { display: block; margin-top: 7px; font-size: 24px; line-height: 1; }
