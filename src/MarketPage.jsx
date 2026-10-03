@@ -15,6 +15,7 @@ import {
 } from './protocol/solana.js';
 import drivingScenes from './drivingScenes.json';
 import { appAssetPath, appPath } from './appPath.js';
+import { formatCompactNumber } from './compactNumber.js';
 import './market.css';
 
 const CLASS_BY_NAME = new Map([
@@ -731,7 +732,7 @@ export function MarketPage({ wallet, connectWallet }) {
                 <div className="fare-market-live"><i aria-hidden="true" /><span>LIVE LISTINGS</span></div>
                 <div className="fare-market-summary" aria-label="Marketplace summary">
                   <div><strong>{listings.length}</strong><span>CARS LISTED</span></div>
-                  <div><strong>{market.floorLamports === null ? '—' : (Number(market.floorLamports) / 1_000_000_000).toFixed(3)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
+                  <div><strong>{market.floorLamports === null ? '—' : formatLamports(market.floorLamports)} <small>SOL</small></strong><span>FLOOR PRICE</span></div>
                   <div><strong>{offers.length}</strong><span>BUY REQUESTS</span></div>
                 </div>
               </div>
@@ -963,7 +964,7 @@ function solToLamports(value) {
 }
 
 function formatSolPrice(value) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 9 }).format(value);
+  return formatCompactNumber(value);
 }
 
 function formatLamports(value) {

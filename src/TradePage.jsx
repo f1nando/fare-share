@@ -11,6 +11,7 @@ import {
   subscribeTradeEvents,
 } from './tradeApi.js';
 import { notifyError, notifyLoading, notifySuccess, notifyWarning } from './siteToasts.js';
+import { formatCompactNumber } from './compactNumber.js';
 
 function LiveTradeChart({ candles, symbol }) {
   const widgetRef = useRef(null);
@@ -268,7 +269,7 @@ export function TradePage({ wallet, connectWallet }) {
             </div>
             <div className="trade-chart-price-row">
               <strong>{formatChartValue(latestCandle?.close || token?.marketCapUsd || 0)}</strong>
-              <p>Token price <b>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : '—'}</b><br />24H volume <b>{formatNumber(token?.volume24hSol || 0, 2)} SOL</b></p>
+              <p>Token price <b>{token?.priceUsd ? <CompactPrice value={token.priceUsd} prefix="$" /> : '—'}</b><br />24H volume <b>{formatCompactNumber(token?.volume24hSol || 0)} SOL</b></p>
             </div>
           </div>
           <LiveTradeChart candles={candles} symbol={symbol} />
@@ -290,17 +291,11 @@ function formatNumber(value, digits = 2) {
 }
 
 function formatToken(value) {
-  return Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 6 });
+  return formatCompactNumber(value || 0);
 }
 
 function formatTradeAmount(value) {
-  const number = Number(value || 0);
-  if (!Number.isFinite(number) || number === 0) return '0';
-  const magnitude = Math.floor(Math.log10(Math.abs(number)));
-  const decimalPlaces = Math.min(12, Math.max(0, 2 - magnitude));
-  const factor = 10 ** decimalPlaces;
-  const truncated = Math.trunc(number * factor) / factor;
-  return truncated.toLocaleString('en-US', { maximumFractionDigits: decimalPlaces });
+  return formatCompactNumber(value || 0);
 }
 
 function formatRelativeTime(value, now) {
@@ -318,45 +313,16 @@ function formatInputAmount(value, decimals) {
   return Number(value || 0).toFixed(Math.min(Math.max(decimals, 0), 9)).replace(/\.?0+$/, '');
 }
 
-function formatPrice(value) {
-  const number = Number(value || 0);
-  return number >= 1 ? formatNumber(number, 4) : number.toPrecision(4).replace(/(?:\.0+|(?:(\.\d*?)0+))$/, '$1');
-}
-
 function CompactPrice({ value, prefix = '' }) {
-  const parts = compactPriceParts(value);
-  if (!parts.compact) return <>{prefix}{parts.text}</>;
-  return <>{prefix}0.0<sub>{parts.hiddenZeros}</sub>{parts.significant}</>;
-}
-
-function compactPriceText(value) {
-  const parts = compactPriceParts(value);
-  return parts.compact ? `0.0${toSubscript(parts.hiddenZeros)}${parts.significant}` : parts.text;
+  return <>{prefix}{formatCompactNumber(value)}</>;
 }
 
 function formatChartValue(value) {
   const number = Number(value || 0);
-  if (number >= 1_000_000_000) return `$${formatNumber(number / 1_000_000_000, 2)}B`;
-  if (number >= 1_000_000) return `$${formatNumber(number / 1_000_000, 2)}M`;
-  if (number >= 1_000) return `$${formatNumber(number / 1_000, 2)}K`;
-  return `$${compactPriceText(number)}`;
-}
-
-function compactPriceParts(value) {
-  const number = Math.abs(Number(value || 0));
-  if (!number || number >= .001) return { compact: false, text: formatPrice(number) };
-  const leadingZeros = Math.max(1, Math.floor(-Math.log10(number)));
-  const hiddenZeros = Math.max(0, leadingZeros - 1);
-  const significant = (number * 10 ** (leadingZeros + 1)).toPrecision(4)
-    .replace(/(\.\d*?[1-9])0+$/, '$1')
-    .replace(/\.0+$/, '')
-    .replace('.', '');
-  return { compact: true, hiddenZeros, significant };
-}
-
-function toSubscript(value) {
-  const digits = '₀₁₂₃₄₅₆₇₈₉';
-  return String(value).replace(/\d/g, digit => digits[Number(digit)]);
+  if (number >= 1_000_000_000) return `$${formatCompactNumber(number / 1_000_000_000)}B`;
+  if (number >= 1_000_000) return `$${formatCompactNumber(number / 1_000_000)}M`;
+  if (number >= 1_000) return `$${formatCompactNumber(number / 1_000)}K`;
+  return `$${formatCompactNumber(number)}`;
 }
 
 function signedPercent(value) {

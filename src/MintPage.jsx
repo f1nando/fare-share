@@ -4,6 +4,7 @@ import drivingScenes from './drivingScenes.json';
 import traineeDrivingScene from './traineeDrivingScene.json';
 import { appAssetPath } from './appPath.js';
 import { MintRevealModal } from './MintRevealModal.jsx';
+import { formatCompactNumber } from './compactNumber.js';
 import {
   activateTrainee,
   claimTrainee,
@@ -38,7 +39,7 @@ const PREVIEW_ITEMS = [
 const PRIMARY_TRAINEE_CAMPAIGN_ID = 1n;
 
 function formatUsdCents(cents) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(cents) / 100);
+  return `$${formatCompactNumber(Number(cents) / 100)}`;
 }
 
 function previewReducer(state) {

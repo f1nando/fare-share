@@ -9,6 +9,7 @@ import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction }
 import { getWallets } from '@wallet-standard/app';
 import { BACKEND_URL } from '../backendUrl.js';
 import { apiErrorMessage } from '../clientErrorLog.js';
+import { formatCompactNumber } from '../compactNumber.js';
 import {
   base64Bytes,
   buildClaimAllInstructions,
@@ -116,7 +117,7 @@ export function selectActiveMultiplier(value, nowSeconds = Math.floor(Date.now()
 export function formatTokenAmount(rawAmount, decimals, multiplier = 1) {
   const amount = Number(rawAmount) / (10 ** Number(decimals)) * Number(multiplier);
   if (!Number.isFinite(amount)) return `${rawAmount} raw`;
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 6 }).format(amount);
+  return formatCompactNumber(amount);
 }
 
 export function formatSolAmount(lamports) {

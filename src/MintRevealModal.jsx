@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { appPath } from './appPath.js';
+import { formatCompactNumber } from './compactNumber.js';
 
 export function MintRevealModal({ reveal, onClose }) {
   useEffect(() => {
@@ -47,5 +48,5 @@ function classTone(className) {
 }
 
 function formatSolOffer(rawLamports) {
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(Number(BigInt(rawLamports)) / 1_000_000_000);
+  return formatCompactNumber(Number(BigInt(rawLamports)) / 1_000_000_000);
 }

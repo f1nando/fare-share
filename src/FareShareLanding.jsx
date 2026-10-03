@@ -9,6 +9,7 @@ import { displayTicker, useTokenConfig } from './tokenConfig.jsx';
 import { loadPublicOverview } from './publicData.js';
 import { appAssetPath, appPath } from './appPath.js';
 import { notifyError, notifySuccess } from './siteToasts.js';
+import { formatCompactNumber } from './compactNumber.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -734,7 +735,7 @@ export function FareShareLanding({ publicHolding = false }) {
 
 function formatLandingSol(lamports) {
   const value = Number(lamports) / 1_000_000_000;
-  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(value)} SOL`;
+  return `${formatCompactNumber(value)} SOL`;
 }
 
 function shortLandingWallet(wallet) {

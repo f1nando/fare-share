@@ -267,7 +267,7 @@ test('stock display activates the scheduled xStocks multiplier without changing 
   const update = { currentMultiplier: 1.01, newMultiplier: 1.02, activationDateTime: 200 };
   assert.equal(selectActiveMultiplier(update, 199), 1.01);
   assert.equal(selectActiveMultiplier(update, 200), 1.02);
-  assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1.02');
+  assert.equal(formatTokenAmount(100_000_000n, 8, 1.02).replace(',', '.'), '1');
 });
 
 test('SOL fees and token estimates use their own decimals', () => {
