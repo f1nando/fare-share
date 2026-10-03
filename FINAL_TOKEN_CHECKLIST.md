@@ -192,6 +192,27 @@ Reward claim signature: `TBD`
 - [ ] Worker проверен вручную перед постоянным включением.
 - [ ] Все обязательные signatures и балансы записаны.
 
+## Test token evidence — 2026-10-03
+
+Этот токен создан только для финальных integration tests и не считается финальным
+production `$FARE`, пока владелец отдельно не утвердит его как финальный CA.
+
+- Name/ticker: `taxi / TAXI`.
+- CA: `C4TZajXpTPg7MP7VWuPXjSTDzyPvPgHVJjxC9dBZNKrj`.
+- Launcher: `9iTVkbvMTaGpYmgx86rWpPm3t5HVresSCwmoLxTgrbD7`.
+- Metadata: `https://gateway.irys.xyz/BfTT5AC1bua9dQcjVckXph9nC5sWi8pDV4Ld5j2gq65z`.
+- Create: `5oPEXZkGi5pHKzu9f2CiGijrvgEdT4H3keiHqAMubgmaUwvPgqu1cp3ffkVi1NBA7CA4uJbv8LzC1931dWUxLvh2`.
+- Immutable fee sharing: `5XPjdQvRtSYdMNhzdR6w2UC4H9TW9vtXNAGyJ3sBufjFYwQ36paJkzm9njwzeQSKESSf99rQT2VBzA7feVJGa29`.
+- Tiny buy: `5rSHks9QonPHwXq36QbzLGT5iJRR27Aak4FRdqLgSJpkE9jNrAPdoptYuYETp8b5vAZfEZxikV9nsC5HrHGS5T6h`.
+- Full sell: `2YQuB7W1yQzWgRSY7yLC4GFabmdm1zvrriTp8mgjLHHWXSqgDSE3uXsvbgvUfQjhHYLswwmHKQKUt312AZdRfa9V`.
+- Creator-fee distribution: `42yL3SU9fB99VenUHi7J657JryqJH6yG6PabVr7KsULAZfpoBmv4bdVBEM34ASTfoD4Z6Q5otwmXQV91H4FUTdMv`.
+- Fee recipient: immutable `10000 bps` to `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`.
+- PASS: SOL quote, ungraduated, Mayhem off, cashback off, holder rewards off,
+  creator fee `0 bps` and not editable.
+- Launcher token balance and SOL balance after cleanup: `0`.
+- Net project-wallet spend from metadata through cleanup: `0.012486002 SOL`.
+- Protocol binding and sale start were not performed.
+
 Финальный результат: `PASS / FAIL`
 
 Комментарий:
