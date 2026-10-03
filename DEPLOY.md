@@ -29,7 +29,7 @@ Production обновляется отдельно или атомарно пр�
 главную страницу и `COMING SOON` вместо CA.
 
 > **Текущий статус:** новый production Program `8Z9M…YwxD` и Collection
-> `49Ko…bCDD` опубликованы в mainnet. Upgrade authority, protocol admin, backend
+> `Ebcw…RXpm` опубликованы в mainnet. Upgrade authority, protocol admin, backend
 > signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Sale закрыта,
 > `$FARE` ещё не привязан, supply равен нулю.
 
@@ -43,7 +43,7 @@ ProgramData: `8JHtNnvcKH435F55hD5gv3ZUCBfuzBSoAf4k1NLJLkCY`. Keypair и резе
 
 - deployer, upgrade authority, admin, backend signer, team и recovery owner:
   `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`;
-- Collection: `49KoCVgKtkb5vLEQwTsDQ6ePGfEFVZgJARUmNMHAbCDD`;
+- Collection: `Ebcwoz2G7qb3o2ZP4HsCcHysQ2EQ4q6MDJdnA5mTRXpm`;
 - initialize/claim ALT: `DyChCqg6MV2QmP2YGX19Ai9nEGriydCVFeiLigDLGRQn`.
 
 Ранее зарезервированные пустые адреса `9ZLA…6eVv`, `2uGK…tAr`, `5Pbb…gMZK` и
@@ -55,6 +55,17 @@ Frozen production SBF занимает `880576` байт, SHA-256
 ProgramData capacity `882048` байт содержит `4.481682680 SOL` recoverable rent;
 upload buffer закрыт после
 deploy, а Program tombstone составляет `0.000833120 SOL`.
+
+Mainnet deployment выполнен 2026-10-03: initial deploy
+`4L7RWMMzhLpBqrApYwX1pDLnmrusSpwuRogs2YFLTkT6qdm4Mr2TM8rGhqUiBoS798KqUqcc8qRoBiiaR6GRKrdH`,
+финальный upgrade `5eK2mgqMvFjh9tQEmAz9DfBGv9U2CbTRv4SjeDxxZjCBkFe5U2kXsuXFxixbKNN2dxkfs2MmgQCM46itVbC2gmnc`.
+Collection переключена до старта sale и до первого mint на `Ebcw…RXpm` транзакцией
+`4oDz4H…7nPSZ`; DAS подтверждает authority `F3jK…n8tR`. Ошибочно созданная до
+переноса authority Collection сожжена и оставила только Core tombstone `0.000655320 SOL`.
+Протокол paused, sale закрыта, `$FARE` не привязан, supply `[0,0,0,0]`.
+Recovery manifest SHA-256:
+`f69756b7498ecf6df74cd5954d4cb1cb352fd0f17f7620ee1b704af80b503153`;
+fail-closed close dry-run — PASS, но close не выполнялся.
 
 ## 1. Сначала зафиксировать Program ID
 
