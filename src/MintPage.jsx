@@ -103,6 +103,7 @@ export function MintPage({ wallet, connectWallet }) {
   const [preview, dispatchPreview] = useReducer(previewReducer, undefined, createPreviewState);
   const selectedPreview = PREVIEW_ITEMS[preview.currentIndex];
   const onchainMintedByClass = status?.config?.mintedByClass;
+  const remainingLoaded = onchainMintedByClass?.length === 4 || databaseMint?.mintedByClass?.length === 4;
   const mintedByClass = (onchainMintedByClass?.length === 4
     ? onchainMintedByClass
     : databaseMint?.mintedByClass?.length === 4 ? databaseMint.mintedByClass : [0, 0, 0, 0]
@@ -440,7 +441,7 @@ export function MintPage({ wallet, connectWallet }) {
               <div className="fare-mint-quantity-row">
                 <div className="fare-mint-weight" aria-label="Total remaining supply">
                   <span>Remaining</span>
-                  <strong>{remaining}</strong>
+                  <strong>{remainingLoaded ? remaining : '—'}</strong>
                 </div>
               </div>
 
