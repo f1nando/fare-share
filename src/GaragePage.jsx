@@ -263,10 +263,10 @@ function formatHistoryTime(value, period) {
 }
 
 function garageScene(machine) {
+  const machineName = String(machine.name || '').toLowerCase();
   const imageName = String(machine.image || '').split('/').at(-1)?.split('?')[0];
-  const configuredScene = imageName
-    ? drivingScenes.find(scene => scene.imageUrl.endsWith(`/${imageName}`))
-    : undefined;
+  const configuredScene = drivingScenes.find(scene => machineName.includes(scene.name.toLowerCase()))
+    || (imageName ? drivingScenes.find(scene => scene.imageUrl.endsWith(`/${imageName}`)) : undefined);
   return {
     ...(configuredScene || drivingScenes[0]),
     name: machine.name,
