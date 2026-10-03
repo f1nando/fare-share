@@ -198,7 +198,7 @@ export function GaragePage({ wallet }) {
           <div className="fare-garage-grid">
             {displayedCars.map((car, index) => (
               <article className="fare-step-card fare-garage-card" key={car.id}>
-                <FareStepDrivingScene scene={car.scene} showHeadlights={false} />
+                <FareStepDrivingScene scene={car.scene} showHeadlights />
                 <span className="fare-step-number fare-garage-number">#{car.serial || String(index + 1).padStart(2, '0')}</span>
                 <span className={`fare-fleet-class fare-garage-class is-${car.vehicleClass.tone}`}>{car.vehicleClass.name}</span>
                 <h2>{car.name}</h2>
