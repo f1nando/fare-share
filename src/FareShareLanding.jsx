@@ -311,7 +311,9 @@ function FareStepCollectScene() {
 
 function FleetCardBackground() {
   const scenes = STATIC_DRIVING_SCENES;
-  const [columnCount, setColumnCount] = useState(() => fleetColumnCount(window.innerWidth));
+  const initialColumnCount = fleetColumnCount(window.innerWidth);
+  const [columnCount, setColumnCount] = useState(initialColumnCount);
+  const columnCountRef = useRef(initialColumnCount);
   const wallRef = useRef(null);
   const wallVisibleRef = useRef(false);
   const cardEntriesRef = useRef([]);
@@ -387,8 +389,11 @@ function FleetCardBackground() {
   useEffect(() => {
     let frame = 0;
     const resize = () => {
+      const nextColumnCount = fleetColumnCount(window.innerWidth);
+      if (nextColumnCount === columnCountRef.current) return;
+      columnCountRef.current = nextColumnCount;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setColumnCount(fleetColumnCount(window.innerWidth)));
+      frame = requestAnimationFrame(() => setColumnCount(nextColumnCount));
     };
     window.addEventListener('resize', resize);
     return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(frame); };
@@ -398,15 +403,17 @@ function FleetCardBackground() {
     const wall = wallRef.current;
     const section = wall?.closest('.fare-fleet');
     const observer = new IntersectionObserver(([entry]) => {
-      wallVisibleRef.current = entry.isIntersecting;
-      wall?.classList.toggle('is-paused', !entry.isIntersecting);
-      if (!entry.isIntersecting) {
+      const isVisible = entry.isIntersecting;
+      if (isVisible === wallVisibleRef.current) return;
+      wallVisibleRef.current = isVisible;
+      wall?.classList.toggle('is-paused', !isVisible);
+      if (!isVisible) {
         cancelAnimationFrame(proximityFrameRef.current);
         cancelAnimationFrame(rateFrameRef.current);
         proximityFrameRef.current = 0;
         rateFrameRef.current = 0;
       } else collectCards();
-    });
+    }, { rootMargin: '120px 0px' });
     if (section) observer.observe(section);
     return () => observer.disconnect();
   }, []);
