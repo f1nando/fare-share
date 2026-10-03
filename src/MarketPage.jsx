@@ -367,6 +367,7 @@ export function MarketPage({ wallet, connectWallet }) {
     url.pathname = canonicalPath;
     url.searchParams.delete('mode');
     window.history.replaceState({}, '', url);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }, []);
 
   useEffect(() => {
@@ -401,6 +402,7 @@ export function MarketPage({ wallet, connectWallet }) {
       url.searchParams.delete('page');
     }
     window.history.replaceState({}, '', url);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
   async function refreshMarket() {
