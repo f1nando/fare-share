@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { RoadMarkStrip } from './RoadMarkStrip.jsx';
 import { BACKEND_URL as API_BASE } from './backendUrl.js';
+import { appAssetPath } from './appPath.js';
+import drivingScenes from './drivingScenes.json';
+import traineeDrivingScene from './traineeDrivingScene.json';
 import { notifyError, notifyLoading, notifySuccess } from './siteToasts.js';
 import './driving-demo.css';
 
@@ -33,6 +36,19 @@ const BMW_M3_E46_REFERENCE_KEY = 'taxi-driving-demo-bmw-m3-e46-reference-v1';
 const SETTINGS_VERSION = 2;
 const SOURCE_IMAGE_SIZE = 1254;
 const VEHICLE_CLASSES = ['Economy', 'Comfort', 'Business', 'Legendary', 'Trainee'];
+const CLASS_BY_MODEL = new Map([
+  ...['Checker Marathon', 'London Taxi', 'Chevrolet Caprice', 'Toyota Sienna'].map(name => [name, 'Economy']),
+  ...['Toyota Prius', 'Ford Crown Victoria', 'Toyota Camry', 'Mercedes E211'].map(name => [name, 'Comfort']),
+  ...['Tesla Model 3', 'Bentley Flying Spur', 'Mercedes G63', 'Rolls-Royce Cullinan'].map(name => [name, 'Business']),
+  ...['BMW M3 E46', 'Lamborghini Huracán', 'Bugatti Chiron', 'Porsche 911'].map(name => [name, 'Legendary']),
+]);
+const BUILT_IN_SCENES = [...drivingScenes, traineeDrivingScene].map(scene => ({
+  ...scene,
+  id: `built-in:${scene.id}`,
+  vehicleClass: scene.vehicleClass || CLASS_BY_MODEL.get(scene.name) || 'Economy',
+  lightsOn: scene.lightsOn === true,
+  builtIn: true,
+}));
 const DIRECTION_PRESETS = [
   { angle: -135, label: '↖', title: 'Up and left', column: 1, row: 1 },
   { angle: -90, label: '↑', title: 'Up', column: 2, row: 1 },
@@ -126,6 +142,15 @@ async function imageFileToWebPDataUrl(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Could not prepare the WebP image.'));
     reader.readAsDataURL(webp);
+  });
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not prepare the built-in taxi image.'));
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -226,7 +251,9 @@ export function DrivingDemo({ admin = false, csrf = '' }) {
   const update = (key) => (value) => setSettings((current) => ({ ...current, [key]: value }));
   const activeScene = scenes.find((scene) => scene.id === activeSceneId);
   const databaseBmwM3E46 = scenes.find((scene) => scene.name.trim().toLowerCase() === 'bmw m3 e46');
-  const sceneImageUrl = activeScene ? `${API_BASE}${activeScene.imageUrl}` : '/driving-demo/bmw-m3-e46.webp';
+  const sceneImageUrl = activeScene
+    ? activeScene.builtIn ? appAssetPath(activeScene.imageUrl) : `${API_BASE}${activeScene.imageUrl}`
+    : appAssetPath('/driving-demo/bmw-m3-e46.webp');
   const sceneApi = admin ? '/api/admin/driving-scenes' : '/api/driving-scenes';
 
   const selectScene = (scene) => {
@@ -260,10 +287,16 @@ export function DrivingDemo({ admin = false, csrf = '' }) {
   const refreshScenes = async (preferredId) => {
     try {
       const body = await request(sceneApi);
-      setScenes(body.scenes);
-      const selected = body.scenes.find((scene) => scene.id === (preferredId || activeSceneId)) || body.scenes[0];
+      const storedNames = new Set(body.scenes.map(scene => scene.name.trim().toLowerCase()));
+      const mergedScenes = [
+        ...BUILT_IN_SCENES.map(builtIn => body.scenes.find(scene => scene.name.trim().toLowerCase() === builtIn.name.toLowerCase()) || builtIn),
+        ...body.scenes.filter(scene => !BUILT_IN_SCENES.some(builtIn => builtIn.name.toLowerCase() === scene.name.trim().toLowerCase())),
+      ];
+      setScenes(mergedScenes);
+      const selected = mergedScenes.find((scene) => scene.id === (preferredId || activeSceneId)) || mergedScenes[0];
       if (selected) selectScene(selected);
-      setSceneStatus(body.scenes.length ? '' : 'There are no scenes in the database yet. Upload the first image.');
+      const missingCount = BUILT_IN_SCENES.filter(scene => !storedNames.has(scene.name.toLowerCase())).length;
+      setSceneStatus(missingCount > 0 ? `${missingCount} built-in taxis are ready to configure. Saving one stores it in MongoDB.` : '');
     } catch (error) {
       setSceneStatus(`Backend unavailable: ${error.message}`);
     }
@@ -272,15 +305,30 @@ export function DrivingDemo({ admin = false, csrf = '' }) {
   useEffect(() => { refreshScenes(); }, []);
 
   const saveScene = async () => {
-    if (!activeSceneId) { const message = 'Upload and select a scene first.'; setSceneStatus(message); notifyError(message); return; }
+    if (!activeSceneId) { const message = 'Select a scene first.'; setSceneStatus(message); notifyError(message); return; }
     setSceneStatus('Saving…');
     const toastId = notifyLoading('Saving scene settings…');
     try {
-      const body = await request(`${sceneApi}/${activeSceneId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name: sceneName, settings, vehicleClass, lightsOn: false }),
-      });
+      const body = activeScene?.builtIn
+        ? await request(sceneApi, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: sceneName,
+            imageDataUrl: await blobToDataUrl(await fetch(appAssetPath(activeScene.imageUrl)).then(response => {
+              if (!response.ok) throw new Error(`Could not load built-in taxi image: HTTP ${response.status}`);
+              return response.blob();
+            })),
+            settings,
+            vehicleClass,
+            lightsOn: false,
+          }),
+        })
+        : await request(`${sceneApi}/${activeSceneId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: sceneName, settings, vehicleClass, lightsOn: false }),
+        });
       setScenes((current) => current.map((scene) => scene.id === body.scene.id ? body.scene : scene));
+      if (activeScene?.builtIn) await refreshScenes(body.scene.id);
       setSceneStatus('Scene settings saved to MongoDB.');
       notifySuccess('Scene settings saved.', { id: toastId });
     } catch (error) { setSceneStatus(error.message); notifyError(error.message, { id: toastId }); }
@@ -553,7 +601,7 @@ export function DrivingDemo({ admin = false, csrf = '' }) {
                 title="Temporarily set center spacing to 15% and Y position to 77%"
                 onClick={() => setCompactSpacingPreview((value) => !value)}
               >15% / Y 77%</button>
-              <button type="button" onClick={deleteScene} disabled={!activeSceneId}>Delete</button>
+               <button type="button" onClick={deleteScene} disabled={!activeSceneId || activeScene?.builtIn}>Delete</button>
             </div>
             <div className="settings-transfer">
               <button type="button" onClick={() => applySettingsBundle(
