@@ -47,6 +47,27 @@ test('trade parser ignores ordinary token transfers and rent changes', () => {
   assert.equal(parseTradeTransaction(value, MINT, 6), null);
 });
 
+test('trade parser removes a closed token account rent refund from sell proceeds', () => {
+  const closedAccount = 'So11111111111111111111111111111111111111112';
+  const value = transaction({
+    preLamports: 774_746_011,
+    postLamports: 777_220_158,
+    preTokens: '33320146708',
+    postTokens: '0',
+  });
+  value.meta.fee = 15_000;
+  value.transaction.message.accountKeys.push(closedAccount);
+  value.meta.preBalances.push(1_513_840);
+  value.meta.postBalances.push(0);
+  (value.transaction.message as { accountKeys: string[]; instructions?: unknown[] }).instructions = [{
+    parsed: { type: 'closeAccount', info: { account: closedAccount, destination: WALLET } },
+  }];
+  const trade = parseTradeTransaction(value, MINT, 6);
+  assert.ok(trade);
+  assert.equal(trade.solAmountLamports, '975307');
+  assert.ok(Math.abs(trade.priceSol - 2.927078948803e-8) < 1e-19);
+});
+
 test('a single trade opens its candle at the previous close', () => {
   const candles = fillTradeCandles(new Map([
     [0, { time: 0, open: 100, high: 100, low: 100, close: 100, volume: 1 }],
@@ -125,6 +146,7 @@ test('trade reads are bounded and concurrent identical requests share cached wor
   assert.equal(Math.max(...limits), 20_001);
   assert.equal(tokenResults[0].volume24hSol, 40_000);
   assert.equal(tokenResults[0].priceSol, 1);
+  assert.equal(tokenResults[0].change24h, -50);
   assert.equal(tokenResults[0].marketCapUsd, 100_000);
   assert.equal(tokenResults[0].sourceTradesTruncated, true);
   assert.ok(candleResults[0].candles.length >= 1 && candleResults[0].candles.length <= 2);

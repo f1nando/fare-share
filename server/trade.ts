@@ -11,7 +11,7 @@ import { requestQueues, runRateLimitedAttempts } from './requestLimits.js';
 const JUPITER_SWAP_URL = 'https://api.jup.ag/swap/v1';
 const JUPITER_PRICE_URL = 'https://api.jup.ag/price/v3';
 const LAMPORTS_PER_SOL = 1_000_000_000;
-const TRADE_INDEX_VERSION = 5;
+const TRADE_INDEX_VERSION = 6;
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const TRADE_READ_CACHE_TTL_MS = 10_000;
 const MAX_TRADE_METRIC_ROWS = 20_000;
@@ -242,7 +242,7 @@ export class TradeService {
     const currentPrice = this.state.stage === 'bonding_curve' && this.state.bondingCurvePriceSol
       ? this.state.bondingCurvePriceSol
       : lastPrice || this.state.routePriceSol || 0;
-    const change24h = firstPrice && lastPrice ? ((lastPrice / firstPrice) - 1) * 100 : 0;
+    const change24h = firstPrice && currentPrice ? ((currentPrice / firstPrice) - 1) * 100 : 0;
     const volume24h = boundedRecent.reduce((total, row) => total + row.solAmount, 0);
     const supply = Number(this.state.supplyRaw) / 10 ** this.state.decimals;
     return {
@@ -959,7 +959,8 @@ export function parseTradeTransaction(value: JsonRecord, mint: string, decimals:
   if (!candidate) return null;
   const fee = Number(meta.fee || 0);
   const side = candidate.tokenDelta > 0n ? 'buy' : 'sell';
-  let solLamports = side === 'buy' ? -candidate.solDelta : candidate.solDelta;
+  const tradeSolDelta = candidate.solDelta - nonTradeLamportDelta(candidate.owner, message, meta, accountKeys, preBalances, postBalances);
+  let solLamports = side === 'buy' ? -tradeSolDelta : tradeSolDelta;
   if (candidate.owner === feePayer) solLamports += side === 'buy' ? -fee : fee;
   solLamports = Math.abs(solLamports);
   if (!solLamports) return null;
@@ -981,6 +982,38 @@ export function parseTradeTransaction(value: JsonRecord, mint: string, decimals:
     blockTime: new Date(blockTimeSeconds > 0 ? blockTimeSeconds * 1_000 : Date.now()),
     status: 'finalized', createdAt: new Date(),
   };
+}
+
+function nonTradeLamportDelta(
+  owner: string,
+  message: JsonRecord,
+  meta: JsonRecord,
+  accountKeys: string[],
+  preBalances: number[],
+  postBalances: number[],
+) {
+  const topLevel = Array.isArray(message.instructions) ? message.instructions : [];
+  const inner = Array.isArray(meta.innerInstructions)
+    ? meta.innerInstructions.flatMap(group => {
+      const instructions = asRecord(group).instructions;
+      return Array.isArray(instructions) ? instructions : [];
+    })
+    : [];
+  let delta = 0;
+  for (const instruction of [...topLevel, ...inner]) {
+    const parsed = asRecord(asRecord(instruction).parsed);
+    const info = asRecord(parsed.info);
+    const type = String(parsed.type || '');
+    if (type === 'closeAccount' && String(info.destination || '') === owner) {
+      const index = accountKeys.indexOf(String(info.account || ''));
+      if (index >= 0) delta += Math.max(0, (preBalances[index] || 0) - (postBalances[index] || 0));
+    }
+    if ((type === 'createAccount' || type === 'createAccountWithSeed') && String(info.source || '') === owner) {
+      const lamports = Number(info.lamports || 0);
+      if (Number.isFinite(lamports) && lamports > 0) delta -= lamports;
+    }
+  }
+  return delta;
 }
 
 function tokenBalances(input: unknown, mint: string) {
