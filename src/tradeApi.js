@@ -1,7 +1,13 @@
-import { getBase58Decoder } from '@solana/kit';
+import { AccountRole, address } from '@solana/kit';
 import { BACKEND_URL as API_URL } from './backendUrl.js';
 import { apiErrorMessage } from './clientErrorLog.js';
-import { connectWallet } from './protocol/solana.js';
+import { base64Bytes, decodeAddressLookupTable, sendWalletInstructions } from './protocol/anchorClient.js';
+import { connectWallet, RPC_URL, SOLANA_CHAIN } from './protocol/solana.js';
+import { createRateLimitedSolanaRpc } from './protocol/requestLimits.js';
+
+const env = import.meta.env ?? {};
+const rpc = createRateLimitedSolanaRpc(RPC_URL);
+const protocolLookupTable = env.VITE_TAXI_LOOKUP_TABLE || '';
 
 export function connectTradeWallet() {
   return connectWallet();
@@ -40,15 +46,59 @@ export async function executeTrade(connection, quoteId) {
     method: 'POST',
     body: JSON.stringify({ quoteId, wallet: connection.account.address }),
   });
-  const feature = connection.wallet.features['solana:signAndSendTransaction'];
-  if (!feature) throw new Error('The connected wallet cannot sign Solana transactions.');
-  const bytes = Uint8Array.from(atob(built.transaction), character => character.charCodeAt(0));
-  const [result] = await feature.signAndSendTransaction({
-    transaction: bytes,
+  const instructions = tradeInstructions(built);
+  const lookupTables = await loadTradeLookupTables([
+    protocolLookupTable,
+    ...(built.addressLookupTableAddresses || []),
+  ]);
+  return sendWalletInstructions({
+    rpc,
+    wallet: connection.wallet,
     account: connection.account,
-    chain: 'solana:mainnet',
+    chain: SOLANA_CHAIN,
+    instructions,
+    lookupTables,
   });
-  return getBase58Decoder().decode(result.signature);
+}
+
+export function tradeInstructions(built) {
+  if (!built?.swapInstruction) throw new Error('Jupiter returned no swap instruction.');
+  return [
+    ...(built.computeBudgetInstructions || []),
+    ...(built.otherInstructions || []),
+    ...(built.setupInstructions || []),
+    built.swapInstruction,
+    ...(built.cleanupInstruction ? [built.cleanupInstruction] : []),
+  ].map(decodeApiInstruction);
+}
+
+async function loadTradeLookupTables(values) {
+  const addresses = [...new Set(values.filter(Boolean).map(String))].map(address);
+  if (!addresses.length) return {};
+  const response = await rpc.getMultipleAccounts(addresses, { commitment: 'finalized', encoding: 'base64' }).send();
+  const tables = {};
+  addresses.forEach((lookupAddress, index) => {
+    const account = response.value[index];
+    if (!account) throw new Error(`Swap lookup table ${lookupAddress} is unavailable.`);
+    tables[lookupAddress] = decodeAddressLookupTable(base64Bytes(account.data[0]));
+  });
+  return tables;
+}
+
+function decodeApiInstruction(value) {
+  if (!value || typeof value !== 'object' || !value.programId || !Array.isArray(value.accounts) || typeof value.data !== 'string') {
+    throw new Error('Jupiter returned an invalid swap instruction.');
+  }
+  return {
+    programAddress: address(value.programId),
+    accounts: value.accounts.map(accountMeta => ({
+      address: address(accountMeta.pubkey),
+      role: accountMeta.isSigner
+        ? (accountMeta.isWritable ? AccountRole.WRITABLE_SIGNER : AccountRole.READONLY_SIGNER)
+        : (accountMeta.isWritable ? AccountRole.WRITABLE : AccountRole.READONLY),
+    })),
+    data: base64Bytes(value.data),
+  };
 }
 
 export function subscribeTradeEvents(onEvent) {

@@ -4,9 +4,27 @@ import test from 'node:test';
 import { decodePumpCurvePriceSol, fillTradeCandles, parseTradeTransaction, TradeService } from '../server/trade.js';
 import type { ServerConfig } from '../server/config.js';
 import type { TaxiDatabase } from '../server/database.js';
+// @ts-expect-error The browser trade client is intentionally plain JavaScript.
+import { tradeInstructions } from '../src/tradeApi.js';
 
 const MINT = 'HcRLc9VDgjLeK154xDawfb1dmVJ98DoSqcwTHGqiDeJR';
 const WALLET = '11111111111111111111111111111111';
+
+test('trade client preserves Jupiter instruction order for safe local compilation', () => {
+  const instruction = (programId: string, byte: number) => ({
+    programId,
+    accounts: [{ pubkey: MINT, isSigner: false, isWritable: byte % 2 === 0 }],
+    data: Buffer.from([byte]).toString('base64'),
+  });
+  const decoded = tradeInstructions({
+    computeBudgetInstructions: [instruction(WALLET, 1)],
+    otherInstructions: [instruction(WALLET, 2)],
+    setupInstructions: [instruction(WALLET, 3)],
+    swapInstruction: instruction(WALLET, 4),
+    cleanupInstruction: instruction(WALLET, 5),
+  });
+  assert.deepEqual(decoded.map((value: { data: Uint8Array }) => [...value.data]), [[1], [2], [3], [4], [5]]);
+});
 
 test('trade parser derives a bonding-curve buy from balance changes', () => {
   const trade = parseTradeTransaction(transaction({

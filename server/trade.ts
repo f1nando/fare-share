@@ -378,7 +378,7 @@ export class TradeService {
     try { address(wallet); } catch { throw new TradeError('Invalid wallet address.'); }
     const cached = this.quotes.get(quoteId);
     if (!cached || cached.expiresAt < Date.now()) throw new TradeError('Quote expired. Request a new quote.', 409);
-    const response = await jupiterRequest(`${JUPITER_SWAP_URL}/swap`, {
+    const response = await jupiterRequest(`${JUPITER_SWAP_URL}/swap-instructions`, {
       method: 'POST',
       headers: this.jupiterHeaders(true),
       body: JSON.stringify({
@@ -392,12 +392,15 @@ export class TradeService {
       throw new TradeError(error instanceof Error ? error.message : 'Jupiter could not build the swap.', 502);
     });
     const result = await response.json() as JsonRecord;
-    if (!result.swapTransaction) throw new TradeError('Jupiter returned no swap transaction.', 502);
+    if (!result.swapInstruction) throw new TradeError(String(result.error || 'Jupiter returned no swap instructions.'), 502);
     this.quotes.delete(quoteId);
     return {
-      transaction: result.swapTransaction,
-      lastValidBlockHeight: result.lastValidBlockHeight,
-      prioritizationFeeLamports: result.prioritizationFeeLamports,
+      computeBudgetInstructions: Array.isArray(result.computeBudgetInstructions) ? result.computeBudgetInstructions : [],
+      otherInstructions: Array.isArray(result.otherInstructions) ? result.otherInstructions : [],
+      setupInstructions: Array.isArray(result.setupInstructions) ? result.setupInstructions : [],
+      swapInstruction: result.swapInstruction,
+      cleanupInstruction: result.cleanupInstruction || null,
+      addressLookupTableAddresses: Array.isArray(result.addressLookupTableAddresses) ? result.addressLookupTableAddresses : [],
     };
   }
 
