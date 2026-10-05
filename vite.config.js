@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { codeVersion } from './scripts/benchmark-version.mjs';
 
-const applicationInputs = { main: 'index.html', admin: 'admin/index.html', docs: 'docs/index.html', faq: 'faq/index.html', fareShare: 'fare-share/index.html', garage: 'garage/index.html', leaderboard: 'leaderboard/index.html', market: 'market/index.html', marketBuy: 'market/buy/index.html', marketSell: 'market/sell/index.html', marketMine: 'market/mine/index.html', mint: 'mint/index.html', testMint: 'testmint/index.html', recoveryClaim: 'recovery-claim/index.html', trade: 'trade/index.html', terms: 'terms/index.html', privacy: 'privacy/index.html', disclaimer: 'disclaimer/index.html', uiKit: 'ui-kit/index.html' };
+const applicationInputs = { main: 'index.html', cityOnly: 'city/index.html', admin: 'admin/index.html', docs: 'docs/index.html', faq: 'faq/index.html', fareShare: 'fare-share/index.html', garage: 'garage/index.html', leaderboard: 'leaderboard/index.html', market: 'market/index.html', marketBuy: 'market/buy/index.html', marketSell: 'market/sell/index.html', marketMine: 'market/mine/index.html', mint: 'mint/index.html', testMint: 'testmint/index.html', recoveryClaim: 'recovery-claim/index.html', trade: 'trade/index.html', terms: 'terms/index.html', privacy: 'privacy/index.html', disclaimer: 'disclaimer/index.html', uiKit: 'ui-kit/index.html' };
 
 export default defineConfig(({ mode }) => {
   const rehearsal = mode === 'rehearsal';
