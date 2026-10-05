@@ -225,7 +225,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
     const difference = targetRateRef.current - currentRate;
     const nextRate = Math.abs(difference) < .01 ? targetRateRef.current : currentRate + difference * easing;
     road.dataset.currentPlaybackRate = String(nextRate);
-    animations.forEach((animation) => { animation.playbackRate = nextRate; });
+    animations.forEach((animation) => animation.updatePlaybackRate(nextRate));
     previousRateFrameRef.current = now;
     if (Math.abs(targetRateRef.current - nextRate) >= .01) {
       rateFrameRef.current = requestAnimationFrame(animateRoadRate);
@@ -241,6 +241,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
   };
 
   const updateRoadRateFromPointer = (event) => {
+    if (event.pointerType !== 'mouse') return;
     if (!boundsRef.current) boundsRef.current = event.currentTarget.getBoundingClientRect();
     setTargetRoadRate(fleetRoadPlaybackRate(boundsRef.current, event.clientX, event.clientY));
   };
@@ -261,9 +262,13 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
       className="fare-step-media fare-step-driving"
       aria-hidden="true"
       onClick={showHeadlights ? (event) => blinkSceneHeadlights(event.currentTarget, settings) : undefined}
-      onPointerEnter={(event) => { boundsRef.current = event.currentTarget.getBoundingClientRect(); }}
+      onPointerEnter={(event) => {
+        if (event.pointerType === 'mouse') boundsRef.current = event.currentTarget.getBoundingClientRect();
+      }}
       onPointerMove={updateRoadRateFromPointer}
-      onPointerLeave={() => setTargetRoadRate(1)}
+      onPointerLeave={(event) => {
+        if (event.pointerType === 'mouse') setTargetRoadRate(1);
+      }}
     >
       <img className="fare-step-driving-car" src={imageUrl} alt="" loading={imageLoading} decoding="async" />
       <div className="fare-fleet-road" ref={roadRef} style={{
@@ -439,7 +444,7 @@ function FleetCardBackground() {
       const difference = targetRate - currentRate;
       const nextRate = Math.abs(difference) < .01 ? targetRate : currentRate + difference * easing;
       road.dataset.currentPlaybackRate = String(nextRate);
-      animations.forEach((animation) => { animation.playbackRate = nextRate; });
+      animations.forEach((animation) => animation.updatePlaybackRate(nextRate));
       if (Math.abs(targetRate - nextRate) >= .01) needsAnotherFrame = true;
     }
 
