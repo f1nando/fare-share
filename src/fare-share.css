@@ -894,7 +894,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
     .fare-garage-card h2, .fare-mint-intro h1, .fare-docs-article-header h2, .fare-faq h2,
     .fare-market-heading h1, .fare-market-card h2, .fare-market-offers-heading h2,
     .fare-market-buy-cta h2, .fare-market-view-heading h2, .fare-market-intent-empty h2,
-    .fare-market-accept-header h2, .ui-type-hero, .ui-type-section) {
+    .fare-market-accept-header h2, .ui-type-hero, .ui-type-section, .fare-step-number-glyph) {
     text-shadow: none !important;
     filter: drop-shadow(var(--fare-glyph-shadow, 4px 4px 0 #111));
   }

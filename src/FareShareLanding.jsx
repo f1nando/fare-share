@@ -652,7 +652,7 @@ export function FareShareLanding({ publicHolding = false }) {
 
           <div className="fare-step-grid">
             {steps.map(step => <article className="fare-step-card" key={step.number}>
-              <span className="fare-step-number" aria-hidden="true">{step.number}</span>
+              <span className="fare-step-number" aria-hidden="true"><span className="fare-step-number-glyph">{step.number}</span></span>
               {step.sprite
                 ? <div
                     className="fare-step-media fare-step-sprite"
