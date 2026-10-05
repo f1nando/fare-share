@@ -885,3 +885,38 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
   .fare-step-media { height: auto; aspect-ratio: 100 / 92; }
   .fare-step-sprite { width: 100%; aspect-ratio: 1; }
 }
+
+/* iOS can paint only the stroke into text-shadow. Shadow the completed glyph instead. */
+@supports (-webkit-touch-callout: none) {
+  :is(.fare-hero h1, .fare-how-heading h2, .fare-fleet-heading h2,
+    .fare-treasury-heading h2, .fare-leaderboard-heading h3, .fare-step-card h3,
+    .fare-leaderboard-page-heading h1, .fare-page-title, .fare-garage-heading h1,
+    .fare-garage-card h2, .fare-mint-intro h1, .fare-docs-article-header h2, .fare-faq h2,
+    .fare-market-heading h1, .fare-market-card h2, .fare-market-offers-heading h2,
+    .fare-market-buy-cta h2, .fare-market-view-heading h2, .fare-market-intent-empty h2,
+    .fare-market-accept-header h2, .ui-type-hero, .ui-type-section) {
+    text-shadow: none !important;
+    filter: drop-shadow(var(--fare-glyph-shadow, 4px 4px 0 #111));
+  }
+  .fare-hero h1, .fare-faq h2, .ui-type-hero { --fare-glyph-shadow: 10px 12px 0 #111; }
+  .fare-how-heading h2, .fare-fleet-heading h2, .fare-treasury-heading h2,
+  .fare-leaderboard-heading h3, .ui-type-section { --fare-glyph-shadow: 7px 8px 0 #111; }
+  .fare-leaderboard-page-heading h1, .fare-page-title, .fare-garage-heading h1,
+  .fare-market-heading h1, .fare-faq-page .fare-faq .fare-page-title { --fare-glyph-shadow: 9px 10px 0 #111; }
+  .fare-mint-intro h1 { --fare-glyph-shadow: 6px 7px 0 #111; }
+  .fare-docs-article-header h2 { --fare-glyph-shadow: 5px 6px 0 #111; }
+  .fare-market-offers-heading h2, .fare-market-buy-cta h2, .fare-market-view-heading h2,
+  .fare-market-intent-empty h2, .fare-market-accept-header h2 { --fare-glyph-shadow: 5px 5px 0 #111; }
+
+  @media (max-width: 1000px) {
+    .fare-hero h1 { --fare-glyph-shadow: 8px 9px 0 #111; }
+  }
+  @media (max-width: 600px) {
+    .fare-hero h1, .fare-faq h2 { --fare-glyph-shadow: 5px 6px 0 #111; }
+    .fare-how-heading h2, .fare-fleet-heading h2, .fare-treasury-heading h2,
+    .fare-leaderboard-heading h3 { --fare-glyph-shadow: 3px 4px 0 #111; }
+    .fare-leaderboard-page-heading h1, .fare-page-title, .fare-garage-heading h1,
+    .fare-market-heading h1, .fare-mint-intro h1, .fare-docs-article-header h2,
+    .fare-faq-page .fare-faq .fare-page-title { --fare-glyph-shadow: 4px 5px 0 #111; }
+  }
+}
