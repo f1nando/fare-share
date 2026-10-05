@@ -145,7 +145,7 @@ function blinkSceneHeadlights(container, settings) {
 }
 
 function FleetSceneCard({ scene, fleetClass }) {
-  const [isHovered, setIsHovered] = useState(false);
+  const [headlightsReady, setHeadlightsReady] = useState(false);
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
   const radians = settings.pathAngle * Math.PI / 180;
   const pathX = Math.cos(radians);
@@ -157,10 +157,10 @@ function FleetSceneCard({ scene, fleetClass }) {
     <div
       className="fare-fleet-scene-card"
       onClick={(event) => blinkSceneHeadlights(event.currentTarget, settings)}
+      onPointerDown={() => setHeadlightsReady(true)}
       onPointerEnter={(event) => {
-        if (event.pointerType === 'mouse') setIsHovered(true);
+        if (event.pointerType === 'mouse') setHeadlightsReady(true);
       }}
-      onPointerLeave={() => setIsHovered(false)}
       onDragStart={(event) => event.preventDefault()}
     >
       <span className={`fare-fleet-class is-${fleetClass.tone}`}>{fleetClass.name}</span>
@@ -179,7 +179,7 @@ function FleetSceneCard({ scene, fleetClass }) {
       }}>
         <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
-      {isHovered && [
+      {headlightsReady && [
         ['left', settings.leftX, settings.leftY],
         ['right', settings.rightX, settings.rightY],
       ].map(([name, x, y]) => (
