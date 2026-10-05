@@ -34,7 +34,6 @@ export function AdminPage() {
   const operationIds = useRef({ claim: storedOperationId('claim'), deposit: storedOperationId('deposit') });
   const actionToastId = useRef(null);
   const pricesInitialized = useRef(false);
-  const fareLocked = Boolean(status?.dashboard?.protocol?.saleStarted);
   const selectedCa = ca || status?.mint || '';
 
   const refresh = useCallback(async () => {
@@ -157,7 +156,7 @@ export function AdminPage() {
   }
 
   async function updateMintPrices() {
-    if (!window.confirm(`Set every random taxi mint to $${mintPricesUsd[0]}? This price locks after the sale starts.`)) return;
+    if (!window.confirm(`Set every random taxi mint to $${mintPricesUsd[0]} now? Existing short-lived quotes will no longer be valid.`)) return;
     await action('mint-prices', async () => {
       const result = await request('/api/admin/mint/prices', { method: 'POST', body: { pricesUsd: mintPricesUsd }, csrf });
       setNotice(`USD mint prices updated on-chain. ${result.signature}`);
@@ -274,7 +273,7 @@ export function AdminPage() {
           <label>Ticker<input value={ticker} onChange={event => { setTicker(event.target.value.replace(/^\$+/, '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="For example, FARE" maxLength="10" /></label>
           <div className="button-row"><button onClick={inspect} disabled={!selectedCa || !ticker || busy === 'inspect'}>Verify</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Bind CA and ticker</button></div>
         </>}{status.mint && <><label>Replacement contract address<input className="mono" value={selectedCa} onChange={event => { setCa(event.target.value.trim()); setTicker(''); setVerifiedCa(''); setVerifiedTicker(''); }} placeholder="Paste a test or production Pump token CA" /></label><p className="muted">Paste and verify the new CA. Replacement pauses the protocol, sells only the complete old protocol FARE vault into SOL for the fixed protocol wallet, clears all old FARE rewards, switches to the new CA with an empty reward pool, verifies the result, and resumes automatically. Wallet tokens, stock rewards, NFTs, Collection, and protocol SOL are unchanged. Automatic swaps use at most 10% slippage and stop safely after any finalized stage.</p>{status.fareResetPending && <p className="muted"><strong>FARE conversion is incomplete.</strong> Retry the same CA to resume from the finalized stage; unpause remains blocked.</p>}<div className="button-row"><button onClick={inspect} disabled={!selectedCa || selectedCa === status.mint || busy === 'inspect'}>Verify replacement</button><button className="danger" onClick={bind} disabled={!verifiedCa || verifiedCa !== selectedCa || !verifiedTicker || verifiedTicker !== ticker || busy === 'bind'}>Cash out and replace CA</button></div></>}<div className="settings-divider" /><label>Team wallet<input className="mono" value={teamAccount || status.dashboard?.protocol?.teamAccount || ''} onChange={event => setTeamAccount(event.target.value.trim())} placeholder="Solana wallet address" /></label><p className="muted">Future 10% team allocations use this wallet, and NFT mint payments go to its canonical token account for the configured CA. Previous transfers are not moved.</p><TeamWalletWarning protocol={status.dashboard?.protocol} /><button className="wide danger" onClick={updateTeamAccount} disabled={!teamAccount || teamAccount === status.dashboard?.protocol?.teamAccount || busy === 'team'}>{busy === 'team' ? 'Updating…' : 'Update team wallet'}</button></div>
-        <MintPricingSettings prices={mintPricesUsd} setPrices={setMintPricesUsd} inspected={inspectedMint} locked={fareLocked} busy={busy} save={updateMintPrices} />
+        <MintPricingSettings prices={mintPricesUsd} setPrices={setMintPricesUsd} inspected={inspectedMint} busy={busy} save={updateMintPrices} />
         <div className="admin-card"><p className="eyebrow">OPERATIONS</p><h2>Claim and distribution</h2>
           <button className="wide" onClick={claim} disabled={!status.mint || BigInt(status.availableLamports) === 0n || busy === 'claim'}>{busy === 'claim' ? 'Claiming…' : 'Claim fees'}</button>
           <form onSubmit={deposit}><label>Send to contract, SOL<input inputMode="decimal" value={amount} onChange={event => { setAmount(event.target.value); clearOperationId(operationIds, 'deposit'); }} placeholder="0.000000000" /></label><button className="wide" disabled={!status.mint || !amount || busy === 'deposit'}>{busy === 'deposit' ? 'Sending…' : 'Send fees to contract'}</button></form>
@@ -326,11 +325,11 @@ function LiquiditySparkline({ title, points, field, maximum, suffix }) {
   const latest = values.at(-1);
   return <div className="stock-liquidity-chart"><div><span>{title}</span><strong>{latest === undefined ? '—' : `${latest.toFixed(field === 'availabilityPct' ? 0 : 3)}${suffix}`}</strong></div><svg viewBox="0 0 100 42" preserveAspectRatio="none" role="img" aria-label={title}><path d="M0 38H100" /><polyline points={coordinates} /></svg></div>;
 }
-function MintPricingSettings({ prices, setPrices, inspected, locked, busy, save }) {
-  return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Every taxi costs exactly $25. The final FARE amount uses live liquidity immediately before minting.</p>
-    <label>Price, USD<input type="number" min="25" max="25" step="0.01" value={prices[0]} disabled onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>
+function MintPricingSettings({ prices, setPrices, inspected, busy, save }) {
+  return <div className="admin-card"><p className="eyebrow">PRIMARY MINT</p><h2>Random mint price</h2><p className="muted">Change the USD price at any time. The final FARE amount uses live liquidity immediately before minting.</p>
+    <label>Price, USD<input type="number" min="0.01" step="0.01" value={prices[0]} onChange={event => setPrices(Array(4).fill(event.target.value))} /></label>
     {inspected && <><p className="muted">{inspected.metadata.name || 'Token metadata unavailable'}{inspected.metadata.symbol ? ` ($${inspected.metadata.symbol})` : ''} · {inspected.decimals} decimals<br />{inspected.tokenProgram}<br />Market: ${inspected.market.usdPrice} · liquidity {inspected.market.liquidity}<br />Examples: {inspected.market.examples.map(item => `${Number(item.amountFareRaw) / 10 ** inspected.decimals} tokens`).join(' / ')}</p>{inspected.metadata.image && <img src={inspected.metadata.image} alt={`${inspected.metadata.name || inspected.ticker} token`} width="96" height="96" />}</>}
-    <button className="wide" onClick={save} disabled={locked || prices.some(value => !value) || busy === 'mint-prices'}>{locked ? 'Prices locked after sale start' : 'Review and save USD prices'}</button>
+    <button className="wide" onClick={save} disabled={prices.some(value => !value || Number(value) <= 0) || busy === 'mint-prices'}>{busy === 'mint-prices' ? 'Updating…' : 'Review and update USD price'}</button>
   </div>;
 }
 function TeamWalletWarning({ protocol }) {

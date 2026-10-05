@@ -12,7 +12,6 @@ const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 const ZERO_ADDRESS = '11111111111111111111111111111111';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-const MINT_PRICE_USD_CENTS = 2_500n;
 const MINT_QUOTE_MAX_ATTEMPTS = 8;
 const MINT_BASE_LENGTH = 82;
 const TOKEN_2022_ACCOUNT_TYPE_OFFSET = 165;
@@ -77,7 +76,9 @@ export function createMintQuoteService(
       throw new MintQuoteError('This Token-2022 mint has extensions that cannot guarantee an exact payment.', 503);
     }
     const priceUsdCents = state.configuration.mintPrices[0];
-    if (!state.configuration.mintPrices.every(price => price === MINT_PRICE_USD_CENTS)) throw new MintQuoteError('Mint price must be exactly $25.', 503);
+    if (priceUsdCents <= 0n || !state.configuration.mintPrices.every(price => price === priceUsdCents)) {
+      throw new MintQuoteError('The on-chain mint price is invalid.', 503);
+    }
     const assignment = await loadAssignment(assignmentIndex, state.configuration.mintAssignmentRoot);
     const reference = await market.referenceUsd(state.configuration.fareMint);
     if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
@@ -149,7 +150,7 @@ export async function loadMintMarketPreview(config: ServerConfig, mint: Address,
     if (!Number.isSafeInteger(cents) || cents <= 0) throw new MintQuoteError(`Class ${index + 1} USD price is invalid.`);
     return BigInt(cents);
   });
-  if (!pricesUsdCents.every(price => price === MINT_PRICE_USD_CENTS)) throw new MintQuoteError('Every mint must cost exactly $25.');
+  if (!pricesUsdCents.every(price => price === pricesUsdCents[0])) throw new MintQuoteError('Every random taxi must use the same mint price.');
   const provider = jupiterMarket(config);
   const reference = await provider.referenceUsd(mint);
   if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
