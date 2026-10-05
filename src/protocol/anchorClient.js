@@ -774,10 +774,13 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
   if (additionalSigners.length) {
     const signFeature = wallet.features['solana:signTransaction'];
     if (!signFeature) throw new Error('Phantom does not support the safe multi-signer transaction flow.');
-    transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
-    const partiallySigned = getTransactionEncoder().encode(transaction);
-    const [walletResult] = await signFeature.signTransaction({ transaction: partiallySigned, account, chain });
+    const [walletResult] = await signFeature.signTransaction({ transaction: encoded, account, chain });
     transaction = getTransactionDecoder().decode(walletResult.signedTransaction);
+    transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
+    const signedEncoded = getTransactionEncoder().encode(transaction);
+    if (signedEncoded.length > 1232) {
+      throw new Error(`The wallet security instructions do not fit into one Solana transaction (${signedEncoded.length}/1232 bytes). No transaction was sent.`);
+    }
     const signature = await rpc.sendTransaction(getBase64EncodedWireTransaction(transaction), {
       encoding: 'base64',
       maxRetries: 3n,
