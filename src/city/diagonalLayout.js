@@ -4,19 +4,20 @@ import { reservedParkingAt as parkingAt } from './parkingLayout.js';
 
 export const DIAGONAL_HALF = 3.1;
 export const DIAGONAL_LANE = 1.45;
-export const APPROACH_BLOCKS = 3;
+export const APPROACH_BLOCKS = 2;
 const mod = (n, d) => ((n % d) + d) % d;
 const cache = new Map();
 
 // A small repeated fan: one extra two-way approach to a four-arm ring. Its
-// shallow diagonal cuts THREE successive lots, not one corner-to-corner tile.
+// diagonal cuts two successive lots, avoiding the shallow terminal wedge.
 // Reject the whole corridor at water, parks, parking or another ring.
 export function approachAtRing(x, z, block = 40) {
   const key = `${x}:${z}:${block}`;
   if (cache.has(key)) return cache.get(key);
   let result = null;
   if (mod(x, 6) === 3 && mod(z, 6) === 1 && roundaboutAt(x, z) && junctionArms(x, z).every(Boolean)) {
-    const variants = [[-1,-3],[1,3],[-3,1],[3,-1],[1,-3],[-1,3],[3,1],[-3,-1]];
+    const n = APPROACH_BLOCKS;
+    const variants = [[-1,-n],[1,n],[-n,1],[n,-1],[1,-n],[-1,n],[n,1],[-n,-1]];
     const offset = mod(Math.floor(x / 6) + Math.floor(z / 6), variants.length);
     for (let i = 0; i < variants.length; i++) {
       const [dx,dz] = variants[(i + offset) % variants.length];
@@ -29,14 +30,15 @@ export function approachAtRing(x, z, block = 40) {
         (p.x+ox!==x || p.z+oz!==z) && roundaboutAt(p.x+ox,p.z+oz))))) continue;
       const axis = Math.abs(dx)>Math.abs(dz)?0:1;
       const direction = Math.sign(axis===0?-dx:-dz);
-      const crossings = [1,2].map(n => {
-        const px=a.x-dx*n/3,pz=a.z-dz*n/3;
+      const crossings = Array.from({length: APPROACH_BLOCKS - 1}, (_, i) => i + 1).map(n => {
+        const px=a.x-dx*n/APPROACH_BLOCKS,pz=a.z-dz*n/APPROACH_BLOCKS;
         return {x:px,z:pz,axis:1-axis,line:Math.round(axis===0?px:pz),position:axis===0?pz:px,
-          key:`approach:${x}:${z}:${n}`,fraction:n/3};
+          key:`approach:${x}:${z}:${n}`,fraction:n/APPROACH_BLOCKS};
       });
       if (crossings.some(c => roadworkAt(c.axis,c.line,Math.floor(c.position),block))) continue;
+      const length = Math.hypot(dx,dz);
       result={key:`${x}:${z}`,x:tiles[0].x,z:tiles[0].z,a,b,tiles,axis,direction,crossings,
-        dx:-dx/Math.sqrt(10),dz:-dz/Math.sqrt(10),length:Math.sqrt(10)*block};
+        dx:-dx/length,dz:-dz/length,length:length*block};
       break;
     }
   }

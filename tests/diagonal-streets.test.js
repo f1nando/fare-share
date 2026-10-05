@@ -1,7 +1,7 @@
 import { boulevardRoad, THIRD_TRACK, junctionStop, laneOffset } from '../src/city/roadProfile.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { approachAtRing, diagonalAt, diagonalFromJunction, diagonalRoadDistance, DIAGONAL_HALF } from '../src/city/diagonalLayout.js';
+import { approachAtRing, diagonalAt, diagonalFromJunction, diagonalRoadDistance, DIAGONAL_HALF, APPROACH_BLOCKS } from '../src/city/diagonalLayout.js';
 import { diagonalTarget, buildDiagonalPath, beginInboundRing, beginOutboundRoad } from '../src/city/diagonalTraffic.js';
 import { approachLots, populateDiagonal } from '../src/city/diagonalGeometry.js';
 import { junctionArms, parkAt, roundaboutAt } from '../src/city/roadLayout.js';
@@ -28,8 +28,8 @@ function lanesAt(r){const m=new Map();for(const axis of[0,1])for(let line=Math.m
   for(const d of[-1,1])m.set(`${axis}:${line}:${d}`,{axis,line,direction:d,cars:[]});return m;}
 const key=c=>`${c.axis}:${c.line}:${c.direction}`;
 
-test('a bus clears a linked grid junction after entering the diagonal crossing just before red',()=>{
-  const block=40,r=approachAtRing(3,1,block),gate=r.crossings[1];
+test('a bus clears the shortened diagonal crossing before the downstream junction',()=>{
+  const block=40,r=approachAtRing(3,1,block),gate=r.crossings.at(-1),downstream=3*block;
   for(const occupied of[false,true])for(const speed of[2,8]){
     const lanes=lanesAt(r),bus={axis:0,line:0,direction:1,track:THIRD_TRACK,fromTrack:THIRD_TRACK,
       offset:laneOffset(0,0,THIRD_TRACK),kind:'bus',speed,cruise:8,baseCruise:8,acceleration:4,
@@ -42,15 +42,17 @@ test('a bus clears a linked grid junction after entering the diagonal crossing j
       lanes.get(key(blocker)).cars.push(blocker);
     }
     updateNetwork(lanes,1/30,7.7,{blockSize:block,roadLayout:true});
-    assert.equal(bus.crossing,occupied?undefined:120,'reserve the downstream junction before entering the diagonal');
+    assert.equal(bus.crossing,undefined,'the shortened approach no longer overlaps the downstream stop zone');
     for(let i=1;i<140;i++)updateNetwork(lanes,1/30,7.7+i/30,{blockSize:block,roadLayout:true});
-    if(occupied)assert.ok(bus.position<=stop+.001,'wait before the diagonal when the grid junction is occupied');
-    else assert.ok(bus.position>124,'a red grid signal must not stop the bus across the diagonal');
+    if(occupied){
+      assert.ok(bus.position<=downstream-junctionStop(3,0)-extraHalfLength(bus)+.001,'wait before the occupied grid junction');
+    }
+    assert.ok(bus.position-extraHalfLength(bus)>gateCentre+DIAGONAL_HALF/Math.abs(r.dz),'the rear clears the diagonal before waiting for the grid signal');
   }
 });
 
 test('changing lanes at a red diagonal approach cannot move the stop line behind the vehicle',()=>{
-  const block=40,r=approachAtRing(3,1,block),gate=r.crossings[1],lanes=lanesAt(r);
+  const block=40,r=approachAtRing(3,1,block),gate=r.crossings.at(-1),lanes=lanesAt(r);
   const stop=gate.position*block+r.dx/r.dz*laneOffset(0,0,0)-DIAGONAL_HALF/Math.abs(r.dz)-2;
   const car={axis:0,line:0,direction:1,track:1,fromTrack:THIRD_TRACK,offset:laneOffset(0,0,THIRD_TRACK),
     kind:'motorcycle',position:stop-.05,speed:1.1,mergeSpeed:1.1,cruise:8,baseCruise:8,acceleration:4,
@@ -63,12 +65,25 @@ test('changing lanes at a red diagonal approach cannot move the stop line behind
   assert.equal(car.changing,false);assert.equal(car.speed,0);assert.equal(car.crossing,undefined);
 });
 
-test('three-block fifth arms end at rings and preserve water, parks and parking',()=>{
+test('two-block fifth arms omit the terminal wedge and preserve water, parks and parking',()=>{
+  assert.equal(APPROACH_BLOCKS,2);
   for(const block of[24,40,48])for(const r of sites(block)){
-    assert.equal(r.tiles.length,3);assert.equal(r.crossings.length,2);assert.ok(roundaboutAt(r.b.x,r.b.z));
+    assert.equal(r.tiles.length,2);assert.equal(r.crossings.length,1);assert.ok(roundaboutAt(r.b.x,r.b.z));
+    assert.ok(Number.isInteger(r.a.x)&&Number.isInteger(r.a.z));
+    assert.ok(Math.abs(r.a.x-r.b.x)<=2&&Math.abs(r.a.z-r.b.z)<=2);
+    assert.ok(Math.abs(r.length-Math.sqrt(5)*block)<1e-8);
     assert.deepEqual(junctionArms(r.b.x,r.b.z),[true,true,true,true]);
     for(const p of[r.a,r.b])assert.equal(diagonalFromJunction(p.x,p.z,block).key,r.key);
     for(const p of r.tiles){assert.equal(diagonalAt(p.x,p.z,block).key,r.key);assert.ok(!canalColumn(p.x)&&!parkAt(p.x,p.z)&&!parkingAt(p.x,p.z,block));}
+  }
+});
+test('the removed terminal lot has no diagonal geometry or vehicle entry',()=>{
+  for(const block of[24,40,48]){
+    const r=approachAtRing(3,1,block);
+    assert.deepEqual(r.a,{x:2,z:-1});
+    assert.equal(diagonalAt(2,-2,block),null);
+    assert.equal(diagonalFromJunction(2,-2,block),null);
+    assert.equal(diagonalTarget({axis:1,line:2,direction:1,track:1},-2,block),null);
   }
 });
 test('both route directions and ring joins keep the entire vehicle on asphalt',()=>{
@@ -98,7 +113,7 @@ test('successive polygon lots change width and every building clears the diagona
     assert.ok(Math.max(...areas.flat())-Math.min(...areas.flat())>block);
   }
 });
-test('ordinary cars and taxis complete both directions, including two intermediate crossings',()=>{
+test('ordinary cars and taxis complete both directions through the remaining crossing',()=>{
   for(const r of[approachAtRing(3,1),approachAtRing(-3,1)])for(const out of[false,true])for(const taxi of[false,true]){
     const c=carAt(r,out,40,taxi),lanes=lanesAt(r);lanes.get(key(c)).cars.push(c);
     for(let i=0;i<2100&&!c.diagonalsCompleted;i++)updateNetwork(lanes,1/30,13+i/30,{blockSize:40,roadLayout:true});
@@ -133,6 +148,7 @@ test('standard density uses new approaches for cars and taxis without increasing
 
 test('a diagonal queue at the boulevard stop boundary releases cross traffic without body collisions',t=>{
   const sim=new TrafficSimulation({settings:{...scenarioSettings('main'),cameraSpeed:0},area:{x:3,z:3,extents:{x:70,z:70}},focus:{x:120,z:40},simulationHz:30});
+  const crossing=approachAtRing(3,1).crossings[0];
   const waits=new Map(),passed=new Set(),entered=new Set(),completed=new Set();let longest=0;
   const overlap=(a,b)=>{
     const dx=b.pose.x-a.pose.x,dz=b.pose.z-a.pose.z;
@@ -156,7 +172,7 @@ test('a diagonal queue at the boulevard stop boundary releases cross traffic wit
       const diagonal=car.turn?.kind==='diagonal'&&car.turn.roadId==='3:1'&&!car.turn.ringActive;
       if(!diagonal&&(car.turn||car.axis!==0||car.line!==0))continue;
       const p=carCoordinates(car,40),pose=car.turn?p:vehiclePose(p.x,p.z,car.axis,car.direction,car.steer);
-      if(Math.abs(p.x-106.667)>12||Math.abs(p.z)>10)continue;
+      if(Math.abs(p.x-crossing.x*40)>12||Math.abs(p.z-crossing.z*40)>10)continue;
       local.push({pose,type:vehicleType(car),diagonal});
     }
     for(let a=0;a<local.length;a++)for(let b=a+1;b<local.length;b++)if(local[a].diagonal!==local[b].diagonal)
@@ -164,7 +180,7 @@ test('a diagonal queue at the boulevard stop boundary releases cross traffic wit
   }
   assert.ok(longest<33,`cross traffic stuck ${longest.toFixed(1)}s at the intermediate boulevard crossing`);
   assert.equal(passed.size,2,'both boulevard directions make progress');
-  assert.ok(completed.size>=6,`main scenario completed ${completed.size}`);
+  assert.ok(completed.size>=4,`main scenario completed ${completed.size}`);
   assert.ok([...completed].some(c=>c.taxi),'a taxi completes a diagonal route too');
   t.diagnostic(`main: ${entered.size} entered, ${completed.size} completed, ${[...completed].filter(c=>c.taxi).length} taxis; longest crossing wait ${longest.toFixed(1)}s`);
 });
