@@ -843,3 +843,31 @@ test('multi-signer mint lets the wallet inspect the unsigned message before addi
   assert.ok(sentTransaction.signatures[owner.address]);
   assert.ok(sentTransaction.signatures[asset.address]);
 });
+
+test('multi-signer wallet rejection includes safe transaction diagnostics', async () => {
+  const owner = await generateKeyPairSigner();
+  const asset = await generateKeyPairSigner();
+  const blockhash = await generateKeyPairSigner();
+  const rpc = {
+    getLatestBlockhash: () => ({ send: async () => ({ value: { blockhash: String(blockhash.address), lastValidBlockHeight: 999n } }) }),
+    simulateTransaction: () => ({ send: async () => ({ value: { err: null, logs: [] } }) }),
+  };
+  const error = await sendWalletInstructions({
+    rpc,
+    wallet: { features: { 'solana:signTransaction': { signTransaction: async () => { throw Object.assign(new Error('Request blocked'), { code: 4001 }); } } } },
+    account: { address: owner.address },
+    chain: 'solana:mainnet',
+    instructions: [{
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: owner.address, role: AccountRole.WRITABLE_SIGNER },
+        { address: asset.address, role: AccountRole.WRITABLE_SIGNER },
+      ],
+      data: new Uint8Array(),
+    }],
+    additionalSigners: [asset],
+  }).catch(value => value);
+  assert.equal(error.name, 'WalletSignRequestError');
+  assert.match(error.message, /Request blocked/);
+  assert.match(error.message, /code=4001; wireBytes=269; instructions=1; lookupTables=0/);
+});

@@ -5,6 +5,7 @@ import traineeDrivingScene from './traineeDrivingScene.json';
 import { appAssetPath } from './appPath.js';
 import { MintRevealModal } from './MintRevealModal.jsx';
 import { formatCompactNumber } from './compactNumber.js';
+import { reportClientError } from './clientErrorLog.js';
 import {
   activateTrainee,
   claimTrainee,
@@ -183,8 +184,9 @@ export function MintPage({ wallet, connectWallet }) {
     const toastId = notifyLoading('Minting your taxi NFT…');
     let lastSignature = '';
     let mintedCount = 0;
+    let connection = wallet;
     try {
-      const connection = wallet || await connectWallet();
+      connection ||= await connectWallet();
       const result = await mintMachine(connection, status, preparedMint);
       lastSignature = result.signature;
       mintedCount = 1;
@@ -257,6 +259,10 @@ export function MintPage({ wallet, connectWallet }) {
       setNotice(message);
       notifySuccess(message, { id: toastId });
     } catch (error) {
+      reportClientError(error, {
+        event: 'mint-wallet-request',
+        component: `${connection?.wallet?.name || 'Unknown wallet'} · ${navigator.userAgent}`,
+      });
       if (error.signature) setSignature(error.signature);
       const message = error.message || `${fareTicker} purchase failed.`;
       setNotice(message);

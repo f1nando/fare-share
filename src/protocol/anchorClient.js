@@ -774,7 +774,16 @@ export async function sendWalletInstructions({ rpc, wallet, account, chain, inst
   if (additionalSigners.length) {
     const signFeature = wallet.features['solana:signTransaction'];
     if (!signFeature) throw new Error('Phantom does not support the safe multi-signer transaction flow.');
-    const [walletResult] = await signFeature.signTransaction({ transaction: encoded, account, chain });
+    let walletResult;
+    try {
+      [walletResult] = await signFeature.signTransaction({ transaction: encoded, account, chain });
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'none';
+      const message = error instanceof Error ? error.message : String(error || 'Unknown wallet error');
+      const diagnostic = new Error(`Wallet blocked the multi-signer request: ${message} [code=${code}; wireBytes=${encoded.length}; instructions=${instructions.length}; lookupTables=${Object.keys(lookupTables).length}]`);
+      diagnostic.name = 'WalletSignRequestError';
+      throw diagnostic;
+    }
     transaction = getTransactionDecoder().decode(walletResult.signedTransaction);
     transaction = await partiallySignTransaction(additionalSigners.map(signer => signer.keyPair), transaction);
     const signedEncoded = getTransactionEncoder().encode(transaction);
