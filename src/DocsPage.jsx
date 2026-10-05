@@ -125,7 +125,7 @@ export function DocsPage() {
               <section className="fare-docs-copy-section" id="mint">
                 <SectionTitle number="04">MINT PAGE</SectionTitle>
                 <p>The Mint page shows the finalized number minted in each class, the remaining collection supply and live odds based on the still-unminted assignments. One random taxi is minted per transaction and its class and model are revealed only after the transaction.</p>
-                <p>{tokenText('A short-lived quote converts the current on-chain USD mint price into the current $FARE amount. If the connected wallet does not have enough $FARE, the page can prepare a separate Jupiter purchase for the missing amount. The refreshed mint quote must still be valid when the NFT transaction is signed.', ticker)}</p>
+                <p>{tokenText('A short-lived quote converts the fixed $25 price into the current $FARE amount. If the connected wallet does not have enough $FARE, the page can prepare a separate Jupiter purchase for the missing amount. The refreshed mint quote must still be valid when the NFT transaction is signed.', ticker)}</p>
                 <p>The mint transaction atomically transfers payment, creates the Metaplex Core NFT and initializes its onchain taxi account. A successful taxi starts with five days of durability. If public indexing is delayed after finalization, the NFT still exists onchain and the site retries synchronization.</p>
                 <p>The same page accepts active trainee campaign keywords. Trainee activation is a separate transaction, costs no taxi purchase price, and still requires SOL for network fees and account rent.</p>
               </section>

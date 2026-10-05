@@ -25,6 +25,7 @@ declare_id!("8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD");
 #[cfg(not(feature = "mainnet"))]
 declare_id!("FJgPHdMEFi8JQSeW7h9ogLCDvm2gixWkXG8g7tqn7aJr");
 
+const MINT_PRICE_USD_CENTS: u64 = 2_500;
 const MAX_SHUTDOWN_RESIDUAL_RAW: u64 = 16;
 
 #[program]
@@ -99,7 +100,14 @@ pub mod taxi_park {
     }
 
     pub fn set_mint_prices(ctx: Context<AdminState>, prices: [u64; CLASS_COUNT]) -> Result<()> {
-        validate_mint_prices(&prices)?;
+        require!(
+            !ctx.accounts.config.sale_started,
+            TaxiError::SaleAlreadyStarted
+        );
+        require!(
+            prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS),
+            TaxiError::InvalidPrice
+        );
         ctx.accounts.config.mint_prices = prices;
         Ok(())
     }
@@ -388,9 +396,9 @@ pub mod taxi_park {
         let config = &mut ctx.accounts.config;
         require!(!config.sale_started, TaxiError::SaleAlreadyStarted);
         require_fare_ready(config.fare_mint)?;
-        validate_mint_prices(&config.mint_prices)?;
         require!(
-            config.mint_assignment_root != [0; 12],
+            config.mint_prices.iter().all(|price| *price == MINT_PRICE_USD_CENTS)
+                && config.mint_assignment_root != [0; 12],
             TaxiError::InvalidPrice
         );
         require!(
@@ -3474,26 +3482,9 @@ fn clear_shutdown_residuals(
     Ok(())
 }
 
-fn validate_mint_prices(prices: &[u64; CLASS_COUNT]) -> Result<()> {
-    let price = prices[0];
-    require!(
-        price > 0 && prices.iter().all(|value| *value == price),
-        TaxiError::InvalidPrice
-    );
-    Ok(())
-}
-
 #[cfg(test)]
 mod accounting_tests {
     use super::*;
-
-    #[test]
-    fn mint_price_can_change_to_any_positive_matching_value() {
-        assert!(validate_mint_prices(&[1; CLASS_COUNT]).is_ok());
-        assert!(validate_mint_prices(&[4_999; CLASS_COUNT]).is_ok());
-        assert!(validate_mint_prices(&[0; CLASS_COUNT]).is_err());
-        assert!(validate_mint_prices(&[2_500, 2_500, 2_500, 2_499]).is_err());
-    }
 
     #[test]
     fn shutdown_clears_only_bounded_rounding_dust() {

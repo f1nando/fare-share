@@ -767,7 +767,9 @@ export async function createFeeAdminService(
         if (!Number.isFinite(dollars) || dollars <= 0 || !Number.isSafeInteger(cents)) throw new FeeAdminError(`Class ${index + 1} price is invalid.`);
         return BigInt(cents);
       }) as [bigint, bigint, bigint, bigint];
-      if (!prices.every(price => price === prices[0])) throw new FeeAdminError('Every random taxi must use the same mint price.');
+      if (!prices.every(price => price === 2_500n)) throw new FeeAdminError('Every taxi mint must cost exactly $25.');
+      const current = await configuredState();
+      if (current.saleStarted) throw new FeeAdminError('Mint prices are locked after the sale starts.', 409);
       const signature = String(await sendInstructions(config.rpcUrl, admin, [
         buildSimpleAdminInstruction(config.programId, admin.address, addresses.config, { name: 'set-mint-prices', prices }),
       ]));

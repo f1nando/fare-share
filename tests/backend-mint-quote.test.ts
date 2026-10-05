@@ -99,19 +99,6 @@ test('low-priced tokens retain enough precision for a safe quote', async () => {
   assert.ok(BigInt(quote.quotedUsdcRaw) >= 25_000_000n);
 });
 
-test('the current positive on-chain USD price is used immediately', async () => {
-  const issue = createMintQuoteService(config, {
-    market: market(),
-    now: () => 1_000_000,
-    loadState: async () => state({ mintPrices: [4999n, 4999n, 4999n, 4999n] }),
-    loadAssignment: assignment,
-  });
-  const quote = await issue({ owner: OWNER, asset: ASSET });
-  assert.equal(quote.priceUsdCents, '4999');
-  assert.equal(quote.amountFareRaw, '9998000000');
-  assert.equal(quote.quotedUsdcRaw, '49990000');
-});
-
 test('curved liquidity converges to the full mint price', async () => {
   const reserve = 60_000_000_000n;
   let calls = 0;
@@ -162,12 +149,11 @@ test('only inert Pump metadata extensions are accepted for Token-2022 quotes', (
   assert.equal(mintDataIsExactTransferCompatible(token2022, FARE, data), false);
 });
 
-test('paused, sold-out, and invalid price states are rejected', async () => {
+test('paused, sold-out, and wrong Economy price states are rejected', async () => {
   for (const configuration of [
     { pausedAt: 1n },
     { mintedByClass: [833, 278, 83, 28] },
     { mintPrices: [2499n, 2500n, 2500n, 2500n] },
-    { mintPrices: [0n, 0n, 0n, 0n] },
   ]) {
     const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000, loadState: async () => state(configuration), loadAssignment: assignment });
     await assert.rejects(issue({ owner: OWNER, asset: ASSET }));
