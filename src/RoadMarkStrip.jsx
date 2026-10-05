@@ -15,6 +15,7 @@ export function RoadMarkStrip({ settings, className = '', sizeUnit = '%' }) {
       width: `${strip.width}${sizeUnit}`,
       height: `${strip.height}${sizeUnit}`,
       opacity,
+      '--road-mark-spacing': `${settings.markSpacing}px`,
       transform: `translate(-50%, -50%) rotate(${settings.pathAngle}deg)`,
     }} aria-hidden="true">
       <defs>
@@ -23,7 +24,7 @@ export function RoadMarkStrip({ settings, className = '', sizeUnit = '%' }) {
             preserveAspectRatio="none" transform={`rotate(${angleOffset} ${settings.markWidth / 2} ${strip.height / 2})`} />
         </pattern>
       </defs>
-      <rect width={strip.width} height={strip.height} fill={`url(#${patternId})`} />
+      <rect className="road-mark-strip" width={strip.width} height={strip.height} fill={`url(#${patternId})`} />
     </svg>
   );
 }

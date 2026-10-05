@@ -147,9 +147,6 @@ function blinkSceneHeadlights(container, settings) {
 function FleetSceneCard({ scene, fleetClass }) {
   const [headlightsReady, setHeadlightsReady] = useState(false);
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
-  const radians = settings.pathAngle * Math.PI / 180;
-  const pathX = Math.cos(radians);
-  const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
   const imageUrl = appAssetPath(scene.imageUrl);
 
@@ -172,10 +169,8 @@ function FleetSceneCard({ scene, fleetClass }) {
         decoding="async"
       />
       <div className="fare-fleet-road" style={{
-        '--road-travel-x': `${settings.markSpacing * pathX}cqw`,
-        '--road-travel-y': `${settings.markSpacing * pathY}cqw`,
         '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
-        animationPlayState: roadSpeed > 0 ? undefined : 'paused',
+        '--road-play-state': roadSpeed > 0 ? 'running' : 'paused',
       }}>
         <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
@@ -206,9 +201,6 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
   const previousRateFrameRef = useRef(0);
   const targetRateRef = useRef(1);
   const settings = { ...FALLBACK_SCENE.settings, ...scene.settings };
-  const radians = settings.pathAngle * Math.PI / 180;
-  const pathX = Math.cos(radians);
-  const pathY = Math.sin(radians);
   const roadSpeed = settings.markSpeed ?? FLEET_ROAD_SPEED;
   const imageUrl = appAssetPath(scene.imageUrl);
 
@@ -216,7 +208,7 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
     rateFrameRef.current = 0;
     const road = roadRef.current;
     if (!road) return;
-    const animations = road.getAnimations();
+    const animations = road.getAnimations({ subtree: true });
     if (!animations.length) return;
     const previous = previousRateFrameRef.current || now - 16;
     const elapsed = Math.min((now - previous) / 1000, .05);
@@ -272,10 +264,8 @@ export function FareStepDrivingScene({ scene = PORSCHE_STEP_SCENE, showHeadlight
     >
       <img className="fare-step-driving-car" src={imageUrl} alt="" loading={imageLoading} decoding="async" />
       <div className="fare-fleet-road" ref={roadRef} style={{
-        '--road-travel-x': `${settings.markSpacing * pathX}cqw`,
-        '--road-travel-y': `${settings.markSpacing * pathY}cqw`,
         '--road-cycle-duration': `${settings.markSpacing / Math.max(roadSpeed, .001)}s`,
-        animationPlayState: roadSpeed > 0 ? undefined : 'paused',
+        '--road-play-state': roadSpeed > 0 ? 'running' : 'paused',
       }}>
         <RoadMarkStrip className="fare-fleet-road-line" settings={settings} sizeUnit="cqw" />
       </div>
@@ -347,7 +337,7 @@ function FleetCardBackground() {
       road: card.querySelector('.fare-fleet-road'),
       bounds: null,
     }));
-    cardEntriesRef.current.forEach(({ road }) => road?.getAnimations().forEach((animation) => animation.pause()));
+    cardEntriesRef.current.forEach(({ road }) => road?.getAnimations({ subtree: true }).forEach((animation) => animation.pause()));
     cardVisibilityObserverRef.current?.disconnect();
     cardEntriesRef.current.forEach(({ card }) => cardVisibilityObserverRef.current?.observe(card));
     boundsMeasuredAtRef.current = 0;
@@ -369,7 +359,7 @@ function FleetCardBackground() {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       cardEntriesRef.current.forEach(({ card, road }) => {
         card.classList.toggle('is-road-active', !reduceMotion);
-        if (!reduceMotion) road?.getAnimations().forEach((animation) => animation.play());
+        if (!reduceMotion) road?.getAnimations({ subtree: true }).forEach((animation) => animation.play());
       });
       return undefined;
     }
@@ -379,7 +369,7 @@ function FleetCardBackground() {
       entries.forEach((entry) => {
         const isActive = entry.isIntersecting && !reduceMotion;
         entry.target.classList.toggle('is-road-active', isActive);
-        entry.target.querySelector('.fare-fleet-road')?.getAnimations()
+        entry.target.querySelector('.fare-fleet-road')?.getAnimations({ subtree: true })
           .forEach((animation) => isActive ? animation.play() : animation.pause());
       });
     }, { rootMargin: '120px 0px' });
@@ -438,7 +428,7 @@ function FleetCardBackground() {
     for (const { road } of cardEntriesRef.current) {
       if (!road?.dataset.targetPlaybackRate) continue;
       const targetRate = Number(road.dataset.targetPlaybackRate || 1);
-      const animations = road.getAnimations();
+      const animations = road.getAnimations({ subtree: true });
       if (!animations.length) continue;
       const currentRate = Number(road.dataset.currentPlaybackRate || animations[0].playbackRate || 1);
       const difference = targetRate - currentRate;

@@ -268,8 +268,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 .fare-fleet-class.is-legend { border-color: #111; color: #111; background: #ffe72f; }
 .fare-fleet-class.is-trainee { border-color: #111; color: #111; background: #ffe72f; }
 .fare-fleet-car { position: absolute; z-index: 1; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
-.fare-fleet-road { position: absolute; z-index: 2; inset: 0; animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; pointer-events: none; }
+.fare-fleet-road { position: absolute; z-index: 2; inset: 0; pointer-events: none; }
 .fare-fleet-road-line { position: absolute; display: block; overflow: visible; transform-origin: center; }
+/* Animate in SVG user units so the loop shift exactly matches the pattern period, including under CSS zoom. */
+.fare-fleet-road-line .road-mark-strip { animation: fare-fleet-road-motion var(--road-cycle-duration) linear infinite; animation-play-state: var(--road-play-state, running); }
 .fare-fleet-headlight { position: absolute; z-index: 3; height: auto; opacity: 0; transform: translate(-50%, -50%); pointer-events: none; }
 .fare-fleet-heading { position: relative; z-index: 2; pointer-events: none; }
 .fare-fleet-button { position: absolute; z-index: 2; top: 644px; left: 12px; }
@@ -277,13 +279,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 
 @keyframes fare-fleet-column-up { from { transform: translateY(0); } to { transform: translateY(calc(-50% - var(--card-half-gap))); } }
 @keyframes fare-fleet-column-down { from { transform: translateY(calc(-50% - var(--card-half-gap))); } to { transform: translateY(0); } }
-@keyframes fare-fleet-road-motion { from { transform: translate(0, 0); } to { transform: translate(var(--road-travel-x), var(--road-travel-y)); } }
+@keyframes fare-fleet-road-motion { from { transform: translateX(0); } to { transform: translateX(var(--road-mark-spacing)); } }
 @keyframes fare-fleet-wall-slide { from { transform: translateX(0); } to { transform: translateX(calc(-50% - var(--wall-half-gap))); } }
 
-.fare-fleet-card-wall.is-paused .fare-fleet-wall-track, .fare-fleet-card-wall.is-paused .fare-fleet-card-track, .fare-fleet-card-wall.is-paused .fare-fleet-road { animation-play-state: paused; }
+.fare-fleet-card-wall.is-paused .fare-fleet-wall-track, .fare-fleet-card-wall.is-paused .fare-fleet-card-track, .fare-fleet-card-wall.is-paused .road-mark-strip { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fare-step-sprite, .fare-collect-asset, .fare-fleet-wall-track, .fare-fleet-card-track, .fare-fleet-road { animation-play-state: paused; }
+  .fare-step-sprite, .fare-collect-asset, .fare-fleet-wall-track, .fare-fleet-card-track, .fare-fleet-road-line .road-mark-strip { animation-play-state: paused; }
   .fare-collect-asset { opacity: 1; transform: translate(var(--flight-x), calc(var(--flight-y) - 72px)) rotate(var(--flight-rotate)) scale(1); }
 }
 
