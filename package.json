@@ -22,6 +22,7 @@
     "protocol:claim-lookup-addresses": "node --env-file-if-exists=.env scripts/show-claim-lookup-addresses.mjs",
     "protocol:create-claim-lookup": "node --env-file-if-exists=.env --import tsx scripts/create-claim-lookup-table.ts",
     "protocol:extend-trade-lookup": "node --env-file-if-exists=.env --import tsx scripts/extend-trade-lookup-table.ts",
+    "protocol:extend-mint-lookup": "node --env-file-if-exists=.env --import tsx scripts/extend-mint-lookup-table.ts",
     "protocol:smoke-claim-many": "node --env-file-if-exists=.env --import tsx scripts/devnet-claim-many-smoke.ts",
     "protocol:audit-devnet-recovery": "node --env-file-if-exists=.env.devnet scripts/audit-devnet-recovery.mjs",
     "protocol:audit-mainnet-recovery": "node --env-file-if-exists=.env.mainnet-recovery --import tsx scripts/audit-mainnet-recovery.ts",
