@@ -881,5 +881,5 @@ button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offs
 @media (max-width: 400px) {
   .fare-step-card { height: auto; }
   .fare-step-media { height: auto; aspect-ratio: 100 / 92; }
-  .fare-step-sprite { width: 100%; }
+  .fare-step-sprite { width: 100%; aspect-ratio: 1; }
 }
