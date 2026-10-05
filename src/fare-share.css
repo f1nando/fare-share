@@ -7,6 +7,7 @@
 }
 
 :root {
+  --fare-page-zoom: .825;
   --fare-control-height-md: 64px;
   --fare-control-height-lg: 74px;
   --fare-control-height-mobile: 48px;
@@ -38,10 +39,11 @@ body { overflow-x: hidden; }
 button { font: inherit; cursor: pointer; }
 button:focus-visible, a:focus-visible { outline: 3px solid #6d5b00; outline-offset: 4px; }
 
-.fare-page { position: relative; min-height: 100%; background: transparent; isolation: isolate; zoom: .825; }
+.fare-page { position: relative; min-height: 100%; background: transparent; isolation: isolate; zoom: var(--fare-page-zoom); }
 .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 12px; }
 .container--hero { max-width: 1700px; }
-.fare-city-background { position: fixed; z-index: 0; top: 0; left: 0; width: 100%; height: 100vh; height: 100lvh; overflow: hidden; contain: strict; background: #dedede; transform: translateZ(0); backface-visibility: hidden; pointer-events: none; }
+/* Viewport units must compensate for the page zoom; lvh keeps mobile browser chrome from resizing the scene. */
+.fare-city-background { position: fixed; z-index: 0; top: 0; left: 0; width: 100%; height: calc(100vh / var(--fare-page-zoom)); height: calc(100lvh / var(--fare-page-zoom)); overflow: hidden; contain: strict; background: #dedede; transform: translateZ(0); backface-visibility: hidden; pointer-events: none; }
 .fare-city-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .fare-city-canvas canvas { display: block; width: 100%; height: 100%; }
 .fare-page > main, .fare-footer { position: relative; z-index: 1; }
