@@ -20,6 +20,16 @@ Local-validator CPI/lifecycle smoke выполнен: PASS; детали и devn
 Снятие предупреждения Lighthouse подтверждается отдельно в Phantom; один signer
 сам по себе не гарантирует отсутствие предупреждения.
 
+Mainnet PDA-mint upgrade использует `scripts/upgrade-pda-mint-mainnet.sh`,
+по умолчанию только read-only preflight. Frozen binary, source SHA, keypair paths,
+RPC file, evidence directory и backup verification marker передаются явно.
+Wrapper сохраняет предыдущий ELF, запрещает auto-extend, оставляет authority у
+`F3jK…n8tR`, проверяет hash нового ELF, неизменный ProgramData rent и возврат buffer.
+Он никогда не закрывает mainnet Program/ProgramData. При сбое upload проверяется
+известный buffer `9FxH…ffeVY`; повторный upload или закрытие только этого buffer
+выполняются после отдельной проверки. Backend/frontend не переключаются, пока
+on-chain hash и authority не подтверждены.
+
 Исходный код доставляется на сервер только через GitHub: локальный `main`
 проверяется, фиксируется точным commit SHA и после отдельного разрешения
 отправляется в `origin/main`. На сервере выполняются `git fetch` и detached
@@ -225,7 +235,7 @@ creator `2NUN…` и immutable active version-2 sharing config с единств
 **Mainnet deploy запрещён**, пока одновременно не выполнены все условия:
 
 1. Upgrade authority остаётся у зафиксированного admin/deployer
-   `2NUNSxorimMYT4pBqasMcN2rgPqA8cMPqXZkEs2EGVnF`; локальный keypair проверен,
+   `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`; локальный keypair проверен,
    имеет защищённую резервную копию и не зависит от единственного сервера.
 2. В deploy-команде явно указан этот upgrade authority и отсутствует `--final`.
 3. Upload buffer создаётся постоянным известным keypair вне репозитория. При любом
