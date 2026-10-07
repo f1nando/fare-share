@@ -287,16 +287,16 @@ export async function buildMintMachine({
   assetSigner,
   quote,
 }) {
-  if (!assetSigner) throw new Error('The mint asset signer must be created before requesting a quote.');
+  const asset = assetSigner?.address ?? await derivePaidMintAsset(programAddress, owner, Number(quote.assignmentIndex));
   const payer = createNoopSigner(address(owner));
-  const machine = (await deriveTaxiAddresses(programAddress, assetSigner.address)).machine;
+  const machine = (await deriveTaxiAddresses(programAddress, asset)).machine;
   const eventPage = await deriveEventPage(programAddress, pageIndex);
   const fareMint = address(config.fareMint);
   const tokenProgram = address(fareTokenProgram);
   const [ownerFareAccount] = await findAssociatedTokenPda({ owner, mint: fareMint, tokenProgram });
   const [teamFareAccount] = await findAssociatedTokenPda({ owner: config.teamAccount, mint: fareMint, tokenProgram });
   if (String(quote.owner) !== String(owner)
-    || String(quote.asset) !== String(assetSigner.address)
+    || String(quote.asset) !== String(asset)
     || String(quote.fareMint) !== String(fareMint)) {
     throw new Error('The backend returned a quote for different mint accounts.');
   }
@@ -323,7 +323,7 @@ export async function buildMintMachine({
       meta(configAddress, AccountRole.WRITABLE),
       meta(queue, AccountRole.WRITABLE),
       meta(eventPage, AccountRole.WRITABLE),
-      meta(assetSigner.address, AccountRole.WRITABLE_SIGNER),
+      meta(asset, assetSigner ? AccountRole.WRITABLE_SIGNER : AccountRole.WRITABLE),
       meta(machine, AccountRole.WRITABLE),
       meta(config.collection, AccountRole.WRITABLE),
       meta(fareMint, AccountRole.READONLY),
@@ -348,7 +348,17 @@ export async function buildMintMachine({
     ed25519Instruction,
     instruction,
   ];
-  return { instruction, instructions, assetSigner, machine, ownerFareAccount, teamFareAccount };
+  return { instruction, instructions, asset, assetSigner, machine, ownerFareAccount, teamFareAccount };
+}
+
+export async function derivePaidMintAsset(programAddress, owner, assignmentIndex) {
+  if (!Number.isInteger(assignmentIndex) || assignmentIndex < 0 || assignmentIndex >= 1222) {
+    throw new Error('Invalid paid mint assignment index.');
+  }
+  return (await getProgramDerivedAddress({
+    programAddress: address(programAddress),
+    seeds: [utf8.encode('paid-asset'), addressBytes(owner), u16Bytes(assignmentIndex)],
+  }))[0];
 }
 
 function hexBytes(value) {

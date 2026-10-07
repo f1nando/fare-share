@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { address, getAddressEncoder } from '@solana/kit';
+import { address, getAddressEncoder, getProgramDerivedAddress } from '@solana/kit';
 import { ceilDiv, createMintQuoteService, mintDataIsExactTransferCompatible, MintQuoteError, type MintMarketProvider } from '../server/mintQuoteService.js';
 import { buildMintQuoteMessage, parseBackendSigner } from '../server/signing.js';
 
@@ -78,6 +78,23 @@ test('stale market data is rejected', async () => {
   const stale = market({ referenceUsd: async () => ({ usdPrice: 0.005, observedAtMs: 900_000 }) });
   const issue = createMintQuoteService(config, { market: stale, now: () => 1_000_000, loadState: async () => state(), loadAssignment: assignment });
   await assert.rejects(issue({ owner: OWNER, asset: ASSET }), (error: unknown) => error instanceof MintQuoteError && /stale/.test(error.message));
+});
+
+test('owner-only quotes bind the canonical PDA and the current assignment', async () => {
+  const issue = createMintQuoteService(config, { market: market(), now: () => 1_000_000,
+    loadState: async () => state({ mintedByClass: [1, 1, 0, 0] }), loadAssignment: assignment });
+  const quote = await issue({ owner: OWNER });
+  const [asset] = await getProgramDerivedAddress({ programAddress: PROGRAM,
+    seeds: [new TextEncoder().encode('paid-asset'), getAddressEncoder().encode(OWNER), Uint8Array.of(2, 0)] });
+  assert.equal(quote.asset, asset);
+  assert.equal(quote.assignmentIndex, 2);
+  assert.deepEqual(Buffer.from(quote.message, 'base64'), Buffer.from(buildMintQuoteMessage(
+    PROGRAM, new Uint8Array(32).fill(9), {
+      owner: OWNER, asset, assignmentIndex: 2, classIndex: 0, variantIndex: 2, fareMint: FARE,
+      amountFareRaw: 5_000_000_000n, priceUsdCents: 2_500n, expiresAt: 1_045n,
+    },
+  )));
+  await assert.rejects(issue({ owner: OWNER, asset: '' }), /Invalid asset address/);
 });
 
 test('low-priced tokens retain enough precision for a safe quote', async () => {

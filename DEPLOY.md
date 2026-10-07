@@ -2,6 +2,22 @@
 
 ## Доставка application release
 
+### Single-signer paid mint (локальное изменение, ещё не опубликовано)
+
+Новый paid mint использует NFT PDA с seeds `paid-asset`, 32 байта owner,
+assignment index в формате `u16 little-endian`. Backend вычисляет PDA при запросе
+quote только с owner, frontend независимо проверяет адрес, программа подписывает
+Core Create CPI через `invoke_signed`. Оплата и выпуск остаются атомарными.
+Legacy quotes с asset signer поддерживаются для совместимости; существующие NFT
+и machine PDA не меняются.
+
+Перед публикацией обязательны целевой devnet/local-validator CPI smoke с настоящим
+Metaplex Core, проверка mint/transfer/list/cancel для PDA NFT и recovery gates ниже.
+Порядок доставки: upgrade программы → backend → frontend. Новый frontend нельзя
+публиковать до upgrade: прежняя программа требует внешний asset signer.
+Снятие предупреждения Lighthouse подтверждается отдельно в Phantom; один signer
+сам по себе не гарантирует отсутствие предупреждения.
+
 Исходный код доставляется на сервер только через GitHub: локальный `main`
 проверяется, фиксируется точным commit SHA и после отдельного разрешения
 отправляется в `origin/main`. На сервере выполняются `git fetch` и detached

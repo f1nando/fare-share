@@ -1,4 +1,4 @@
-import { address, getAddressEncoder, type Address } from '@solana/kit';
+import { address, getAddressEncoder, getProgramDerivedAddress, type Address } from '@solana/kit';
 import type { ServerConfig } from './config.js';
 import { jupiterRequest } from './jupiterHttp.js';
 import { buildMintQuoteMessage, parseBackendSigner } from './signing.js';
@@ -79,6 +79,12 @@ export function createMintQuoteService(
     const priceUsdCents = state.configuration.mintPrices[0];
     if (!state.configuration.mintPrices.every(price => price === MINT_PRICE_USD_CENTS)) throw new MintQuoteError('Mint price must be exactly $25.', 503);
     const assignment = await loadAssignment(assignmentIndex, state.configuration.mintAssignmentRoot);
+    const indexSeed = new Uint8Array(2);
+    new DataView(indexSeed.buffer).setUint16(0, assignmentIndex, true);
+    const asset = body.asset ?? (await getProgramDerivedAddress({
+      programAddress: config.programId,
+      seeds: [new TextEncoder().encode('paid-asset'), addressEncoder.encode(body.owner), indexSeed],
+    }))[0];
     const reference = await market.referenceUsd(state.configuration.fareMint);
     if (!Number.isFinite(reference.usdPrice) || reference.usdPrice <= 0) throw new MintQuoteError('A reliable FARE market price is unavailable.', 503);
     if (now() - reference.observedAtMs > config.mintQuoteMarketMaxAgeMs) throw new MintQuoteError('FARE market data is stale.', 503);
@@ -108,7 +114,7 @@ export function createMintQuoteService(
     const expiresAt = state.chainTime + BigInt(config.mintQuoteTtlSeconds);
     const fields = {
       owner: body.owner,
-      asset: body.asset,
+      asset,
       assignmentIndex,
       classIndex: assignment.classIndex,
       variantIndex: assignment.variantIndex,
@@ -194,9 +200,11 @@ function validateInput(input: unknown) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new MintQuoteError('JSON object is required.');
   const value = input as Record<string, unknown>;
   let owner: Address;
-  let asset: Address;
+  let asset: Address | undefined;
   try { owner = address(String(value.owner || '').trim()); } catch { throw new MintQuoteError('Invalid owner wallet.'); }
-  try { asset = address(String(value.asset || '').trim()); } catch { throw new MintQuoteError('Invalid asset address.'); }
+  if (value.asset !== undefined) {
+    try { asset = address(String(value.asset || '').trim()); } catch { throw new MintQuoteError('Invalid asset address.'); }
+  }
   return { owner, asset };
 }
 

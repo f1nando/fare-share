@@ -1106,6 +1106,11 @@ pub mod taxi_park {
             .metadata_uri(class_index, usize::from(variant))?
             .to_owned();
 
+        let owner_key = ctx.accounts.owner.key();
+        let asset_index = assignment.index.to_le_bytes();
+        let asset_bump = validate_paid_mint_asset(
+            &owner_key, assignment.index, &ctx.accounts.asset.key(), ctx.accounts.asset.is_signer,
+        )?;
         token::assert_program(&ctx.accounts.fare_token_program)?;
         let fare_mint = token::mint_view(
             &ctx.accounts.fare_mint,
@@ -1146,6 +1151,8 @@ pub mod taxi_park {
         let config_info = ctx.accounts.config.to_account_info();
         let config_bump = [ctx.accounts.config.bump];
         let config_seeds: &[&[u8]] = &[b"config", &config_bump];
+        let asset_bump_seed = [asset_bump];
+        let asset_seeds: &[&[u8]] = &[b"paid-asset", owner_key.as_ref(), &asset_index, &asset_bump_seed];
         metaplex_core::assert_collection(
             &ctx.accounts.collection,
             &[ctx.accounts.config.key(), ctx.accounts.config.admin],
@@ -1171,7 +1178,7 @@ pub mod taxi_park {
                 ctx.accounts.owner.to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
             ],
-            &[config_seeds],
+            &[config_seeds, asset_seeds],
         )?;
 
         let now = ctx
@@ -2762,8 +2769,9 @@ pub struct MintMachine<'info> {
         bump
     )]
     pub event_page: Box<Account<'info, EventPage>>,
+    /// CHECK: Legacy signer or owner/index PDA checked before Core CPI; quote binds the address.
     #[account(mut)]
-    pub asset: Signer<'info>,
+    pub asset: UncheckedAccount<'info>,
     #[account(
         init,
         payer = owner,
@@ -3360,6 +3368,15 @@ fn validate_mint_payment_accounts(
     Ok(())
 }
 
+fn validate_paid_mint_asset(owner: &Pubkey, index: u16, asset: &Pubkey, is_signer: bool) -> Result<u8> {
+    let (expected, bump) = Pubkey::find_program_address(
+        &[b"paid-asset", owner.as_ref(), &index.to_le_bytes()], &crate::ID,
+    );
+    // Preserve legacy clients; an unsigned asset must be the canonical quote-bound PDA.
+    require!(is_signer || *asset == expected, TaxiError::InvalidMintAssignment);
+    Ok(bump)
+}
+
 fn validate_mint_quote(expected_price_usd_cents: u64, quote: &MintQuoteArgs, now: i64) -> Result<()> {
     require!(quote.amount_fare_raw > 0, TaxiError::InvalidMintQuote);
     require!(quote.price_usd_cents == expected_price_usd_cents, TaxiError::InvalidMintQuote);
@@ -3707,6 +3724,23 @@ mod accounting_tests {
         assert!(validate_mint_quote(5_000, &quote, 1_046).is_err());
         assert!(validate_source_balance(100, 100).is_ok());
         assert!(validate_source_balance(99, 100).is_err());
+    }
+
+    #[test]
+    fn paid_mint_pda_binds_owner_and_assignment_and_keeps_legacy_signers() {
+        let owner = Pubkey::new_unique();
+        let index = 2_u16;
+        let (asset, bump) = Pubkey::find_program_address(
+            &[b"paid-asset", owner.as_ref(), &index.to_le_bytes()], &crate::ID,
+        );
+        assert_eq!(validate_paid_mint_asset(&owner, index, &asset, false).unwrap(), bump);
+        assert!(validate_paid_mint_asset(&owner, index + 1, &asset, false).is_err());
+        assert!(validate_paid_mint_asset(&Pubkey::new_unique(), index, &asset, false).is_err());
+        assert!(validate_paid_mint_asset(&owner, index, &Pubkey::new_unique(), false).is_err());
+        assert!(validate_paid_mint_asset(&owner, index, &Pubkey::new_unique(), true).is_ok());
+        assert_eq!(Pubkey::create_program_address(
+            &[b"paid-asset", owner.as_ref(), &index.to_le_bytes(), &[bump]], &crate::ID,
+        ).unwrap(), asset);
     }
 
     #[test]

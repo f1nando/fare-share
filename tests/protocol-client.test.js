@@ -58,6 +58,7 @@ import {
   decodeEventQueue,
   deriveTraineeAddresses,
   deriveMarketOffer,
+  derivePaidMintAsset,
   deriveTaxiAddresses,
   addressBytes,
   MAX_CLAIM_MACHINES_PER_TRANSACTION as MAX_CLAIM_MACHINES_ONCHAIN,
@@ -217,6 +218,34 @@ test('mint instruction carries the precommitted class, variant, and Merkle proof
     quote,
   });
   assert.equal(existingTeamAta.instructions.length, 2);
+
+  const pda = await derivePaidMintAsset(PROGRAM_ID, owner, 12);
+  const pdaMint = await buildMintMachine({
+    programAddress: PROGRAM_ID, owner, configAddress,
+    config: { collection, teamAccount, fareMint }, queue, pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM, quote: { ...quote, asset: pda },
+  });
+  const pdaMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    transaction => setTransactionMessageFeePayer(owner, transaction),
+    transaction => setTransactionMessageLifetimeUsingBlockhash({
+      blockhash: '11111111111111111111111111111111', lastValidBlockHeight: 1n,
+    }, transaction),
+    transaction => appendTransactionMessageInstructions(pdaMint.instructions, transaction),
+  );
+  const pdaTransaction = compileTransaction(pdaMessage);
+  assert.deepEqual(Object.keys(pdaTransaction.signatures), [String(owner)]);
+  assert.equal(pdaMint.asset, pda);
+  assert.equal(pdaMint.instruction.accounts[4].role, AccountRole.WRITABLE);
+  assert.equal(transactionBytes.length - getTransactionEncoder().encode(pdaTransaction).length, 64);
+  assert.notEqual(pda, await derivePaidMintAsset(PROGRAM_ID, owner, 13));
+  assert.notEqual(pda, await derivePaidMintAsset(PROGRAM_ID, teamAccount, 12));
+  await assert.rejects(buildMintMachine({
+    programAddress: PROGRAM_ID, owner, configAddress,
+    config: { collection, teamAccount, fareMint }, queue, pageIndex: 7,
+    fareTokenProgram: TOKEN_PROGRAM, quote,
+  }), /different mint accounts/);
+  await assert.rejects(derivePaidMintAsset(PROGRAM_ID, owner, 1222), /Invalid paid mint/);
 });
 
 test('configuration decoder reads all 16 metadata URIs in class and variant order', () => {

@@ -400,11 +400,10 @@ export async function prepareMintQuote(connection, knownStatus) {
   if (!status.deployed) throw new Error('The program is not deployed on the selected network yet.');
   if (!status.config.saleStarted) throw new Error('The car sale is not open yet.');
   const owner = address(connection.account.address);
-  const assetSigner = await createMintAssetSigner();
   const quoteResponse = await fetch(`${BACKEND_URL}/api/mint/quote`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ owner: String(owner), asset: String(assetSigner.address) }),
+    body: JSON.stringify({ owner: String(owner) }),
   });
   const quote = await quoteResponse.json();
   if (!quoteResponse.ok) throw new Error(apiErrorMessage(quote, 'A safe FARE mint quote is unavailable.'));
@@ -417,7 +416,7 @@ export async function prepareMintQuote(connection, knownStatus) {
   const ownerFareBalance = balanceAccount.value
     ? new DataView(accountBytes(balanceAccount.value).buffer).getBigUint64(64, true)
     : 0n;
-  return { assetSigner, quote, status, ownerFareBalance, ownerFareAccountExists: Boolean(balanceAccount.value) };
+  return { quote, status, ownerFareBalance, ownerFareAccountExists: Boolean(balanceAccount.value) };
 }
 
 export function waitForTransaction(signature) {
@@ -456,7 +455,7 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
   const status = prepared.status?.deployed ? prepared.status : knownStatus?.deployed ? knownStatus : await loadProtocolStatus();
   const pageIndex = chooseEventPage(status.queue, 2);
   const owner = address(connection.account.address);
-  const { assetSigner, quote } = prepared;
+  const { quote } = prepared;
   const fareMint = address(status.config.fareMint);
   const mintAccount = await rpc.getAccountInfo(fareMint, { commitment: 'finalized', encoding: 'base64' }).send();
   if (!mintAccount.value) throw new Error('The configured FARE mint is unavailable.');
@@ -482,7 +481,6 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
     pageIndex,
     fareTokenProgram,
     teamFareAccountExists: Boolean(paymentAccounts.value[1]),
-    assetSigner,
     quote,
   });
   const protocolLookupTables = await loadProtocolLookupTable();
@@ -492,10 +490,9 @@ export async function mintMachine(connection, knownStatus, preparedQuote) {
     account: connection.account,
     chain: SOLANA_CHAIN,
     instructions: built.instructions,
-    additionalSigners: [built.assetSigner],
     lookupTables: protocolLookupTables,
   });
-  return { signature, asset: built.assetSigner.address, quote, ownerFareBalance };
+  return { signature, asset: built.asset, quote, ownerFareBalance };
 }
 
 export async function claimMachine(connection, machine, knownStatus) {
