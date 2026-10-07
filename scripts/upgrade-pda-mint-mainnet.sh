@@ -12,7 +12,7 @@ HASH=124147cf9ba9683aad0943c8806e4eae976b6a2b98c4963b4c8803e33ab5f21e
 BYTES=881680
 CAPACITY=882048
 RENT=4481682680
-BUFFER_RENT=4479772600
+BUFFER_RENT=4479813240
 FEE_RESERVE=20000000
 CONFIRM="UPGRADE-$PROGRAM-$HASH"
 
@@ -63,14 +63,22 @@ test ! -e "$EVIDENCE_DIR/after.so"
 solana program dump "$PROGRAM" "$EVIDENCE_DIR/before.so" --url "$RPC_URL" --keypair "$AUTHORITY_KEYPAIR" --commitment finalized
 printf '%s\n' "$balance" > "$EVIDENCE_DIR/balance-before.lamports"
 echo 'Upgrading existing Program ID; automatic account extension is disabled.'
-# No --final, no auto-extend, explicit fee payer/authority/buffer; upload fees have no priority premium.
+# Bounded priority premium and confirmed upload avoid waiting for finality on every write.
+# All post-upgrade identity, binary and rent checks still use finalized commitment.
 solana program deploy "$PROGRAM_SO" --url "$RPC_URL" --program-id "$PROGRAM" \
   --keypair "$AUTHORITY_KEYPAIR" --fee-payer "$AUTHORITY_KEYPAIR" \
   --upgrade-authority "$AUTHORITY_KEYPAIR" --buffer "$BUFFER_KEYPAIR" \
-  --no-auto-extend --with-compute-unit-price 0 --max-sign-attempts 3 \
-  --use-rpc --commitment finalized | tee "$EVIDENCE_DIR/deploy.log"
+  --no-auto-extend --with-compute-unit-price 1000 --max-sign-attempts 5 \
+  --use-rpc --commitment confirmed 2>&1 | tee "$EVIDENCE_DIR/deploy.log"
 
-after="$(solana program show "$PROGRAM" --url "$RPC_URL" --keypair "$AUTHORITY_KEYPAIR" --commitment finalized)"
+# Wait for the confirmed upgrade to become finalized before validating its ELF.
+before_slot="$(grep 'Last Deployed In Slot:' <<<"$show")"
+for attempt in $(seq 1 30); do
+  after="$(solana program show "$PROGRAM" --url "$RPC_URL" --keypair "$AUTHORITY_KEYPAIR" --commitment finalized)"
+  if [[ "$(grep 'Last Deployed In Slot:' <<<"$after")" != "$before_slot" ]]; then break; fi
+  sleep 3
+done
+test "$(grep 'Last Deployed In Slot:' <<<"$after")" != "$before_slot"
 grep -Fq "ProgramData Address: $PROGRAMDATA" <<<"$after"
 grep -Fq "Authority: $AUTHORITY" <<<"$after"
 grep -Fq "Data Length: $CAPACITY " <<<"$after"
