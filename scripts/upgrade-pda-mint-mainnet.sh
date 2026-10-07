@@ -29,7 +29,8 @@ for file in "$PROGRAM_SO" "$AUTHORITY_KEYPAIR" "$BUFFER_KEYPAIR" "$BACKUP_VERIFI
   test -f "$file" || { echo 'Required file missing' >&2; exit 1; }
 done
 test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-test -z "$(git status --porcelain)"
+# This workspace is checked out by Windows Git with CRLF normalization.
+test -z "$(git -c core.autocrlf=true status --porcelain)"
 test "$(solana-keygen pubkey "$AUTHORITY_KEYPAIR")" = "$AUTHORITY"
 test "$(solana-keygen pubkey "$BUFFER_KEYPAIR")" = "$BUFFER"
 test "$(sha256sum "$PROGRAM_SO" | cut -d ' ' -f 1)" = "$HASH"
