@@ -13,6 +13,8 @@ Legacy quotes с asset signer поддерживаются для совмест
 
 Перед публикацией обязательны целевой devnet/local-validator CPI smoke с настоящим
 Metaplex Core, проверка mint/transfer/list/cancel для PDA NFT и recovery gates ниже.
+Local-validator CPI/lifecycle smoke выполнен: PASS; детали и devnet recovery —
+[`docs/PDA-MINT-VALIDATION.md`](docs/PDA-MINT-VALIDATION.md).
 Порядок доставки: upgrade программы → backend → frontend. Новый frontend нельзя
 публиковать до upgrade: прежняя программа требует внешний asset signer.
 Снятие предупреждения Lighthouse подтверждается отдельно в Phantom; один signer
