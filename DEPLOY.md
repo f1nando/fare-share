@@ -30,6 +30,15 @@ Wrapper сохраняет предыдущий ELF, запрещает auto-ext
 выполняются после отдельной проверки. Backend/frontend не переключаются, пока
 on-chain hash и authority не подтверждены.
 
+Если массовая CLI-загрузка упирается в retries, использовать
+`scripts/upload-pda-buffer-mainnet.mjs`: сначала read-only preflight, затем
+`--execute UPLOAD-<buffer>-<ELF SHA-256>` с теми же явными env paths.
+Скрипт только загружает известный buffer (не делает upgrade), отправляет по одной
+записи, ждёт confirmation, сохраняет signatures вне Git и сверяет весь ELF на
+`finalized`. При сбое не повторяет неопределённую транзакцию автоматически;
+resume пропускает уже совпадающие finalized bytes. После загрузки upgrade из
+готового buffer выполняется отдельно, только после проверки hash/authority/rent.
+
 Исходный код доставляется на сервер только через GitHub: локальный `main`
 проверяется, фиксируется точным commit SHA и после отдельного разрешения
 отправляется в `origin/main`. На сервере выполняются `git fetch` и detached
