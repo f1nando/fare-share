@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Target-specific upgrade; defaults to a read-only preflight. Never closes ProgramData.
 set -euo pipefail
+trap 'echo "Upgrade safety gate failed at line $LINENO; stopping without automatic retry." >&2' ERR
 
 PROGRAM=8Z9Mru23DFLJGFsDH7tPAfD289JSC4SABt81rqhrYwxD
 PROGRAMDATA=8JHtNnvcKH435F55hD5gv3ZUCBfuzBSoAf4k1NLJLkCY
