@@ -48,7 +48,7 @@ test "$balance" -ge "$((BUFFER_RENT + FEE_RESERVE))"
 buffer_show="$(solana program show "$BUFFER" --url "$RPC_URL" --keypair "$AUTHORITY_KEYPAIR" --commitment finalized 2>&1)" && {
   echo 'Persistent buffer is already open; inspect before resuming an upgrade.' >&2; exit 1;
 }
-grep -Eq 'AccountNotFound|not found|does not exist|could not find' <<<"$buffer_show"
+grep -Eq 'AccountNotFound|not found|does not exist|could not find|Unable to find the account' <<<"$buffer_show"
 echo "UPGRADE_PREFLIGHT=PASS; source=$RELEASE_SHA; bytes=$BYTES; authority=$AUTHORITY"
 echo "PROGRAMDATA_RENT_PRESERVED=$RENT; TEMPORARY_BUFFER_RENT=$BUFFER_RENT; FEE_RESERVE=$FEE_RESERVE"
 
@@ -81,7 +81,7 @@ test "$(head -c "$BYTES" "$EVIDENCE_DIR/after.so" | sha256sum | cut -d ' ' -f 1)
 remaining="$(solana program show "$BUFFER" --url "$RPC_URL" --keypair "$AUTHORITY_KEYPAIR" --commitment finalized 2>&1)" && {
   echo 'Buffer is still open; recover its rent explicitly, never close the mainnet program.' >&2; exit 1;
 }
-grep -Eq 'AccountNotFound|not found|does not exist|could not find' <<<"$remaining"
+grep -Eq 'AccountNotFound|not found|does not exist|could not find|Unable to find the account' <<<"$remaining"
 after_balance="$(solana balance "$AUTHORITY" --url "$RPC_URL" --lamports --commitment finalized | tr -cd '0-9')"
 fee="$((balance - after_balance))"
 test "$fee" -ge 0 && test "$fee" -le "$FEE_RESERVE"
