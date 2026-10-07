@@ -60,3 +60,30 @@ The validator used eight ticks per slot to keep focused finalization checks fast
 Evidence and test keys remain outside Git. Phantom Lighthouse must still be
 checked separately through the actual wallet; localhost success does not prove
 the warning has disappeared.
+
+## Mainnet publication — 2026-10-07
+
+- Explicit owner authorization; release source `e4c26a7` includes paid-mint
+  implementation `9209f34` and local Core validation `bc51385`.
+- Two bulk CLI uploads failed before upgrade; each buffer was closed separately
+  and its rent returned to `F3jK…n8tR`. The mainnet Program was never closed.
+- Sequential uploader confirmed 980 writes and the full buffer ELF hash at
+  finalized commitment. Upgrade from the verified buffer succeeded:
+  `2ABZqhkyyF25u3gEtG45UBraNtB96LTJ2SW1CcGWqTVqVMVwUrheK9z56tJ6WDYF8AjopWdLWW5WvH81mddw6SkU`.
+- Finalized on-chain ELF: 881,680 bytes, SHA-256
+  `124147cf9ba9683aad0943c8806e4eae976b6a2b98c4963b4c8803e33ab5f21e`.
+- Program/ProgramData/collection unchanged; upgrade authority remains
+  `F3jKZokibZiN5SJM5JM4T3a99HVb4zueDTGPR5hbn8tR`.
+  ProgramData rent remains **4.481682680 SOL**; buffer is absent at finalized.
+- Wallet after all attempts: **5.794095259 SOL**, versus **5.803576585 SOL** before
+  the first attempt. Total fees: **0.009481326 SOL**. No buffer rent was lost.
+- Post-upgrade recovery audit PASS; vault token amounts and reward obligations
+  unchanged, minted supply still `[1,1,0,0]`. Permanent worker remains disabled.
+- Backend switched first, then frontend. Health and browser mint-page smoke PASS;
+  browser owner-only quote returned HTTP 200 and the canonical PDA.
+- Mainnet simulations encoded one signer, 817 bytes for the admin and 849 bytes
+  for the user's wallet with the existing ALT. Both reached payment validation
+  but rejected insufficient TAXI balance (6062); **these are not successful mint
+  simulations**. No paid mint or token purchase was submitted. Core CPI happy path
+  remains validated on localhost, not in a newly submitted mainnet mint.
+- Phantom warning removal is still unverified and requires an actual wallet test.

@@ -91,11 +91,19 @@ ProgramData: `8JHtNnvcKH435F55hD5gv3ZUCBfuzBSoAf4k1NLJLkCY`. Keypair и резе
 `5p7K…2vW3` выведены из использования из-за отсутствия keypair. На них не было
 deploy или SOL; они не являются частью release и не должны пополняться.
 
-Frozen production SBF занимает `880576` байт, SHA-256
-`45cb6d9e622e7e56c1746233732d00e2958fc17ef65a354c18b800ac09290ad5`.
+Frozen production SBF после PDA-mint upgrade 2026-10-07 занимает `881680` байт, SHA-256
+`124147cf9ba9683aad0943c8806e4eae976b6a2b98c4963b4c8803e33ab5f21e`.
 ProgramData capacity `882048` байт содержит `4.481682680 SOL` recoverable rent;
 upload buffer закрыт после
 deploy, а Program tombstone составляет `0.000833120 SOL`.
+
+Текущий PDA-mint release: `e4c26a7`. Backend:
+`/srv/ownataxi/releases/20261007T-pda-mint-e4c26a7`; frontend:
+`/var/www/ownataxi/releases/20261007T-pda-mint-e4c26a7/full`.
+Upgrade и проверки rent/authority/buffer/ELF завершены на finalized;
+worker остаётся выключен. Доказательства и ограничения smoke:
+`docs/PDA-MINT-VALIDATION.md`. Исторический `deploy-program-mainnet.sh` закреплён
+за исходным ELF и не предназначен для повторного deploy актуального release.
 
 Mainnet deployment выполнен 2026-10-03: initial deploy
 `4L7RWMMzhLpBqrApYwX1pDLnmrusSpwuRogs2YFLTkT6qdm4Mr2TM8rGhqUiBoS798KqUqcc8qRoBiiaR6GRKrdH`,
