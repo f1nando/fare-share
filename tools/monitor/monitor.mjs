@@ -37,7 +37,7 @@ async function send(text, chatId = recipient?.chatId) {
   return true;
 }
 function statusText() {
-  const lines = [...states.values()].map(s => `${Date.now() - s.checkedAt > 90_000 ? 'STALE' : s.ok ? 'OK' : 'FAIL'} | ${s.key}: ${s.detail}`);
+  const lines = [...states.values()].map(s => `${Date.now() - s.checkedAt > 90_000 ? 'STALE' : s.ok === null ? 'WARN' : s.ok ? 'OK' : 'FAIL'} | ${s.key}: ${s.detail}`);
   return `Own a Taxi monitoring\nIndependent observer: bkserv\n${new Date().toISOString()}\n\n${lines.join('\n') || 'Initial checks in progress.'}\n\nChecks every 30 seconds; alerts after 3 failures (low SOL: immediate). Daily status report.\nRead-only: no trades, no worker activation.`;
 }
 async function apply(check) {
@@ -61,6 +61,10 @@ async function apply(check) {
 async function httpCheck(key, path, validate) {
   try {
     const response = await fetch(new URL(path, origin), { signal: AbortSignal.timeout(8_000), cache: 'no-store' });
+    if (response.headers.get('cf-mitigated') === 'challenge') {
+      await response.body?.cancel();
+      return { key, ok: null, detail: `${path}: Cloudflare requires a browser challenge; see origin checks` };
+    }
     if (!response.ok || (validate && !validate(await response.json()))) throw new Error('Unhealthy response');
     return { key, ok: true, detail: `${path} reachable and valid` };
   } catch { return { key, ok: false, detail: `${path} unavailable or invalid response` }; }
@@ -85,7 +89,7 @@ async function checkAll() {
     checks.push({ key: 'production-host', ok: true, detail: 'Production read-only observer reachable' }, ...snapshotChecks(JSON.parse(stdout)));
   } catch {
     checks.push({ key: 'production-host', ok: false, detail: 'Production host or read-only probe unavailable' });
-    for (const key of ['database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'runtime-errors']) {
+    for (const key of ['origin-website', 'origin-health', 'origin-token', 'origin-overview', 'database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'runtime-errors']) {
       checks.push({ key, ok: false, detail: 'Cannot verify: production probe unavailable' });
     }
   }

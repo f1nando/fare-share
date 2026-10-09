@@ -33,3 +33,10 @@ test('disabled worker is healthy, enabled stopped/stale worker and low SOL are n
   snapshot.worker.enabled = false;
   assert.equal(snapshotChecks(snapshot).find(c => c.key === 'worker').ok, false);
 });
+test('Cloudflare challenge is unknown, not an outage or recovery', () => {
+  const previous = { key: 'website', failures: 3, notified: true, lastSentAt: 1000 };
+  const result = transition(previous, { key: 'website', ok: null, detail: 'Browser challenge' }, 2000);
+  assert.equal(result.message, undefined);
+  assert.equal(result.state.notified, true);
+  assert.equal(result.state.failures, 3);
+});

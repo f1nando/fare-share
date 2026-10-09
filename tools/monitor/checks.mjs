@@ -7,6 +7,7 @@ export function snapshotChecks(snapshot, now = Date.now()) {
   const stuck = worker?.enabled === true && worker.state === 'running'
     && (!worker.cycleStartedAt || now - Date.parse(worker.cycleStartedAt) > interval * 3 + 120_000);
   return [
+    ...(snapshot.originChecks || []),
     { key: 'database', ok: snapshot.database === true, detail: 'Production MongoDB ping' },
     { key: 'backend-service', ok: snapshot.backendActive, detail: 'Production backend process' },
     { key: 'rpc', ok: snapshot.rpc === true, detail: 'Solana RPC and payer balance query' },
@@ -21,6 +22,8 @@ export function snapshotChecks(snapshot, now = Date.now()) {
 
 export function transition(previous, check, now = Date.now()) {
   const state = { ...previous, key: check.key, detail: check.detail, ok: check.ok, checkedAt: now };
+  // A Cloudflare browser challenge is not proof of an outage or a recovery.
+  if (check.ok === null) return { state };
   if (check.ok) {
     const message = previous?.notified ? `RECOVERED: ${check.detail}` : undefined;
     return { state: { ...state, failures: 0, notified: false, lastSentAt: undefined }, message };

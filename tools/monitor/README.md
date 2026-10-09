@@ -12,6 +12,12 @@ an alert (low SOL immediately), repeats every 30 minutes, recovery once. `/statu
 returns current checks; daily summaries are automatic. These are operational
 checks, not proof that minting or trading succeeds; no paid operation is tested.
 
+Cloudflare browser challenges are reported as `WARN`, never as proof of an outage
+or recovery. In that case the read-only probe verifies the website and APIs through
+local nginx HTTPS with certificate validation. For full external HTTP verification,
+allow the bkserv observer IP through a narrowly scoped Cloudflare WAF rule; do not
+disable WAF globally. No Cloudflare settings are modified by this monitor.
+
 Install just this directory's dependencies with `npm ci --omit=dev`. Run with
 `node --env-file=/etc/ownataxi-monitor/monitor.env monitor.mjs`. Environment:
 `TELEGRAM_BOT_TOKEN_FILE`, `MONITOR_MONGODB_URI`, `MONITOR_SITE_URL`,

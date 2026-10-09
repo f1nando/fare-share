@@ -1,6 +1,8 @@
 // Read-only production probe. Never sends transactions or changes worker settings.
 import { MongoClient } from 'mongodb';
 import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const active = name => {
   try { return execFileSync('systemctl', ['is-active', name], { encoding: 'utf8', timeout: 3_000 }).trim() === 'active'; }
@@ -34,4 +36,19 @@ try {
   snapshot.rpc = true;
 } catch { /* No raw RPC errors in output. */ }
 snapshot.diskUsedPercent = Number(execFileSync('df', ['--output=pcent', '/'], { encoding: 'utf8', timeout: 3_000 }).trim().split('\n').at(-1).trim().replace('%', ''));
+const exec = promisify(execFile);
+snapshot.originChecks = await Promise.all([
+  ['origin-website', '/', undefined],
+  ['origin-health', '/api/health', body => body.ok === true],
+  ['origin-token', '/api/token', body => body && typeof body === 'object' && Object.keys(body).length > 0],
+  ['origin-overview', '/api/public/overview', body => body && typeof body === 'object' && Object.keys(body).length > 0],
+].map(async ([key, path, validate]) => {
+  try {
+    // Validate the real HTTPS certificate and nginx/backend path without weakening WAF.
+    const { stdout } = await exec('curl', ['--silent', '--show-error', '--fail', '--max-time', '5',
+      '--resolve', 'ownataxi.com:443:127.0.0.1', `https://ownataxi.com${path}`], { timeout: 6_000, maxBuffer: 2_000_000 });
+    if (validate && !validate(JSON.parse(stdout))) throw new Error('Invalid API response');
+    return { key, ok: true, detail: `Origin HTTPS ${path} valid (TLS verified)` };
+  } catch { return { key, ok: false, detail: `Origin HTTPS ${path} unavailable or invalid` }; }
+}));
 console.log(JSON.stringify(snapshot));
