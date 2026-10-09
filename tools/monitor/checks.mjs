@@ -16,7 +16,10 @@ export function snapshotChecks(snapshot, now = Date.now()) {
     { key: 'disk', ok: snapshot.diskUsedPercent < 90, detail: `Production disk used: ${snapshot.diskUsedPercent}%` },
     { key: 'worker', ok: snapshot.database === true && (worker?.enabled !== true || (snapshot.workerActive && !stale && !stuck && worker.state !== 'error')),
       detail: snapshot.database !== true ? 'Worker state unavailable: production MongoDB down' : worker?.enabled !== true ? 'Worker intentionally disabled (no transactions enabled)' : `Worker ${worker.state}${stale ? '; no recent successful cycle' : ''}${stuck ? '; cycle stuck' : ''}` },
-    { key: 'runtime-errors', ok: snapshot.recentErrors < 3, detail: `Backend/worker errors in last 5 minutes: ${snapshot.recentErrors}` },
+    { key: 'server-errors', ok: Number.isInteger(snapshot.recentServerErrors) ? snapshot.recentServerErrors < 3 : null,
+      detail: Number.isInteger(snapshot.recentServerErrors) ? `Server errors in last 5 minutes: ${snapshot.recentServerErrors}` : 'Server error counts unavailable' },
+    { key: 'client-errors', ok: Number.isInteger(snapshot.recentClientErrors) ? snapshot.recentClientErrors < 3 : null,
+      detail: Number.isInteger(snapshot.recentClientErrors) ? `Browser errors in last 5 minutes: ${snapshot.recentClientErrors}${snapshot.clientErrorResources?.length ? '; resources: ' + snapshot.clientErrorResources.map(r => `${r.location} (${r.count})`).join(', ') : snapshot.recentClientErrors ? '; resource details not recorded' : ''}` : 'Browser error counts unavailable' },
   ];
 }
 

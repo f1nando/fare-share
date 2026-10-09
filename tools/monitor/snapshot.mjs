@@ -9,7 +9,7 @@ const active = name => {
   catch { return false; }
 };
 const snapshot = { database: false, rpc: false, backendActive: active('ownataxi-backend'), workerActive: active('ownataxi-worker'),
-  minimumLamports: process.env.ADMIN_MINIMUM_WALLET_LAMPORTS || '100000000', recentErrors: 0 };
+  minimumLamports: process.env.ADMIN_MINIMUM_WALLET_LAMPORTS || '100000000' };
 const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5_000, connectTimeoutMS: 5_000, timeoutMS: 5_000 });
 try {
   await client.connect();
@@ -18,7 +18,24 @@ try {
   snapshot.database = true;
   const worker = await db.collection('worker_status').findOne({ key: 'protocol-worker' });
   if (worker) snapshot.worker = Object.fromEntries(['state', 'enabled', 'intervalMs', 'cycleStartedAt', 'lastSuccessAt', 'updatedAt'].map(key => [key, worker[key]]));
-  snapshot.recentErrors = await db.collection('error_logs').countDocuments({ createdAt: { $gte: new Date(Date.now() - 300_000) } });
+  const logs = db.collection('error_logs');
+  const window = { createdAt: { $gte: new Date(Date.now() - 300_000) }, level: 'error' };
+  [snapshot.recentServerErrors, snapshot.recentClientErrors] = await Promise.all([
+    logs.countDocuments({ ...window, source: 'server' }),
+    logs.countDocuments({ ...window, source: 'client' }),
+  ]);
+  const resources = await logs.aggregate([
+    { $match: { ...window, source: 'client', 'context.resource': { $type: 'string', $ne: '' } } },
+    { $group: { _id: '$context.resource', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }, { $limit: 3 },
+  ]).toArray();
+  snapshot.clientErrorResources = resources.map(row => {
+    try {
+      const url = new URL(row._id, 'https://ownataxi.com');
+      const location = ['http:', 'https:'].includes(url.protocol) ? `${url.hostname}${url.pathname}` : '[non-HTTP resource]';
+      return { location: location.replace(/[A-Za-z0-9_-]{40,}/g, '[redacted]').slice(0, 140), count: row.count };
+    } catch { return { location: '[unknown resource]', count: row.count }; }
+  });
 } catch { /* Only report sanitized health booleans, never credentials or payloads. */ }
 finally { await client.close(); }
 try {

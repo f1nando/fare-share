@@ -6,7 +6,13 @@ Telegram offset, and alert state. Only one polling instance may use this bot.
 
 Checks: HTTPS website, health API, token API, overview API, production host,
 backend service, production MongoDB, Solana RPC, explicit payer SOL balance,
-disk usage, enabled-worker progress, and recent application errors. Intentionally
+disk usage, enabled-worker progress, and separate server/browser error counts.
+Only `level: error` is counted; warnings are not failures. Three errors in a
+five-minute window make the corresponding check unhealthy, with the usual alert
+threshold/cooldown. Browser failures include up to three recorded resource locations
+without URL credentials or query strings. Old records without resource details
+remain distinguishable from server errors but cannot identify the failed asset.
+Intentionally
 disabled workers are not failures. Checks every 30 seconds; three failures trigger
 an alert (low SOL immediately), repeats every 30 minutes, recovery once. `/status`
 returns current checks; summaries are automatic every five minutes. Reports and

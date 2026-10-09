@@ -19,7 +19,8 @@ const recipients = db.collection('recipients');
 const storedStates = db.collection('states');
 await recipients.updateOne({ _id: 'admin' }, { $setOnInsert: { offset: 0 } }, { upsert: true });
 let recipient = await recipients.findOne({ _id: 'admin' });
-const states = new Map((await storedStates.find().toArray()).map(state => [state.key, state]));
+// Retire the old combined counter without erasing its persisted history.
+const states = new Map((await storedStates.find().toArray()).filter(state => state.key !== 'runtime-errors').map(state => [state.key, state]));
 let stopping = false;
 process.on('SIGTERM', () => { stopping = true; });
 process.on('SIGINT', () => { stopping = true; });
@@ -86,7 +87,7 @@ async function checkAll() {
     checks.push({ key: 'production-host', ok: true, detail: 'Production read-only observer reachable' }, ...snapshotChecks(JSON.parse(stdout)));
   } catch {
     checks.push({ key: 'production-host', ok: false, detail: 'Production host or read-only probe unavailable' });
-    for (const key of ['origin-website', 'origin-health', 'origin-token', 'origin-overview', 'database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'runtime-errors']) {
+    for (const key of ['origin-website', 'origin-health', 'origin-token', 'origin-overview', 'database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'server-errors', 'client-errors']) {
       checks.push({ key, ok: false, detail: 'Cannot verify: production probe unavailable' });
     }
   }
