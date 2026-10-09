@@ -103,8 +103,8 @@ deploy, а Program tombstone составляет `0.000833120 SOL`.
 
 Текущий PDA-mint backend release: `e4c26a7`:
 `/srv/ownataxi/releases/20261007T-pda-mint-e4c26a7`. Production frontend с
-расширенной диагностикой браузерных ошибок: `47015c5`,
-`/var/www/ownataxi/releases/20261009T-error-diagnostics-47015c5/full`.
+расширенной диагностикой браузерных ошибок и статическим WebGL fallback: `0b59efe`,
+`/var/www/ownataxi/releases/20261009T-webgl-fallback-0b59efe/full`.
 Backend, Solana-программа и rehearsal frontend при этом не переключались.
 Upgrade и проверки rent/authority/buffer/ELF завершены на finalized;
 worker остаётся выключен. Доказательства и ограничения smoke:
