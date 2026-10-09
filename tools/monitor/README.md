@@ -14,6 +14,12 @@ alerts use green/red indicators; unverified or stale checks use yellow, not gree
 These are operational
 checks, not proof that minting or trading succeeds; no paid operation is tested.
 
+Public HTTP checks include `TTFB` (time until response headers arrive) and `total`
+(time until the complete response body is downloaded), in milliseconds, measured
+from bkserv every 30 seconds. Reports show the latest sample, not a five-minute
+average. Timings include network/TLS and Cloudflare; they are not frontend rendering
+time or backend-only execution time. No latency alarm threshold is imposed.
+
 Cloudflare browser challenges are reported as `WARN`, never as proof of an outage
 or recovery. In that case the read-only probe verifies the website and APIs through
 local nginx HTTPS with certificate validation. For full external HTTP verification,

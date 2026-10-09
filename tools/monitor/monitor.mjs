@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MongoClient } from 'mongodb';
 import { privateChatId, snapshotChecks, transition } from './checks.mjs';
+import { measureHttpCheck } from './http-check.mjs';
 
 const exec = promisify(execFile);
 const token = (await readFile(process.env.TELEGRAM_BOT_TOKEN_FILE, 'utf8')).trim();
@@ -63,15 +64,7 @@ async function apply(check) {
   catch { console.error('Monitor state persistence unavailable'); }
 }
 async function httpCheck(key, path, validate) {
-  try {
-    const response = await fetch(new URL(path, origin), { signal: AbortSignal.timeout(8_000), cache: 'no-store' });
-    if (response.headers.get('cf-mitigated') === 'challenge') {
-      await response.body?.cancel();
-      return { key, ok: null, detail: `${path}: Cloudflare requires a browser challenge; see origin checks` };
-    }
-    if (!response.ok || (validate && !validate(await response.json()))) throw new Error('Unhealthy response');
-    return { key, ok: true, detail: `${path} reachable and valid` };
-  } catch { return { key, ok: false, detail: `${path} unavailable or invalid response` }; }
+  return measureHttpCheck(key, new URL(path, origin), validate);
 }
 async function checkAll() {
   const checks = await Promise.all([

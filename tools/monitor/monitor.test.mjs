@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { privateChatId, snapshotChecks, transition } from './checks.mjs';
+import { measureHttpCheck } from './http-check.mjs';
 
 test('only private chats can claim the administrator', () => {
   assert.equal(privateChatId({ message: { chat: { type: 'private', id: 123 } } }), '123');
@@ -39,4 +40,31 @@ test('Cloudflare challenge is unknown, not an outage or recovery', () => {
   assert.equal(result.message, undefined);
   assert.equal(result.state.notified, true);
   assert.equal(result.state.failures, 3);
+});
+test('HTTP timings include headers and full HTML body download', async () => {
+  let now = 0;
+  const result = await measureHttpCheck('website', new URL('https://example.test/'), undefined, {
+    clock: () => now,
+    request: async () => {
+      now = 25;
+      return { ok: true, headers: new Headers(), text: async () => { now = 80; return '<html></html>'; } };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.match(result.detail, /TTFB 25 ms; total 80 ms/);
+});
+test('API response validation and network failures preserve timing', async () => {
+  let now = 0;
+  const result = await measureHttpCheck('api', new URL('https://example.test/api/health'), body => body.ok === true, {
+    clock: () => now,
+    request: async () => { now = 10; return { ok: true, headers: new Headers(), text: async () => { now = 15; return '{"ok":false}'; } }; },
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.detail, /TTFB 10 ms; total 15 ms/);
+  now = 0;
+  const failure = await measureHttpCheck('api', new URL('https://example.test/api/health'), undefined, {
+    clock: () => now, request: async () => { now = 8000; throw new Error('Network error'); },
+  });
+  assert.equal(failure.ok, false);
+  assert.match(failure.detail, /elapsed 8000 ms/);
 });
