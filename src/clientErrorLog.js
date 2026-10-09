@@ -1,5 +1,6 @@
 import { BACKEND_URL } from './backendUrl.js';
 import './siteToasts.js';
+import { browserErrorDetails, resourceLocation } from './clientErrorDetails.js';
 
 const MAX_REPORTS_PER_PAGE = 20;
 let reportCount = 0;
@@ -14,7 +15,11 @@ export function reportClientError(error, context = {}) {
     context: {
       event: String(context.event || 'handled').slice(0, 80),
       ...(context.component ? { component: String(context.component).slice(0, 120) } : {}),
-      ...(context.resource ? { resource: safePath(context.resource) } : {}),
+      ...(context.resource ? { resource: resourceLocation(context.resource, window.location.origin) } : {}),
+      ...(context.resourceType ? { resourceType: String(context.resourceType).slice(0, 40) } : {}),
+      ...(context.filename ? { filename: resourceLocation(context.filename, window.location.origin) } : {}),
+      ...(Number.isInteger(context.line) ? { line: context.line } : {}),
+      ...(Number.isInteger(context.column) ? { column: context.column } : {}),
     },
   });
   void fetch(`${BACKEND_URL}/api/errors`, {
@@ -39,12 +44,8 @@ if (typeof window !== 'undefined' && !window.__fareErrorLoggingInstalled) {
     reportClientError(values.find(value => value instanceof Error) || values.map(printable).join(' '), { event: 'console-error' });
   };
   window.addEventListener('error', event => {
-    const target = event.target;
-    const resource = target && target !== window && 'src' in target ? target.src : '';
-    reportClientError(event.error || event.message || 'Resource failed to load', {
-      event: resource ? 'resource-error' : 'window-error',
-      resource,
-    });
+    const details = browserErrorDetails(event, window);
+    reportClientError(details.error, details.context);
   }, true);
   window.addEventListener('unhandledrejection', event => {
     reportClientError(event.reason || 'Unhandled promise rejection', { event: 'unhandled-rejection' });
@@ -60,11 +61,6 @@ function normalizeError(value) {
     };
   }
   return { name: 'Error', message: String(value || 'Unknown client error').slice(0, 2_000) };
-}
-
-function safePath(value) {
-  try { return new URL(String(value), window.location.origin).pathname.slice(0, 1_000); }
-  catch { return ''; }
 }
 
 function printable(value) {
