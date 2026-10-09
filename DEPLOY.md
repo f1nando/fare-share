@@ -101,9 +101,11 @@ ProgramData capacity `882048` байт содержит `4.481682680 SOL` recove
 upload buffer закрыт после
 deploy, а Program tombstone составляет `0.000833120 SOL`.
 
-Текущий PDA-mint release: `e4c26a7`. Backend:
-`/srv/ownataxi/releases/20261007T-pda-mint-e4c26a7`; frontend:
-`/var/www/ownataxi/releases/20261007T-pda-mint-e4c26a7/full`.
+Текущий PDA-mint backend release: `e4c26a7`:
+`/srv/ownataxi/releases/20261007T-pda-mint-e4c26a7`. Production frontend с
+расширенной диагностикой браузерных ошибок: `47015c5`,
+`/var/www/ownataxi/releases/20261009T-error-diagnostics-47015c5/full`.
+Backend, Solana-программа и rehearsal frontend при этом не переключались.
 Upgrade и проверки rent/authority/buffer/ELF завершены на finalized;
 worker остаётся выключен. Доказательства и ограничения smoke:
 `docs/PDA-MINT-VALIDATION.md`. Исторический `deploy-program-mainnet.sh` закреплён
