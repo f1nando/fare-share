@@ -1,0 +1,23 @@
+[Unit]
+Description=Independent Own a Taxi Telegram monitor
+After=network-online.target mongod.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ownataxi-monitor
+Group=ownataxi-monitor
+WorkingDirectory=/srv/ownataxi-monitor/current/tools/monitor
+EnvironmentFile=/etc/ownataxi-monitor/monitor.env
+ExecStart=/usr/bin/node monitor.mjs
+Restart=always
+RestartSec=5
+TimeoutStopSec=45
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
