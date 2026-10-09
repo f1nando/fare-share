@@ -67,12 +67,16 @@ Production обновляется отдельно или атомарно пр�
 
 > **Текущий статус:** новый production Program `8Z9M…YwxD` и Collection
 > `Ebcw…RXpm` опубликованы в mainnet. Upgrade authority, protocol admin, backend
-> signer, team/mint recipient и recovery owner — `F3jK…n8tR`. Test CA
-> `C4TZ…NKrj` (`TAXI`) привязан. 2026-10-03 production pause снят транзакцией
-> `37V6YmKwZ5KexbvCah3wTedgwyruQnFJsSP9mem7QBn8Us8uRkGFjyQqXrwGVHBZFA3Vep7zb7wPkvstsFVk2fyd`;
-> protocol находится в состоянии `live`, backend/frontend release `d04e644` активен,
-> постоянный worker выключен.
-> Sale уже была необратимо начата, supply `[0,1,0,0]`.
+> signer, team/mint recipient и recovery owner — `F3jK…n8tR`. С 2026-10-09 привязан
+> `CoRKACYXk1NfvRnjaB4DbA4NyubPhWmFiB6oCRAApump` (`TOASTER`, metadata name `Toast`).
+> Fee sharing V2 active, immutable, 100% на `F3jK…n8tR`. Старый test CA
+> `C4TZ…NKrj` выведен из использования: vault продан в SOL, старые TAXI-награды
+> сброшены; NFT и xStocks сохранены. Reset signature:
+> `2CwTicHdna1iq9RnJEnYd5nH8c4kPu9UNkUMhSFUoz9hmx7CAzd186jzujj6fgSgWKFRnwEDFoH8WxADa3f1x6gg`.
+> Protocol `live`, supply `[2,1,0,0]`, application release `e4c26a7`, worker OFF.
+> Проверены finalized migration, API/browser token, $25 mint quote, buy/sell quotes,
+> buy transaction simulation и fee-sharing claim simulation. Реальные paid mint,
+> торговый round-trip и полный цикл creator fees → rewards с новым CA ещё не выполнены.
 
 Публикация не выполняется автоматически. Все команды ниже запускает оператор вручную после заполнения production-значений и успешного `npm run protocol:preflight`.
 
