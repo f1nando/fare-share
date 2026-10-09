@@ -9,7 +9,9 @@ backend service, production MongoDB, Solana RPC, explicit payer SOL balance,
 disk usage, enabled-worker progress, and recent application errors. Intentionally
 disabled workers are not failures. Checks every 30 seconds; three failures trigger
 an alert (low SOL immediately), repeats every 30 minutes, recovery once. `/status`
-returns current checks; daily summaries are automatic. These are operational
+returns current checks; summaries are automatic every five minutes. Reports and
+alerts use green/red indicators; unverified or stale checks use yellow, not green.
+These are operational
 checks, not proof that minting or trading succeeds; no paid operation is tested.
 
 Cloudflare browser challenges are reported as `WARN`, never as proof of an outage

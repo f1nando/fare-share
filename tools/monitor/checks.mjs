@@ -25,12 +25,12 @@ export function transition(previous, check, now = Date.now()) {
   // A Cloudflare browser challenge is not proof of an outage or a recovery.
   if (check.ok === null) return { state };
   if (check.ok) {
-    const message = previous?.notified ? `RECOVERED: ${check.detail}` : undefined;
+    const message = previous?.notified ? `🟢 RECOVERED: ${check.detail}` : undefined;
     return { state: { ...state, failures: 0, notified: false, lastSentAt: undefined }, message };
   }
   state.failures = (previous?.failures || 0) + 1;
   if (state.failures >= (check.threshold || 3) && (!state.lastSentAt || now - state.lastSentAt >= 30 * 60_000)) {
-    return { state, message: `ALERT: ${check.key}: ${check.detail}` };
+    return { state, message: `🔴 ALERT: ${check.key}: ${check.detail}` };
   }
   return { state };
 }

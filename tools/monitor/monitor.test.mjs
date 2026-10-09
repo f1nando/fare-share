@@ -17,9 +17,9 @@ test('threshold, cooldown, and recovery only after an actually delivered alert',
   assert.equal(transition(state, { ...check, ok: true }, 4_000).message, undefined);
   state = { ...state, notified: true, lastSentAt: 3_000 };
   assert.equal(transition(state, check, 4_000).message, undefined);
-  assert.match(transition(state, check, 1_803_000).message, /^ALERT/);
+  assert.match(transition(state, check, 1_803_000).message, /^🔴 ALERT/);
   const recovered = transition(state, { ...check, ok: true }, 5_000);
-  assert.match(recovered.message, /^RECOVERED/);
+  assert.match(recovered.message, /^🟢 RECOVERED/);
   assert.equal(transition(recovered.state, { ...check, ok: true }, 6_000).message, undefined);
 });
 test('disabled worker is healthy, enabled stopped/stale worker and low SOL are not', () => {

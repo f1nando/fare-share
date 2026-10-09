@@ -37,8 +37,12 @@ async function send(text, chatId = recipient?.chatId) {
   return true;
 }
 function statusText() {
-  const lines = [...states.values()].map(s => `${Date.now() - s.checkedAt > 90_000 ? 'STALE' : s.ok === null ? 'WARN' : s.ok ? 'OK' : 'FAIL'} | ${s.key}: ${s.detail}`);
-  return `Own a Taxi monitoring\nIndependent observer: bkserv\n${new Date().toISOString()}\n\n${lines.join('\n') || 'Initial checks in progress.'}\n\nChecks every 30 seconds; alerts after 3 failures (low SOL: immediate). Daily status report.\nRead-only: no trades, no worker activation.`;
+  const current = [...states.values()];
+  const unhealthy = current.some(s => s.ok === false);
+  const unknown = !current.length || current.some(s => s.ok === null || Date.now() - s.checkedAt > 90_000);
+  const summary = unhealthy ? '🔴 Problems detected' : unknown ? '🟡 Available checks pass; some checks cannot be verified' : '🟢 All checks passed';
+  const lines = current.map(s => `${Date.now() - s.checkedAt > 90_000 ? '🟡 STALE' : s.ok === null ? '🟡 WARN' : s.ok ? '🟢 OK' : '🔴 FAIL'} | ${s.key}: ${s.detail}`);
+  return `Own a Taxi monitoring\n${summary}\nIndependent observer: bkserv\n${new Date().toISOString()}\n\n${lines.join('\n') || 'Initial checks in progress.'}\n\nChecks every 30 seconds; alerts after 3 failures (low SOL: immediate). Status report every 5 minutes.\nRead-only: no trades, no worker activation.`;
 }
 async function apply(check) {
   const previous = states.get(check.key);
@@ -94,7 +98,7 @@ async function checkAll() {
     }
   }
   for (const check of checks) await apply(check);
-  if (recipient?.chatId && (!recipient.lastReportAt || Date.now() - recipient.lastReportAt >= 86_400_000)) {
+  if (recipient?.chatId && (!recipient.lastReportAt || Date.now() - recipient.lastReportAt >= 300_000)) {
     await send(statusText());
     recipient.lastReportAt = Date.now();
     await recipients.updateOne({ _id: 'admin' }, { $set: { lastReportAt: recipient.lastReportAt } });
