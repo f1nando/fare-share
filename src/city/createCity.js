@@ -2,6 +2,7 @@ import { SceneReveal, REVEAL } from './sceneReveal.js';
 import { streetHalf, laneDividers, tramRoad } from './roadProfile.js';
 import { boulevardSceneryBatch } from './boulevardGeometry.js';
 import * as THREE from 'three';
+import { createCityRenderer } from './webglSupport.js';
 import { Batches } from './Batches.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BLOCK, TRACKS, ROAD, PAVED_ROAD, STOP_LINE, TRAFFIC_SPACING, headlightsOn, resetSignal, seededRandom } from './world.js';
@@ -247,7 +248,7 @@ export function createCity(container, initialSettings, benchmark = null) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(COLOR_SCHEMES[settings.colorScheme].background);
   const backgroundFade = createBackgroundFade(settings.colorScheme);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  const renderer = createCityRenderer(THREE.WebGLRenderer);
   renderer.setPixelRatio(benchmark?.pixelRatio ?? Math.min(window.devicePixelRatio, qualityProfile.pixelRatio));
   renderer.shadowMap.enabled = benchmark?.shadows ?? true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;

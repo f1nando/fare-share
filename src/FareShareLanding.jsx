@@ -10,6 +10,8 @@ import { loadPublicOverview } from './publicData.js';
 import { appAssetPath, appPath } from './appPath.js';
 import { notifyError, notifySuccess } from './siteToasts.js';
 import { formatCompactNumber } from './compactNumber.js';
+import { startBackgroundScene } from './city/backgroundScene.js';
+import { reportWebGLUnavailable } from './clientErrorLog.js';
 
 const FLEET_ROAD_SPEED = 19;
 const STATIC_DRIVING_SCENES = drivingScenes;
@@ -68,15 +70,17 @@ export function FareShareCityBackground({ colorScheme = 'classic', followHero = 
   const containerRef = useRef(null);
   const cityRef = useRef(null);
   const settingsRef = useRef(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    try {
-      const settings = { ...loadSettings(), colorScheme };
-      settingsRef.current = settings;
-      cityRef.current = createCity(containerRef.current, settings);
-    } catch (error) {
-      console.error('Unable to start the Fare Share city background', error);
-    }
+    const settings = { ...loadSettings(), colorScheme };
+    settingsRef.current = settings;
+    cityRef.current = startBackgroundScene(containerRef.current, settings, {
+      createScene: createCity,
+      onFallback: () => setFailed(true),
+      onUnavailable: () => reportWebGLUnavailable('fare-city-background'),
+      onError: error => console.error('Unable to start the Fare Share city background', error),
+    });
     return () => {
       cityRef.current?.dispose();
       cityRef.current = null;
@@ -110,7 +114,7 @@ export function FareShareCityBackground({ colorScheme = 'classic', followHero = 
   }, [colorScheme, followHero]);
 
   return (
-    <div className="fare-city-background" style={{ opacity: 1, filter: 'none' }} aria-hidden="true">
+    <div className={`fare-city-background${failed ? ' is-static-fallback' : ''}`} style={{ opacity: 1, filter: 'none' }} aria-hidden="true">
       <div className="fare-city-canvas" ref={containerRef} />
     </div>
   );

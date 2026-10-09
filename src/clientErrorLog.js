@@ -1,9 +1,11 @@
 import { BACKEND_URL } from './backendUrl.js';
 import './siteToasts.js';
 import { browserErrorDetails, resourceLocation } from './clientErrorDetails.js';
+import { isWebGLUnavailable, createWebGLReporter } from './city/webglSupport.js';
 
 const MAX_REPORTS_PER_PAGE = 20;
 let reportCount = 0;
+export const reportWebGLUnavailable = createWebGLReporter(reportClientError);
 
 export function reportClientError(error, context = {}) {
   if (reportCount >= MAX_REPORTS_PER_PAGE) return;
@@ -41,7 +43,9 @@ if (typeof window !== 'undefined' && !window.__fareErrorLoggingInstalled) {
   const originalConsoleError = console.error.bind(console);
   console.error = (...values) => {
     originalConsoleError(...values);
-    reportClientError(values.find(value => value instanceof Error) || values.map(printable).join(' '), { event: 'console-error' });
+    const error = values.find(value => value instanceof Error) || values.map(printable).join(' ');
+    if (isWebGLUnavailable(error)) reportWebGLUnavailable('city-background');
+    else reportClientError(error, { event: 'console-error' });
   };
   window.addEventListener('error', event => {
     const details = browserErrorDetails(event, window);
