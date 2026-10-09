@@ -1,17 +1,15 @@
 import { BACKEND_URL } from './backendUrl.js';
 import './siteToasts.js';
-import { browserErrorDetails, resourceLocation } from './clientErrorDetails.js';
+import { browserErrorDetails, resourceLocation, createErrorReportGate } from './clientErrorDetails.js';
 import { isWebGLUnavailable, createWebGLReporter } from './city/webglSupport.js';
 
 const MAX_REPORTS_PER_PAGE = 20;
-let reportCount = 0;
+const shouldSendReport = createErrorReportGate(MAX_REPORTS_PER_PAGE);
 export const reportWebGLUnavailable = createWebGLReporter(reportClientError);
 
 export function reportClientError(error, context = {}) {
-  if (reportCount >= MAX_REPORTS_PER_PAGE) return;
-  reportCount += 1;
   const details = normalizeError(error);
-  const body = JSON.stringify({
+  const payload = {
     ...details,
     path: window.location.pathname,
     context: {
@@ -23,7 +21,9 @@ export function reportClientError(error, context = {}) {
       ...(Number.isInteger(context.line) ? { line: context.line } : {}),
       ...(Number.isInteger(context.column) ? { column: context.column } : {}),
     },
-  });
+  };
+  if (!shouldSendReport(payload)) return;
+  const body = JSON.stringify(payload);
   void fetch(`${BACKEND_URL}/api/errors`, {
     method: 'POST',
     credentials: 'include',
