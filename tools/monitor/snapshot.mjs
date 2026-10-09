@@ -3,6 +3,7 @@ import { MongoClient } from 'mongodb';
 import { execFileSync } from 'node:child_process';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { browserErrorFilters } from './browser-errors.mjs';
 
 const active = name => {
   try { return execFileSync('systemctl', ['is-active', name], { encoding: 'utf8', timeout: 3_000 }).trim() === 'active'; }
@@ -20,12 +21,14 @@ try {
   if (worker) snapshot.worker = Object.fromEntries(['state', 'enabled', 'intervalMs', 'cycleStartedAt', 'lastSuccessAt', 'updatedAt'].map(key => [key, worker[key]]));
   const logs = db.collection('error_logs');
   const window = { createdAt: { $gte: new Date(Date.now() - 300_000) }, level: 'error' };
-  [snapshot.recentServerErrors, snapshot.recentClientErrors] = await Promise.all([
+  const browser = browserErrorFilters(window);
+  [snapshot.recentServerErrors, snapshot.recentClientErrors, snapshot.recentWebglUnavailable] = await Promise.all([
     logs.countDocuments({ ...window, source: 'server' }),
-    logs.countDocuments({ ...window, source: 'client' }),
+    logs.countDocuments(browser.errors),
+    logs.countDocuments(browser.webgl),
   ]);
   const resources = await logs.aggregate([
-    { $match: { ...window, source: 'client', 'context.resource': { $type: 'string', $ne: '' } } },
+    { $match: { ...browser.errors, 'context.resource': { $type: 'string', $ne: '' } } },
     { $group: { _id: '$context.resource', count: { $sum: 1 } } },
     { $sort: { count: -1 } }, { $limit: 3 },
   ]).toArray();

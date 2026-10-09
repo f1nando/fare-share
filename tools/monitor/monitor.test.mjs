@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { privateChatId, snapshotChecks, transition } from './checks.mjs';
 import { measureHttpCheck } from './http-check.mjs';
+import { browserErrorFilters } from './browser-errors.mjs';
 
 test('only private chats can claim the administrator', () => {
   assert.equal(privateChatId({ message: { chat: { type: 'private', id: 123 } } }), '123');
@@ -24,7 +25,7 @@ test('threshold, cooldown, and recovery only after an actually delivered alert',
   assert.equal(transition(recovered.state, { ...check, ok: true }, 6_000).message, undefined);
 });
 test('disabled worker is healthy, enabled stopped/stale worker and low SOL are not', () => {
-  const snapshot = { database: true, backendActive: true, rpc: true, balanceLamports: '100000001', minimumLamports: '100000000', diskUsedPercent: 30, recentServerErrors: 0, recentClientErrors: 0, workerActive: false, worker: { enabled: false } };
+  const snapshot = { database: true, backendActive: true, rpc: true, balanceLamports: '100000001', minimumLamports: '100000000', diskUsedPercent: 30, recentServerErrors: 0, recentClientErrors: 0, recentWebglUnavailable: 0, workerActive: false, worker: { enabled: false } };
   assert.equal(snapshotChecks(snapshot).every(c => c.ok), true);
   snapshot.worker.enabled = true;
   assert.equal(snapshotChecks(snapshot).find(c => c.key === 'worker').ok, false);
@@ -42,6 +43,32 @@ test('browser errors do not mark server errors unhealthy; missing counts are unk
   assert.equal(browser.ok, false);
   assert.match(browser.detail, /Browser errors.*cdn.test\/a.css \(20\)/);
   assert.equal(snapshotChecks({}).find(c => c.key === 'server-errors').ok, null);
+});
+test('WebGL availability is a yellow warning without fatal alerts or recovery spam', () => {
+  const check = snapshotChecks({ recentClientErrors: 0, recentWebglUnavailable: 4 }).find(c => c.key === 'browser-3d');
+  assert.equal(check.ok, true);
+  assert.equal(check.severity, 'warning');
+  assert.match(check.detail, /3D unavailable/);
+  let state;
+  for (let i = 0; i < 5; i++) {
+    const result = transition(state, check, i * 30_000);
+    assert.equal(result.message, undefined); state = result.state;
+  }
+  const recovered = snapshotChecks({ recentWebglUnavailable: 0 }).find(c => c.key === 'browser-3d');
+  assert.equal(transition(state, recovered).message, undefined);
+  assert.equal(recovered.severity, 'normal');
+});
+test('Mongo filters separate legacy/new WebGL records from real client errors', () => {
+  const window = { level: 'error', createdAt: { $gte: new Date(0) } };
+  const filters = browserErrorFilters(window);
+  assert.equal(filters.errors.source, 'client');
+  assert.deepEqual(filters.errors.$nor, filters.webgl.$or);
+  const rule = filters.webgl.$or.find(r => r.message).message;
+  const match = new RegExp(rule.$regex, rule.$options);
+  assert.equal(match.test('THREE.WebGLRenderer: A WebGL context could not be created. Reason: GPU disabled'), true);
+  assert.equal(match.test('Error creating WebGL context.'), true);
+  assert.equal(match.test('Resource failed to load'), false);
+  assert.equal(match.test('Unexpected app rendering error'), false);
 });
 test('Cloudflare challenge is unknown, not an outage or recovery', () => {
   const previous = { key: 'website', failures: 3, notified: true, lastSentAt: 1000 };

@@ -42,8 +42,9 @@ function statusText() {
   const current = [...states.values()];
   const unhealthy = current.some(s => s.ok === false);
   const unknown = !current.length || current.some(s => s.ok === null || Date.now() - s.checkedAt > 90_000);
-  const summary = unhealthy ? '🔴 Problems detected' : unknown ? '🟡 Available checks pass; some checks cannot be verified' : '🟢 All checks passed';
-  const lines = current.map(s => `${Date.now() - s.checkedAt > 90_000 ? '🟡 STALE' : s.ok === null ? '🟡 WARN' : s.ok ? '🟢 OK' : '🔴 FAIL'} | ${s.key}: ${s.detail}`);
+  const degraded = current.some(s => s.severity === 'warning');
+  const summary = unhealthy ? '🔴 Problems detected' : unknown ? '🟡 Available checks pass; some checks cannot be verified' : degraded ? '🟡 Core checks pass; 3D unavailable in some browsers' : '🟢 All checks passed';
+  const lines = current.map(s => `${Date.now() - s.checkedAt > 90_000 ? '🟡 STALE' : s.ok === null || s.severity === 'warning' ? '🟡 WARN' : s.ok ? '🟢 OK' : '🔴 FAIL'} | ${s.key}: ${s.detail}`);
   return `Own a Taxi monitoring\n${summary}\nIndependent observer: bkserv\n${new Date().toISOString()}\n\n${lines.join('\n') || 'Initial checks in progress.'}\n\nChecks every 30 seconds; alerts after 3 failures (low SOL: immediate). Status report every 5 minutes.\nRead-only: no trades, no worker activation.`;
 }
 async function apply(check) {
@@ -87,7 +88,7 @@ async function checkAll() {
     checks.push({ key: 'production-host', ok: true, detail: 'Production read-only observer reachable' }, ...snapshotChecks(JSON.parse(stdout)));
   } catch {
     checks.push({ key: 'production-host', ok: false, detail: 'Production host or read-only probe unavailable' });
-    for (const key of ['origin-website', 'origin-health', 'origin-token', 'origin-overview', 'database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'server-errors', 'client-errors']) {
+    for (const key of ['origin-website', 'origin-health', 'origin-token', 'origin-overview', 'database', 'backend-service', 'rpc', 'payer-sol', 'disk', 'worker', 'server-errors', 'client-errors', 'browser-3d']) {
       checks.push({ key, ok: false, detail: 'Cannot verify: production probe unavailable' });
     }
   }

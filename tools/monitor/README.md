@@ -12,6 +12,11 @@ five-minute window make the corresponding check unhealthy, with the usual alert
 threshold/cooldown. Browser failures include up to three recorded resource locations
 without URL credentials or query strings. Old records without resource details
 remain distinguishable from server errors but cannot identify the failed asset.
+WebGL-unavailable reports (including narrowly matched legacy Three.js messages)
+are separated from fatal client errors. `browser-3d` is yellow when such reports
+occur, never a red outage or repeated ALERT/RECOVERED cycle. New background code
+uses a static fallback and emits one diagnostic per page for unsupported/lost
+WebGL. Unrelated JavaScript and resource failures still trigger client-error alerts.
 Intentionally
 disabled workers are not failures. Checks every 30 seconds; three failures trigger
 an alert (low SOL immediately), repeats every 30 minutes, recovery once. `/status`

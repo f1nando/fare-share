@@ -20,11 +20,14 @@ export function snapshotChecks(snapshot, now = Date.now()) {
       detail: Number.isInteger(snapshot.recentServerErrors) ? `Server errors in last 5 minutes: ${snapshot.recentServerErrors}` : 'Server error counts unavailable' },
     { key: 'client-errors', ok: Number.isInteger(snapshot.recentClientErrors) ? snapshot.recentClientErrors < 3 : null,
       detail: Number.isInteger(snapshot.recentClientErrors) ? `Browser errors in last 5 minutes: ${snapshot.recentClientErrors}${snapshot.clientErrorResources?.length ? '; resources: ' + snapshot.clientErrorResources.map(r => `${r.location} (${r.count})`).join(', ') : snapshot.recentClientErrors ? '; resource details not recorded' : ''}` : 'Browser error counts unavailable' },
+    { key: 'browser-3d', ok: Number.isInteger(snapshot.recentWebglUnavailable) ? true : null,
+      severity: snapshot.recentWebglUnavailable > 0 ? 'warning' : 'normal',
+      detail: Number.isInteger(snapshot.recentWebglUnavailable) ? snapshot.recentWebglUnavailable > 0 ? `3D unavailable in some browsers; static fallback available; reports in last 5 minutes: ${snapshot.recentWebglUnavailable}` : 'No 3D-unavailable reports in last 5 minutes' : 'Browser 3D report counts unavailable' },
   ];
 }
 
 export function transition(previous, check, now = Date.now()) {
-  const state = { ...previous, key: check.key, detail: check.detail, ok: check.ok, checkedAt: now };
+  const state = { ...previous, key: check.key, detail: check.detail, ok: check.ok, severity: check.severity || 'normal', checkedAt: now };
   // A Cloudflare browser challenge is not proof of an outage or a recovery.
   if (check.ok === null) return { state };
   if (check.ok) {
