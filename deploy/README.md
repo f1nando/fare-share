@@ -120,6 +120,15 @@ admin-login and trade-stream endpoints. Re-check Security Events before making
 these limits stricter; wallet and trade flows must continue to work without a
 challenge loop.
 
+The independent Telegram monitor runs on `bkserv` (`ownataxi-monitor.service`).
+Cloudflare custom rule `Own a Taxi bkserv read-only health monitor` skips only
+Super Bot Fight Mode for source IPs `89.127.213.129` and `2a02:6b40:2000:293a::1`,
+host `ownataxi.com`, method `GET`, empty query string, and paths `/`, `/api/health`,
+`/api/token`, `/api/public/overview`. WAF managed rules and rate limits remain
+enabled; all other traffic is unaffected. Rule ID:
+`baf4eb65ea81434fb188185739d5831a`. If observer IPs change, update this narrow rule
+and verify both IPv4/IPv6 monitoring and challenge protection outside its scope.
+
 The `MARKET` navigation item and direct `/market/` route currently open the Magic
 Eden home page. Replace that URL with the verified official production collection
 page after Magic Eden confirms it; never link the disposable rehearsal collection
