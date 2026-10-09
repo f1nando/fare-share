@@ -80,7 +80,8 @@ async function checkAll() {
   ]);
   try {
     const { stdout } = await exec('ssh', ['-i', process.env.MONITOR_SSH_KEY, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
-      '-o', 'StrictHostKeyChecking=yes', '-o', 'IdentitiesOnly=yes', process.env.MONITOR_SSH_TARGET, 'snapshot'], { timeout: 25_000, maxBuffer: 64_000 });
+      '-o', 'StrictHostKeyChecking=yes', '-o', `UserKnownHostsFile=${process.env.MONITOR_SSH_KNOWN_HOSTS || '/etc/ownataxi-monitor/known_hosts'}`,
+      '-o', 'IdentitiesOnly=yes', process.env.MONITOR_SSH_TARGET, 'snapshot'], { timeout: 25_000, maxBuffer: 64_000 });
     checks.push({ key: 'production-host', ok: true, detail: 'Production read-only observer reachable' }, ...snapshotChecks(JSON.parse(stdout)));
   } catch {
     checks.push({ key: 'production-host', ok: false, detail: 'Production host or read-only probe unavailable' });

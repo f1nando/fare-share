@@ -15,7 +15,9 @@ checks, not proof that minting or trading succeeds; no paid operation is tested.
 Install just this directory's dependencies with `npm ci --omit=dev`. Run with
 `node --env-file=/etc/ownataxi-monitor/monitor.env monitor.mjs`. Environment:
 `TELEGRAM_BOT_TOKEN_FILE`, `MONITOR_MONGODB_URI`, `MONITOR_SITE_URL`,
-`MONITOR_SSH_KEY`, `MONITOR_SSH_TARGET`. Secrets stay outside Git.
+`MONITOR_SSH_KEY`, `MONITOR_SSH_TARGET`, and optionally `MONITOR_SSH_KNOWN_HOSTS`
+(default `/etc/ownataxi-monitor/known_hosts`). Pin the production host key obtained
+over an already trusted connection. Secrets stay outside Git.
 
 On feeserv, `snapshot.mjs` runs with the existing production environment and an
 explicit `MONITOR_PAYER_ADDRESS`. The observer SSH key must have a forced command
